@@ -136,7 +136,6 @@ class MethodTest(StudyCase, unittest.TestCase):
     def test_missing_operator_answers_are_listed_and_no_report_is_written(self):
         self.adopt()
         self.ingest(run())
-        self.cli("period", "--study", self.study, "--date", "2026-10-31", check=0)
         proc = self.method(check=2)
         for field in ("research_question", "purpose", "report_every", "origins"):
             self.assertIn(field, proc.stdout + proc.stderr)

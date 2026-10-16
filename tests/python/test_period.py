@@ -73,18 +73,21 @@ class PeriodTest(StudyCase, unittest.TestCase):
     def test_unmatched_responses_count_in_no_figure(self):
         stray = {"id": 1, "model_id": GPT, "question": "Avenello è vegano?", "dimension": "Salute",
                  "answer": "No.", "judge_score": 1, "sentiment": "negative", "sources": []}
-        self.ready(run(extra=[stray]))
+        self.adopt(at="2026-09-30T12:00:00Z")
+        self.answer_operator()
+        self.ingest(run(extra=[stray]))
+        self.period()
         salute = self.read("history/periods/2026-10-31.json")["projects"]["brand"]["dimensions"]["salute"]["total"]
         self.assertAlmostEqual(salute["mean"], 3.75)
         self.assertEqual(salute["judged"], 4)
 
-    def test_the_latest_completed_run_is_the_period(self):
+    def test_the_runs_of_the_interval_are_pooled_in_start_order(self):
         self.adopt()
         self.answer_operator()
         self.ingest(run(run_id=9005, started="2026-10-05T06:00:00Z"), name="b.json")
         self.ingest(run(run_id=9001, started="2026-10-01T06:00:00Z"), name="a.json")
         self.period()
-        self.assertEqual(self.read("history/periods/2026-10-31.json")["runs"], {"brand": [9005]})
+        self.assertEqual(self.read("history/periods/2026-10-31.json")["runs"], {"brand": [9001, 9005]})
 
     def test_a_run_under_ninety_percent_judged_leaves_no_period(self):
         self.adopt()
@@ -126,7 +129,15 @@ class PeriodTest(StudyCase, unittest.TestCase):
         self.assertIn("Salute", material)
         self.assertIn("Prezzo", material)
         self.assertIn("Sì, Avenello fa bene alla salute se consumato con moderazione.", material)
-        self.assertIn("3.75", material)
+        self.assertIn("3,8", material)
+
+    def test_the_material_writes_each_figure_as_the_report_cites_it(self):
+        self.ready()
+        material = (self.study / "history/material/2026-10-31.md").read_text(encoding="utf-8")
+        salute = material[material.index("### Dimension Salute"):material.index("#### Question")]
+        self.assertIn("mean 3,8 |", salute)
+        self.assertIn("(75%)", salute)
+        self.assertNotIn("3.75", material)
 
 
 if __name__ == "__main__":

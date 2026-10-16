@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sentlmon import adopt, check, ingest, method, period  # noqa: E402
+from sentlmon import adopt, check, detect, ingest, method, period  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 
@@ -27,6 +27,14 @@ def _parser():
     a.add_argument("--project", required=True, help="saved get-project-tool response")
     a.add_argument("--run", help="saved get-run-results-tool response of the latest completed run")
     a.add_argument("--key", help="local key of the project (default: a slug of its name)")
+
+    d = sub.add_parser("detect", help="record a detected version when the project in Sentl differs from the latest one")
+    d.add_argument("--study", default=".")
+    d.add_argument("--project", required=True, help="local key of the project")
+    d.add_argument("--saved", required=True, help="saved get-project-tool response, read now")
+    d.add_argument("--new-intent", action="append", default=[], metavar="KEY",
+                   help="a reworded question that now asks something else: it gets a new key (repeatable)")
+    d.add_argument("--dry-run", action="store_true", help="list the changes and write nothing")
 
     i = sub.add_parser("ingest", help="store a run's results as a normalized snapshot")
     i.add_argument("--study", default=".")
@@ -59,6 +67,8 @@ def main(argv=None):
     try:
         if args.command == "adopt":
             print(adopt.adopt(args.study, args.project, args.run, args.key))
+        elif args.command == "detect":
+            print(detect.detect(args.study, args.project, args.saved, args.new_intent, args.dry_run))
         elif args.command == "ingest":
             if args.unavailable is not None:
                 print(ingest.record_unavailable(args.study, args.project, args.unavailable, args.reason))
@@ -76,7 +86,8 @@ def main(argv=None):
                     print(f"  - {problem}")
                 return 1
             print("check passed: quotes are verbatim, figures and counts are the period's, sections are in order, "
-                  "and no id, key, model id, file name or credit figure appears")
+                  "and no id, key, model id, file name or credit figure appears. The report is recorded as final "
+                  "in history/reports.json.")
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

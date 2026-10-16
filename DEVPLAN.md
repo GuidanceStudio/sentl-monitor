@@ -1,16 +1,17 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1 done; M2 next.
+live Sentl projects with read-only tools. M1 and M2 done; M2b approved 2026-10-16, next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
 `snapshot` route (M7); from the second report on, a report opens with what changed and closes
 with the method sections. After the live read: a project's figure is the mean of its
-dimension means, as Sentl computes a run's score (A4); assumption A1 is verified at the start
-of M2 on a test project, with the operator's go for its one run; the first report on an
-adopted project rebuilds the K periods before it from the project's history and compares
-with them (M2).
+dimension means, as Sentl computes a run's score (A4); the first report on an adopted project
+rebuilds the K periods before it from the project's history and compares with them (M2).
+Revised later the same day: assumption A1 is settled at the start of M2 on read-only data, a
+live project whose earliest run predates an in-place edit of three of its questions, instead
+of a test run; no credit is spent.
 
 ## Objective
 
@@ -61,6 +62,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 ### Phase A — Report on an existing project
 - M1: Report on one run of an existing Sentl project — useful on its own, with no design route.
 - M2: Compare each report period with the previous ones — the periodic part of monitoring.
+- M2b: Explain each figure with its facts, sources and readings — what the client needs to know to correct an answer.
 
 ### Phase B — Design a study
 - M3: Build the theme inventory and collect search demand — steps 1–2 of the operator's process.
@@ -111,24 +113,63 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - A first report covers the latest run only, whatever `report_every` says; pooling arrives with M2.
 - `install.sh` refuses a non-empty destination that is not a sentl-monitor install, since it replaces it with `rm -rf`.
 
-## M2: Compare each report period with the previous ones
+## M2: Compare each report period with the previous ones ✅
 
 **Why:** A periodic report must say what moved since the last one, and keep comparing when questions, criteria or models change.
 
-**Approach:** Starts by verifying assumption A1, because the handling of edits made in the Sentl web panel depends on it: in the organization the operator designates for tests, a project with one question and one model, one run on the operator's go after `estimate-run-tool`, the question's text edited, the run read again; the project is then paused and left for the operator to archive (gap G16). `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change; on the first report of a project with earlier runs it rebuilds the K periods before it (§Periods). The `changes` section is written from its output; `history/reports.json` indexes the reports and sets the order: the first report in the first-report order, every later one with `changes` and `findings` first and the five method sections after them, complete.
+**Approach:** Starts by settling assumption A1, because the handling of edits made in the Sentl web panel depends on it, on read-only data: a live project whose earliest run was read after three of its questions were reworded. Question ids are allocated in sequence across the account, so the reworded questions keeping their ids places the edit in place; the earlier run returning the earlier texts settles A1. `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change; on the first report of a project with earlier runs it rebuilds the K periods before it (§Periods). The `changes` section is written from its output; `history/reports.json` indexes the reports and sets the order: the first report in the first-report order, every later one with `changes` and `findings` first and the five method sections after them, complete.
 
 **Tasks:**
-- [ ] Verify assumption A1 on a test project, on the operator's go for its run; record the result in ARCHITECTURE.md and, if it is false, the new-baseline rule in §Comparability
-- [ ] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods, including a model absent from `list-ai-models` (A5) and rounds pooled as repeated responses (A3)
-- [ ] Test: unit — each §Comparability row: reworded, new intent, criteria, model added, dimension archived
-- [ ] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands with means on their edges (2.45, 2.5, 3.49, 3.5); new and lost domains
-- [ ] Test: unit — a detected edit creates a version; responses inside its window match the previous text
-- [ ] Test: unit — rebuilt periods: an adopted project with ten weeks of runs and a monthly cadence gets the K earlier periods with `rebuilt: true` and no report; runs before the adopt version have `version: null` and `expected` from their responses; an unavailable run is left out and listed
-- [ ] Test: unit — section order follows `reports.json`: the first report, rebuilt periods or not, in the first-report order with a `changes` section that compares when periods were rebuilt; later reports open with `changes` and `findings` and the method sections follow with the same content as in a first report; `check` refuses a later report in the first-report order, and the reverse
-- [ ] Implement versions, the comparison and the rebuilt periods in `period`, the `changes` section, the later-report order, `reports.json`; update `REPORT.md` and `ADOPT.md`
-- [ ] Commit
+- [x] Settle assumption A1 on a live project's run that predates an in-place edit of its questions, read with read-only tools; record the result and the evidence, with no account data, in ARCHITECTURE.md §Assumptions and, if it is false, the new-baseline rule in §Comparability
+- [x] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods, including a model absent from `list-ai-models` (A5) and rounds pooled as repeated responses (A3)
+- [x] Test: unit — each §Comparability row: reworded, new intent, criteria, model added, dimension archived
+- [x] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands with means on their edges (2.45, 2.5, 3.49, 3.5); new and lost domains
+- [x] Test: unit — a detected edit creates a version; responses inside its window match the previous text
+- [x] Test: unit — rebuilt periods: an adopted project with ten weeks of runs and a monthly cadence gets the K earlier periods with `rebuilt: true` and no report; runs before the adopt version have `version: null` and `expected` from their responses; an unavailable run is left out and listed
+- [x] Test: unit — section order follows `reports.json`: the first report, rebuilt periods or not, in the first-report order with a `changes` section that compares when periods were rebuilt; later reports open with `changes` and `findings` and the method sections follow with the same content as in a first report; `check` refuses a later report in the first-report order, and the reverse
+- [x] Implement versions, the comparison and the rebuilt periods in `period`, the `changes` section, the later-report order, `reports.json`; update `REPORT.md` and `ADOPT.md`
+- [x] Commit
 
 **Done when:** A1 is recorded as verified or refuted; three consecutive reports on a fictional history produce the expected `changes` section, including a reworded question, a criteria change and an added model, the first in the first-report order and the second and third opening with `changes` and closing with the method sections; a fictional adopted project's first report compares with its rebuilt periods.
+
+**Deviations:**
+- `period` refuses a study without `report_every`; versions gain `seen_at` and a `dimension_renamed` change; `monitor.py detect` (`--dry-run`, `--new-intent`) records detected versions.
+- Inside a window a run takes the version matching its models, rounds and asked questions; on a criteria-only tie the changed questions are dropped from that run (`criteria_unknown`).
+- Each period takes its questions and wording from its runs' latest version; the scoring section still shows the rubric from `study.json`, since a version holds only its hash.
+- `check` keys findings by project and dimension, records a passing report as final in `reports.json`, and in `changes` accepts the previous period's quotes and comparison figures; the material prints figures as `check` rounds them.
+- Open: an unavailable run is listed in every period's output, since its start time is not stored.
+
+## M2b: Explain each figure with its facts, sources and readings
+
+**Why:** A dimension mean says how favourable the answers are, not why a figure moved or what the client should correct. The points a client acts on lie outside the means: an outdated fact quoted in most answers and the pages that carry it; an episode the period's mean averages away; a score drop caused by missing evidence rather than by negative answers; rounds of one run that cite the same sources; comparison pages written by competitors; the pages that brought the subject into an answer. `period` computes none of these, so a report written from its material cannot state them.
+
+**Approach:** Each insight is a figure in the period file, so `check` verifies it like any other, and an entry in the period's material, so the findings are written from it. Depends on M2 (periods and comparison).
+- **Fact currency.** A question's `facts` entry gains optional `current` and `outdated` term lists (ARCHITECTURE.md §`study.json`). `period` counts, per question, model and run, the answers stating a current term, an outdated one, or both, folded like aliases.
+- **Sources behind a fact or a score.** Per question, the domains cited by a larger share of the answers stating an outdated term than of those stating a current one, and of the answers scored 1–2 than of those scored 4–5; a domain is listed when at least five answers cite it and the two shares are at least 10 points apart.
+- **Readings.** Rounds of a question–model pair in one run that cite the same list of sources are one reading. Each cell records `readings` beside `received`; the report states the readings a presence figure rests on when they are fewer than the answers.
+- **Episodes.** A question's mean or a fact's current share that lies outside the range of the runs before it, in this period and the previous one and at least five of them, for at least three consecutive runs is an episode, with its first and last date; it closes at the first value back inside that range. A first period with no previous one is read against its own earlier runs, so a first monthly report still shows a movement inside the month.
+- **Presence per run.** For each question whose answers do not name the subject in the text, the presence in each run of the period, so a finding can say in which readings the subject was named and in which it was not.
+- **Missing evidence.** Answers in which the assistant says it found no source of the kind the question asks for are found by a phrase list per market language. `period` gives each question–model pair's mean with and without them, so a drop they account for is reported as missing evidence, not as a change in what is said.
+- **Who wrote the sources.** `foils` gain optional `domains`. Each cited domain is owned, a foil's, or third party; per dimension, the share of answers citing a foil's pages and the foil pages cited most.
+- **Presence changes.** For each question whose presence changed, the domains cited by the answers naming the subject in this period and by no answer in the previous one, and the reverse.
+- **`report/INSIGHTS.md`.** One entry per insight: what it shows, the period figures it rests on, how a finding states it, its limit, with examples on the fictional oat-drink brand. `REPORT.md` points the findings and changes steps to it.
+- **`adopt`** asks for the foils' domains and for the current and outdated terms of the facts that carry a figure or a name (prices, fees, people in charge).
+
+**Tasks:**
+- [ ] Test: unit — fact currency: current, outdated and both, per model and per run, terms folded like aliases
+- [ ] Test: unit — sources behind an outdated fact and behind low scores, at the five-answer and 10-point thresholds and just under them
+- [ ] Test: unit — readings: three rounds with one source list are one reading, three different lists are three
+- [ ] Test: unit — episodes: three consecutive daily values outside the range of the earlier runs open one, two do not, fewer than five earlier runs open none; one that returns inside the range is closed with its dates; a first period is read against its own earlier runs
+- [ ] Test: unit — presence per run on an unbranded question: named in the last two of four weekly runs
+- [ ] Test: unit — missing evidence: phrase match in `en` and `it`; a pair's mean with and without the matched answers
+- [ ] Test: unit — domains split into owned, foil and third party; foil share per dimension
+- [ ] Test: unit — a presence change lists the domains new and lost in the answers naming the subject
+- [ ] Test: unit — `check` accepts each new figure taken from the period file and refuses one that is not in it
+- [ ] Implement in `period`, `adopt` and `check`; write `report/INSIGHTS.md`; update `REPORT.md`, `ADOPT.md` and ARCHITECTURE.md
+- [ ] Test: live — the first report on a real adopted project with several weeks of runs states the insights its history contains; the project is named by an environment variable
+- [ ] Commit
+
+**Done when:** on a fictional history built to contain each pattern, the period's material lists every insight above with its figures, a report that states them passes `check`, and the live first report passes `check` with them.
 
 ## M3: Build the theme inventory and collect search demand
 

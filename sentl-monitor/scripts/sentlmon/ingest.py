@@ -1,6 +1,6 @@
 """`ingest`: turn a saved get-run-results-tool response into a run snapshot."""
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from .common import (FINAL, Refused, Study, domain_of, load_json, load_mcp, match_key, mean, now_iso,
                      parse_time, write_gz, write_json)
@@ -10,15 +10,19 @@ class NotFinal(Exception):
     """A run whose status is not final; exit code 3."""
 
 
-def version_in_force(versions, started_at):
-    """The latest version recorded before the run started, or None when the run
-    predates every recorded version (a run read from an adopted project's history)."""
+def candidates(versions, started_at):
+    """The versions a run is matched against, the one in force first. A detected version
+    is in force from the end of its window; a run started inside the window is matched
+    against it and the version before it, since the edit happened somewhere in between.
+    Empty when the run predates every recorded version (an adopted project's history)."""
     start = parse_time(started_at)
-    current = None
-    for v in versions:
+    for i in range(len(versions) - 1, -1, -1):
+        v = versions[i]
         if parse_time(v["recorded_at"]) <= start:
-            current = v
-    return current
+            return [v]
+        if v.get("window") and i and parse_time(v["window"]["from"]) <= start:
+            return [v, versions[i - 1]]
+    return []
 
 
 def _question_map(version):
@@ -27,6 +31,31 @@ def _question_map(version):
         for q in d["questions"]:
             out[(match_key(d["name"]), match_key(q["text"]))] = (d["key"], q["key"])
     return out
+
+
+def _asked(r):
+    return match_key(r.get("dimension")), match_key(r.get("question"))
+
+
+def _rounds(pairs):
+    return max(Counter(pairs).values(), default=1)
+
+
+def _fit(version, responses):
+    """How well a version explains a run: its models, its rounds, then how few questions one
+    of them asks and the other does not. A question the version holds and the run never
+    asked counts against the version, so a run made before a question was added keeps the
+    earlier version."""
+    measured = {(match_key(d["name"]), match_key(q["text"]))
+                for d in version["dimensions"] if not d["archived"] for q in d["questions"]}
+    settings = version["settings"]
+    return (set(settings["models"]) == {r.get("model_id") for r in responses},
+            settings["rounds"] == _rounds((_asked(r), r.get("model_id")) for r in responses),
+            -len(measured ^ {_asked(r) for r in responses}))
+
+
+def _criteria(version):
+    return {q["key"]: q["criteria_hash"] for d in version["dimensions"] for q in d["questions"]}
 
 
 def _unavailable(folder):
@@ -86,13 +115,25 @@ def ingest(root, key, results_file):
 
     versions = folder.versions(key)
     if not versions:
-        raise Refused(f"no recorded version for project {key}: run adopt first")
-    version = version_in_force(versions, run["started_at"])
-    qmap = _question_map(version or versions[0])
+        raise Refused(f"no recorded version for project {key!r}: run adopt first")
+    tried = candidates(versions, run["started_at"])
+    unknown = []
+    if len(tried) == 2:
+        later, earlier = (_fit(v, run["responses"]) for v in tried)
+        if later == earlier:
+            # Nothing in the run tells the two versions apart, so the rubric its answers were
+            # judged under is unknown for every question whose criteria changed between them.
+            before, after = _criteria(tried[1]), _criteria(tried[0])
+            unknown = sorted(k for k in after if k in before and before[k] != after[k])
+        elif earlier > later:
+            tried.reverse()
+    version = tried[0] if tried else None
+    maps = [(_question_map(v), "version" if version is not None and v is not version else "exact")
+            for v in (tried or versions[:1])]
 
     responses, unmatched = [], []
     for r in run["responses"]:
-        found = qmap.get((match_key(r.get("dimension")), match_key(r.get("question"))))
+        found, how = next(((qmap[_asked(r)], how) for qmap, how in maps if _asked(r) in qmap), (None, "unmatched"))
         score = r.get("judge_score")
         entry = {
             "response_id": r.get("id"), "question": found[1] if found else None,
@@ -101,7 +142,7 @@ def ingest(root, key, results_file):
             "answer": r.get("answer"),
             "sources": [{"url": s.get("url"), "title": s.get("title"), "domain": domain_of(s.get("url"), s.get("title"))}
                         for s in r.get("sources") or []],
-            "match": "exact" if found else "unmatched",
+            "match": how,
         }
         if not found:
             entry["asked"] = {"dimension": r.get("dimension"), "question": r.get("question")}
@@ -113,14 +154,15 @@ def ingest(root, key, results_file):
         measured = [d for d in version["dimensions"] if not d["archived"]]
         plan = {"questions": [q["key"] for d in measured for q in d["questions"]],
                 "models": list(version["settings"]["models"]), "rounds": version["settings"]["rounds"]}
+        expected = len(plan["questions"]) * len(plan["models"]) * plan["rounds"]
     else:
-        pairs = defaultdict(int)
-        for r in matched:
-            pairs[(r["question"], r["model"])] += 1
+        # No configuration is known for the run (gap G2): what it asked is what it answered,
+        # and a question asked in a wording no version holds still counts as asked.
+        asked = {_asked(r) for r in run["responses"]}
         plan = {"questions": sorted({r["question"] for r in matched}),
-                "models": sorted({r["model"] for r in matched}),
-                "rounds": max(pairs.values(), default=1)}
-    expected = len(plan["questions"]) * len(plan["models"]) * plan["rounds"]
+                "models": sorted({r["model"] for r in responses}),
+                "rounds": _rounds((_asked(r), r.get("model_id")) for r in run["responses"])}
+        expected = len(asked) * len(plan["models"]) * plan["rounds"]
     judged = sum(1 for r in matched if r["score"] is not None)
 
     snapshot = {
@@ -129,7 +171,7 @@ def ingest(root, key, results_file):
         "sentl_score": run.get("reputation_score"), "error": run.get("error"),
         "version": version["version"] if version else None, "ingested_at": now_iso(),
         "plan": plan, "expected": expected, "received": len(responses), "judged": judged,
-        "responses": responses,
+        "criteria_unknown": unknown, "responses": responses,
     }
     write_gz(target, snapshot)
     _clear_unavailable(folder, key, run_id)

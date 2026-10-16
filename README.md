@@ -12,9 +12,10 @@ for that question, and each run produces a score. This skill decides what to ask
 puts it in Sentl, and turns the runs into reports. It makes no model calls of its own.
 
 **Status:** the `adopt` and `report` routes work: a project that already exists in Sentl is
-taken into a study folder and reported on, from its latest run. The other routes are
-planned; the design is in [ARCHITECTURE.md](ARCHITECTURE.md) and the plan in
-[DEVPLAN.md](DEVPLAN.md).
+taken into a study folder and reported on period by period, each report compared with the
+earlier periods; the first report on a project with earlier runs compares with periods
+rebuilt from them. The other routes are planned; the design is in
+[ARCHITECTURE.md](ARCHITECTURE.md) and the plan in [DEVPLAN.md](DEVPLAN.md).
 
 ## Who it is for
 
@@ -203,7 +204,7 @@ sentl-monitor/         the skill payload
   setup/SETUP.md       planned
   snapshot/SNAPSHOT.md planned
   catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, ingest, period, method, check (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, ingest, period, method, check (more with each route)
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```

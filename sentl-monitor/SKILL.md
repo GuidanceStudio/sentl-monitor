@@ -4,8 +4,10 @@ description: >-
   Monitor what AI assistants tell people about a subject — a brand, a product category, a
   production method or an organisation — with Sentl, through Sentl's MCP server. Routes:
   `adopt <project>` (take a project that already exists in Sentl into a study folder) and
-  `report` (read the latest runs and write a dated Markdown report: the method first, then
-  what the assistants say, dimension by dimension, with verbatim answers and cited sources).
+  `report` (pool the runs since the previous report and write a dated Markdown report that
+  compares them with the earlier periods: what the assistants say, dimension by dimension,
+  with verbatim answers and cited sources; the first report opens with the method, later
+  ones with what changed).
   Use for AI visibility, GEO or AEO monitoring, LLM reputation reports, or any report on a
   Sentl project's runs.
 compatibility: >-
@@ -27,7 +29,7 @@ read without having seen an earlier one.
 | Invocation | Playbook | What it does |
 |---|---|---|
 | `adopt <project>` | `adopt/ADOPT.md` | takes an existing Sentl project into a study folder and asks the operator what Sentl does not hold |
-| `report` | `report/REPORT.md` | reads the latest completed run and writes `reports/<date>.md` |
+| `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md` |
 
 Read the playbook of the route invoked and follow it step by step. `brief`, `design`, `setup`
 and `snapshot` are planned and not available yet: say so if one is invoked.
@@ -56,6 +58,7 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
   (the message says why and what to do); 3 run not final yet; 4 no run left in the period.
 - **What the operator is told goes in the chat, never in the report:** runs covered and left
   out, unmatched responses, unavailable runs, a run score that differs from the one computed,
-  dimensions shown without a figure.
+  dimensions shown without a figure, edits detected in Sentl, the periods rebuilt from a
+  project's earlier runs or that no earlier period exists.
 - Talk to the operator in their language. The report is written in the study's
   `report_language`.

@@ -3,37 +3,51 @@ in the order the report takes, with an entry per dimension left for the findings
 
 from .adopt import missing_answers
 from .common import Refused, Study, fmt_date, load_json, load_mcp, public_name, write_text
-from .i18n import AUDIENCE, FIRST_ORDER, ORIGINS, SECTIONS, TEXT, join
+from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join
 
 
-def report_order(study):
-    return FIRST_ORDER
+def report_order(folder, date):
+    """The later-report order once a final report precedes this one in history/reports.json."""
+    later = any(e["status"] == "final" and e["date"] < date for e in folder.reports())
+    return LATER_ORDER if later else FIRST_ORDER
 
 
-def measured(study):
-    """(project, its measured dimensions) pairs."""
-    return [(p, [d for d in p["dimensions"] if not d.get("archived")]) for p in study["projects"]]
+def measured(study, period):
+    """(project, dimensions) pairs of what the period asked: each dimension and question named
+    and worded as the period's runs had them, with the study's other fields for it."""
+    out = []
+    for proj in study["projects"]:
+        asked = period.get("asked", {}).get(proj["key"])
+        if not asked:
+            continue
+        dims = {d["key"]: d for d in proj["dimensions"]}
+        questions = {q["key"]: q for d in proj["dimensions"] for q in d["questions"]}
+        out.append((proj, [{**dims.get(d["key"], {}), "key": d["key"], "name": d["name"],
+                            "questions": [{**questions.get(q["key"], {}), **q} for q in d["questions"]]}
+                           for d in asked]))
+    return out
 
 
-def _purpose(study, period, names, lang):
+def _purpose(study, projects, period, names, lang):
     t = TEXT[lang]
     models = sorted({m for b in period["projects"].values() for m in b["by_model"]})
     shown = [public_name(m, names) for m in models]
-    questions = sum(len(d["questions"]) for _, dims in measured(study) for d in dims)
+    questions = sum(len(d["questions"]) for _, dims in projects for d in dims)
     received = sum(b["total"]["received"] for b in period["projects"].values())
     judged = sum(b["total"]["judged"] for b in period["projects"].values())
     asked = t["asked"] if len(shown) != 1 else t["asked_one"]
     lines = [study["narrative"]["purpose"], "",
              asked.format(questions=questions, count=len(shown), names=join(shown, lang))]
-    if any(q.get("pair") for _, dims in measured(study) for d in dims for q in d["questions"]):
+    if any(q.get("pair") for _, dims in projects for d in dims for q in d["questions"]):
         lines.append(t["paired"])
     lines.append(t["collected"].format(received=received, judged=judged) + " " + t["sources"])
     return lines
 
 
-def _themes(study, root, lang):
+def _themes(study, projects, root, lang):
+    asked = {d["key"] for _, dims in projects for d in dims}
     by_kind = {}
-    for theme in study["themes"]:
+    for theme in (t for t in study["themes"] if t.get("dimension") in asked or not t.get("dimension")):
         for origin in theme.get("origins") or []:
             by_kind.setdefault(origin["kind"], []).append(f"{theme['label']}: {origin['detail']}")
     lines = []
@@ -45,13 +59,13 @@ def _themes(study, root, lang):
     return lines
 
 
-def _dimensions(study, lang):
+def _dimensions(study, projects, lang):
     t = TEXT[lang]
     themes = {}
     for theme in study["themes"]:
         themes.setdefault(theme.get("dimension"), []).append(theme)
     lines = []
-    for proj, dims in measured(study):
+    for proj, dims in projects:
         lines += [f"**{proj['name']}**", ""]
         if proj.get("question"):
             lines.append(t["project_question"].format(question=proj["question"]))
@@ -69,14 +83,14 @@ def _dimensions(study, lang):
         lines.append(f"- {item['choice']}: {item['reason']}")
     audience = study["narrative"]["audience"]
     lines.append(t["who_asks"].format(audience=AUDIENCE[lang][audience["choice"]], reason=audience["reason"]))
-    if any(q.get("persona") for _, dims in measured(study) for d in dims for q in d["questions"]):
+    if any(q.get("persona") for _, dims in projects for d in dims for q in d["questions"]):
         lines.append(t["persona_beside"])
     return lines
 
 
-def _questions(study, lang):
+def _questions(projects, lang):
     lines = []
-    for _, dims in measured(study):
+    for _, dims in projects:
         for d in dims:
             lines += [f"**{d['name']}**", ""]
             shown = set()
@@ -93,27 +107,57 @@ def _questions(study, lang):
     return lines
 
 
-def _scoring(study, lang):
+def _scoring(study, projects, lang):
     t = TEXT[lang]
     criteria = study["narrative"]["criteria"]
     subject = study["subject"]["label"]
     lines = [t["judge"].format(by=criteria["by"], date=fmt_date(criteria["date"], lang)), ""]
-    for _, dims in measured(study):
+    for _, dims in projects:
         for d in dims:
             lines += [f"**{d['name']}**", ""]
             for q in d["questions"]:
                 r = q.get("rubric") or {}
-                lines.append(f"- «{q['text']}» " + t["anchors"].format(a5=r.get("5", ""), a3=r.get("3", ""),
-                                                                      a1=r.get("1", "")))
+                lines.append(f"- «{q['text']}»" + (" " + t["anchors"].format(a5=r.get("5", ""), a3=r.get("3", ""),
+                                                                            a1=r.get("1", "")) if r else ""))
             lines.append("")
     axis = study["narrative"].get("score_axis")
-    lines += [t["figures"], "", t[f"axis_{axis}" if axis in ("stance", "fidelity") else "axis_none"].format(subject=subject)]
+    lines += [t["figures"], "", t["change_rule"], "",
+              t[f"axis_{axis}" if axis in ("stance", "fidelity") else "axis_none"].format(subject=subject)]
     return lines
 
 
-def _findings(study, lang):
+def _design_line(change, names, lang):
+    t, kind = TEXT[lang], change["change"]
+    if kind == "models":
+        def shown(models):
+            return join([names.get(m) or public_name(m, {}) for m in models], lang)
+        out = [t[k][len(change[field]) > 1].format(names=shown(change[field]))
+               for k, field in (("models_added", "added"), ("models_removed", "removed")) if change[field]]
+        basis = change["basis"]
+        return " ".join(out + [t["models_basis"][len(basis) > 1].format(names=shown(basis)) if basis
+                               else t["models_none"]])
+    if kind.startswith("dimension_"):
+        return t[kind].format(name=change["name"])
+    return t[kind].format(since=fmt_date(change["since"], lang) if change.get("since") else "",
+                          text=change.get("text"), previous=change.get("previous_text"))
+
+
+def _changes(period, lang):
+    """The comparison line, the entry the agent writes on the answers, then the design changes."""
+    t, c = TEXT[lang], period["comparison"]
+    if c["previous"] is None:
+        return [t["first"]]
+    before = c["previous_period"]
+    start, end = fmt_date(before["from"], lang), fmt_date(before["to"], lang)
+    intro = (t["compared_day"] if start == end else t["compared_period"]).format(start=start, end=end)
+    lines = [intro + (" " + t["rebuilt_previous"] if before["rebuilt"] else ""), "", t["changes_marker"], ""]
+    for change in c["design_changes"]:
+        lines += [_design_line(change, period.get("names", {}), lang), ""]
+    return lines
+
+
+def _findings(projects, lang):
     t = TEXT[lang]
-    projects = measured(study)
     level = "###" if len(projects) == 1 else "####"
     lines = []
     for proj, dims in projects:
@@ -145,17 +189,18 @@ def write(root, date, models_file, force=False):
     when = fmt_date(date, lang)
     subtitle = TEXT[lang]["title_day" if start == end else "title_period"].format(
         subject=study["subject"]["label"], start=start, end=end, date=when)
+    projects = measured(study, period)
     builders = {
-        "purpose": lambda: _purpose(study, period, names, lang),
-        "themes": lambda: _themes(study, folder, lang),
-        "dimensions": lambda: _dimensions(study, lang),
-        "questions": lambda: _questions(study, lang),
-        "scoring": lambda: _scoring(study, lang),
-        "findings": lambda: _findings(study, lang),
-        "changes": lambda: [TEXT[lang]["first"]],
+        "purpose": lambda: _purpose(study, projects, period, names, lang),
+        "themes": lambda: _themes(study, projects, folder, lang),
+        "dimensions": lambda: _dimensions(study, projects, lang),
+        "questions": lambda: _questions(projects, lang),
+        "scoring": lambda: _scoring(study, projects, lang),
+        "findings": lambda: _findings(projects, lang),
+        "changes": lambda: _changes(period, lang),
     }
     out = [f"# {study['narrative']['research_question']}", "", subtitle, ""]
-    for n, key in enumerate(report_order(study), 1):
+    for n, key in enumerate(report_order(folder, date), 1):
         out += [f"## {n}. {SECTIONS[lang][key]}", ""] + builders[key]() + [""]
     text = "\n".join(out).rstrip() + "\n"
     while "\n\n\n" in text:

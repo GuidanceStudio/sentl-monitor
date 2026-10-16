@@ -127,6 +127,15 @@ class Study:
     def run(self, key, run_id):
         return read_gz(self.path("history", "runs", key, f"{run_id}.json.gz"))
 
+    def reports(self):
+        """history/reports.json: one entry per report, in date order."""
+        path = self.path("history", "reports.json")
+        return load_json(path) if path.exists() else []
+
+    def record_report(self, entry):
+        entries = [e for e in self.reports() if e["date"] != entry["date"]] + [entry]
+        write_json(self.path("history", "reports.json"), sorted(entries, key=lambda e: e["date"]))
+
 
 # --- text -------------------------------------------------------------------
 

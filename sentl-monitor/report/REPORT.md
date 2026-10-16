@@ -1,7 +1,8 @@
 # report
 
-Reads the latest completed run of each project in the study and writes
-`reports/<date>.md`. Reads only: no Sentl write, no credit spent.
+Reads the completed runs since the previous report, pools them into one period, compares the
+period with the earlier ones and writes `reports/<date>.md`. Reads only: no Sentl write, no
+credit spent.
 
 `<skill>` is this skill's directory, `$S` the study folder, `D` today's date (`YYYY-MM-DD`).
 Run every command with `--study "$S"`.
@@ -11,57 +12,99 @@ Run every command with `--study "$S"`.
 `$S/study.json` and `$S/sentl.json` must exist; otherwise run `adopt` first. Call
 `list-organizations` to confirm the connection (see SKILL.md when it fails).
 
-## 2. Read the latest run of each project
+## 2. The project as it is in Sentl now
 
-For each project in `sentl.json` (key `K`, project id `P`):
+For each project in `sentl.json` (key `K`, project id `P`), call `get-project-tool` with `P`
+and save it to `$S/inbox/project-P.json` (copy the host's file when the response was large).
+Then:
 
-1. `list-runs-tool` with `P`; order by `started_at`, newest first. Take the newest run with
-   status `completed` or `completed_with_warnings`. A run with any other status is not final:
-   skip it and mention it to the operator.
-2. If `$S/history/runs/K/<run>.json.gz` exists, it is already ingested; go on.
-3. Otherwise, if `$S/inbox/run-<run>.json` exists (`adopt` saved it), use it; else call
-   `get-run-results-tool` and save it there (copy the host's file when the response was
-   large). Then:
+```bash
+python3 <skill>/scripts/monitor.py detect --study "$S" --project K --saved "$S/inbox/project-P.json" --dry-run
+```
 
-   ```bash
-   python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<run>.json"
-   ```
+- **Unchanged:** run the same command without `--dry-run`, which records that the project
+  was seen today.
+- **Changes listed:** someone edited the project in the Sentl web panel. A reworded question
+  keeps its key and is compared with its earlier wording. Ask the operator, for each
+  reworded question, whether it still asks the same thing. Then run the command without
+  `--dry-run`, adding `--new-intent <key>` for each question the operator says now asks
+  something else. Unattended, run it without `--new-intent`.
+- Exit 2: the saved file is not complete JSON or belongs to another project; save it again.
 
-   - Exit 2, not complete JSON: save the response again from the host's file and rerun.
-   - Sentl returned an error instead of results:
-     `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`,
-     then take the next completed run.
-   - The output lists unmatched responses or a run score that differs: keep it for step 7.
+The detected version is in `history/versions/`. For an adopted project, `study.json` and
+`sentl.json` now follow Sentl's project; a new dimension gets a theme without origins, which
+step 6 asks the operator for. An edit made after the period's last run shows in the next
+report, not in this one.
 
-## 3. Models
+## 3. Read the runs of the period
+
+`list-runs-tool` with `P`; order the runs by `started_at`, never by their place in the
+listing. The runs to read:
+
+- **First report** (`$S/history/reports.json` missing, or no report in it dated before
+  `D`): the completed runs started in the last five `report_every` intervals before `D`
+  (35 days for `weekly`, five months for `monthly`). The last interval is the period; the
+  four before it are rebuilt from their runs, so the report can compare with them.
+- **Later reports:** the completed runs started after `period.to` of the latest report in
+  `history/reports.json`.
+
+Completed means `completed` or `completed_with_warnings`; any other status is not final:
+skip the run and mention it to the operator. Runs listed in `history/unavailable.json` are
+requested again.
+
+For each of those runs not yet in `$S/history/runs/K/`: if `$S/inbox/run-<run>.json` exists
+(`adopt` saved it), use it; else call `get-run-results-tool` and save it there (copy the
+host's file when the response was large). Then:
+
+```bash
+python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<run>.json"
+```
+
+- Exit 2, not complete JSON: save the response again from the host's file and rerun.
+- Sentl returned an error instead of results:
+  `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
+- The output lists unmatched responses or a run score that differs: keep it for step 10.
+
+## 4. Models
 
 `list-ai-models`, saved to `$S/inbox/models.json`. It gives each researcher model's public
 name; the report never shows a model id.
 
-## 4. Period
+## 5. Period
 
 ```bash
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
 ```
 
-Exit 4: the run has fewer than 90% of its answers judged, so there is no figure to report.
-Tell the operator which run and the share judged, and stop.
+The output says which runs the period pools, which runs were left out and why, the
+unavailable runs, and on a first report either the periods rebuilt from earlier runs or that
+there is no earlier period. Keep all of it for step 10; none of it goes in the report.
 
-## 5. Method sections
+- Exit 2 saying `report_every` is not set: ask the operator whether a report covers a week
+  or a month, write it into `study.json`, rerun.
+- Exit 4: no run of the period has 90% of its answers judged, or the period has no run.
+  Tell the operator which runs and the share judged, and stop.
+
+## 6. Method sections
 
 ```bash
 python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inbox/models.json"
 ```
 
 Exit 2 listing fields: the operator has not answered them yet; ask (see `adopt` step 6) and
-rerun. The script writes `reports/D.md` with the method sections, the first-report changes
-line, and one entry per dimension under the findings section, marked `[[...]]`.
+rerun. The script writes `reports/D.md`. A first report (no final report before `D` in
+`history/reports.json`) opens with the method sections; a later report opens with what
+changed and what the assistants say, and the method sections close it. The findings section
+holds one entry per dimension, marked `[[...]]`. The changes section holds either the line
+saying this is the first measurement, or the period compared with, a `[[...]]` marker for
+the changes in the answers, and one line per change in the design.
 
-## 6. Write the findings
+## 7. Write the findings
 
 Read `$S/history/material/D.md`: per dimension, the figures, the domains cited, and per
 question whether it names the subject, then every answer with its assistant and score,
-between `~~~~` lines exactly as Sentl returned it. Replace each `[[...]]` marker with:
+between `~~~~` lines exactly as Sentl returned it. Replace each `[[...]]` marker of the
+findings with:
 
 - **The heading**: `### <Dimension name>: <what the person asking is told>`. The part after
   the colon is a plain statement of what the answers say, never a score.
@@ -73,32 +116,54 @@ between `~~~~` lines exactly as Sentl returned it. Replace each `[[...]]` marker
 - **After each excerpt**, on a plain line: the question in «» and the assistant's public
   name.
 - **The domains** those answers cite.
-- **The figure**, when the material says `figure yes`: the dimension's mean with one decimal
-  (a comma in Italian), and how many answers were judged out of how many expected, written
-  as "N su M risposte" or "N of M answers". When it says `figure no`: no mean, only how many
+- **The figure**, when the material says `figure yes`: the dimension's mean as the material
+  prints it (one decimal, a comma in Italian; never round it again), and how many answers
+  were judged out of how many expected, written as "N su M risposte" or "N of M answers". When it says `figure no`: no mean, only how many
   answers were judged. For a question whose material says `names the subject: no`, the
   presence: in what share of the answers the subject is named (whole percent).
 - An entry cites the figures of its own dimension and the project's overall figure, never
   another dimension's.
 - **One line on what it means for the client.**
 
-Every figure must come from the material, rounded as above. Write plain declarative
-sentences; no slogans, no rhetorical openers. Never write a run, project or question id, a
-question key, a model id, a file name, a credit figure, or anything about the skill's own
-steps.
+## 8. Write the changes in the answers
 
-## 7. Check
+Skip this step when the changes section says this is the first measurement. Otherwise read
+the material's part "Changes since the previous period" and replace the `[[...]]` marker of
+the changes section with:
+
+- **Each change called**, dimension or question: one sentence saying what moved, with the
+  value before and now as the material prints them (a mean with one decimal, a presence in
+  whole percent). A dimension
+  the material marks as not compared, or new, gets no figure here.
+- **Each verdict change**: one sentence naming the assistant and the question, then the two
+  answers the material gives, as excerpts copied by their lines, each followed by the question
+  in «», the assistant's public name and which period it comes from.
+- **The domains** new or lost, per dimension.
+- **One line** saying the other dimensions are unchanged.
+
+Keep the line above the marker and the design-change lines below it as `method` wrote them.
+
+Every figure in steps 7 and 8 must come from the material, rounded as above. Write plain
+declarative sentences; no slogans, no rhetorical openers. Never write a run, project or
+question id, a question key, a model id, a file name, a credit figure, or anything about the
+skill's own steps.
+
+## 9. Check
 
 ```bash
 python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
 ```
 
 Exit 1 lists each problem: fix the report and run it again until it passes. A quote that
-fails was not copied exactly; a figure that fails is not in the period's metrics, or belongs
-to a dimension shown without a figure.
+fails was not copied exactly; a figure that fails is not in the period's metrics or its
+comparison, or belongs to a dimension shown without a figure; a section out of order means
+the report was rearranged. When it passes, the report is recorded in
+`history/reports.json` as final, and the next report compares with it.
 
-## 8. Tell the operator, in the chat
+## 10. Tell the operator, in the chat
 
-The report's path, the runs it covers, and anything the scripts flagged: runs left out or
-unavailable, unmatched responses, a Sentl run score that differs from the one computed,
-dimensions shown without a figure. None of this goes in the report.
+The report's path, the runs it covers, and anything the scripts flagged: edits detected in
+Sentl and how each affects the comparison, the periods rebuilt from earlier runs or that no
+earlier period exists, runs left out or unavailable, unmatched responses, a Sentl run score
+that differs from the one computed, dimensions shown without a figure. None of this goes in
+the report.

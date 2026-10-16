@@ -109,8 +109,23 @@ def _cells(scope):
     yield from scope["by_model"].values()
 
 
-def _allowed(scopes):
-    decimals, percents, pairs = set(), set(), set()
+def _compared(entries, verdicts):
+    """The decimals and percentages a comparison lets a report cite: the values of its
+    entries, their moves and ranges, and the pair means of its verdict changes."""
+    decimals, percents = set(), set()
+    for e in entries:
+        if e.get("mean"):
+            m = e["mean"]
+            decimals |= {round_half_up(v, 1) for v in (m["now"], m["previous"], abs(m["delta"]), *m["range"])}
+        if e.get("presence"):
+            m = e["presence"]
+            percents |= {int(fmt_percent(v)[:-1]) for v in (m["now"], m["previous"], abs(m["delta"]), *m["range"])}
+    decimals |= {round_half_up(v[k], 1) for v in verdicts for k in ("previous_mean", "mean")}
+    return decimals, percents
+
+
+def _allowed(scopes, extra=(set(), set())):
+    decimals, percents, pairs = set(extra[0]), set(extra[1]), set()
     for scope in scopes:
         for c in _cells(scope):
             if not c["figure"]:
@@ -174,22 +189,27 @@ def _prose(body):
                       if not ln.lstrip().startswith(">") and not ln.lstrip().startswith("#"))
 
 
-def _findings_parts(findings, study, period):
-    """Split the findings into (heading, text, scopes) parts, one per entry. A dimension's
-    entry may cite figures of the dimension and its questions, and its project's overall
-    figure; any other part, figures of the projects."""
+def _findings_parts(findings, projects, period, extras):
+    """Split the findings into (owner, heading, text, scopes, extra) parts, one per entry.
+    With several projects, a `### <project>` heading opens each project's chapter. An entry's
+    owner is its (project, dimension); it may cite figures of that dimension and its
+    questions, their comparison (`extras` by dimension key), and its project's overall
+    figure. Any other part may cite figures of the projects."""
     owners = {}
-    for proj, dims in measured(study):
-        block = period["projects"].get(proj["key"])
-        for d in dims if block else []:
+    for proj, dims in projects:
+        block = period["projects"][proj["key"]]
+        overall = {"total": block["total"], "by_model": {}}
+        for d in dims:
             dim = block["dimensions"][d["key"]]
-            overall = {"total": block["total"], "by_model": {}}
-            owners.setdefault(d["name"], []).extend([overall, dim, *dim["questions"].values()])
-    projects = list(period["projects"].values())
-    parts, heading, lines, scopes = [], None, [], projects
+            owners[(proj["name"], d["name"])] = ([overall, dim, *dim["questions"].values()],
+                                                 extras.get(d["key"], (set(), set())))
+    titles = {proj["name"] for proj, _ in projects} if len(projects) > 1 else set()
+    fallback = (list(period["projects"].values()), (set(), set()))
+    project = projects[0][0]["name"] if len(projects) == 1 else None
+    parts, owner, heading, lines = [], None, None, []
 
     def flush():
-        parts.append((heading, "\n".join(lines), scopes))
+        parts.append((owner, heading, "\n".join(lines), *owners.get(owner, fallback)))
 
     for line in findings.splitlines():
         m = SUBHEADING.match(line)
@@ -197,12 +217,19 @@ def _findings_parts(findings, study, period):
             lines.append(line)
             continue
         flush()
-        heading, lines, scopes = m.group(1), [], projects
-        for name, allowed in owners.items():
-            if re.match(re.escape(name) + r"(?::|\s+[—-]|\s*$)", heading):
-                scopes = allowed
+        owner, heading, lines = None, m.group(1), []
+        if line.startswith("### ") and heading in titles:
+            project, heading = heading, None
+            continue
+        owner = next((key for key in owners if key[0] == project
+                      and re.match(re.escape(key[1]) + r"(?::|\s+[—-]|\s*$)", heading)), None)
     flush()
     return parts
+
+
+def _answers(folder, period):
+    return [_plain(r["answer"]) for key, ids in period["runs"].items() for run_id in ids
+            for r in folder.run(key, run_id)["responses"] if r["match"] != "unmatched" and r["answer"]]
 
 
 # --- the check --------------------------------------------------------------
@@ -216,42 +243,54 @@ def check(root, report_path, date=None):
     if not period_path.exists():
         raise Refused(f"no period for {date}: pass --date with the report's period")
     period = load_json(period_path)
+    comparison = period.get("comparison") or {}
+    previous_path = folder.path("history", "periods", f"{comparison.get('previous')}.json")
+    previous = load_json(previous_path) if comparison.get("previous") and previous_path.exists() else None
     binding = folder.binding
     lang = study["report_language"]
     text = report_path.read_text(encoding="utf-8")
 
     found, problems = _sections(text, lang)
-    problems += _order([k for k, _ in found], report_order(study), lang)
+    problems += _order([k for k, _ in found], report_order(folder, date), lang)
     if "[[" in text:
         problems.append("an entry is left to write: replace every [[...]] marker")
 
     body = dict(found)
     findings = body.get("findings", "")
-    for _, dims in measured(study):
-        for d in dims:
-            if not re.search(r"^#{3,4} " + re.escape(d["name"]) + r"(?::|\s+[—-]|\s*$)", findings, re.M):
-                problems.append(f"dimension {d['name']} has no findings entry")
+    projects = measured(study, period)
+    entries = {dkey: [e, *e.get("questions", {}).values()] for dkey, e in comparison.get("dimensions", {}).items()}
+    verdicts = comparison.get("verdict_changes", [])
+    extras = {dkey: _compared(es, [v for v in verdicts if v["dimension"] == dkey]) for dkey, es in entries.items()}
+    parts = _findings_parts(findings, projects, period, extras)
+    written = {owner for owner, *_ in parts}
+    for proj, dims in projects:
+        problems += [f"dimension {d['name']} has no findings entry" + (f" under {proj['name']}" if len(projects) > 1 else "")
+                     for d in dims if (proj["name"], d["name"]) not in written]
 
-    answers = [_plain(r["answer"]) for key, ids in period["runs"].items() for run_id in ids
-               for r in folder.run(key, run_id)["responses"] if r["match"] != "unmatched" and r["answer"]]
+    answers = _answers(folder, period)
+    # The changes section may quote the previous period, where a verdict change starts.
+    earlier = _answers(folder, previous) if previous else []
     questions = {match_key(q["text"]) for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
+    questions |= {match_key(q["text"]) for p in study["projects"] for v in folder.versions(p["key"])
+                  for d in v["dimensions"] for q in d["questions"]}
     names = list(period.get("names", {}).values())
 
-    for k in ("findings", "changes"):
+    for k, pool in (("findings", answers), ("changes", answers + earlier)):
         for excerpt in _excerpts(body.get(k, "")):
             pieces = _pieces(excerpt)
-            if not _quoted_in(pieces, answers):
+            if not _quoted_in(pieces, pool):
                 problems.append(f"excerpt not found verbatim in any answer of the period: {excerpt[:80]!r}; "
-                                + _stops_matching(pieces[0] if pieces else "", answers))
+                                + _stops_matching(pieces[0] if pieces else "", pool))
 
-    for heading, part, scopes in _findings_parts(findings, study, period):
+    for _, heading, part, scopes, extra in parts:
         if heading and (DECIMAL.search(heading) or PERCENT.search(heading)):
             problems.append(f"a findings heading carries a figure: {heading!r}")
-        problems += _figures(_unquote(_prose(part), questions, answers, names), lang, _allowed(scopes))
+        problems += _figures(_unquote(_prose(part), questions, answers, names), lang, _allowed(scopes, extra))
     every_scope = [s for b in period["projects"].values() for s in [b, *b["dimensions"].values()]]
     every_scope += [q for b in period["projects"].values() for d in b["dimensions"].values() for q in d["questions"].values()]
-    problems += _figures(_unquote(_prose(body.get("changes", "")), questions, answers, names), lang,
-                         _allowed(every_scope))
+    every_scope += list((previous or {}).get("projects", {}).values())
+    problems += _figures(_unquote(_prose(body.get("changes", "")), questions, answers + earlier, names), lang,
+                         _allowed(every_scope, _compared([e for es in entries.values() for e in es], verdicts)))
 
     question_keys = {q["key"] for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
     for key in sorted(question_keys):
@@ -259,6 +298,7 @@ def check(root, report_path, date=None):
             problems.append(f"question key {key} appears")
     model_ids = {m for p in study["projects"] for m in p.get("models") or []}
     model_ids |= {m for b in period["projects"].values() for m in b["by_model"]}
+    model_ids |= set(period.get("names", {}))
     problems += [f"model id {m} appears" for m in sorted(model_ids) if m in text]
     ids = {str(run_id) for ids in period["runs"].values() for run_id in ids}
     for proj in binding["projects"].values():
@@ -270,4 +310,13 @@ def check(root, report_path, date=None):
             problems.append(f"an id appears: {m.group(0)!r}")
     problems += [f"a file name appears: {m.group(0)}" for m in FILE_NAME.finditer(text)]
     problems += [f"a credit figure appears: {m.group(0)}" for m in CREDIT.finditer(text)]
+
+    if not problems:
+        try:
+            shown = report_path.resolve().relative_to(folder.root.resolve()).as_posix()
+        except ValueError:
+            shown = str(report_path)
+        folder.record_report({"date": date, "file": shown, "status": "final",
+                              "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
+                              "previous": comparison.get("previous")})
     return problems

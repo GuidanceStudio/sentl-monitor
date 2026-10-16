@@ -15,7 +15,7 @@ calls Sentl.
 | `design` | `brief.md`, `search-demand.json`, a saved `list-ai-models` response | `study.json`, `study-review.md` | the operator's review of the questions, rubrics and credit estimate |
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
 | `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, and who wrote the criteria |
-| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json` | nothing when run unattended |
+| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json` | nothing when run unattended |
 | `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 
 ## The study folder
@@ -67,12 +67,16 @@ Two rules keep them consistent:
   truth for what was asked and answered. When `report` or `setup` finds that a project in
   Sentl differs from the latest recorded version (an edit made in the Sentl web panel), it
   records a `detected` version and tells the operator. It never overwrites either side
-  without the operator's choice.
+  without the operator's choice. An adopted project's questions are Sentl's, as the operator
+  chose by adopting it, so its entry in `study.json` follows the detected version; a
+  designed study keeps its `study.json` until the operator chooses.
 - A run is ingested once and kept. Every route that writes to Sentl first ingests every
-  completed run not yet in `history/runs/`, because an edit in Sentl can change how earlier
-  results are linked to their questions (see Assumptions, A1). A run whose results Sentl
-  returns as a server error is recorded in `history/unavailable.json`, listed to the
-  operator and requested again at every invocation; it blocks neither a report nor a write.
+  completed run not yet in `history/runs/`, so that each run is matched against the version
+  recorded for its time: the results of a run show the wording asked when it ran
+  (Assumptions, A1), and after an edit that wording survives only in the recorded versions.
+  A run whose results Sentl returns as a server error is recorded in
+  `history/unavailable.json`, listed to the operator and requested again at every
+  invocation; it blocks neither a report nor a write.
 
 **Why the script never calls Sentl.** The assistant already holds the MCP connection with
 whatever authentication the operator chose (OAuth or token). A script that called the
@@ -209,21 +213,27 @@ can archive it itself.
 {
   "schema": "sentl-monitor/version@1",
   "project": "brand", "version": 3,
-  "source": "setup", "recorded_at": "2026-11-02T09:14:00Z",
-  "window": null,
+  "source": "detected", "recorded_at": "2026-11-30T09:14:00Z", "seen_at": "2026-11-30T09:14:00Z",
+  "window": {"from": "2026-10-31T09:02:00Z", "to": "2026-11-30T09:14:00Z"},
   "settings": {"models": ["..."], "rounds": 1, "schedule": "weekly", "active": true},
   "dimensions": [{"key": "health", "id": 0, "name": "Salute", "archived": false,
                   "questions": [{"key": "health-1", "id": 0, "text": "...",
                                  "criteria_hash": "<hash of rubric and judge instructions>"}]}],
-  "changes": [{"question": "health-2", "change": "reworded"}]
+  "changes": [{"question": "health-2", "change": "reworded"},
+              {"change": "models", "added": ["<model id>"], "removed": []}]
 }
 ```
 
 `source` is `setup` (saved by the skill), `adopt`, or `detected` (found to differ from the
-previous version). A detected version carries `window`: the last time the previous version
-was seen and the time the difference was found. `change` is `created`, `reworded`,
-`new_intent`, `criteria`, `retired`, `models`, `rounds`, `dimension_added` or
-`dimension_archived`; a question taken in by `adopt` starts its lineage with `adopted`.
+previous version by `monitor.py detect`). `seen_at` is the last time a saved
+`get-project-tool` response matched the version. A detected version carries `window`: the
+previous version's `seen_at` and the time the difference was found; the edit was made
+between the two. `change` is `created`, `reworded`, `new_intent` (with `replaces`, the key it
+retires), `criteria`, `retired`, `models` (with `added` and `removed`), `rounds` (with `from`
+and `to`), `dimension_added`, `dimension_archived` or `dimension_renamed`; a question taken in
+by `adopt` starts its lineage with `adopted`. A question or a dimension keeps its key through
+its Sentl id. A text that differs from the version's only by the normalization of §Matching
+is a transcription, not an edit. Schedule and activation are recorded and not compared.
 
 ### Run snapshot, `history/runs/<project>/<run_id>.json.gz`
 
@@ -245,11 +255,14 @@ was seen and the time the difference was found. `change` is `created`, `reworded
 ```
 
 - `plan` is the questions, models and rounds of the version in force, and `expected` their
-  product; `received` and `judged` are counted from the response.
+  product; `received` and `judged` are counted from the response. `criteria_unknown` lists
+  the questions whose rubric the run cannot be placed under (§Matching).
 - A run that started before the first recorded version (a run read from a project's history
   when it is adopted) has no known configuration (gap G2): `version` is `null`, and
   `plan` holds the distinct questions answered, the distinct models and the largest number
-  of responses of one question–model pair as its rounds.
+  of responses of one question–model pair as its rounds. Its `expected` counts every
+  distinct question it asked, matched or not, so a run asked in a wording no version holds
+  falls under the run floor of §Coverage.
 - `score` and `sentiment` are `null` for an answer the judge did not score. Sentl returns
   `judge_score: null` with `sentiment: "neutral"` on such an answer.
 - `answer` is `null` when the model returned no answer; Sentl leaves its score `null` too.
@@ -263,9 +276,9 @@ was seen and the time the difference was found. `change` is `created`, `reworded
   by string match (case- and accent-folded, on word boundaries), never by asking a model. An
   alias the operator corrects applies to the whole history. `position` is the subject's order
   among the subject and the foils named in the answer.
-- `match` is `exact`, `version` (matched against an earlier version's text inside a detection
-  window) or `unmatched` (kept with the dimension and question Sentl returned under `asked`,
-  excluded from every figure, listed to the operator).
+- `match` is `exact`, `version` (matched against the text of the other version tried for a
+  run started inside a detection window) or `unmatched` (kept with the dimension and question
+  Sentl returned under `asked`, excluded from every figure, listed to the operator).
 - Runs are compressed because the history grows with every run: a project of 30 questions and
   4 models produces about 120 answers per run.
 
@@ -274,15 +287,50 @@ was seen and the time the difference was found. `change` is `created`, `reworded
 ```json
 {
   "schema": "sentl-monitor/period@1",
-  "date": "2026-11-30", "runs": {"brand": [0, 0, 0, 0]}, "versions": {"brand": [3]},
+  "date": "2026-11-30", "from": "2026-11-02T06:00:00Z", "to": "2026-11-30T06:00:00Z",
+  "runs": {"brand": [0, 0, 0, 0]}, "versions": {"brand": [2, 3, 3, 3]},
+  "starts": {"brand": ["2026-11-02T06:00:00Z", "..."]},
+  "excluded": {"brand": [{"run_id": 0, "reason": "..."}]}, "dropped": {"brand": {"0": ["health-2"]}},
   "projects": {"brand": {"total": {}, "by_model": {},
      "dimensions": {"health": {"total": {}, "by_model": {},
         "questions": {"health-1": {"total": {}, "by_model": {}}}}}}},
-  "comparison": {"previous": "2026-10-31", "range_of": ["2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31"],
-                 "dimensions": {}, "verdict_changes": [], "domains": {"new": [], "lost": []},
-                 "design_changes": []}
+  "names": {"<model id>": "<public name>"},
+  "comparison": {"previous": "2026-10-31",
+                 "previous_period": {"from": "...", "to": "...", "rebuilt": false},
+                 "range_of": ["2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31"],
+                 "dimensions": {"health": {"project": "brand", "status": "compared",
+                                           "models": ["<model id>"], "compared_questions": ["health-1"],
+                                           "mean": {"now": 3.6, "previous": 3.1, "delta": 0.5,
+                                                    "range": [2.9, 3.2], "periods": 4, "changed": true},
+                                           "presence": {},
+                                           "questions": {"health-1": {"status": "compared", "mean": {}, "presence": {}},
+                                                         "health-3": {"status": "new_baseline", "reason": "criteria"}}}},
+                 "verdict_changes": [{"project": "brand", "dimension": "health", "question": "health-1",
+                                      "model": "<model id>", "from": "mixed", "to": "favourable",
+                                      "previous_mean": 3.0, "mean": 4.0,
+                                      "previous_answer": {"run_id": 0, "response_id": 0, "score": 3},
+                                      "answer": {"run_id": 0, "response_id": 0, "score": 4}}],
+                 "domains": {"new": [{"project": "brand", "dimension": "health", "domain": "example.org",
+                                      "answers": 3, "owned": false}], "lost": []},
+                 "design_changes": [{"project": "brand", "change": "reworded", "question": "health-2",
+                                     "text": "...", "previous_text": "...", "since": "2026-11-09"}]}
 }
 ```
+
+`excluded` lists the runs left out under the run floor, `dropped` the questions a run lost
+because their criteria changed later in the period or are unknown for it (§Comparability,
+§Matching), and `starts` the runs' start times beside `runs` and `versions`. `asked` holds,
+per project, the dimensions and questions of the period with the names and wordings its
+runs had: those of the latest version among its runs (the first version for runs older than
+every version), less any with no answer expected. `method` and `check` read the period's
+dimensions and questions from it, so an edit made after the period's last run belongs to the
+next period. A comparison entry's `status` is `compared`, `new`
+(nothing to compare with), `new_baseline` (with the `reason` for a question: `criteria` or
+`new_intent`; for a dimension, no question comparable) or `no_figure`. Each `mean` and
+`presence` entry gives the value now, the previous period's, the move, the range of the
+earlier periods it rests on and how many, and whether a change is called (§What counts as a
+change); presence values are rates. A design change's `since` is the start date of the
+period's first run under the version that made it.
 
 Each `total`, and each model under `by_model`, is a cell: `mean`, `figure` (false when fewer
 than 80% of the expected answers were judged), `received`, `judged`, `expected`, `coverage`,
@@ -290,16 +338,19 @@ than 80% of the expected answers were judged), `received`, `judged`, `expected`,
 their `rate`, and the mean `position`), `unstable_pairs` (question–model pairs whose answers
 in the period differ by two points or more), `domains` (domain → answers citing it) and
 `owned` (answers citing an owned domain out of the answers citing any). `names` maps each
-model of the period to its public name, which `check` needs to tell a name from a figure. A question's or a dimension's `mean` is the
-mean of its judged answers; a project's `mean` is the mean of its dimension means, the way
-Sentl computes a run's score (A4). A period rebuilt from a project's history carries
-`"rebuilt": true` (see Periods).
+model of the period and of the periods compared with it to its public name, which `check`
+needs to tell a name from a figure. A question's or a dimension's `mean` is the mean of its
+judged answers; a project's `mean` is the mean of its dimension means, the way Sentl
+computes a run's score (A4). A period rebuilt from a project's history carries
+`"rebuilt": true` and no comparison (see Periods).
 
 ### `history/reports.json`
 
-A list of `{date, file, status, period: {from, to}, runs, previous}`. `status` is `final` or
-`draft`. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is `written`,
-`draft`, `nothing_new` or `below_floor`.
+A list of `{date, file, status, period: {from, to}, runs, previous}`, in date order.
+`monitor.py check` adds the report as `final` when it passes; `draft` is written by the
+unattended mode (M6). `previous` is the date of the period the report compared with, a
+rebuilt one included. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
+`written`, `draft`, `nothing_new` or `below_floor`.
 
 ## The stages
 
@@ -441,12 +492,16 @@ before the first one from them (see Periods).
 
 1. `list-runs-tool` for each project in `sentl.json`; runs are ordered by start time, never
    by their position in the listing, which is newest first with exceptions. New runs:
-   completed (`completed` or `completed_with_warnings`) and not in `history/runs/`; runs in
+   completed (`completed` or `completed_with_warnings`) and not in `history/runs/`, started
+   after the last run of the previous report; on the first report, those started in the last
+   `report_every` interval and the K = 4 intervals before it. Runs in
    `history/unavailable.json` are requested again. A status not seen before is treated as
    not final and listed to the operator. None: write `nothing_new` to `last-report.json`
    and stop.
-2. `get-project-tool` for each project; a difference from the latest version is recorded as
-   a `detected` version.
+2. `get-project-tool` for each project, saved; `monitor.py detect` compares it with the latest
+   version and records a `detected` version on a difference. With the operator present it
+   runs with `--dry-run` first: a reworded question keeps its key unless the operator says it
+   now asks something else, and is then recorded with `--new-intent <key>`.
 3. `get-run-results-tool` for each new run, saved to `inbox/`; `monitor.py ingest` writes the
    run snapshot. A saved response that does not parse as complete JSON is refused, since a
    host that truncates output cuts it mid-string. Fewer answers than expected count against
@@ -455,14 +510,16 @@ before the first one from them (see Periods).
 4. `monitor.py period` builds the period: the runs since the previous report, pooled; on the
    first report, the rebuilt periods as well (see Periods). It computes the cells, the
    comparison with the previous period and the range of the K periods before (K = 4), and
-   writes `history/periods/<date>.json` and `history/material/<date>.md`.
+   writes `history/periods/<date>.json` and `history/material/<date>.md`. It refuses a study
+   without `report_every`.
 5. `monitor.py method` writes the method sections (`purpose`, `themes`, `dimensions`,
    `questions`, `scoring`) from `study.json`, the versions and the period, and lays out the
    sections in the order §The report sets: the first-report order when
    `history/reports.json` holds no final report, the later-report order otherwise.
    `list-ai-models` gives the models' public names.
 6. The agent reads the material and the answers and writes `findings` and `changes`.
-7. `monitor.py check reports/<date>.md` (below). Pass: status `final`. Fail, when unattended:
+7. `monitor.py check reports/<date>.md` (below). Pass: the report is added to
+   `history/reports.json` with status `final`. Fail, when unattended:
    the file is saved as `reports/<date>.draft.md`, status `draft`, and `last-report.json`
    says which check failed.
 8. In the chat, never in the report: the runs covered, runs left out, unmatched responses,
@@ -563,12 +620,23 @@ operator's approval in that session.
 ### Matching responses to questions
 
 `get-run-results-tool` identifies a response by the question's text and the dimension's
-name, with no ids and no round number. `ingest` matches each response against the version
-in force at the run's start; inside a detection window it also tries the previous version.
-Texts are compared after normalization: Unicode NFKC, typographic quotes and apostrophes
-folded to plain ones, whitespace collapsed. A response that matches nothing is kept as
-`unmatched`, excluded from every figure and listed to the operator. This is why `validate`
-refuses duplicate texts in a dimension and duplicate dimension names in a project.
+name, with no ids and no round number. The results of a run show the text asked when it ran
+(A1). `ingest` matches each response against the version in force at the run's start; inside
+a detection window it also tries the previous version. The run then takes the version of the
+two that explains it: the one whose models and rounds are those of its responses, then the
+one with fewer questions that the run asked and the version does not hold, or that the
+version holds and the run never asked, so a run made before a question or a dimension was
+added keeps the earlier version; the later one on a tie. A response that matches only the
+other version's text is `version`. A tie leaves the rubric of the run's answers unknown for
+every question whose criteria changed between the two versions: the run lists them in
+`criteria_unknown`, and `period` leaves them out of it, so such a question's new baseline
+starts from the first run known to be under the new criteria. A run older than the first recorded version is matched
+against that version alone, so a question reworded before it was recorded leaves that run's
+answers to the earlier wording `unmatched`. Texts are compared after normalization: Unicode
+NFKC, typographic quotes and apostrophes folded to plain ones, whitespace collapsed. A
+response that matches nothing is kept as `unmatched`, excluded from every figure and listed
+to the operator. This is why `validate` refuses duplicate texts in a dimension and duplicate
+dimension names in a project.
 
 ### Responses saved by the assistant
 
@@ -593,12 +661,21 @@ weekly schedule and a monthly report, a period pools about four runs; with match
 cadences, a period is one run and the comparison is run against run. Pooling gives each
 question–model pair several answers, which a single run with one round cannot.
 
-The first report covers the runs started in the last `report_every` interval before it.
-When the project has earlier runs (an adopted project), the first report also rebuilds the
-K intervals before that one from them, one period per interval, written to
-`history/periods/` with `"rebuilt": true` and given no report of their own. The first report
-then compares with them as a later report compares with earlier periods. Runs Sentl cannot
-return are left out of a rebuilt period and listed; an interval with no run gets no period.
+The first report covers the runs started in the last `report_every` interval before it: the
+seven days, or the month, that end with the report's date (a monthly report dated the last
+day of a month covers that calendar month). When the project has earlier runs (an adopted
+project), the first report also rebuilds the K intervals before that one from them, one
+period per interval, dated the interval's last day, written to `history/periods/` with
+`"rebuilt": true` and given no report of their own. The first report then compares with them
+as a later report compares with earlier periods. Runs Sentl cannot return are left out of a
+rebuilt period and listed; so are runs under the run floor; an interval with no run left
+gets no period. With no earlier run at all, `period` tells the operator there is no earlier
+period, and the report's `changes` section says this is the first measurement. Building the
+first period again replaces the rebuilt periods.
+
+A later report covers, for each project, the completed runs started after the last run of
+the previous report and up to the end of the report's date. The periods it compares with are
+those of the earlier reports in `history/reports.json` and the rebuilt ones, the latest K.
 
 ### Comparability
 
@@ -616,6 +693,15 @@ return are left out of a rebuilt period and listed; an interval with no run gets
 A period that contains two versions of a question with a criteria change uses the runs of
 the latest version only.
 
+A dimension is compared on the questions asked in both periods whose criteria and intent did
+not change, and on the models present in both, so a model added or a question restarted
+changes neither side of the comparison. The range of earlier periods goes back to the last
+new baseline of those questions, and stops at the first period missing one of those
+questions or models, so every value of the range rests on the same questions and
+assistants. A run with no version counts as judged under the first recorded version. A question added in Sentl (`created`) is a new baseline,
+like a new intent. New and lost domains are counted on the questions asked in both periods
+and the models present in both.
+
 ### What counts as a change
 
 - **Dimension or question figure.** A change is called when the period's value lies outside
@@ -625,7 +711,9 @@ the latest version only.
   are reported as unchanged.
 - **Verdict.** Each question–model pair has a band from its unrounded mean in the period:
   unfavourable (below 2.5), mixed (2.5 and above, below 3.5), favourable (3.5 and above). A
-  pair whose band changed is a verdict change, listed with the two answers that show it.
+  pair whose band changed is a verdict change, listed with the two answers that show it: in
+  each period, the pair's answer whose score is nearest the pair's mean, the latest on a
+  tie.
 - **Sources.** Per dimension, a domain is new when at least two answers cite it in this
   period and none did in the previous one; lost in the opposite case. Domains are compared
   rather than URLs, because pages change address. Owned domains and their subdomains are
@@ -664,9 +752,9 @@ the order they appear.
 | `themes` | Where the themes came from: themes grouped by origin; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
 | `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
 | `questions` | The questions: per dimension, verbatim, paired questions side by side | `method` |
-| `scoring` | How the answers are scored: per dimension what a 5, a 3 and a 1 mean; who wrote the criteria and when; that an independent model in Sentl applied them; the score axis; what a high or a low score does not mean | `method` |
+| `scoring` | How the answers are scored: per dimension what a 5, a 3 and a 1 mean; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
 | `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |
-| `changes` | What changed since the last report: changes in the answers, then changes in the design and how they affect the comparison | the agent, from the output of `period` |
+| `changes` | What changed since the last report: the period compared with, changes in the answers, then changes in the design and how they affect the comparison | `method` writes the period compared with and the design changes; the agent writes the changes in the answers, from the output of `period` |
 | `limits` | Snapshot only: one question per dimension and one answer from each assistant, on one date; what a monitoring study adds (several questions per dimension, paired questions, repeated runs compared period by period) | `method` |
 
 ### Order
@@ -693,6 +781,15 @@ for the client. Every dimension gets its section, including those where nothing 
 next report compares against it. When periods were rebuilt from the project's history, the
 section compares with them instead, as a later report does.
 
+**`changes`, when it compares:** a line naming the period compared with (and, when it was
+rebuilt, that no earlier report exists); the changes in the answers, written by the agent:
+the dimensions and questions whose change is called, each verdict change with its two
+answers quoted, the domains new or lost, and one line saying the rest is unchanged; then one
+line per design change, written by `method` as the Comparability table says: a reworded
+question with both wordings and the date, a new intent, new criteria, assistants added or
+removed with the assistants the comparison rests on, a dimension new or no longer
+measured.
+
 **Never in a report:** credits or any price; run, project or question ids; question keys;
 file names; model ids (the public name is used); the skill's own steps or checks.
 
@@ -706,14 +803,17 @@ project. The rules it applies:
 - **Excerpts** are Markdown blockquote lines in `findings` and `changes`. An excerpt may
   skip text with `[…]`; each piece, after the normalization of §Matching (dashes folded to a
   hyphen as well) and with Markdown emphasis and citation markers such as `[1]` dropped, must
-  be a substring of one answer in the period's runs. A failure says where the excerpt stops
-  matching its closest answer.
+  be a substring of one answer in the period's runs, or, in `changes`, of the period compared
+  with, where a verdict change starts. A failure says where the excerpt stops matching its
+  closest answer.
 - **Figures** are the numbers in `findings` and `changes` written with a decimal separator
   and the percentages. A decimal uses the report language's separator (a point in English, a
   comma in Italian) and has one decimal; a percentage is whole. Each must equal a value of
-  the period file rounded the same way. A dimension's entry may cite its own dimension's
-  figures and its project's overall figure, never another dimension's; a dimension shown
-  without a figure has none to cite. A count of answers written "N su M" or "N of M" must be
+  the period file rounded the same way: its cells and, for a change, its comparison (the
+  values now and before, the move, the range, the pair means of a verdict change); `changes`
+  may also cite the overall figures of the period compared with. A dimension's entry may
+  cite its own dimension's figures and its project's overall figure, never another
+  dimension's; a dimension shown without a figure has none to cite. A count of answers written "N su M" or "N of M" must be
   a pair of the period (judged of expected, named of given, and the like). Other integers are
   not checked: they are dates and points of the scale. Text inside «» that quotes a question
   or an answer, and the assistants' public names (which can carry a version number), are not
@@ -725,7 +825,9 @@ project. The rules it applies:
   and are refused anywhere; dimension and project keys are ordinary words and are not
   checked. A credit figure is a number next to the word for credit.
 - **Findings entries** are headed `### <dimension name>: <what the person asking is told>`
-  (`####` under a project heading when the study has several projects). `method` leaves a
+  (`####` under a `### <project name>` heading when the study has several projects, so two
+  projects may have dimensions of the same name: each entry cites its own project's
+  figures, and each project needs an entry for each of its dimensions). `method` leaves a
   `[[...]]` marker for each, and a report that still holds one fails.
 
 ## Scheduling
@@ -759,7 +861,7 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 | Response with no answer | not judged, counted against coverage, left out of presence |
 | Saved project lacks a text of its latest run | `adopt` or `bind` refuses it; the assistant saves the response again |
 | Run results too large for the assistant's tool output | read from the file the host saved; a truncated response is refused by `ingest` |
-| Project edited in the Sentl web panel | a `detected` version; responses matched by text; unmatched ones listed |
+| Project edited in the Sentl web panel | `detect` records a `detected` version; runs started inside its window are matched against both versions; unmatched responses listed |
 | Model no longer in `list-ai-models` | the report writes its name from the id (provider and model); `setup` refuses to save it |
 | Google autocomplete blocked or rate-limited | missing prefixes listed, exit 1; the step is re-run; the brief does not pass its gate with themes lacking search data unless the operator waives it |
 | Keyword-data source rate-limited | waits and retries as the server says |
@@ -800,7 +902,7 @@ convenience.
 
 | # | Assumption | Status |
 |---|---|---|
-| A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they show the current text, earlier runs not yet ingested would be matched to the new wording. | To verify at the start of M2, on a test project: one run, a question edited, the run read again. Read-only data cannot settle it: in the projects read on 2026-10-16 no question was edited after a run. If false, a question edited in the Sentl web panel starts a new baseline when the edit is detected, as a new intent does. |
+| A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they showed the current text, earlier runs not yet ingested would be matched to the new wording. | Verified 2026-10-16 on read-only data. Sentl allocates question ids in sequence across an account. In a live project, three questions were reworded after its earliest run and kept their ids inside the project's contiguous id range, so they were edited in place, not replaced. Read after the edit, that earliest run returns the earlier texts for those three questions, and every later run returns the current ones. So an earlier run's responses carry the wording asked then: inside a detected version's window they match the earlier text, and in a run older than the first recorded version they are `unmatched` (§Matching). |
 | A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Only those two seen on 2026-10-16. Any other status is treated as not final and listed (M1). |
 | A3 | With more than one round, each round appears as a separate response with no round number. | Verified 2026-10-16: a project with 3 rounds, 12 questions and 1 model returned 36 responses, each question–model pair three times, with no round field. |
 | A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |

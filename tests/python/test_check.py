@@ -1,7 +1,8 @@
+import json
 import re
 import unittest
 
-from fixtures import GEM, GPT, StudyCase, models, run
+from fixtures import ANSWERS, GEM, GPT, StudyCase, models, project, run
 
 FINDINGS = """### Salute: gli assistenti dicono che Avenello non fa male, con un dubbio sugli zuccheri
 
@@ -202,6 +203,56 @@ class CheckTest(StudyCase, unittest.TestCase):
         self.edit(path, "Per Avenello conviene pubblicare",
                   "Il punteggio complessivo è 3,1 e Avenello compare in media in posizione 1,3; per Avenello conviene pubblicare")
         self.check(path, 0)
+
+
+class TwoProjectsTest(StudyCase, unittest.TestCase):
+    """Two projects whose dimensions share their names: each entry cites its own project's figures."""
+
+    def setUp(self):
+        super().setUp()
+        self.adopt()
+        second = project()
+        second["project"].update(id=502, name="Avenello · Senza marchio")
+        for n, d in enumerate(second["project"]["dimensions"]):
+            d["id"] = 21 + n
+            for m, q in enumerate(d["questions"]):
+                q["id"] = 201 + 10 * n + m
+        low = {k: (v[0], 1 if k == ("salute-1", GPT) else 2, "negative", v[3]) for k, v in ANSWERS.items()}
+        data = run(run_id=9002, overrides=low)
+        data["run"]["project_id"] = 502
+        self.cli("adopt", "--study", self.study, "--project", self.save("p2.json", second),
+                 "--run", self.save("r2.json", data), "--key", "category", check=0)
+        self.answer_operator()
+        study = self.read("study.json")
+        for theme in study["themes"]:
+            theme["origins"] = [{"kind": "client_issue", "detail": "Domande al servizio clienti, 2026"}]
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.ingest(run())
+        self.cli("ingest", "--study", self.study, "--project", "category", "--results", self.save("r2b.json", data), check=0)
+        self.cli("period", "--study", self.study, "--date", "2026-10-31", check=0)
+        self.cli("method", "--study", self.study, "--date", "2026-10-31",
+                 "--models", self.save("models.json", models()), check=0)
+        self.path = self.study / "reports" / "2026-10-31.md"
+        text = re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello", self.path.read_text(encoding="utf-8"))
+        self.path.write_text(text, encoding="utf-8")
+
+    def cite(self, first, second):
+        """Write `first` into the first project's Salute entry and `second` into the second's."""
+        text = self.path.read_text(encoding="utf-8")
+        head, one, two = re.split(r"^#### Salute: .*$", text, flags=re.M)
+        marks = re.findall(r"^#### Salute: .*$", text, flags=re.M)
+        self.path.write_text(f"{head}{marks[0]}\n\nPunteggio medio {first}.{one}{marks[1]}\n\n"
+                             f"Punteggio medio {second}.{two}", encoding="utf-8")
+
+    def test_each_project_cites_its_own_dimension_figures(self):
+        self.cite("3,8", "1,8")
+        self.cli("check", "--study", self.study, self.path, check=0)
+
+    def test_a_figure_of_the_other_project_fails(self):
+        self.cite("1,8", "3,8")
+        proc = self.cli("check", "--study", self.study, self.path, check=1)
+        self.assertIn("1,8", proc.stdout)
+        self.assertIn("3,8", proc.stdout)
 
 
 if __name__ == "__main__":

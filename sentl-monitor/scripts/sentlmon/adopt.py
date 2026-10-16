@@ -148,7 +148,7 @@ def adopt(root, project_file, run_file=None, key=None):
     binding["projects"][key] = {"project_id": proj["id"], "version": 1,
                                 "dimensions": ids_dims, "questions": ids_questions}
     version = {"schema": "sentl-monitor/version@1", "project": key, "version": 1, "source": "adopt",
-               "recorded_at": recorded_at, "window": None, "settings": settings,
+               "recorded_at": recorded_at, "seen_at": recorded_at, "window": None, "settings": settings,
                "dimensions": ver_dims, "changes": []}
 
     write_json(folder.path("history", "versions", f"{key}-001.json"), version)

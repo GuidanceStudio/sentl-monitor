@@ -6,13 +6,17 @@ get-run-results-tool, list-ai-models); every name and text is invented.
 
 import contextlib
 import copy
+import datetime as dt
 import gzip
 import importlib.util
 import io
 import json
+import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 REPO = Path(__file__).resolve().parents[2]
 MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
@@ -22,6 +26,7 @@ _spec.loader.exec_module(monitor)
 
 GPT = "acme/chat-large"
 GEM = "orbit/reason-pro"
+NEW = "zenith/answer-max"
 RETIRED = "oldco/legacy-7b"
 
 # Each salute question names the brand in its text; the Italian apostrophe is
@@ -95,16 +100,25 @@ def project():
     return copy.deepcopy(PROJECT)
 
 
+DEFAULT_ANSWER = ("Avenello è una bevanda all'avena senza lattosio.", 3, "neutral", ["https://guida.example/avena"])
+
+
 def run(run_id=9001, started="2026-10-01T06:00:00Z", status="completed", score=3.1,
-        overrides=None, rounds=1, extra=None):
+        overrides=None, rounds=1, extra=None, models=None, texts=None):
     """A get-run-results-tool response. `overrides` maps (key, model) to a
-    (answer, score, sentiment, urls) tuple; `extra` appends raw responses."""
-    answers = dict(ANSWERS)
-    answers.update(overrides or {})
+    (answer, score, sentiment, urls) tuple; `extra` appends raw responses.
+    `models` picks the models that answer (a model ANSWERS lacks gives
+    DEFAULT_ANSWER); `texts` maps a key to the wording the run asked."""
+    if models is None:
+        answers = dict(ANSWERS)
+    else:
+        answers = {(key, m): ANSWERS.get((key, m), DEFAULT_ANSWER) for key in QUESTION_OF for m in models}
+    answers.update({k: v for k, v in (overrides or {}).items() if models is None or k[1] in models})
     responses, rid = [], run_id * 100
     for _ in range(rounds):
         for (key, model), (answer, sc, sentiment, urls) in answers.items():
             dim, text = QUESTION_OF[key]
+            text = (texts or {}).get(key, text)
             rid += 1
             responses.append({
                 "id": rid, "model_id": model, "question": text, "dimension": dim,
@@ -124,7 +138,24 @@ def models():
     return {"researcher_models": {
         GPT: {"name": "Acme Chat", "credits": 2},
         GEM: {"name": "Orbit Reason", "credits": 3},
+        NEW: {"name": "Zenith Answer", "credits": 1},
     }}
+
+
+def weekly(first, count, hour="06"):
+    """`count` start times seven days apart from the date `first`."""
+    day = dt.date.fromisoformat(first)
+    return [f"{day + dt.timedelta(days=7 * n)}T{hour}:00:00Z" for n in range(count)]
+
+
+@contextlib.contextmanager
+def clock(when):
+    """Every sentlmon module reads `when` as the current time."""
+    with contextlib.ExitStack() as stack:
+        for name, module in list(sys.modules.items()):
+            if name.startswith("sentlmon") and hasattr(module, "now_iso"):
+                stack.enter_context(mock.patch.object(module, "now_iso", lambda: when))
+        yield
 
 
 OPERATOR = {
@@ -145,6 +176,7 @@ OPERATOR = {
 ORIGINS = {
     "salute": [{"kind": "client_issue", "detail": "Domande al servizio clienti, 2026"}],
     "prezzo": [{"kind": "client_material", "detail": "Listino 2026"}],
+    "gusto": [{"kind": "client_issue", "detail": "Recensioni dei clienti, 2026"}],
 }
 
 
@@ -160,10 +192,12 @@ class StudyCase:
     def tearDown(self):
         self._tmp.cleanup()
 
-    def cli(self, *args, check=None):
-        """Run monitor.py's main() in-process; the result mimics a finished subprocess."""
+    def cli(self, *args, check=None, at=None):
+        """Run monitor.py's main() in-process; the result mimics a finished subprocess.
+        `at` is the time the commands read as now."""
         out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                (clock(at) if at else contextlib.nullcontext()):
             try:
                 code = monitor.main([str(a) for a in args])
             except SystemExit as exc:
@@ -185,9 +219,13 @@ class StudyCase:
         with gzip.open(self.study / "history" / "runs" / key / f"{run_id}.json.gz", "rt", encoding="utf-8") as fh:
             return json.load(fh)
 
-    def adopt(self, run_data=None):
-        self.cli("adopt", "--study", self.study, "--project", self.save("project.json", project()),
-                 "--run", self.save("run-latest.json", run_data or run()), "--key", "brand", check=0)
+    def adopt(self, run_data=None, at=None, project_data=None):
+        self.cli("adopt", "--study", self.study, "--project", self.save("project.json", project_data or project()),
+                 "--run", self.save("run-latest.json", run_data or run()), "--key", "brand", check=0, at=at)
+
+    def detect(self, project_data, at, *extra, check=0):
+        return self.cli("detect", "--study", self.study, "--project", "brand",
+                        "--saved", self.save("project-now.json", project_data), *extra, check=check, at=at)
 
     def answer_operator(self, **changes):
         study = self.read("study.json")
@@ -204,6 +242,33 @@ class StudyCase:
     def ingest(self, data, name="run.json", check=0):
         return self.cli("ingest", "--study", self.study, "--project", "brand",
                         "--results", self.save(name, data), check=check)
+
+    def ingest_all(self, runs):
+        for data in runs:
+            self.ingest(data, name=f"run-{data['run']['id']}.json")
+
+    def build(self, date, check=0):
+        return self.cli("period", "--study", self.study, "--date", date,
+                        "--models", self.save("models.json", models()), check=check)
+
+    def publish(self, date, fill="le risposte descrivono Avenello", changes=None):
+        """period, method, the changes in the answers written as `changes` and every other
+        [[...]] marker filled with plain text, check: the report is final."""
+        self.build(date)
+        self.cli("method", "--study", self.study, "--date", date,
+                 "--models", self.save("models.json", models()), check=0)
+        path = self.study / "reports" / f"{date}.md"
+        text = path.read_text(encoding="utf-8")
+        if changes:
+            from sentlmon.i18n import TEXT
+            marker = TEXT[self.read("study.json")["report_language"]]["changes_marker"]
+            self.assertIn(marker, text)
+            text = text.replace(marker, changes)
+        path.write_text(re.sub(r"\[\[[^\]]*\]\]", fill, text), encoding="utf-8")
+        return self.cli("check", "--study", self.study, path, check=0)
+
+    def period_file(self, date):
+        return self.read(f"history/periods/{date}.json")
 
     def ready(self, run_data=None, date="2026-10-31"):
         """Adopted, answered, ingested and with a period built for `date`."""
