@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Study folders hold client data and never enter this repository.
+/studies/
+/sentl-studies/
+
+# Secrets and local scratch
+.env
+*.tmp
+.DS_Store
