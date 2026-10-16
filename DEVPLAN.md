@@ -65,7 +65,8 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - Model calls, OpenRouter, any key or token handled by the skill.
 - Rendering: outputs are Markdown; PDF, slides and HTML are the operator's choice of tool.
 - Scripts calling the Sentl endpoint directly.
-- A batch mode that runs a snapshot for each subject of a list.
+- A batch mode that runs a snapshot for each subject of a list, and a PDF of the snapshot report. sentl-snapshot
+  has both; the operator decides whether M7 carries them before sentl-snapshot is retired.
 - Retiring sentl-snapshot once M7 ships: an item of that skill's own repository.
 
 ---
