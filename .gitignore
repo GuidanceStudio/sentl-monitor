@@ -3,9 +3,10 @@ __pycache__/
 .venv/
 .pytest_cache/
 
-# Study folders hold client data and never enter this repository.
+# Study and snapshot folders hold client data and never enter this repository.
 /studies/
 /sentl-studies/
+/snapshots/
 
 # Secrets and local scratch
 .env

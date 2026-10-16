@@ -16,6 +16,7 @@ calls Sentl.
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
 | `adopt <project>` | a saved `get-project-tool` response | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience and theme origins |
 | `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json` | nothing when run unattended |
+| `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 
 ## The study folder
 
@@ -42,7 +43,10 @@ is a new version inside the same folder, so the history stays in one place.
   reports/<YYYY-MM-DD>.md        the reports
 ```
 
-The skill's repository ignores study folders. They hold client data.
+A snapshot folder has the same layout without `brief.md`, `seeds.json`, `volumes.json` and
+`search-demand.json`, and holds one run and one report.
+
+The skill's repository ignores study and snapshot folders. They hold client data.
 
 ## Where state lives
 
@@ -107,6 +111,7 @@ and period, or `null` when no keyword-data source was used.
 ```json
 {
   "schema": "sentl-monitor/study@1",
+  "kind": "study",
   "subject": {"id": "avenello", "label": "Avenello", "kind": "brand",
               "aliases": ["Avenello", "Avenello Oat"], "owned_domains": ["avenello.example"]},
   "foils": [{"id": "cow-milk", "label": "latte vaccino", "aliases": ["latte vaccino", "latte di mucca"]}],
@@ -152,6 +157,9 @@ and period, or `null` when no keyword-data source was used.
 }
 ```
 
+- `kind` at the top is `study` or `snapshot`. A snapshot has one project, 4–5 dimensions
+  with one question each, `rounds` 1 and no `schedule`; `themes` is empty, and each
+  dimension carries `catalogue`, the id of the catalogue entry it was taken from.
 - `kind` of a theme origin is `client_material`, `client_issue`, `client_analysis`, `search`
   or `probe` (a pilot run of questions).
 - `search_lean` is `positive`, `negative` or `none`, set from the theme's searches.
@@ -182,6 +190,11 @@ schedule `daily`, `weekly` or `monthly`.
 
 It is kept apart from `study.json` so the same design can be set up again in another
 organization.
+
+A snapshot's project also carries `closed`, written by the route's last step:
+`{"paused_at": "<time>", "archive": "operator"}`. `archive` is `operator` while the operator
+must archive or delete the project in the Sentl web panel (gap G16), and `mcp` once the route
+can archive it itself.
 
 ### Version snapshot, `history/versions/<project>-<NNN>.json`
 
@@ -331,7 +344,7 @@ The steps run in the order the report tells them:
    added and the two are paired. The market is named in the question when it matters,
    because Sentl sets no location for the researcher models.
 6. **Rubrics.** Five anchors per question, each an observable property of the answer, adapted
-   from `design/anchors.md` (the dimension catalogue of sentl-snapshot). On a question that
+   from `catalogue.md` (the dimension catalogue ported from sentl-snapshot). On a question that
    names no brand, 2 is *not mentioned* and 1 is *named negatively or advised against*. The
    axis is chosen before the anchors are written. Judge instructions carry the dated facts
    the judge needs to recognise an outdated or wrong statement.
@@ -408,35 +421,105 @@ for a first report.
    computes the cells, the comparison with the previous period and the range of the K
    periods before (K = 4), and writes `history/periods/<date>.json` and
    `history/material/<date>.md`.
-5. `monitor.py method` writes the report's sections 1–5 from `study.json`, the versions and
-   the period. `list-ai-models` gives the models' public names.
-6. The agent reads the material and the answers and writes sections 6 and 7.
+5. `monitor.py method` writes the method sections (`purpose`, `themes`, `dimensions`,
+   `questions`, `scoring`) from `study.json`, the versions and the period, and lays out the
+   sections in the order §The report sets for the period: the first-report order when the
+   period has no previous period, the later-report order otherwise. `list-ai-models` gives
+   the models' public names.
+6. The agent reads the material and the answers and writes `findings` and `changes`.
 7. `monitor.py check reports/<date>.md` (below). Pass: status `final`. Fail, when unattended:
    the file is saved as `reports/<date>.draft.md`, status `draft`, and `last-report.json`
    says which check failed.
 8. In the chat, never in the report: the runs covered, runs left out, unmatched responses,
    versions detected, facts older than 90 days.
 
+### `snapshot <subject>`
+
+A one-off check in its own folder: a small study, one Sentl project, one run, one report,
+and nothing left running in Sentl. `study.json` carries `"kind": "snapshot"`. Invoked again
+in the same folder, the route resumes at the first step whose output is missing: no
+`study.json` → design; no binding in `sentl.json` → project; no run → cost and go; a run
+open → follow it; a completed run not in `history/runs/` → report; no `closed` in
+`sentl.json` → archive.
+
+1. **Preflight.** `list-organizations` (connection, and the Owner or Admin role in the
+   organization the operator picks), `get-organization-tool` (credits, subscription),
+   `list-projects-tool` (the operator is told of any project already named after the
+   subject).
+2. **Subject and facts.** What the reader needs to decide; the subject's label, kind,
+   aliases, competitors as foils, owned domains, market and language; 5–10 facts from
+   primary sources, each with its source and the date it was read. `catalogue.md` lists the
+   facts each dimension needs. A statement taken from an AI answer is not accepted as a fact.
+3. **Dimensions.** 4–5 entries of `catalogue.md`, chosen from what the reader needs to
+   decide and by the catalogue's rules: at least one dimension naming no brand unless the
+   operator wants reputation only; a dimension whose facts cannot be found is replaced by
+   another. Each dimension records its catalogue id, and the reason it was picked goes in
+   `design_rationale`.
+4. **Questions and rubrics.** One question per dimension, written as the person types it,
+   from the catalogue entry's pattern, in the market's language. Five anchors per question,
+   adapted from the entry; judge instructions carry the dated facts. Researcher models are
+   the operator's choice from a saved `list-ai-models` response, with each model's tariff
+   shown; one round; no schedule.
+5. **Gate.** `monitor.py validate` in snapshot mode (below) and `monitor.py review`, which
+   writes `study-review.md` with the questions, the rubrics and a credit estimate from the
+   tariffs. Stops for the operator's approval.
+6. **Project.** `create-project-tool` with the name `Snapshot · <subject> · <date>` and
+   neither `is_active` nor `schedule_frequency`, so the project is created paused with no
+   schedule. `save-project-questions-tool` with `dry_run: true`, then for real.
+   `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
+7. **Cost.** `estimate-run-tool`: credits per researcher model, credits for judging, the
+   total, the credits available in the organization, and whether the run can start. Shown
+   to the operator in Sentl credits. Stops for the go.
+8. **Run.** On the go, `trigger-run-tool` once. `list-runs-tool` follows the run until its
+   status is final. If the session ends first, the next invocation follows the same run and
+   starts nothing.
+9. **Report.** `get-run-results-tool` saved to `inbox/`; `monitor.py ingest`, then `period`
+   on the one run, with no comparison, then `method`. The agent writes `findings`;
+   `monitor.py check` verifies the report in the snapshot order of §The report. Written to
+   `reports/<date>.md`.
+10. **Archive.** The Sentl MCP has no tool that archives or deletes a project (gap G16).
+    The route calls `update-project-settings-tool` with `is_active: false`, so no scheduled
+    run can start and no further credits are spent, and writes `closed` to `sentl.json`.
+    `project-edit-link-tool` gives the operator the project's page in the Sentl web panel,
+    where the operator archives or deletes it by hand. Deleting loses nothing the report
+    needs, because the run is saved in the snapshot folder. Once the MCP can archive a
+    project, this step archives it and records `archive: mcp`.
+
+**`validate` in snapshot mode** refuses: fewer than 4 or more than 5 dimensions; a
+dimension with more or fewer than one question; a dimension without a catalogue id or with
+an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a question marked
+as naming no brand; a model id absent from `list-ai-models`; rounds other than 1; a
+schedule; a narrative without research question and purpose. It warns when every dimension
+names the subject. The study rules on themes, origins, pairs, search lean and answers per
+period do not apply.
+
+**Reading a snapshot.** Its one project mixes questions that name the subject with questions
+that name no brand, so Sentl's run score mixes two readings. The report reads each dimension
+on its own: by its score when the question names the subject, by whether and where the
+subject appears when it names no brand. It gives no figure for the whole project. The run
+floor of §Coverage does not apply to a snapshot's single run; a dimension under 80% judged is
+shown without a figure, and the operator is told.
+
 ## MCP mapping
 
 The Sentl tools by route. R reads, W writes. No route calls a write tool without the
 operator's approval in that session.
 
-| Tool | brief | design | setup | adopt | report |
-|---|---|---|---|---|---|
-| `list-organizations` (R) | preflight | preflight | preflight | preflight | preflight |
-| `get-organization-tool` (R) | | | credits, subscription | | |
-| `list-ai-models` (R) | | models and tariffs | ids still offered | | public names |
-| `list-projects-tool` (R) | existing project for the subject | | | find the project | |
-| `get-project-tool` (R) | | | bind, edits | read the project | detect edits |
-| `project-edit-link-tool` (R) | | | link for the operator | | |
-| `estimate-run-tool` (R) | | | credit estimate | | |
-| `list-runs-tool` (R) | | | pending runs | runs available | new runs |
-| `get-run-results-tool` (R) | | | ingest pending runs | | ingest |
-| `create-project-tool` (W) | | | new project, paused | | |
-| `update-project-settings-tool` (W) | | | settings, activation on go | | |
-| `save-project-questions-tool` (W) | | | dry run, then save | | |
-| `trigger-run-tool` (W) | | | first run on go | | |
+| Tool | brief | design | setup | adopt | report | snapshot |
+|---|---|---|---|---|---|---|
+| `list-organizations` (R) | preflight | preflight | preflight | preflight | preflight | preflight |
+| `get-organization-tool` (R) | | | credits, subscription | | | credits, subscription |
+| `list-ai-models` (R) | | models and tariffs | ids still offered | | public names | models, tariffs, public names |
+| `list-projects-tool` (R) | existing project for the subject | | | find the project | | existing project for the subject |
+| `get-project-tool` (R) | | | bind, edits | read the project | detect edits | bind |
+| `project-edit-link-tool` (R) | | | link for the operator | | | link to archive by hand |
+| `estimate-run-tool` (R) | | | credit estimate | | | credit estimate before the go |
+| `list-runs-tool` (R) | | | pending runs | runs available | new runs | follow the run |
+| `get-run-results-tool` (R) | | | ingest pending runs | | ingest | ingest |
+| `create-project-tool` (W) | | | new project, paused | | | snapshot project, paused, no schedule |
+| `update-project-settings-tool` (W) | | | settings, activation on go | | | pause after the report |
+| `save-project-questions-tool` (W) | | | dry run, then save | | | dry run, then save |
+| `trigger-run-tool` (W) | | | first run on go | | | the single run, on go |
 
 `brief` also uses Google autocomplete and, when present, the keyword-data source.
 
@@ -506,25 +589,43 @@ it in the run snapshot; when the two differ by more than 0.05, the operator is t
 
 `reports/<YYYY-MM-DD>.md`, in `report_language`, self-contained: a reader who never saw an
 earlier report understands it. The method sections are regenerated from `study.json` each
-time, so they describe the questions actually asked in the period.
+time, so they describe the questions actually asked in the period. Sections are numbered in
+the order they appear.
 
-| # | Section | Written by |
+### Sections
+
+| Key | Section | Written by |
 |---|---|---|
 | — | Title: the research question; subject, period, date | `method` |
-| 1 | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
-| 2 | Where the themes came from: themes grouped by origin; search demand per theme with its source and period, volumes per class, or the no-volume statement | `method` |
-| 3 | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why | `method` |
-| 4 | The questions: per dimension, verbatim, paired questions side by side | `method` |
-| 5 | How the answers are scored: per dimension what a 5, a 3 and a 1 mean; who wrote the criteria and when; that an independent model in Sentl applied them; the score axis; what a high or a low score does not mean | `method` |
-| 6 | What the assistants say, dimension by dimension, in chapters by project | the agent |
-| 7 | What changed since the last report: changes in the answers, then changes in the design and how they affect the comparison | the agent, from the output of `period` |
+| `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
+| `themes` | Where the themes came from: themes grouped by origin; search demand per theme with its source and period, volumes per class, or the no-volume statement | `method` |
+| `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
+| `questions` | The questions: per dimension, verbatim, paired questions side by side | `method` |
+| `scoring` | How the answers are scored: per dimension what a 5, a 3 and a 1 mean; who wrote the criteria and when; that an independent model in Sentl applied them; the score axis; what a high or a low score does not mean | `method` |
+| `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |
+| `changes` | What changed since the last report: changes in the answers, then changes in the design and how they affect the comparison | the agent, from the output of `period` |
+| `limits` | Snapshot only: one question per dimension and one answer from each assistant, on one date; what a monitoring study adds (several questions per dimension, paired questions, repeated runs compared period by period) | `method` |
 
-**Section 6, per dimension:** a title that states what the person asking is told, never a
+### Order
+
+| Report | Sections after the title |
+|---|---|
+| First report on a study: the period has no previous period | `purpose`, `themes`, `dimensions`, `questions`, `scoring`, `findings`, `changes` |
+| Every later report: the period's `comparison.previous` is set | `changes`, `findings`, `purpose`, `themes`, `dimensions`, `questions`, `scoring` |
+| Snapshot | `purpose`, `dimensions`, `questions`, `scoring`, `findings`, `limits` |
+
+The first report tells how the study was built before what it found, because the reader
+meets the method there for the first time. From the second report on, the reader opens it
+for what moved: `changes` and `findings` come first, and the five method sections close the
+report, with the same content they would have in a first report, so each report still
+stands on its own. `method` takes the order from the period file.
+
+**`findings`, per dimension:** a title that states what the person asking is told, never a
 score; one or two verbatim excerpts, each with its question and assistant; the domains those
 answers cite; the dimension's figure with its coverage in the body; one line on what it means
 for the client. Every dimension gets its section, including those where nothing moved.
 
-**Section 7, on the first report:** one line saying this is the first measurement and the
+**`changes`, on the first report:** one line saying this is the first measurement and the
 next report compares against it.
 
 **Never in a report:** credits or any price; run, project or question ids; question keys;
@@ -532,8 +633,10 @@ file names; model ids (the public name is used); the skill's own steps or checks
 
 **`monitor.py check`** fails the report when: a quoted excerpt is not a verbatim substring
 of an answer in the period's runs; a figure is not in the period metrics; a dimension of the
-study has no section 6 entry; an id, a key, a model id, a file name or a credit figure
-appears; a section is missing or out of order.
+study has no `findings` entry; an id, a key, a model id, a file name or a credit figure
+appears; a section is missing, or the sections are not in the order the table above sets for
+the report (first, later or snapshot); a snapshot report carries a figure for the whole
+project.
 
 ## Scheduling
 
@@ -570,6 +673,8 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 | No keyword-data source | autocomplete only; the no-volume statement in the brief and the report |
 | `check` fails | interactive: the agent fixes the report; unattended: saved as draft |
 | Facts older than 90 days | listed to the operator after the report; the report is unaffected |
+| Snapshot run still open when the session ends | the next `snapshot` invocation in the folder follows the same run and starts nothing |
+| Snapshot project left in the account | paused through the MCP; the operator archives or deletes it in the Sentl web panel (gap G16) |
 
 ## MCP gaps
 
@@ -594,6 +699,7 @@ convenience.
 | G13 | A notification when a run completes, or a way to list runs completed since a time | P3 | polls on the report's schedule |
 | G14 | The run score's definition documented; the "general rule" that `get-project-tool` describes returned or removed from the description | P3 | recomputes the score from the answers and records Sentl's beside it |
 | G15 | The credits each run consumed, in `list-runs-tool` | P3 | tells the operator `estimate-run-tool`'s figure, never the spend |
+| G16 | Archive a project and restore it, or delete it; archived projects left out of `list-projects-tool` unless asked for. Today a project has only `is_active`, set by `update-project-settings-tool` | P2 | pauses a snapshot project with `is_active: false` and gives the operator the link to archive or delete it in the Sentl web panel by hand |
 
 ## Assumptions to verify
 
@@ -604,3 +710,4 @@ convenience.
 | A3 | With more than one round, each round appears as a separate response with no round number. | M2 |
 | A4 | Sentl's run score is the mean of the judged answers rounded to one decimal (true on the runs inspected while designing). | M1 |
 | A5 | Responses of a model later removed from `list-ai-models` keep its id. | M2 |
+| A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, pauses it once the run is open, and M7 checks that pausing lets an open run complete. | M7 |

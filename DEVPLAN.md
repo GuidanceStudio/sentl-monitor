@@ -2,11 +2,17 @@
 
 **Status:** proposed 2026-10-16, awaiting the operator's approval. No milestone has started.
 
+**Decisions of 2026-10-16:** MIT licence, public repository at
+github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
+`snapshot` route (M7); from the second report on, a report opens with what changed and closes
+with the method sections.
+
 ## Objective
 
 A skill that designs a monitoring study, sets it up in Sentl through Sentl's MCP server, and
-reports on its runs every period, comparing each period with the previous ones. Sentl is the
-only measurement; the skill makes no model calls and needs no key of its own.
+reports on its runs every period, comparing each period with the previous ones. It also runs
+a one-off snapshot of a subject on Sentl and leaves no project running afterwards. Sentl is
+the only measurement; the skill makes no model calls and needs no key of its own.
 
 ## Approach
 
@@ -30,8 +36,12 @@ the operator gets a report before the design routes exist. Files, schemas and ru
   outside the range of earlier periods, and unstable pairs are reported.
 - Insights are written by the host assistant: `monitor.py check` verifies quotes, figures and
   section order before a report is final.
-- The repository will be public: fixtures and examples use fictional subjects, study folders
-  are ignored, and no file names a client, an organization or a machine path.
+- No MCP tool archives or deletes a project (gap G16): the `snapshot` route pauses its
+  project and the operator archives it in the Sentl web panel by hand.
+- A manual run on a paused project is assumed to start (assumption A6); M7 verifies it before
+  the `snapshot` route relies on it.
+- The repository is public: fixtures and examples use fictional subjects, study and snapshot
+  folders are ignored, and no file names a client, an organization or a machine path.
 
 ## Phases
 
@@ -47,13 +57,16 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - M5: Create and update the Sentl projects through the MCP — step 6, without retyping.
 - M6: Report unattended on a schedule — reports arrive without the operator starting them.
 
+### Phase D — One-off snapshot
+- M7: Run a one-off snapshot on Sentl — the quick check sentl-snapshot runs on OpenRouter, measured on Sentl. Depends on M1, M4 and M5.
+
 ## Out of scope
 
 - Model calls, OpenRouter, any key or token handled by the skill.
 - Rendering: outputs are Markdown; PDF, slides and HTML are the operator's choice of tool.
 - Scripts calling the Sentl endpoint directly.
-- Merging sentl-snapshot into this skill (operator decision pending).
-- A licence file (operator decision pending).
+- A batch mode that runs a snapshot for each subject of a list.
+- Retiring sentl-snapshot once M7 ships: an item of that skill's own repository.
 
 ---
 
@@ -61,49 +74,51 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Why:** The operator has Sentl projects and no written report on them; a report on one run is useful before any design route exists.
 
-**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers one run, without comparison. Report headings in `en` and `it`. `install.sh` and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/`) land here.
+**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers one run, without comparison, so `method` lays out the first-report order of §The report. Report headings in `en` and `it`. `install.sh` and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/`) land here.
 
 **Tasks:**
 - [ ] Test: unit — `adopt` maps a fictional `get-project-tool` fixture to `study.json` and `sentl.json`
 - [ ] Test: unit — `ingest`: text matching, `unmatched` rows, null score and sentiment, truncated input refused
 - [ ] Test: unit — `period`: mean, coverage, presence, domains, owned split on a fictional run
-- [ ] Test: unit — `check` refuses a paraphrased quote, an unknown figure, an id, a credit figure, a missing dimension
+- [ ] Test: unit — `method` writes the five method sections and lays out the first-report order
+- [ ] Test: unit — `check` refuses a paraphrased quote, an unknown figure, an id, a credit figure, a missing dimension, a section out of order
 - [ ] Test: bash — layout, `SKILL.md` frontmatter and routes, `install.sh --dest` install
 - [ ] Implement the two playbooks, the five `monitor.py` commands and `install.sh`
 - [ ] Test: live — adopt a real project, report its latest run with read-only tools, record assumptions A2 and A4
 - [ ] Commit
 
-**Done when:** the suite is green and a report on a real project's latest run passes `check` with sections 1–7 in the order of ARCHITECTURE.md §The report.
+**Done when:** the suite is green and a report on a real project's latest run passes `check` in the first-report order of ARCHITECTURE.md §The report.
 
 ## M2: Compare each report period with the previous ones
 
 **Why:** A periodic report must say what moved since the last one, and keep comparing when questions, criteria or models change.
 
-**Approach:** `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change. Section 7 is written from its output; `history/reports.json` indexes the reports.
+**Approach:** `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change. The `changes` section is written from its output; `history/reports.json` indexes the reports. A period with a previous period gets the later-report order of §The report: `changes` and `findings` first, the five method sections after them, complete.
 
 **Tasks:**
 - [ ] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods
 - [ ] Test: unit — each §Comparability row: reworded, new intent, criteria, model added, dimension archived
 - [ ] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands; new and lost domains
 - [ ] Test: unit — a detected edit creates a version; responses inside its window match the previous text
-- [ ] Implement versions, the comparison in `period`, section 7, `reports.json`; update `REPORT.md`
+- [ ] Test: unit — section order follows the period: without a previous period `method` lays out the first-report order; with one, `changes` and `findings` open the report and the method sections follow with the same content as in a first report; `check` refuses a later report in the first-report order, and the reverse
+- [ ] Implement versions, the comparison in `period`, the `changes` section, the later-report order, `reports.json`; update `REPORT.md`
 - [ ] Record assumptions A3 and A5
 - [ ] Commit
 
-**Done when:** three consecutive reports on a fictional history produce the expected section 7, including a reworded question, a criteria change and an added model.
+**Done when:** three consecutive reports on a fictional history produce the expected `changes` section, including a reworded question, a criteria change and an added model; the first is in the first-report order, the second and third open with `changes` and close with the method sections.
 
 ## M3: Build the theme inventory and collect search demand
 
-**Why:** The operator's process starts from themes found in the client's material and in Google searches, and the report's section 2 needs each theme's origin and its search demand.
+**Why:** The operator's process starts from themes found in the client's material and in Google searches, and the report's `themes` section needs each theme's origin and its search demand.
 
-**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes: volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in section 2.
+**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes: volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
 
 **Tasks:**
 - [ ] Test: unit — autocomplete parsing, prefixes with stems, partial failure exit 1 (fixtures, no network)
 - [ ] Test: unit — volume merge with provider, tool and date; related-search filter and dropped count
 - [ ] Test: unit — keyword classes; per-class volumes; `summary` per theme; no-volume statement
 - [ ] Test: live — one autocomplete request with `RUN_LIVE=1`
-- [ ] Implement `BRIEF.md`, `demand` commands, section 2 from `search-demand.json`
+- [ ] Implement `BRIEF.md`, `demand` commands, the `themes` section from `search-demand.json`
 - [ ] Commit
 
 **Done when:** a fictional brief produces `search-demand.json` whose subject and component volumes stay apart, and `brief.md` with the no-volume line when no source is given.
@@ -112,14 +127,14 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Why:** Steps 3–5 of the operator's process: dimensions and projects from the themes, who asks, questions as people type them, and how each is scored 1–5.
 
-**Approach:** `design/DESIGN.md` in the order of ARCHITECTURE.md §`design`; one study project is one Sentl project. `design/anchors.md` adapts sentl-snapshot's dimension catalogue and adds the stance and fidelity axes. `monitor.py validate` implements every refusal and warning listed in §`design`, including Sentl's field limits and the opposite-framing rule for dimensions with `search_lean`. `review` writes `study-review.md`. Revisions classify each changed question as `reworded`, `new_intent` or `criteria` and append to its `lineage`.
+**Approach:** `design/DESIGN.md` in the order of ARCHITECTURE.md §`design`; one study project is one Sentl project. `catalogue.md` ports sentl-snapshot's dimension catalogue (question patterns, rubric anchors, the facts each dimension needs, with catalogue ids) and adds the stance and fidelity axes; the `snapshot` route (M7) picks its dimensions from it. `monitor.py validate` implements every refusal and warning listed in §`design`, including Sentl's field limits and the opposite-framing rule for dimensions with `search_lean`. `review` writes `study-review.md`. Revisions classify each changed question as `reworded`, `new_intent` or `criteria` and append to its `lineage`.
 
 **Tasks:**
 - [ ] Test: unit — one fixture per `validate` refusal, one per warning, and a clean fictional study
 - [ ] Test: unit — additional instructions composed from instructions and dated facts within 500 characters
 - [ ] Test: unit — `review` prints narrative, inventory, questions, rubrics, credit estimate from tariffs
 - [ ] Test: unit — revision lineage: reworded keeps the key, new intent retires it
-- [ ] Implement `DESIGN.md`, `anchors.md`, `validate`, `review`
+- [ ] Implement `DESIGN.md`, `catalogue.md`, `validate`, `review`
 - [ ] Commit
 
 **Done when:** the fictional study validates, a dimension leaning one way without its opposite question is refused, and `study-review.md` shows every section.
@@ -154,3 +169,22 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - [ ] Commit
 
 **Done when:** two scheduled invocations in a row on a real project produce one report and then a `nothing_new` outcome.
+
+## M7: Run a one-off snapshot on Sentl
+
+**Why:** A first look at a subject, for a prospect or before a study, needs a small study run once and a short report, with no project left running in Sentl. The route replaces the check sentl-snapshot runs on OpenRouter.
+
+**Approach:** Depends on M1 (`ingest`, `period`, `method`, `check`), M4 (`catalogue.md`, `validate`, `review`) and M5 (`payload`, `bind`). `snapshot/SNAPSHOT.md` follows ARCHITECTURE.md §`snapshot <subject>`: subject and dated facts, 4–5 dimensions from `catalogue.md`, one question and one rubric each, one Sentl project created paused with no schedule, `estimate-run-tool` shown in credits before the go, one run, a report in the snapshot order of §The report, then the pause, `closed` in `sentl.json` and the panel link for archiving by hand (gap G16). `study.json` carries `"kind": "snapshot"`; `validate`, `review`, `payload`, `method` and `check` gain a snapshot mode. Invoked again in the same folder, the route resumes at the first step whose output is missing.
+
+**Tasks:**
+- [ ] Test: unit — snapshot `validate`: refuses 3 and 6 dimensions, a dimension with two questions, an unknown catalogue id, rounds above 1, a schedule; warns when every dimension names the subject
+- [ ] Test: unit — snapshot `payload`: one project, one round, no `schedule_frequency`, `is_active` never sent as true
+- [ ] Test: unit — snapshot report: `method` lays out the snapshot order with `limits` last; `check` refuses a `changes` section, a figure for the whole project, a credit figure
+- [ ] Test: unit — resume: each folder state (no design, unbound, bound without a run, run open, run not ingested, project not closed) leads to the step ARCHITECTURE.md §`snapshot <subject>` names
+- [ ] Test: unit — the archive step writes `closed` with `archive: operator` to `sentl.json`
+- [ ] Test: bash — `SNAPSHOT.md` calls `estimate-run-tool` before `trigger-run-tool`, and `trigger-run-tool` only after the operator's go
+- [ ] Test: live — a snapshot of a subject the operator picks, in the organization designated for tests: estimate, one run on the go, report, pause; verify assumption A6 and record the result in ARCHITECTURE.md
+- [ ] Implement `SNAPSHOT.md` and the snapshot mode of `validate`, `review`, `payload`, `method` and `check`; list the route in `SKILL.md`
+- [ ] Commit
+
+**Done when:** `snapshot <subject>` in an empty folder ends with a report that passes `check` in the snapshot order, the Sentl project paused, and the operator holding the panel link to archive it.
