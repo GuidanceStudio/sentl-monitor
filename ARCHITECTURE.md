@@ -125,6 +125,7 @@ and period, or `null` when no keyword-data source was used.
   "report_every": "monthly",
   "organization": "<Sentl organization slug>",
   "narrative": {
+    "criteria": {"by": "il team marketing di Avenello", "date": "2026-09-15"},
     "research_question": "Cosa viene detto a chi chiede a un assistente AI delle bevande all'avena e di Avenello?",
     "purpose": "Sapere cosa dicono gli assistenti AI a chi sceglie una bevanda vegetale, per decidere quali pagine scrivere e quali affermazioni correggere.",
     "audience": {"choice": "personas",
@@ -222,7 +223,7 @@ can archive it itself.
 previous version). A detected version carries `window`: the last time the previous version
 was seen and the time the difference was found. `change` is `created`, `reworded`,
 `new_intent`, `criteria`, `retired`, `models`, `rounds`, `dimension_added` or
-`dimension_archived`.
+`dimension_archived`; a question taken in by `adopt` starts its lineage with `adopted`.
 
 ### Run snapshot, `history/runs/<project>/<run_id>.json.gz`
 
@@ -232,33 +233,39 @@ was seen and the time the difference was found. `change` is `created`, `reworded
   "run_id": 0, "project": "brand", "status": "completed", "trigger": "scheduled",
   "started_at": "...", "finished_at": "...", "sentl_score": 3.4, "error": null,
   "version": 3, "ingested_at": "...",
+  "plan": {"questions": ["health-1"], "models": ["<model id>"], "rounds": 1},
   "expected": 48, "received": 48, "judged": 47,
   "responses": [
     {"response_id": 0, "question": "health-1", "dimension": "health", "model": "<model id>",
      "score": 4, "sentiment": "positive", "answer": "...",
-     "sources": [{"url": "...", "title": "...", "domain": "example.org", "owned": false}],
-     "mentions": {"subject": true, "position": 1, "foils": ["cow-milk"], "components": ["oat-drink"]},
+     "sources": [{"url": "...", "title": "...", "domain": "example.org"}],
      "match": "exact"}
   ]
 }
 ```
 
-- `expected` is questions × models × rounds of the version in force; `received` and `judged`
-  are counted from the response.
+- `plan` is the questions, models and rounds of the version in force, and `expected` their
+  product; `received` and `judged` are counted from the response.
 - A run that started before the first recorded version (a run read from a project's history
   when it is adopted) has no known configuration (gap G2): `version` is `null`, and
-  `expected` is the distinct questions answered × the distinct models × the largest number
-  of responses of one question–model pair.
+  `plan` holds the distinct questions answered, the distinct models and the largest number
+  of responses of one question–model pair as its rounds.
 - `score` and `sentiment` are `null` for an answer the judge did not score. Sentl returns
   `judge_score: null` with `sentiment: "neutral"` on such an answer.
 - `answer` is `null` when the model returned no answer; Sentl leaves its score `null` too.
   Such a response counts against coverage and is left out of presence, whose denominator is
   the answers given.
-- `mentions` is computed by string match on the aliases and terms (case- and accent-folded,
-  on word boundaries), never asked of a model. `position` is the subject's order among the
-  subject and foils named in the answer.
+- A source's `domain` is its URL's host without `www.`. A grounding redirect
+  (`vertexaisearch.cloud.google.com`, the URL of every source one assistant cites) hides the
+  site; its title is the site's domain and is used instead.
+- Whether an answer names the subject or a foil, and whether a cited domain is owned, is not
+  stored: `period` computes it from the aliases and owned domains in `study.json` at the time,
+  by string match (case- and accent-folded, on word boundaries), never by asking a model. An
+  alias the operator corrects applies to the whole history. `position` is the subject's order
+  among the subject and the foils named in the answer.
 - `match` is `exact`, `version` (matched against an earlier version's text inside a detection
-  window) or `unmatched` (kept, excluded from every figure, listed to the operator).
+  window) or `unmatched` (kept with the dimension and question Sentl returned under `asked`,
+  excluded from every figure, listed to the operator).
 - Runs are compressed because the history grows with every run: a project of 30 questions and
   4 models produces about 120 answers per run.
 
@@ -277,10 +284,13 @@ was seen and the time the difference was found. `change` is `created`, `reworded
 }
 ```
 
-Each `total`, and each model under `by_model`, is a cell: `mean`, `judged`, `expected`, `coverage`, `bands` (answers scored 1–2, 3, 4–5),
-`presence` (answers naming the subject out of the answers given, and the mean position),
-`unstable_pairs` (question–model pairs whose answers in the period differ by two points or
-more) and `domains` (domain → answers citing it). A question's or a dimension's `mean` is the
+Each `total`, and each model under `by_model`, is a cell: `mean`, `figure` (false when fewer
+than 80% of the expected answers were judged), `received`, `judged`, `expected`, `coverage`,
+`bands` (answers scored 1–2, 3, 4–5), `presence` (`named` answers out of the `given` ones,
+their `rate`, and the mean `position`), `unstable_pairs` (question–model pairs whose answers
+in the period differ by two points or more), `domains` (domain → answers citing it) and
+`owned` (answers citing an owned domain out of the answers citing any). `names` maps each
+model of the period to its public name, which `check` needs to tell a name from a figure. A question's or a dimension's `mean` is the
 mean of its judged answers; a project's `mean` is the mean of its dimension means, the way
 Sentl computes a run's score (A4). A period rebuilt from a project's history carries
 `"rebuilt": true` (see Periods).
@@ -694,16 +704,29 @@ the report (first, later or snapshot); a snapshot report carries a figure for th
 project. The rules it applies:
 
 - **Excerpts** are Markdown blockquote lines in `findings` and `changes`. An excerpt may
-  skip text with `[…]`; each piece, after the normalization of §Matching, must be a
-  substring of one answer in the period's runs.
+  skip text with `[…]`; each piece, after the normalization of §Matching (dashes folded to a
+  hyphen as well) and with Markdown emphasis and citation markers such as `[1]` dropped, must
+  be a substring of one answer in the period's runs. A failure says where the excerpt stops
+  matching its closest answer.
 - **Figures** are the numbers in `findings` and `changes` written with a decimal separator
-  (a point in English, a comma in Italian) and the percentages. Each must equal a value of
-  the period file rounded as the report writes it: one decimal for scores, a whole number
-  for percentages. Integers are not checked: they are counts, dates and points of the scale.
-- **Ids** are integers that look like counts, so a Sentl id is refused only where a word
-  names it (`run`, `id`, `#`, and the words for project and question in the report's
-  language). Question and project keys, model ids and file names are distinctive strings
-  and are refused anywhere. A credit figure is a number next to the word for credit.
+  and the percentages. A decimal uses the report language's separator (a point in English, a
+  comma in Italian) and has one decimal; a percentage is whole. Each must equal a value of
+  the period file rounded the same way. A dimension's entry may cite its own dimension's
+  figures and its project's overall figure, never another dimension's; a dimension shown
+  without a figure has none to cite. A count of answers written "N su M" or "N of M" must be
+  a pair of the period (judged of expected, named of given, and the like). Other integers are
+  not checked: they are dates and points of the scale. Text inside «» that quotes a question
+  or an answer, and the assistants' public names (which can carry a version number), are not
+  read as figures.
+- **Findings headings** carry no figure.
+- **Ids** are integers that look like counts, so a Sentl id of the study is refused only
+  where a word names it (`run`, `id`, `#`, and the words for project, question and dimension
+  in the report's language). Question keys, model ids and file names are distinctive strings
+  and are refused anywhere; dimension and project keys are ordinary words and are not
+  checked. A credit figure is a number next to the word for credit.
+- **Findings entries** are headed `### <dimension name>: <what the person asking is told>`
+  (`####` under a project heading when the study has several projects). `method` leaves a
+  `[[...]]` marker for each, and a report that still holds one fails.
 
 ## Scheduling
 

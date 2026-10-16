@@ -11,8 +11,10 @@ several researcher models, a judge scores each answer from 1 to 5 against a rubr
 for that question, and each run produces a score. This skill decides what to ask and why,
 puts it in Sentl, and turns the runs into reports. It makes no model calls of its own.
 
-**Status: design.** This repository holds the design ([ARCHITECTURE.md](ARCHITECTURE.md))
-and the development plan ([DEVPLAN.md](DEVPLAN.md)). There is no code yet.
+**Status:** the `adopt` and `report` routes work: a project that already exists in Sentl is
+taken into a study folder and reported on, from its latest run. The other routes are
+planned; the design is in [ARCHITECTURE.md](ARCHITECTURE.md) and the plan in
+[DEVPLAN.md](DEVPLAN.md).
 
 ## Who it is for
 
@@ -53,7 +55,18 @@ headless assistant, create a token in Sentl under **Integrations → API Tokens*
 an `Authorization: Bearer` header; the setup page shows the configuration. The skill never
 asks for the token and never stores it.
 
-**Python 3.10 or later**, standard library only (the scripts arrive with the first milestone).
+**Python 3.10 or later**, standard library only.
+
+## Install
+
+```bash
+./install.sh            # installs for Claude Code, and for opencode when it is present
+./install.sh --check    # OK when the installed copy matches this repository, DRIFT otherwise
+./install.sh --force    # overwrites an existing install
+```
+
+Then ask your assistant, in the folder where you keep client work, for
+`sentl-monitor adopt <project>` and then `sentl-monitor report`.
 
 **Optional: a keyword-data source.** Sentl gives no search data. Without a key, the skill
 collects Google autocomplete suggestions in the market's language and country. When a
@@ -173,7 +186,7 @@ run, judge and analysis stages.
 
 Neither skill is required to use this one.
 
-## Repository layout (planned)
+## Repository layout
 
 ```
 README.md              this file
@@ -183,15 +196,16 @@ DEVPLAN.md             milestones
 install.sh             installs the skill for Claude Code and opencode
 sentl-monitor/         the skill payload
   SKILL.md             router
-  catalogue.md         dimension catalogue: question patterns, rubric anchors, facts the judge needs
-  brief/BRIEF.md       route playbooks, one per route
-  design/DESIGN.md
-  setup/SETUP.md
-  adopt/ADOPT.md
+  adopt/ADOPT.md       route playbooks, one per route
   report/REPORT.md
-  snapshot/SNAPSHOT.md
-  scripts/monitor.py   search demand, validation, Sentl payloads, ingestion, comparison, checks
-tests/                 bash contract tests, Python unit tests, opt-in live tests
+  brief/BRIEF.md       planned
+  design/DESIGN.md     planned
+  setup/SETUP.md       planned
+  snapshot/SNAPSHOT.md planned
+  catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
+  scripts/monitor.py   the command line: adopt, ingest, period, method, check (more with each route)
+  scripts/sentlmon/    its implementation, standard library only
+tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```
 
 Study and snapshot folders hold client data and live outside this repository.
