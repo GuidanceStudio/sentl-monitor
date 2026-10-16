@@ -1,11 +1,16 @@
 # Devplan — sentl-monitor
 
-**Status:** proposed 2026-10-16, awaiting the operator's approval. No milestone has started.
+**Status:** approved 2026-10-16, after a revision the same day that followed a read of three
+live Sentl projects with read-only tools. M1 in progress.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
 `snapshot` route (M7); from the second report on, a report opens with what changed and closes
-with the method sections.
+with the method sections. After the live read: a project's figure is the mean of its
+dimension means, as Sentl computes a run's score (A4); assumption A1 is verified at the start
+of M2 on a test project, with the operator's go for its one run; the first report on an
+adopted project rebuilds the K periods before it from the project's history and compares
+with them (M2).
 
 ## Objective
 
@@ -31,7 +36,15 @@ the operator gets a report before the design routes exist. Files, schemas and ru
   name and text to local keys, duplicate texts are refused, and every pending run is
   ingested before any write to Sentl.
 - Large run results can exceed a host's tool-output limit (gap G3): `ingest` refuses
-  truncated data; the skill relies on hosts that save oversize output to a file.
+  truncated data; the skill relies on hosts that save oversize output to a file. Claude Code
+  does: a run of 39 answers, about 250,000 characters, was saved as complete JSON.
+- Small MCP responses arrive inline and reach `inbox/` only through the assistant writing them
+  out, which can alter a character: matching normalizes quotes and whitespace, `adopt` and
+  `bind` cross-check the saved project against the latest run, and `payload` never sends a
+  text that differs from Sentl's only by normalization (ARCHITECTURE.md §Responses saved by
+  the assistant).
+- Sentl returns a server error on the results of some older runs (gap G17): they are recorded
+  as unavailable, retried, and never block a report or a write.
 - One answer per question and model is noisy: periods pool runs, a change is called only
   outside the range of earlier periods, and unstable pairs are reported.
 - Insights are written by the host assistant: `monitor.py check` verifies quotes, figures and
@@ -71,21 +84,22 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 ---
 
-## M1: Report on one run of an existing Sentl project
+## M1: Report on one run of an existing Sentl project 🔄
 
 **Why:** The operator has Sentl projects and no written report on them; a report on one run is useful before any design route exists.
 
-**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers one run, without comparison, so `method` lays out the first-report order of §The report. Report headings in `en` and `it`. `install.sh` and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/`) land here.
+**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers the project's latest completed run, without comparison, so `method` lays out the first-report order of §The report. Fixtures follow the field names read from live Sentl on 2026-10-16 (`judge_score`, `reputation_score`, sources with `url` and `title` only), with fictional content. `check` applies the rules listed under §The report. Report headings in `en` and `it`. `install.sh` follows llm-rep's (`--force`, `--check`, `--dest`), and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/` with `RUN_LIVE=1`) land here, with the deny-list test the repository's CLAUDE.md requires.
 
 **Tasks:**
-- [ ] Test: unit — `adopt` maps a fictional `get-project-tool` fixture to `study.json` and `sentl.json`
-- [ ] Test: unit — `ingest`: text matching, `unmatched` rows, null score and sentiment, truncated input refused
-- [ ] Test: unit — `period`: mean, coverage, presence, domains, owned split on a fictional run
-- [ ] Test: unit — `method` writes the five method sections and lays out the first-report order
-- [ ] Test: unit — `check` refuses a paraphrased quote, an unknown figure, an id, a credit figure, a missing dimension, a section out of order
-- [ ] Test: bash — layout, `SKILL.md` frontmatter and routes, `install.sh --dest` install
+- [ ] Test: unit — deny-list: tracked files carry no name from a list kept as sha256 digests (llm-rep's pattern), no token-shaped string and no home-directory path
+- [ ] Test: unit — `adopt` maps a fictional `get-project-tool` fixture to `study.json` (with `report_every`) and `sentl.json`; refuses a saved project missing a question text of the latest run; matches across typographic quotes
+- [ ] Test: unit — `ingest`: text matching, `unmatched` rows, unscored answer with `neutral` sentiment set to null, `answer: null` counted against coverage and out of presence, a status not seen before treated as not final, a server error recorded in `unavailable.json`, truncated input refused
+- [ ] Test: unit — `period`: dimension mean, project mean as the mean of dimension means, coverage, presence, domains, owned split on a fictional run; Sentl's score recorded beside it
+- [ ] Test: unit — `method` writes the five method sections, the adopted-study `themes` line, and lays out the first-report order
+- [ ] Test: unit — `check` refuses a paraphrased quote, a quote split with `[…]` across two answers, an unknown figure with a decimal point or comma, an id after `run`, a key, a credit figure, a missing dimension, a section out of order; accepts integers that are counts or dates
+- [ ] Test: bash — layout, `SKILL.md` frontmatter and routes, `install.sh --dest` install and `--check` drift
 - [ ] Implement the two playbooks, the five `monitor.py` commands and `install.sh`
-- [ ] Test: live — adopt a real project, report its latest run with read-only tools, record assumptions A2 and A4
+- [ ] Test: live — adopt a real project, report its latest run with read-only tools; the study folder stays outside the repository and the project is named by an environment variable
 - [ ] Commit
 
 **Done when:** the suite is green and a report on a real project's latest run passes `check` in the first-report order of ARCHITECTURE.md §The report.
@@ -94,25 +108,26 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Why:** A periodic report must say what moved since the last one, and keep comparing when questions, criteria or models change.
 
-**Approach:** `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change. The `changes` section is written from its output; `history/reports.json` indexes the reports. A period with a previous period gets the later-report order of §The report: `changes` and `findings` first, the five method sections after them, complete.
+**Approach:** Starts by verifying assumption A1, because the handling of edits made in the Sentl web panel depends on it: in the organization the operator designates for tests, a project with one question and one model, one run on the operator's go after `estimate-run-tool`, the question's text edited, the run read again; the project is then paused and left for the operator to archive (gap G16). `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change; on the first report of a project with earlier runs it rebuilds the K periods before it (§Periods). The `changes` section is written from its output; `history/reports.json` indexes the reports and sets the order: the first report in the first-report order, every later one with `changes` and `findings` first and the five method sections after them, complete.
 
 **Tasks:**
-- [ ] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods
+- [ ] Verify assumption A1 on a test project, on the operator's go for its run; record the result in ARCHITECTURE.md and, if it is false, the new-baseline rule in §Comparability
+- [ ] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods, including a model absent from `list-ai-models` (A5) and rounds pooled as repeated responses (A3)
 - [ ] Test: unit — each §Comparability row: reworded, new intent, criteria, model added, dimension archived
-- [ ] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands; new and lost domains
+- [ ] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands with means on their edges (2.45, 2.5, 3.49, 3.5); new and lost domains
 - [ ] Test: unit — a detected edit creates a version; responses inside its window match the previous text
-- [ ] Test: unit — section order follows the period: without a previous period `method` lays out the first-report order; with one, `changes` and `findings` open the report and the method sections follow with the same content as in a first report; `check` refuses a later report in the first-report order, and the reverse
-- [ ] Implement versions, the comparison in `period`, the `changes` section, the later-report order, `reports.json`; update `REPORT.md`
-- [ ] Record assumptions A3 and A5
+- [ ] Test: unit — rebuilt periods: an adopted project with ten weeks of runs and a monthly cadence gets the K earlier periods with `rebuilt: true` and no report; runs before the adopt version have `version: null` and `expected` from their responses; an unavailable run is left out and listed
+- [ ] Test: unit — section order follows `reports.json`: the first report, rebuilt periods or not, in the first-report order with a `changes` section that compares when periods were rebuilt; later reports open with `changes` and `findings` and the method sections follow with the same content as in a first report; `check` refuses a later report in the first-report order, and the reverse
+- [ ] Implement versions, the comparison and the rebuilt periods in `period`, the `changes` section, the later-report order, `reports.json`; update `REPORT.md` and `ADOPT.md`
 - [ ] Commit
 
-**Done when:** three consecutive reports on a fictional history produce the expected `changes` section, including a reworded question, a criteria change and an added model; the first is in the first-report order, the second and third open with `changes` and close with the method sections.
+**Done when:** A1 is recorded as verified or refuted; three consecutive reports on a fictional history produce the expected `changes` section, including a reworded question, a criteria change and an added model, the first in the first-report order and the second and third opening with `changes` and closing with the method sections; a fictional adopted project's first report compares with its rebuilt periods.
 
 ## M3: Build the theme inventory and collect search demand
 
 **Why:** The operator's process starts from themes found in the client's material and in Google searches, and the report's `themes` section needs each theme's origin and its search demand.
 
-**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes: volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
+**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes, ported from llm-rep's `scripts/search_demand.py` (Google suggest fetching and parsing, keyword classing; standard library): volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
 
 **Tasks:**
 - [ ] Test: unit — autocomplete parsing, prefixes with stems, partial failure exit 1 (fixtures, no network)
@@ -147,10 +162,9 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 **Approach:** `setup/SETUP.md` follows ARCHITECTURE.md §`setup`. `monitor.py payload` builds the arguments of `create-project-tool`, `update-project-settings-tool` and `save-project-questions-tool` from `study.json`, with every id from `sentl.json`; `bind` records ids and a `setup` version from a saved `get-project-tool` response. The playbook ingests pending runs before any save, saves with `dry_run` first, sends `delete_missing` only after the operator approves the listed deletions, and triggers a run or activates the schedule only on an explicit go after `estimate-run-tool`.
 
 **Tasks:**
-- [ ] Test: unit — payload keeps ids, adds new items without ids, archives a dropped dimension, never sets `delete_missing`
-- [ ] Test: unit — `bind` writes ids and a version; the pending-run guard blocks a save
+- [ ] Test: unit — payload keeps ids, adds new items without ids, archives a dropped dimension, never sets `delete_missing`; a text that differs from Sentl's only by quotes or whitespace is sent as Sentl has it
+- [ ] Test: unit — `bind` writes ids and a version; refuses a saved project missing a text of the latest run; the pending-run guard blocks a save, an unavailable run does not
 - [ ] Test: live — in an organization the operator designates for tests: create, dry run, save, bind; no run triggered
-- [ ] Verify assumption A1 on that test project and record the result in ARCHITECTURE.md
 - [ ] Implement `SETUP.md`, `payload`, `bind`
 - [ ] Commit
 
@@ -165,7 +179,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 **Tasks:**
 - [ ] Test: unit — `nothing_new`, `below_floor`, `draft` and `written` outcomes in `last-report.json`
 - [ ] Test: unit — idempotence: two invocations on the same runs write one report
-- [ ] Test: live — two scheduled invocations on a real project, one after a new run
+- [ ] Test: live — two scheduled invocations on a real project, one after a new run (a scheduled run of the project, or a manual one on the operator's go)
 - [ ] Implement the unattended mode in `REPORT.md` and `monitor.py`; README scheduling section
 - [ ] Commit
 
