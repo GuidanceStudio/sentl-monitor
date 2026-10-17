@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from .common import Refused, Study, fmt_percent, load_json, match_key, norm, round_half_up
+from .insights import fact_terms, tight
 from .i18n import SECTIONS
 from .method import measured, report_order
 
@@ -14,7 +15,8 @@ QUOTED = re.compile(r"«[^»\n]*»|“[^”\n]*”|\"[^\"\n]*\"")
 DECIMAL = re.compile(r"(?<![\w.,])(\d+)([.,])(\d+)(?![.,]?\d)")
 PERCENT = re.compile(r"(?<![\w.,])(\d+(?:[.,]\d+)?)\s?%")
 COUNT = re.compile(r"(?<![\w.,])(\d+)\s+((?:[^\W\d]+\s+){0,3}?)(su|of)\s+(\d+)(?!\w|[.,]\d)", re.I)
-ANSWER_WORD = re.compile(r"rispost|answer", re.I)
+# A count of answers names them, or the citing they did: "N of M answers", "N su M citano".
+ANSWER_WORD = re.compile(r"rispost|answer|\bcit(?:e|es|ing|a|ano)\b", re.I)
 FILE_NAME = re.compile(r"\b[\w-]+(?:\.[\w-]+)*\.(?:json|gz|md|py|csv|xlsx)\b", re.I)
 CREDIT = re.compile(r"\d[\d.,]*\s*(?:crediti|credito|credits?)\b|\b(?:crediti|credito|credits?)\s*:?\s*\d", re.I)
 ID_WORDS = r"(?:run|id|project|progetto|question|domanda|dimension|dimensione)"
@@ -140,17 +142,62 @@ def _allowed(scopes, extra=(set(), set())):
             p = c["presence"]
             pairs |= {(c["judged"], c["expected"]), (c["judged"], c["received"]), (c["received"], c["expected"]),
                       (p["named"], p["given"]), (c["owned"]["citing"], c["owned"]["with_sources"])}
+            if "readings" in c:
+                pairs |= {(c["readings"], p["given"]), (c["readings"], c["received"])}
+                a = c["authors"]
+                for n in (a["owned"], a["foil"], a["third"]):
+                    _ratio(n, a["with_sources"], percents, pairs)
+        _insights(scope, decimals, percents, pairs)
     return decimals, percents, pairs
+
+
+def _ratio(n, m, percents, pairs):
+    pairs.add((n, m))
+    if m:
+        percents.add(int(fmt_percent(n / m)[:-1]))
+
+
+def _insights(scope, decimals, percents, pairs):
+    """The figures of a question's insights (DEVPLAN M2b). Counts and shares of answers may be
+    cited whatever the coverage; means only where the question has a figure."""
+    figure = scope.get("total", {}).get("figure")
+    facts = scope.get("facts")
+    if facts:
+        cells = [facts["total"], *facts["by_model"].values()]
+        cells += [c for run in facts["runs"] for c in (run["total"], *run["by_model"].values())]
+        for c in cells:
+            s = c["stating"]
+            for n in (c["current_only"], c["outdated_only"], c["both"], c["current_only"] + c["both"],
+                      c["outdated_only"] + c["both"]):
+                _ratio(n, s, percents, pairs)
+            for n in (s, c["current_only"], c["outdated_only"], c["both"]):
+                _ratio(n, c["given"], percents, pairs)
+    for e in (e for entries in (scope.get("group_sources") or {}).values() for e in entries):
+        for g in (e, e["other"]):
+            _ratio(g["citing"], g["answers"], percents, pairs)
+    for r in scope.get("presence_runs") or []:
+        _ratio(r["named"], r["given"], percents, pairs)
+    for e in scope.get("episodes") or []:
+        values = e["values"] + e["range"]
+        if e["measure"] != "mean":
+            percents |= {int(fmt_percent(v)[:-1]) for v in values}
+        elif figure:
+            decimals |= {round_half_up(v, 1) for v in values}
+    for m in (scope.get("missing") or {}).values():
+        _ratio(m["answers"], m["given"], percents, pairs)
+        _ratio(m["answers"], m["judged"], percents, pairs)
+        if figure:
+            decimals |= {round_half_up(v, 1) for v in (m["mean"], m["mean_without"]) if v is not None}
 
 
 def _unquote(text, questions, answers, names=()):
     """Drop the assistants' names, which can carry a version number, and «...» spans that
-    quote a question or an answer; keep the words of any other span."""
+    quote a question, a fact term of the study or an answer; keep the words of any other span."""
     for name in sorted(names, key=len, reverse=True):
         text = text.replace(name, " ")
     def keep(m):
         inner = m.group(0)[1:-1]
-        if match_key(inner) in questions or (_plain(inner) and any(_plain(inner) in a for a in answers)):
+        if tight(match_key(inner)) in questions or (_plain(inner) and any(_plain(inner) in a for a in answers)):
             return " "
         return " " + inner + " "
     return QUOTED.sub(keep, text)
@@ -273,6 +320,10 @@ def check(root, report_path, date=None):
     questions = {match_key(q["text"]) for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
     questions |= {match_key(q["text"]) for p in study["projects"] for v in folder.versions(p["key"])
                   for d in v["dimensions"] for q in d["questions"]}
+    # A fact term quoted in «» is named, not cited as a figure: the current price no answer gives.
+    terms = (fact_terms(q) or {} for p in study["projects"] for d in p["dimensions"] for q in d["questions"])
+    questions = {tight(t) for t in questions} | {tight(match_key(t)) for found in terms for ts in found.values()
+                                                 for t in ts}
     names = list(period.get("names", {}).values())
 
     for k, pool in (("findings", answers), ("changes", answers + earlier)):
@@ -286,11 +337,18 @@ def check(root, report_path, date=None):
         if heading and (DECIMAL.search(heading) or PERCENT.search(heading)):
             problems.append(f"a findings heading carries a figure: {heading!r}")
         problems += _figures(_unquote(_prose(part), questions, answers, names), lang, _allowed(scopes, extra))
+    # The summary may cite any figure of the period and of its comparison, never an excerpt.
+    summary = body.get("summary", "")
+    if any(line.lstrip().startswith(">") for line in summary.splitlines()):
+        problems.append("the summary quotes an answer: state each point in a plain sentence with its figure")
     every_scope = [s for b in period["projects"].values() for s in [b, *b["dimensions"].values()]]
     every_scope += [q for b in period["projects"].values() for d in b["dimensions"].values() for q in d["questions"].values()]
     every_scope += list((previous or {}).get("projects", {}).values())
+    compared = _compared([e for es in entries.values() for e in es], verdicts)
     problems += _figures(_unquote(_prose(body.get("changes", "")), questions, answers + earlier, names), lang,
-                         _allowed(every_scope, _compared([e for es in entries.values() for e in es], verdicts)))
+                         _allowed(every_scope, compared))
+    period_scopes = [s for s in every_scope if s not in list((previous or {}).get("projects", {}).values())]
+    problems += _figures(_unquote(_prose(summary), questions, answers, names), lang, _allowed(period_scopes, compared))
 
     question_keys = {q["key"] for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
     for key in sorted(question_keys):

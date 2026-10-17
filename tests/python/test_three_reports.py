@@ -7,7 +7,7 @@ import unittest
 from fixtures import ANSWERS, GEM, GPT, NEW, StudyCase, project, run, weekly
 from test_detect import ADOPTED, NEW_TEXT, OLD_TEXT, edited
 from test_history import CHEAPER, NOV, OCT, runs
-from test_method import IT_ORDER, sections
+from test_method import CHANGES, FINDINGS, IT_ORDER, SUMMARY, sections
 from test_order import LATER_ORDER, headings
 
 PRICE = "Quanto costa il latte d'avena Avenello rispetto al latte vaccino?"
@@ -48,7 +48,7 @@ class ThreeReportsTest(StudyCase, unittest.TestCase):
                         for d in ("2026-10-31", "2026-11-30", "2026-12-31")}
 
     def changes(self, date):
-        return sections(self.reports[date])[IT_ORDER[6]]
+        return sections(self.reports[date])[CHANGES]
 
     def test_the_first_report_is_in_the_first_order_and_the_later_ones_open_with_changes(self):
         self.assertEqual(headings(self.reports["2026-10-31"]), IT_ORDER)

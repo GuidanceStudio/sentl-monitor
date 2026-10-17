@@ -100,7 +100,7 @@ class RebuildTest(StudyCase, unittest.TestCase):
         headings = re.findall(r"^## \d+\. (.+)$", report, flags=re.M)
         self.assertEqual(headings[0], "Cosa abbiamo fatto e a che scopo")
         self.assertEqual(headings[-1], "Cosa è cambiato")
-        changes = report.split("## 7. Cosa è cambiato", 1)[1]
+        changes = report.split("Cosa è cambiato", 1)[1]
         self.assertNotIn("prima misurazione", changes)
         self.assertIn("5 ottobre 2026", changes)
         self.assertIn("[[", changes)

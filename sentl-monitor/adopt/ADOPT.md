@@ -61,8 +61,15 @@ the report as written, so they are written in the report's language:
   providers") reads better than a generic consumer.
 - **Who wrote the rubrics and when** (`narrative.criteria`: `by`, `date`).
 - **The subject**: label, aliases as answers write them (brand name, product names), owned
-  domains. **Foils**: competitors or alternatives, each `{"id", "label", "aliases"}`, if the
-  reports should say who is named before the subject.
+  domains. **Foils**: competitors or alternatives, each `{"id", "label", "aliases",
+  "domains"}`, if the reports should say who is named before the subject; `domains` are the
+  sites the competitor owns, so the report can say which cited pages it wrote.
+- **Facts that carry a figure or a name** (a price, a fee, the person in charge), for each
+  question whose rubric or judge instructions state one: a `facts` list under that question in
+  `study.json`, each `{"fact", "source", "date", "current": [...], "outdated": [...]}`, the
+  terms written as answers write them ("2,10 €", "1,90 €"). Propose them from the judge
+  instructions and ask the operator for last year's value. The report then counts the answers
+  stating each, run by run (`report/INSIGHTS.md`).
 - **Market**: `{"country": ISO 3166 code ("GB" for the United Kingdom), "language": ISO 639
   code}`. **Report language**: `it` or `en`.
 - **Report cadence** (`report_every`: `weekly` or `monthly`). Propose `monthly` when the
@@ -78,8 +85,10 @@ Optional, ask only when the operator has an answer: the score axis (`stance`: 1 
 subject, 5 for it; `fidelity`: 1 wrong as fact, 5 accurate), and each project's question and
 the decision it informs.
 
-Write the answers into `$S/study.json`, changing only those fields. Do not edit the
-questions, rubrics or ids the script wrote: they are Sentl's.
+Write the answers into `$S/study.json`, changing only those fields; `facts` is added beside a
+question's text and rubric. Do not edit the questions, rubrics or ids the script wrote: they
+are Sentl's. `method` lists a foil's `domains` or a fact's terms that are not a list of
+strings.
 
 ## 7. Close
 

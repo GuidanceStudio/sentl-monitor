@@ -8,9 +8,9 @@ import unittest
 from fixtures import ANSWERS, GEM, GPT, NEW, StudyCase, models, run
 from test_detect import ADOPTED, FOUND, NEW_TEXT, OLD_TEXT, edited
 from test_history import CHEAPER, NOV, OCT, runs
-from test_method import IT_ORDER, sections
+from test_method import CHANGES, FINDINGS, IT_ORDER, SUMMARY, sections
 
-LATER_ORDER = [IT_ORDER[6], IT_ORDER[5]] + IT_ORDER[:5]
+LATER_ORDER = [SUMMARY, CHANGES, FINDINGS] + IT_ORDER[:5]
 
 
 def headings(text):
@@ -24,7 +24,9 @@ def reorder(text, order):
     return head + "".join(f"## {n}. {title}\n{by_title[title]}" for n, title in enumerate(order, 1))
 
 
-class OrderTest(StudyCase, unittest.TestCase):
+class OrderCase(StudyCase):
+    """An October history, adopted and answered, and the helpers of the order tests."""
+
 
     def setUp(self):
         super().setUp()
@@ -50,6 +52,9 @@ class OrderTest(StudyCase, unittest.TestCase):
 
     def fill(self, path, text="le risposte descrivono Avenello"):
         path.write_text(re.sub(r"\[\[[^\]]*\]\]", text, path.read_text(encoding="utf-8")), encoding="utf-8")
+
+
+class OrderTest(OrderCase, unittest.TestCase):
 
     def test_a_passing_check_records_the_report_as_final(self):
         self.publish("2026-10-31")
@@ -119,7 +124,7 @@ class OrderTest(StudyCase, unittest.TestCase):
                             texts={"salute-2": NEW_TEXT}), name=f"run-{9201 + n}.json")
         self.build("2026-11-30")
         self.method("2026-11-30")
-        changes = sections(self.report("2026-11-30"))[IT_ORDER[6]]
+        changes = sections(self.report("2026-11-30"))[CHANGES]
         self.assertIn(f"«{OLD_TEXT}»", changes)
         self.assertIn(f"«{NEW_TEXT}»", changes)
         self.assertIn("2 novembre 2026", changes)
@@ -131,7 +136,7 @@ class OrderTest(StudyCase, unittest.TestCase):
     def changes_report(self, text):
         path = self.later(overrides={("prezzo-1", GEM): (CHEAPER, 4, "positive", [])})
         body = path.read_text(encoding="utf-8")
-        marker = re.search(r"\[\[[^\]]*\]\]", sections(body)[IT_ORDER[6]]).group(0)
+        marker = re.search(r"\[\[[^\]]*\]\]", sections(body)[CHANGES]).group(0)
         path.write_text(body.replace(marker, text, 1), encoding="utf-8")
         self.fill(path)
         return path
@@ -149,6 +154,65 @@ class OrderTest(StudyCase, unittest.TestCase):
 
     def test_changes_refuses_a_quote_from_no_period(self):
         self.cli("check", "--study", self.study, self.changes_report("> Avenello costa il triplo."), check=1)
+
+
+class SummaryTest(OrderCase, unittest.TestCase):
+    """The summary: three to five plain sentences with figures of the period or its comparison."""
+
+    def summary_report(self, summary, later=False):
+        path = self.later(overrides={("prezzo-1", GEM): (CHEAPER, 4, "positive", [])}) if later else None
+        if not later:
+            self.build("2026-10-31")
+            self.method("2026-10-31")
+            path = self.study / "reports/2026-10-31.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("[[summary]]", summary), encoding="utf-8")
+        self.fill(path)
+        return self.cli("check", "--study", self.study, path)
+
+    def test_the_summary_may_cite_any_dimension_s_figure(self):
+        proc = self.summary_report("- Alla domanda se Avenello fa bene alla salute il punteggio medio è 4,5.\n"
+                                   "- Prezzo ha un punteggio medio di 2,5.")
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_summary_figure_not_in_the_period_fails(self):
+        proc = self.summary_report("- Salute ha un punteggio medio di 3,7.")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("3,7", proc.stdout)
+
+    def test_the_summary_of_a_later_report_may_cite_its_comparison(self):
+        proc = self.summary_report("- Il punteggio di Prezzo passa da 2,5 a 3,5.", later=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_summary_that_quotes_an_answer_fails(self):
+        proc = self.summary_report(f"- Orbit Reason scrive:\n\n> {ANSWERS[('prezzo-1', GEM)][0]}")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("summary", proc.stdout)
+
+    def test_the_summary_marker_left_in_place_fails(self):
+        self.build("2026-10-31")
+        self.method("2026-10-31")
+        path = self.study / "reports/2026-10-31.md"
+        report = path.read_text(encoding="utf-8").replace("[[summary]]", "@@summary@@")
+        path.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello", report)
+                        .replace("@@summary@@", "[[summary]]"), encoding="utf-8")
+        self.assertIn("[[", self.cli("check", "--study", self.study, path, check=1).stdout)
+
+
+class RegenerateTest(OrderCase, unittest.TestCase):
+
+    def test_a_final_report_regenerated_for_its_date_replaces_its_entry(self):
+        self.publish("2026-10-31")
+        for n, start in enumerate(NOV):
+            self.ingest(run(run_id=9201 + n, started=start), name=f"run-{9201 + n}.json")
+        self.publish("2026-11-30")
+        self.method("2026-10-31", "--force")
+        path = self.study / "reports/2026-10-31.md"
+        self.assertEqual(headings(path.read_text(encoding="utf-8")), IT_ORDER)
+        self.fill(path)
+        self.cli("check", "--study", self.study, path, check=0)
+        entries = self.read("history/reports.json")
+        self.assertEqual([(e["date"], e["status"], e["previous"]) for e in entries],
+                         [("2026-10-31", "final", None), ("2026-11-30", "final", "2026-10-31")])
 
 
 if __name__ == "__main__":

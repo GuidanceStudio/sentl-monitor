@@ -14,7 +14,7 @@ calls Sentl.
 | `brief <subject>` | the client's documents, Google autocomplete, a keyword-data source if present | `brief.md`, `seeds.json`, `volumes.json` (optional), `search-demand.json` | the operator's review of the themes and their origins |
 | `design` | `brief.md`, `search-demand.json`, a saved `list-ai-models` response | `study.json`, `study-review.md` | the operator's review of the questions, rubrics and credit estimate |
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
-| `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, and who wrote the criteria |
+| `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
 | `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json` | nothing when run unattended |
 | `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 
@@ -121,7 +121,8 @@ and period, or `null` when no keyword-data source was used.
   "kind": "study",
   "subject": {"id": "avenello", "label": "Avenello", "kind": "brand",
               "aliases": ["Avenello", "Avenello Oat"], "owned_domains": ["avenello.example"]},
-  "foils": [{"id": "cow-milk", "label": "latte vaccino", "aliases": ["latte vaccino", "latte di mucca"]}],
+  "foils": [{"id": "cow-milk", "label": "latte vaccino", "aliases": ["latte vaccino", "latte di mucca"]},
+            {"id": "avoria", "label": "Avoria", "aliases": ["Avoria"], "domains": ["avoria.example"]}],
   "components": [{"id": "oat-drink", "label": "bevanda all'avena",
                   "terms": ["latte d'avena", "latte di avena", "bevanda all'avena"]}],
   "market": {"country": "IT", "language": "it"},
@@ -158,7 +159,8 @@ and period, or `null` when no keyword-data source was used.
            "persona": "chi beve latte d'avena ogni mattina e ha letto che fa male",
            "rubric": {"1": "...", "2": "...", "3": "...", "4": "...", "5": "..."},
            "instructions": "...",
-           "facts": [{"fact": "...", "source": "https://avenello.example/...", "date": "2026-10-01"}],
+           "facts": [{"fact": "...", "source": "https://avenello.example/...", "date": "2026-10-01",
+                      "current": ["2,10 €"], "outdated": ["1,90 €"]}],
            "lineage": [{"version": 1, "change": "created"}]}
         ]}
      ]}
@@ -179,6 +181,9 @@ and period, or `null` when no keyword-data source was used.
 - `axis` is `stance` (1 against the subject, 5 for it with grounds) or `fidelity` (1 wrong as
   fact, 5 accurate with the conditions the evidence sets). The report explains the score by it.
 - Sentl's `additional_instructions` is composed from `instructions` and the dated `facts`.
+- A fact may carry `current` and `outdated` terms, as answers write them; `period` counts the
+  answers stating each (§Insights). A foil may carry `domains`, the sites it owns; a cited page
+  on one of them, or on a subdomain, is the foil's.
 
 **Sentl's limits, checked before any save:** dimension name and question label at most 100
 characters; question at most 500; each rubric anchor at most 300; judge instructions,
@@ -316,6 +321,25 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
                                      "text": "...", "previous_text": "...", "since": "2026-11-09"}]}
 }
 ```
+
+Each cell also carries `readings` (the distinct readings among the answers given) and
+`authors` (answers citing owned, a foil's and third-party pages, each out of `with_sources`,
+and `foil_pages`, the foil pages most cited). A question's scope may carry `facts` (the terms;
+per cell `given`, `stating`, `current_only`, `outdated_only`, `both`, `current_share`, for all
+assistants, `by_model` and per run in `runs`), `group_sources` (per group, `outdated`, `current`,
+`low` or `high`, up to five domains, each with `citing`, `answers` and `share` in the group and
+the same under `other` for the opposite group), `presence_runs` (per run `named` of
+`given`, for a question naming no brand), `episodes` (`measure`, `first`, `last`, `runs`,
+`values`, `range`, `earlier`, `side`, `closed`) and `missing` (per model `answers`, `given`,
+`judged`, `mean`, `mean_without`); each is present only when it has content. The comparison
+carries `presence_sources`: per question whose presence changed, the domains `new` and `lost`
+in the answers naming the subject. §Insights gives the rules.
+
+`settings` holds, per project, the models, the rounds and the schedule of the period: those
+of the latest version among its runs, or, for runs older than every version, the rounds and
+the schedule the runs show (the largest number of answers of one question–model pair, and
+the median gap between their starts), falling back on the first version's schedule for a
+single run. `method` states them when the projects differ.
 
 `excluded` lists the runs left out under the run floor, `dropped` the questions a run lost
 because their criteria changed later in the period or are unknown for it (§Comparability,
@@ -483,8 +507,10 @@ latest completed run saved. `monitor.py adopt` writes `study.json`, `sentl.json`
 that run is not found (see Responses saved by the assistant), and the assistant saves the
 project again. Every question gets a key; every dimension a theme placeholder. The agent
 then asks the operator for what Sentl does not hold: purpose, research question, who asks
-and why, the origin of each dimension's themes, subject aliases, foils and owned domains,
-market and language, report language, `report_every`, and who wrote the criteria and when.
+and why, the origin of each dimension's themes, subject aliases, foils with their domains and
+owned domains, market and language, report language, `report_every`, who wrote the criteria
+and when, and for the questions whose facts carry a figure or a name (prices, fees, people in
+charge) the current and outdated terms.
 `list-runs-tool` shows which runs are available; the first `report` rebuilds the periods
 before the first one from them (see Periods).
 
@@ -517,7 +543,8 @@ before the first one from them (see Periods).
    sections in the order §The report sets: the first-report order when
    `history/reports.json` holds no final report, the later-report order otherwise.
    `list-ai-models` gives the models' public names.
-6. The agent reads the material and the answers and writes `findings` and `changes`.
+6. The agent reads the material and the answers and writes `findings` and `changes`, then
+   the `summary` from them.
 7. `monitor.py check reports/<date>.md` (below). Pass: the report is added to
    `history/reports.json` with status `final`. Fail, when unattended:
    the file is saved as `reports/<date>.draft.md`, status `draft`, and `last-report.json`
@@ -722,6 +749,51 @@ and the models present in both.
   unstable. Its figure is reported with that note; it says where the assistants have no
   settled answer.
 
+### Insights
+
+The figures that explain a mean, each computed by `period` and stated as `report/INSIGHTS.md`
+describes.
+
+- **Fact currency.** An answer states a term when the term, folded like an alias, appears on
+  word boundaries and not inside a longer number ("10 €" is not in "12,10 €", "£2" not in
+  "£2.50"); a space between a number and a currency sign is optional on both sides. Answers are counted as stating a current term only, an outdated term only,
+  both, or neither; the current share is the answers stating a current term out of those
+  stating any.
+- **Sources behind a fact or a score.** Four groups of a question's answers: those stating
+  only an outdated term, those stating a current one, those scored 1–2 and those scored 4–5.
+  Each group lists the five domains cited by most of its answers, ties broken by domain name,
+  each with its count and share in the group and in the opposite group (outdated against
+  current, 1–2 against 4–5). A share is out of the group's answers citing at least one source.
+  A pair of groups is listed only when both groups have an answer citing a source; otherwise
+  neither list of the pair is.
+- **Readings.** The rounds of a question–model pair in one run that cite the same ordered list
+  of pages are one reading. A page is its host and path without query or fragment; a grounding
+  redirect, whose URL differs on every call, is the domain its title names. An answer citing
+  nothing is a reading of its own.
+- **Episodes.** For a question's mean and its current share, run by run: a value outside the
+  range of the runs before it, in this period and the previous one and at least five of them,
+  for three runs or more in a row on the same side. The values are computed on the
+  assistants every run of the series has, and an earlier run judged under other criteria for
+  the question (§Comparability) is left out. The range is the one before the first of those
+  runs; the episode closes at the first value back inside it, or ends as a switch when the
+  value jumps to the other side. A first period with no previous one reads its own earlier
+  runs.
+- **Presence by run.** For a question whose text does not name the subject, the answers naming
+  it in each run.
+- **Missing evidence.** A phrase list per market language (`i18n.MISSING_EVIDENCE`) finds the
+  answers in which the assistant says it found no source of the kind asked for. Each phrase is
+  anchored on the assistant's own search (the first person, "the provided results", evidence
+  not available or limited as such), so product sentences such as "limited integrations" do
+  not match; a phrase in a sentence whose subject is a third party (`i18n.THIRD_PERSON`:
+  users, customers, utenti, clienti) does not count. Per question–model pair: the answers found, and the mean with
+  and without them.
+- **Who wrote the sources.** Each cited domain is owned, a foil's (subdomains included) or a
+  third party's. Per cell: the answers citing each kind out of those citing any source, and
+  the foil pages cited most.
+- **Presence changes.** For a question whose presence change is called, the domains cited by
+  the answers naming the subject in this period and by no answer to the question in the
+  previous one, and the reverse, on the questions and models compared.
+
 ### Coverage
 
 A run with fewer than 90% of its expected answers judged is left out of the period and
@@ -748,11 +820,12 @@ the order they appear.
 | Key | Section | Written by |
 |---|---|---|
 | — | Title: the research question; subject, period, date | `method` |
-| `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
-| `themes` | Where the themes came from: themes grouped by origin; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
+| `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired, in one sentence, or one line per project (its questions, assistants, times each question is asked per run, how often it runs) when the projects differ in any of these; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
+| `themes` | Where the themes came from: themes grouped by origin, the themes that share an identical origin (kind and detail) on one line; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
 | `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
 | `questions` | The questions: per dimension, verbatim, paired questions side by side | `method` |
-| `scoring` | How the answers are scored: per dimension what a 5, a 3 and a 1 mean; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
+| `scoring` | How the answers are scored: a rubric that several questions share stated once for them with all five anchors, and per dimension what a 5, a 3 and a 1 mean for the other questions; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
+| `summary` | In short: three to five plain sentences, a bulleted list, each stating one point with its figure | the agent, written last, from the findings and changes |
 | `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |
 | `changes` | What changed since the last report: the period compared with, changes in the answers, then changes in the design and how they affect the comparison | `method` writes the period compared with and the design changes; the agent writes the changes in the answers, from the output of `period` |
 | `limits` | Snapshot only: one question per dimension and one answer from each assistant, on one date; what a monitoring study adds (several questions per dimension, paired questions, repeated runs compared period by period) | `method` |
@@ -761,20 +834,22 @@ the order they appear.
 
 | Report | Sections after the title |
 |---|---|
-| First report on a study: `history/reports.json` holds no final report | `purpose`, `themes`, `dimensions`, `questions`, `scoring`, `findings`, `changes` |
-| Every later report | `changes`, `findings`, `purpose`, `themes`, `dimensions`, `questions`, `scoring` |
+| First report on a study: `history/reports.json` holds no final report before its date | `purpose`, `themes`, `dimensions`, `questions`, `scoring`, `summary`, `findings`, `changes` |
+| Every later report | `summary`, `changes`, `findings`, `purpose`, `themes`, `dimensions`, `questions`, `scoring` |
 | Snapshot | `purpose`, `dimensions`, `questions`, `scoring`, `findings`, `limits` |
 
 The first report tells how the study was built before what it found, because the reader
-meets the method there for the first time. From the second report on, the reader opens it
-for what moved: `changes` and `findings` come first, and the five method sections close the
-report, with the same content they would have in a first report, so each report still
+meets the method there for the first time, and the summary stands between the method and
+the findings. From the second report on, the reader opens it for what moved: `summary`,
+`changes` and `findings` come first, and the five method sections close the report, with the same content they would have in a first report, so each report still
 stands on its own. `method` takes the order from `history/reports.json`. A first report on
 an adopted project keeps the first-report order even when it compares with rebuilt periods.
 
 **`findings`, per dimension:** a title that states what the person asking is told, never a
 score; one or two verbatim excerpts, each with its question and assistant; the domains those
-answers cite; the dimension's figure with its coverage in the body; one line on what it means
+answers cite, the subject's own first, then the most cited, five in all; the
+dimension's figure with its coverage in the body; the insights the material
+holds for it (§Insights), each in one sentence with its figure; last, one line on what it means
 for the client. Every dimension gets its section, including those where nothing moved.
 
 **`changes`, on the first report:** one line saying this is the first measurement and the
@@ -784,7 +859,8 @@ section compares with them instead, as a later report does.
 **`changes`, when it compares:** a line naming the period compared with (and, when it was
 rebuilt, that no earlier report exists); the changes in the answers, written by the agent:
 the dimensions and questions whose change is called, each verdict change with its two
-answers quoted, the domains new or lost, and one line saying the rest is unchanged; then one
+answers quoted, the domains new or lost, the domains that came or went with the subject where
+its presence changed, and one line saying the rest is unchanged; then one
 line per design change, written by `method` as the Comparability table says: a reworded
 question with both wordings and the date, a new intent, new criteria, assistants added or
 removed with the assistants the comparison rests on, a dimension new or no longer
@@ -811,14 +887,23 @@ project. The rules it applies:
   comma in Italian) and has one decimal; a percentage is whole. Each must equal a value of
   the period file rounded the same way: its cells and, for a change, its comparison (the
   values now and before, the move, the range, the pair means of a verdict change); `changes`
-  may also cite the overall figures of the period compared with. A dimension's entry may
-  cite its own dimension's figures and its project's overall figure, never another
-  dimension's; a dimension shown without a figure has none to cite. A count of answers written "N su M" or "N of M" must be
+  may also cite the overall figures of the period compared with. The insights' counts and
+  shares of answers may be cited whatever the coverage; their means only where the question
+  has a figure; the material prints no mean for a question without one. A fact term of the
+  study quoted in «» is read as text, not as a figure. A dimension's entry may cite its own
+  dimension's figures, its questions'
+  insights and its project's overall figure, never another dimension's; a dimension shown
+  without a figure has no mean to cite. A count of answers written "N su M" or "N of M" must be
   a pair of the period (judged of expected, named of given, and the like). Other integers are
   not checked: they are dates and points of the scale. Text inside «» that quotes a question
   or an answer, and the assistants' public names (which can carry a version number), are not
   read as figures.
 - **Findings headings** carry no figure.
+- **The summary** may cite any figure of the period, any dimension's or question's included,
+  and in a later report the figures of its comparison; it holds no excerpt, and its
+  `[[summary]]` marker left in place fails like any other.
+- **Counts** "N of M" are checked when a word for answer, or for citing (cite, cites, citing,
+  cita, citano), follows within the sentence.
 - **Ids** are integers that look like counts, so a Sentl id of the study is refused only
   where a word names it (`run`, `id`, `#`, and the words for project, question and dimension
   in the report's language). Question keys, model ids and file names are distinctive strings

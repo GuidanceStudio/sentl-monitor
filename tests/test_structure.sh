@@ -47,6 +47,7 @@ assert_dir "sentl-monitor"
 assert_nonempty "sentl-monitor/SKILL.md"
 assert_nonempty "sentl-monitor/adopt/ADOPT.md"
 assert_nonempty "sentl-monitor/report/REPORT.md"
+assert_nonempty "sentl-monitor/report/INSIGHTS.md"
 assert_nonempty "sentl-monitor/scripts/monitor.py"
 assert_dir "sentl-monitor/scripts/sentlmon"
 assert_file "sentl-monitor/scripts/sentlmon/__init__.py"
@@ -83,6 +84,40 @@ PY
     fi
 else
     bad "import scan needs sentl-monitor/scripts/monitor.py"
+fi
+
+echo ""
+echo "=== Scripts parse on Python 3.10 ==="
+# Before 3.12 an f-string cannot reuse its own quote inside a replacement field. The check reads
+# the tokens a 3.12+ interpreter gives; an older one compiles the scripts instead.
+NESTED=$(python3 - "$PAYLOAD/scripts" <<'PY'
+import pathlib, sys, tokenize
+scripts = pathlib.Path(sys.argv[1])
+for path in [scripts / "monitor.py"] + sorted((scripts / "sentlmon").rglob("*.py")):
+    if not hasattr(tokenize, "FSTRING_START"):
+        compile(path.read_text(encoding="utf-8"), str(path), "exec")
+        continue
+    quotes = []
+    with open(path, "rb") as fh:
+        for tok in tokenize.tokenize(fh.readline):
+            text = tok.string.lstrip("rRbBfFuU")
+            if tok.type == tokenize.FSTRING_START:
+                if quotes and text[0] in quotes:
+                    print(f"{path.name}:{tok.start[0]}: an f-string reuses the quote of the one around it")
+                quotes.append(text[0])
+            elif tok.type == tokenize.FSTRING_END:
+                quotes.pop()
+            elif tok.type == tokenize.STRING and quotes and text[:1] in quotes:
+                print(f"{path.name}:{tok.start[0]}: a string reuses the quote of the f-string around it")
+PY
+)
+if [ $? -ne 0 ]; then
+    bad "the scripts do not compile on this interpreter"
+elif [ -z "$NESTED" ]; then
+    ok "no f-string reuses its own quote inside a replacement field"
+else
+    bad "f-strings that Python 3.10 and 3.11 refuse:"
+    echo "$NESTED" | sed 's/^/        /'
 fi
 
 echo ""

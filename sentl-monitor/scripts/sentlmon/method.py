@@ -2,7 +2,7 @@
 in the order the report takes, with an entry per dimension left for the findings."""
 
 from .adopt import missing_answers
-from .common import Refused, Study, fmt_date, load_json, load_mcp, public_name, write_text
+from .common import Refused, Study, fmt_date, load_json, load_mcp, match_key, norm, public_name, write_text
 from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join
 
 
@@ -29,31 +29,57 @@ def measured(study, period):
 
 
 def _purpose(study, projects, period, names, lang):
+    """The purpose, then what was asked: one sentence, or one line per project when the
+    projects differ in how many questions, which assistants, rounds or schedule."""
     t = TEXT[lang]
     models = sorted({m for b in period["projects"].values() for m in b["by_model"]})
     shown = [public_name(m, names) for m in models]
     questions = sum(len(d["questions"]) for _, dims in projects for d in dims)
     received = sum(b["total"]["received"] for b in period["projects"].values())
     judged = sum(b["total"]["judged"] for b in period["projects"].values())
-    asked = t["asked"] if len(shown) != 1 else t["asked_one"]
-    lines = [study["narrative"]["purpose"], "",
-             asked.format(questions=questions, count=len(shown), names=join(shown, lang))]
+    lines = [study["narrative"]["purpose"], ""]
+    rows = [(proj["name"], sum(len(d["questions"]) for d in dims), *_settings(period, proj["key"]))
+            for proj, dims in projects]
+    if len({row[1:] for row in rows}) > 1:
+        lines.append(t["asked_projects"].format(count=len(rows)))
+        for name, count, models_of, rounds, schedule in rows:
+            assistants = [public_name(m, names) for m in models_of]
+            parts = [t["project_questions"][count != 1].format(n=count),
+                     t["project_assistants"][len(assistants) != 1].format(count=len(assistants),
+                                                                          names=join(assistants, lang))]
+            line = " ".join(parts) + ", " + t["project_rounds"][rounds != 1].format(rounds=rounds)
+            lines.append(f"- **{name}**: {line}" + (f", {t['schedule'][schedule]}" if schedule in t["schedule"] else "")
+                         + ".")
+        lines.append("")
+    else:
+        asked = t["asked"] if len(shown) != 1 else t["asked_one"]
+        lines.append(asked.format(questions=questions, count=len(shown), names=join(shown, lang)))
     if any(q.get("pair") for _, dims in projects for d in dims for q in d["questions"]):
         lines.append(t["paired"])
     lines.append(t["collected"].format(received=received, judged=judged) + " " + t["sources"])
     return lines
 
 
+def _settings(period, key):
+    s = (period.get("settings") or {}).get(key) or {}
+    return tuple(s.get("models") or ()), s.get("rounds"), s.get("schedule")
+
+
 def _themes(study, projects, root, lang):
+    """Themes by origin; the themes that share an identical origin (kind and detail) are
+    listed together."""
     asked = {d["key"] for _, dims in projects for d in dims}
     by_kind = {}
     for theme in (t for t in study["themes"] if t.get("dimension") in asked or not t.get("dimension")):
         for origin in theme.get("origins") or []:
-            by_kind.setdefault(origin["kind"], []).append(f"{theme['label']}: {origin['detail']}")
+            labels = by_kind.setdefault(origin["kind"], {}).setdefault(origin["detail"], [])
+            if theme["label"] not in labels:
+                labels.append(theme["label"])
     lines = []
     for kind, label in ORIGINS[lang].items():
         if kind in by_kind:
-            lines += [f"**{label}**", ""] + [f"- {item}" for item in by_kind[kind]] + [""]
+            lines += [f"**{label}**", ""] + [f"- {join(labels, lang)}: {detail}"
+                                             for detail, labels in by_kind[kind].items()] + [""]
     if not root.path("search-demand.json").exists():
         lines.append(TEXT[lang]["no_search"])
     return lines
@@ -108,14 +134,40 @@ def _questions(projects, lang):
 
 
 def _scoring(study, projects, lang):
+    """Who wrote the criteria and how they read. A rubric that several questions share is
+    stated once for them with all five anchors; a question's own rubric with 5, 3 and 1."""
     t = TEXT[lang]
     criteria = study["narrative"]["criteria"]
     subject = study["subject"]["label"]
     lines = [t["judge"].format(by=criteria["by"], date=fmt_date(criteria["date"], lang)), ""]
+
+    def anchors(q):
+        r = q.get("rubric") or {}
+        return tuple(norm(r.get(k, "")) for k in "12345") if r else None
+    # A rubric is shared when at least two distinct question texts use it; the same question
+    # asked in two projects is one text.
+    groups = {}
+    for _, dims in projects:
+        for q in (q for d in dims for q in d["questions"]):
+            if anchors(q):
+                groups.setdefault(anchors(q), {}).setdefault(match_key(q["text"]), q)
+    shared = {key: list(texts.values()) for key, texts in groups.items() if len(texts) > 1}
+    if shared:
+        lines[0] += " " + t["shared_note"]
+        lines += [f"**{t['shared_rubric']}**", ""]
+        for qs in shared.values():
+            r = qs[0]["rubric"]
+            quoted = ["«" + q["text"] + "»" for q in qs]
+            lines.append(f"- {join(quoted, lang)}: "
+                         + t["anchors_all"].format(**{f"a{k}": r.get(k, "") for k in "12345"}))
+        lines.append("")
     for _, dims in projects:
         for d in dims:
+            own = [q for q in d["questions"] if anchors(q) not in shared]
+            if not own:
+                continue
             lines += [f"**{d['name']}**", ""]
-            for q in d["questions"]:
+            for q in own:
                 r = q.get("rubric") or {}
                 lines.append(f"- «{q['text']}»" + (" " + t["anchors"].format(a5=r.get("5", ""), a3=r.get("3", ""),
                                                                             a1=r.get("1", "")) if r else ""))
@@ -198,6 +250,7 @@ def write(root, date, models_file, force=False):
         "scoring": lambda: _scoring(study, projects, lang),
         "findings": lambda: _findings(projects, lang),
         "changes": lambda: _changes(period, lang),
+        "summary": lambda: ["[[summary]]"],
     }
     out = [f"# {study['narrative']['research_question']}", "", subtitle, ""]
     for n, key in enumerate(report_order(folder, date), 1):

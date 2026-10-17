@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1 and M2 done; M2b approved 2026-10-16, next.
+live Sentl projects with read-only tools. M1, M2 and M2b done; M3 next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -139,13 +139,13 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - `check` keys findings by project and dimension, records a passing report as final in `reports.json`, and in `changes` accepts the previous period's quotes and comparison figures; the material prints figures as `check` rounds them.
 - Open: an unavailable run is listed in every period's output, since its start time is not stored.
 
-## M2b: Explain each figure with its facts, sources and readings
+## M2b: Explain each figure with its facts, sources and readings ✅
 
 **Why:** A dimension mean says how favourable the answers are, not why a figure moved or what the client should correct. The points a client acts on lie outside the means: an outdated fact quoted in most answers and the pages that carry it; an episode the period's mean averages away; a score drop caused by missing evidence rather than by negative answers; rounds of one run that cite the same sources; comparison pages written by competitors; the pages that brought the subject into an answer. `period` computes none of these, so a report written from its material cannot state them.
 
 **Approach:** Each insight is a figure in the period file, so `check` verifies it like any other, and an entry in the period's material, so the findings are written from it. Depends on M2 (periods and comparison).
 - **Fact currency.** A question's `facts` entry gains optional `current` and `outdated` term lists (ARCHITECTURE.md §`study.json`). `period` counts, per question, model and run, the answers stating a current term, an outdated one, or both, folded like aliases.
-- **Sources behind a fact or a score.** Per question, the domains cited by a larger share of the answers stating an outdated term than of those stating a current one, and of the answers scored 1–2 than of those scored 4–5; a domain is listed when at least five answers cite it and the two shares are at least 10 points apart.
+- **Sources behind a fact or a score.** Per question, for the answers stating only an outdated term, those stating a current one, those scored 1–2 and those scored 4–5: the five domains cited by most answers of the group, each with its share in that group and in the opposite one. Decided 2026-10-17 after the first live report, replacing a selection by difference between the two shares, which listed twenty or more domains per question and picked up sites cited by one assistant only.
 - **Readings.** Rounds of a question–model pair in one run that cite the same list of sources are one reading. Each cell records `readings` beside `received`; the report states the readings a presence figure rests on when they are fewer than the answers.
 - **Episodes.** A question's mean or a fact's current share that lies outside the range of the runs before it, in this period and the previous one and at least five of them, for at least three consecutive runs is an episode, with its first and last date; it closes at the first value back inside that range. A first period with no previous one is read against its own earlier runs, so a first monthly report still shows a movement inside the month.
 - **Presence per run.** For each question whose answers do not name the subject in the text, the presence in each run of the period, so a finding can say in which readings the subject was named and in which it was not.
@@ -156,20 +156,33 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - **`adopt`** asks for the foils' domains and for the current and outdated terms of the facts that carry a figure or a name (prices, fees, people in charge).
 
 **Tasks:**
-- [ ] Test: unit — fact currency: current, outdated and both, per model and per run, terms folded like aliases
-- [ ] Test: unit — sources behind an outdated fact and behind low scores, at the five-answer and 10-point thresholds and just under them
-- [ ] Test: unit — readings: three rounds with one source list are one reading, three different lists are three
-- [ ] Test: unit — episodes: three consecutive daily values outside the range of the earlier runs open one, two do not, fewer than five earlier runs open none; one that returns inside the range is closed with its dates; a first period is read against its own earlier runs
-- [ ] Test: unit — presence per run on an unbranded question: named in the last two of four weekly runs
-- [ ] Test: unit — missing evidence: phrase match in `en` and `it`; a pair's mean with and without the matched answers
-- [ ] Test: unit — domains split into owned, foil and third party; foil share per dimension
-- [ ] Test: unit — a presence change lists the domains new and lost in the answers naming the subject
-- [ ] Test: unit — `check` accepts each new figure taken from the period file and refuses one that is not in it
-- [ ] Implement in `period`, `adopt` and `check`; write `report/INSIGHTS.md`; update `REPORT.md`, `ADOPT.md` and ARCHITECTURE.md
-- [ ] Test: live — the first report on a real adopted project with several weeks of runs states the insights its history contains; the project is named by an environment variable
-- [ ] Commit
+- [x] Test: unit — fact currency: current, outdated and both, per model and per run, terms folded like aliases
+- [x] Test: unit — sources behind an outdated fact and behind low scores: the five domains cited by most answers of each group, ties broken by name, each with its share in the opposite group
+- [x] Test: unit — readings: three rounds with one source list are one reading, three different lists are three
+- [x] Test: unit — episodes: three consecutive daily values outside the range of the earlier runs open one, two do not, fewer than five earlier runs open none; one that returns inside the range is closed with its dates; a first period is read against its own earlier runs
+- [x] Test: unit — presence per run on an unbranded question: named in the last two of four weekly runs
+- [x] Test: unit — missing evidence: phrase match in `en` and `it`; a pair's mean with and without the matched answers
+- [x] Test: unit — domains split into owned, foil and third party; foil share per dimension
+- [x] Test: unit — a presence change lists the domains new and lost in the answers naming the subject
+- [x] Test: unit — `check` accepts each new figure taken from the period file and refuses one that is not in it
+- [x] Implement in `period`, `adopt` and `check`; write `report/INSIGHTS.md`; update `REPORT.md`, `ADOPT.md` and ARCHITECTURE.md
+- [x] Test: unit — `purpose` states each project's questions, assistants and how often they are asked when the projects of a study differ
+- [x] Test: unit — `themes` lists together the dimensions that share an origin, the origin written once
+- [x] Test: unit — `scoring` states a rubric shared by several questions once, for those questions, with all five anchors
+- [x] Implement the three in `method`
+- [x] Test: unit — a summary section: after the method sections in a first report, first in a later one; `check` refuses it with its marker left, with a figure that is not the period's, or with an excerpt
+- [x] Implement the summary in `method` and `check`; a `REPORT.md` step to write it last, three to five plain sentences, each with its figure; ARCHITECTURE.md §Sections and §Order
+- [x] Test: live — the first report on a real adopted project with several weeks of runs states the insights its history contains; the project is named by an environment variable
+- [x] Commit
 
 **Done when:** on a fictional history built to contain each pattern, the period's material lists every insight above with its figures, a report that states them passes `check`, and the live first report passes `check` with them.
+
+**Deviations:**
+- Sources behind a fact or a score: the five domains cited by most answers of each group, listed only when both groups of a pair cite a source (operator, 2026-10-17: the selection by difference listed twenty or more domains and picked up one assistant's homonym sites).
+- An episode stays on one side of the range (a jump across ends it as a switch) and uses the assistants every run of its series has; missing-evidence phrases are anchored on the assistant's own search and exclude third-person subjects.
+- The live report added, with the operator's approval: one `purpose` line per project when settings differ, shared origins and shared rubrics stated once, and an `In short` summary section.
+- `check` keys findings by project and dimension, reads a fact term inside «» as text, and verifies a count before a verb of citing.
+- Suite run under Python 3.14 and 3.11; 3.10 is not installed on the development machine.
 
 ## M3: Build the theme inventory and collect search demand
 

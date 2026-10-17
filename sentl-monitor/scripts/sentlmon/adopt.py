@@ -14,7 +14,8 @@ QUESTIONS_FOR_THE_OPERATOR = [
     ("narrative.audience", '{"choice": one of ' + ", ".join(AUDIENCES) + ', "reason": "..."}'),
     ("narrative.criteria", '{"by": who wrote the rubrics, "date": "YYYY-MM-DD"}'),
     ("subject.label, subject.aliases, subject.owned_domains", "the subject as answers name it, and its websites"),
-    ("foils", '[{"id": "...", "label": "...", "aliases": ["..."]}], competitors or alternatives (optional)'),
+    ("foils", '[{"id": "...", "label": "...", "aliases": ["..."], "domains": ["..."]}], competitors or alternatives '
+              "and the websites they own (optional)"),
     ("market", '{"country": ISO 3166 code such as "IT" or "GB", "language": ISO 639 code such as "it" or "en"}'),
     ("report_language", "it or en"),
     ("report_every", "weekly or monthly"),
@@ -26,6 +27,11 @@ def criteria_hash(rubric, instructions):
     payload = {"rubric": {k: norm(v) for k, v in sorted((rubric or {}).items())},
                "instructions": norm(instructions)}
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _terms(value):
+    """A list of non-empty strings, as foil domains and fact terms must be."""
+    return isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
 
 
 def missing_answers(study):
@@ -53,6 +59,14 @@ def missing_answers(study):
         missing.append("report_language")
     if study.get("report_every") not in ("weekly", "monthly"):
         missing.append("report_every")
+    for n, foil in enumerate(study.get("foils") or []):
+        if "domains" in foil and not _terms(foil["domains"]):
+            missing.append(f"foils[{foil.get('id') or n}].domains")
+    for proj in study.get("projects", []):
+        for q in (q for d in proj["dimensions"] for q in d["questions"]):
+            for n, fact in enumerate(q.get("facts") or []):
+                missing += [f"questions[{q['key']}].facts[{n}].{kind}" for kind in ("current", "outdated")
+                            if kind in fact and not _terms(fact[kind])]
     measured = {d["key"] for p in study.get("projects", []) for d in p["dimensions"] if not d.get("archived")}
     for theme in study.get("themes", []):
         if theme.get("dimension") not in measured:
@@ -167,4 +181,8 @@ def adopt(root, project_file, run_file=None, key=None):
                  "written, so write them in the report's language:")
     lines += [f"  {field}: {hint}" for field, hint in QUESTIONS_FOR_THE_OPERATOR]
     lines.append("Optional: narrative.score_axis (stance or fidelity), projects[].question and projects[].decision.")
+    lines.append("Optional, for the insights: foils[].domains (the sites each competitor owns), and for each question "
+                 'whose facts carry a figure or a name (a price, a fee, a person in charge) a "facts" list under the '
+                 'question: [{"fact": "...", "source": "...", "date": "YYYY-MM-DD", "current": ["term"], '
+                 '"outdated": ["term"]}], the terms written as answers state them. Do not change the question texts.')
     return "\n".join(lines)

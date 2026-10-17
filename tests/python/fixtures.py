@@ -134,6 +134,45 @@ def run(run_id=9001, started="2026-10-01T06:00:00Z", status="completed", score=3
     }}
 
 
+# A second fictional project for the insights: a price fact, a question naming no brand,
+# an employer question, and a competitor (Avoria) with its own domain.
+PRICE_Q = "Quanto costa un litro di latte d'avena Avenello?"
+CHOICE_Q = "Qual è la migliore bevanda all'avena da comprare?"
+WORK_Q = "Com'è lavorare da Avenello?"
+MARKET_DIMS = [(31, "Prezzo", [(801, PRICE_Q)]), (32, "Scelta", [(802, CHOICE_Q)]), (33, "Lavoro", [(803, WORK_Q)])]
+QUESTION_DIM = {PRICE_Q: "Prezzo", CHOICE_Q: "Scelta", WORK_Q: "Lavoro"}
+PRICE_TERMS = {"current": ["2,10 €"], "outdated": ["1,90 €"]}
+AVORIA = {"id": "avoria", "label": "Avoria", "aliases": ["Avoria"], "domains": ["avoria.example"]}
+
+
+def market_project(rounds=1):
+    rubric = {"1": "a", "2": "b", "3": "c", "4": "d", "5": "e"}
+    return {"project": {
+        "id": 601, "name": "Avenello · Mercato", "organization": "example-org", "schedule_frequency": "daily",
+        "rounds": rounds, "is_active": True, "researcher_model_ids": [GPT, GEM],
+        "dimensions": [{"id": did, "name": name, "archived": False,
+                        "questions": [{"id": qid, "label": text[:40], "question": text, "grading_rubric": rubric,
+                                       "additional_instructions": ""} for qid, text in questions]}
+                       for did, name, questions in MARKET_DIMS]}}
+
+
+def results(run_id, started, rows, project_id=601, score=None):
+    """A get-run-results-tool response from rows of (question, model, answer, score, urls);
+    a url may be a (url, title) pair."""
+    responses = []
+    for n, (question, model, answer, sc, urls) in enumerate(rows, 1):
+        sources = []
+        for v in urls:
+            url, title = v if isinstance(v, tuple) else (v, v.rsplit("/", 1)[-1])
+            sources.append({"url": url, "title": title})
+        responses.append({"id": run_id * 100 + n, "model_id": model, "question": question,
+                          "dimension": QUESTION_DIM[question], "answer": answer, "judge_score": sc,
+                          "sentiment": "neutral" if sc is None else "positive", "sources": sources})
+    return {"run": {"id": run_id, "project_id": project_id, "organization": "example-org", "status": "completed",
+                    "trigger": "scheduled", "reputation_score": score, "error": None, "started_at": started,
+                    "finished_at": started, "responses": responses}}
+
+
 def models():
     return {"researcher_models": {
         GPT: {"name": "Acme Chat", "credits": 2},
@@ -242,6 +281,26 @@ class StudyCase:
     def ingest(self, data, name="run.json", check=0):
         return self.cli("ingest", "--study", self.study, "--project", "brand",
                         "--results", self.save(name, data), check=check)
+
+    def adopt_market(self, rows, at="2026-09-01T00:00:00Z", rounds=1, foils=(AVORIA,), terms=PRICE_TERMS,
+                     report_every="monthly"):
+        """The market project adopted, the operator's answers given, with price terms and foil domains."""
+        self.cli("adopt", "--study", self.study, "--project", self.save("market.json", market_project(rounds)),
+                 "--run", self.save("market-run.json", results(9000, "2026-08-31T06:00:00Z", rows)),
+                 "--key", "market", check=0, at=at)
+        self.answer_operator(report_every=report_every, foils=copy.deepcopy(list(foils)))
+        study = self.read("study.json")
+        for theme in study["themes"]:
+            theme["origins"] = [{"kind": "client_issue", "detail": "Domande al servizio clienti, 2026"}]
+        price = study["projects"][0]["dimensions"][0]["questions"][0]
+        if terms:
+            price["facts"] = [{"fact": "Il prezzo al litro è 2,10 € dal 2026", "source": "https://avenello.example/prezzi",
+                               "date": "2026-09-01", **copy.deepcopy(terms)}]
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def ingest_market(self, run_id, started, rows):
+        return self.cli("ingest", "--study", self.study, "--project", "market",
+                        "--results", self.save(f"m-{run_id}.json", results(run_id, started, rows)), check=0)
 
     def ingest_all(self, runs):
         for data in runs:

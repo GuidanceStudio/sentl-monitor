@@ -83,7 +83,12 @@ SENTL_ACCOUNT_DIGESTS = frozenset({
     "REMOVED",
 })
 
-KNOWN_DIGESTS = DENY_SHA256 | SENTL_ACCOUNT_DIGESTS
+# Real brands once used by mistake as fictional examples.
+EXAMPLE_DIGESTS = frozenset({
+    "REMOVED",
+})
+
+KNOWN_DIGESTS = DENY_SHA256 | SENTL_ACCOUNT_DIGESTS | EXAMPLE_DIGESTS
 
 # The value must start with a letter or digit, so `<REPLACE_WITH_TOKEN>` and
 # `$SENTL_TOKEN` pass, and so does prose where a backtick follows the scheme.

@@ -1,6 +1,7 @@
 """Files, text normalization and number formatting shared by every command."""
 
 import datetime as dt
+import functools
 import gzip
 import json
 import os
@@ -163,6 +164,13 @@ def fold(text):
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
+@functools.lru_cache(maxsize=None)
+def folded(text):
+    """`fold`, computed once per text: each answer is read by several figures. `period`
+    clears the cache when it starts."""
+    return fold(text)
+
+
 def slug(text):
     words = re.findall(r"[a-z0-9]+", fold(text))
     return "-".join(words) or "project"
@@ -172,7 +180,7 @@ def first_mention(folded_answer, aliases):
     """Character offset of the first alias found on word boundaries, or None."""
     best = None
     for alias in aliases:
-        a = fold(alias)
+        a = folded(alias)
         if not a:
             continue
         m = re.search(r"(?<!\w)" + re.escape(a) + r"(?!\w)", folded_answer)

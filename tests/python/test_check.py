@@ -30,19 +30,26 @@ Per Avenello conviene pubblicare il prezzo al litro.
 """
 
 
+SUMMARY_TEXT = "- Gli assistenti descrivono Avenello come una bevanda all'avena."
+
+
+def with_findings(path, findings, summary=SUMMARY_TEXT):
+    """The report at `path` with `findings` as its findings section and `summary` written."""
+    text = path.read_text(encoding="utf-8").replace("[[summary]]", summary)
+    head, rest = re.split(r"(?=^## \d+\. Cosa dicono gli assistenti$)", text, maxsplit=1, flags=re.M)
+    title, tail = rest.split("\n", 1)
+    after = re.search(r"^## \d+\. ", tail, flags=re.M)
+    path.write_text(f"{head}{title}\n\n{findings}\n" + (tail[after.start():] if after else ""), encoding="utf-8")
+    return path
+
+
 class CheckTest(StudyCase, unittest.TestCase):
 
     def write_report(self, findings=FINDINGS, data=None):
         self.ready(data)
         self.cli("method", "--study", self.study, "--date", "2026-10-31",
                  "--models", self.save("models.json", models()), check=0)
-        path = self.study / "reports" / "2026-10-31.md"
-        text = path.read_text(encoding="utf-8")
-        head, rest = text.split("## 6. ", 1)
-        title, tail = rest.split("\n", 1)
-        changes = tail[tail.index("## 7. "):]
-        path.write_text(f"{head}## 6. {title}\n\n{findings}\n{changes}", encoding="utf-8")
-        return path
+        return with_findings(self.study / "reports" / "2026-10-31.md", findings)
 
     def check(self, path, code):
         return self.cli("check", "--study", self.study, path, check=code)
@@ -81,8 +88,8 @@ class CheckTest(StudyCase, unittest.TestCase):
 
     def test_an_unknown_percentage_fails(self):
         path = self.write_report()
-        self.edit(path, "nel 75% delle", "nel 80% delle")
-        self.assertIn("80%", self.check(path, 1).stdout)
+        self.edit(path, "nel 75% delle", "nel 85% delle")
+        self.assertIn("85%", self.check(path, 1).stdout)
 
     def test_a_figure_of_a_dimension_without_one_fails(self):
         data = run(rounds=2)
@@ -184,12 +191,8 @@ class CheckTest(StudyCase, unittest.TestCase):
         self.ingest(run())
         self.cli("period", "--study", self.study, "--date", "2026-10-31", "--models", named_file, check=0)
         self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models", named_file, check=0)
-        path = self.study / "reports" / "2026-10-31.md"
-        text = path.read_text(encoding="utf-8")
-        head, rest = text.split("## 6. ", 1)
-        title, tail = rest.split("\n", 1)
-        findings = FINDINGS.replace("», Orbit Reason.", "», Orbit Reason 4.7.")
-        path.write_text(f"{head}## 6. {title}\n\n{findings}\n{tail[tail.index('## 7. '):]}", encoding="utf-8")
+        path = with_findings(self.study / "reports" / "2026-10-31.md",
+                             FINDINGS.replace("», Orbit Reason.", "», Orbit Reason 4.7."))
         self.check(path, 0)
 
     def test_counts_and_dates_written_as_integers_pass(self):
@@ -197,6 +200,16 @@ class CheckTest(StudyCase, unittest.TestCase):
         self.edit(path, "Per Avenello conviene pubblicare",
                   "Al 31 ottobre 2026, con 2 assistenti e 3 domande, per Avenello conviene pubblicare")
         self.check(path, 0)
+
+    def test_a_count_followed_by_a_verb_of_citing_is_verified(self):
+        path = self.write_report()
+        self.edit(path, "Per Avenello conviene una pagina", "Le pagine di Avenello: 2 su 3 citano avenello.example. "
+                                                          "Per Avenello conviene una pagina")
+        self.check(path, 0)
+        self.edit(path, "2 su 3 citano", "7 su 9 citano")
+        self.assertIn("7 su 9", self.check(path, 1).stdout)
+        from sentlmon.check import _figures
+        self.assertEqual(len(_figures("prezzi.example: 7 of 9 cite it.", "en", (set(), set(), set()))), 1)
 
     def test_the_project_figure_and_a_position_pass(self):
         path = self.write_report()

@@ -14,7 +14,9 @@ puts it in Sentl, and turns the runs into reports. It makes no model calls of it
 **Status:** the `adopt` and `report` routes work: a project that already exists in Sentl is
 taken into a study folder and reported on period by period, each report compared with the
 earlier periods; the first report on a project with earlier runs compares with periods
-rebuilt from them. The other routes are planned; the design is in
+rebuilt from them. Each figure comes with what explains it: which facts the answers state
+and the pages behind them, how many independent readings the answers are, episodes inside a
+period, answers that found no evidence, and who wrote the cited pages. The other routes are planned; the design is in
 [ARCHITECTURE.md](ARCHITECTURE.md) and the plan in [DEVPLAN.md](DEVPLAN.md).
 
 ## Who it is for
@@ -199,6 +201,7 @@ sentl-monitor/         the skill payload
   SKILL.md             router
   adopt/ADOPT.md       route playbooks, one per route
   report/REPORT.md
+  report/INSIGHTS.md   how a report states each insight
   brief/BRIEF.md       planned
   design/DESIGN.md     planned
   setup/SETUP.md       planned

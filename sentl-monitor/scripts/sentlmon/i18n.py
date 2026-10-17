@@ -9,6 +9,7 @@ SECTIONS = {
         "scoring": "Come vengono valutate le risposte",
         "findings": "Cosa dicono gli assistenti",
         "changes": "Cosa è cambiato",
+        "summary": "In sintesi",
         "limits": "Cosa un singolo run non mostra",
     },
     "en": {
@@ -19,12 +20,13 @@ SECTIONS = {
         "scoring": "How the answers are scored",
         "findings": "What the assistants say",
         "changes": "What changed",
+        "summary": "In short",
         "limits": "What a single run cannot show",
     },
 }
 
-FIRST_ORDER = ["purpose", "themes", "dimensions", "questions", "scoring", "findings", "changes"]
-LATER_ORDER = ["changes", "findings", "purpose", "themes", "dimensions", "questions", "scoring"]
+FIRST_ORDER = ["purpose", "themes", "dimensions", "questions", "scoring", "summary", "findings", "changes"]
+LATER_ORDER = ["summary", "changes", "findings", "purpose", "themes", "dimensions", "questions", "scoring"]
 
 ORIGINS = {
     "it": {"client_material": "Materiali del cliente", "client_issue": "Questioni sollevate dal cliente",
@@ -49,6 +51,15 @@ TEXT = {
         "title_day": "{subject} · rilevazione del {start} · rapporto del {date}",
         "asked": "Abbiamo posto {questions} domande a {count} assistenti AI: {names}.",
         "asked_one": "Abbiamo posto {questions} domande a un assistente AI: {names}.",
+        "asked_projects": "Abbiamo posto le domande in {count} progetti:",
+        "project_questions": ("{n} domanda", "{n} domande"),
+        "project_assistants": ("a un assistente AI ({names})", "a {count} assistenti AI ({names})"),
+        "project_rounds": ("ciascuna posta una volta per rilevazione", "ciascuna posta {rounds} volte per rilevazione"),
+        "schedule": {"daily": "con una rilevazione al giorno", "weekly": "con una rilevazione a settimana",
+                     "monthly": "con una rilevazione al mese"},
+        "shared_rubric": "Criteri comuni a più domande",
+        "shared_note": "I criteri comuni a più domande sono riportati una volta per tutte, con i cinque punteggi.",
+        "anchors_all": "5: {a5} · 4: {a4} · 3: {a3} · 2: {a2} · 1: {a1}",
         "paired": "Dove una domanda ha la sua opposta, abbiamo posto entrambe le versioni, in positivo e in negativo.",
         "collected": "Nel periodo sono state raccolte {received} risposte, {judged} delle quali valutate.",
         "sources": "Per ogni risposta abbiamo registrato le fonti citate dall'assistente.",
@@ -108,6 +119,14 @@ TEXT = {
         "title_day": "{subject} · measured on {start} · report of {date}",
         "asked": "We asked {questions} questions to {count} AI assistants: {names}.",
         "asked_one": "We asked {questions} questions to one AI assistant: {names}.",
+        "asked_projects": "We asked the questions in {count} projects:",
+        "project_questions": ("{n} question", "{n} questions"),
+        "project_assistants": ("to one AI assistant ({names})", "to {count} AI assistants ({names})"),
+        "project_rounds": ("each asked once per run", "each asked {rounds} times per run"),
+        "schedule": {"daily": "run every day", "weekly": "run every week", "monthly": "run every month"},
+        "shared_rubric": "Criteria shared by several questions",
+        "shared_note": "Criteria shared by several questions are given once for all of them, with the five points.",
+        "anchors_all": "5: {a5} · 4: {a4} · 3: {a3} · 2: {a2} · 1: {a1}",
         "paired": "Where a question has an opposite, we asked both versions, in positive and in negative.",
         "collected": "In the period {received} answers were collected, {judged} of them scored.",
         "sources": "For each answer we recorded the sources the assistant cited.",
@@ -164,3 +183,56 @@ def join(items, lang):
     if len(items) < 2:
         return "".join(items)
     return ", ".join(items[:-1]) + f" {TEXT[lang]['and']} " + items[-1]
+
+
+# Phrases by which an answer says the assistant found no source of the kind the question asks
+# for, matched on the folded answer (lower case, no accents). Each is anchored on the
+# assistant's own search: the first person, "the provided results", or evidence that is not
+# available or limited as such. Product sentences ("limited integrations", "a limited free
+# plan") name no evidence, and a sentence whose subject is a third party (THIRD_PERSON: users,
+# customers) reports someone else's experience, so neither counts.
+EVIDENCE_EN = r"(?:information|data|details|reviews|sources|reports|testimonials|figures)"
+EVIDENCE_IT = r"(?:informazion[ei]|dati|dettagli|recensioni|fonti|testimonianze|notizie)"
+MISSING_EVIDENCE = {
+    "en": [
+        r"\b(?:not accessible|not available|unavailable|not found|limited|scarce|sparse|absent) (?:in|from|among) the "
+        r"(?:provided |available |retrieved |returned |search )?(?:search )?(?:results|sources)\b",
+        r"\bi (?:could not|couldn't|was unable to|am unable to|did not|didn't|cannot|can't) (?:find|locate|access|retrieve)"
+        r"\b[^.]{0,60}?\b" + EVIDENCE_EN + r"\b",
+        r"\bi (?:found|have found|see) (?:no|little|limited|few|only limited)\b[^.]{0,40}?\b" + EVIDENCE_EN + r"\b",
+        r"\bno (?:(?:specific|reliable|public|detailed|recent|verified|employee|independent|current) )*" + EVIDENCE_EN
+        + r" (?:(?:was|were|is|are|could be|can be) )?(?:found|available|located|publicly available)\b",
+        r"\bthere (?:is|are|'s) (?:very |quite |only )?(?:limited|little|scarce|no|few) "
+        r"(?:(?:public|reliable|specific|detailed|verified|independent|employee) )*" + EVIDENCE_EN + r"\b",
+        r"\b" + EVIDENCE_EN + r" (?:on|about|for|regarding) [^.]{0,80}?\b(?:is|are|was|were|remains|remain) "
+        r"(?:quite |very |rather |somewhat |fairly |extremely )?(?:limited|scarce|sparse|unavailable|not available|"
+        r"hard to find)\b(?! to\b)",
+        r"\b" + EVIDENCE_EN + r"\b[^.]{0,40}?\b(?:is|are) not publicly available\b",
+    ],
+    "it": [
+        r"\b(?:non (?:e|sono) (?:stat[oaie] )?(?:accessibil[ei]|disponibil[ei]|trovat[oaie]|reperibil[ei])|"
+        r"limitat[oaie]|scars[oaie]|assent[ei]) (?:nei|negli|nelle|tra i|tra le|dai|dalle) (?:risultati|fonti)\b",
+        r"\bnon (?:ho|abbiamo) (?:trovato|reperito|individuato|potuto (?:trovare|reperire|consultare|accedere a))\b"
+        r"[^.]{0,60}?\b" + EVIDENCE_IT + r"\b",
+        r"\bnon (?:sono riuscit[oaie]|siamo riuscit[ie]) a (?:trovare|reperire)\b[^.]{0,60}?\b" + EVIDENCE_IT + r"\b",
+        r"\bnon e stato possibile (?:trovare|reperire|accedere a)\b[^.]{0,60}?\b" + EVIDENCE_IT + r"\b",
+        r"\bnon (?:sono|risultano|ci sono) (?:(?:disponibil[ei]|reperibil[ei]|pubblicamente disponibili) )?"
+        r"(?:(?:molte|poche) )?" + EVIDENCE_IT + r"\b",
+        r"\bnessun[ao]? (?:informazione|fonte|recensione|dato|testimonianza)\b[^.]{0,40}?"
+        r"\b(?:disponibil[ei]|trovat[oaie]|reperibil[ei])\b",
+        r"\b(?:le )?" + EVIDENCE_IT + r" (?:pubblic[hei]+ )?(?:su|sul|sullo|sulla|sui|sugli|sulle|riguardo a|"
+        r"riguardo al|riguardo alla|relative a|relativi a) [^.]{0,80}?\b(?:sono|risultano|appaiono) "
+        r"(?:piuttosto |molto |abbastanza |alquanto )?(?:limitat[ei]|scars[ei]|poch[ei]|insufficienti)\b",
+        r"\bci sono (?:poche|scarse|pochissime) " + EVIDENCE_IT + r"\b",
+    ],
+}
+
+# A third party as the subject of the sentence, before the phrase: its experience, not the
+# assistant's search.
+THIRD_PERSON = {
+    "en": r"\b(?:users?|customers?|clients?|consumers?|buyers?|shoppers?|subscribers?)\b(?: [\w'-]+){0,3}? "
+          r"(?:say|says|said|report|reports|reported|complain|complains|complained|note|noted|mention|mentioned|"
+          r"could|can|cannot|can't|were|are|did|do|does|have|had)\b",
+    "it": r"\b(?:utenti|utente|clienti|cliente|consumatori|acquirenti|abbonati)\b(?: [\w'-]+){0,3}? "
+          r"(?:dicono|dice|hanno detto|segnalano|segnala|lamentano|lamenta|riferiscono|raccontano|non)\b",
+}

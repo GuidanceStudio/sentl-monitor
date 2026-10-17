@@ -97,6 +97,41 @@ for t in adopt/ADOPT.md report/REPORT.md; do
 done
 
 echo ""
+echo "=== The report playbook points to the insights ==="
+has 'INSIGHTS\.md' "$PAYLOAD/report/REPORT.md" "REPORT.md points the writer to report/INSIGHTS.md"
+has "goes in the findings entry of its dimension" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md puts every insight in its dimension's findings entry"
+if grep -qiE "or in the changes section" "$PAYLOAD/report/INSIGHTS.md"; then
+    bad "INSIGHTS.md offers the changes section instead of the findings entry"
+else
+    ok "INSIGHTS.md never offers the changes section instead of the findings entry"
+fi
+has "«" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md tells the writer to quote a fact term in «»"
+for f in "$PAYLOAD/report/REPORT.md" "$REPO_ROOT/ARCHITECTURE.md"; do
+    has "the subject's own first, then the most cited, five in all" "$f" \
+        "$(basename "$f") lists the domains after the excerpts as the subject's own first, then the most cited"
+done
+INSIGHT_LINE=$(grep -n "The insights the material prints" "$PAYLOAD/report/REPORT.md" | head -1 | cut -d: -f1)
+CLIENT_LINE=$(grep -n "One line on what it means for the client" "$PAYLOAD/report/REPORT.md" | head -1 | cut -d: -f1)
+if [ -n "$INSIGHT_LINE" ] && [ -n "$CLIENT_LINE" ] && [ "$INSIGHT_LINE" -lt "$CLIENT_LINE" ]; then
+    ok "REPORT.md step 7 puts the insights before the line for the client"
+else
+    bad "REPORT.md step 7 puts the insights before the line for the client"
+fi
+has "summary is written last" "$PAYLOAD/report/REPORT.md" "REPORT.md writes the summary last, from the findings and changes"
+has "In short|summary" "$REPO_ROOT/ARCHITECTURE.md" "ARCHITECTURE.md names the summary section"
+has "five domains cited by most answers of the group" "$PAYLOAD/report/INSIGHTS.md" \
+    "INSIGHTS.md states the sources rule as the five domains cited most in each group"
+if grep -qE "at least 10 points apart|at least five of the two groups" "$PAYLOAD/report/INSIGHTS.md"; then
+    bad "INSIGHTS.md still states the thresholds of the earlier rule"
+else
+    ok "INSIGHTS.md states no threshold of the earlier rule"
+fi
+for insight in "Fact currency" "Sources behind" "Readings" "Episodes" "Presence by run" "Missing evidence" \
+               "Who wrote the sources" "Presence changes"; do
+    has "^## $insight" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md has an entry for $insight"
+done
+
+echo ""
 echo "=== monitor.py --help ==="
 # Captured before grepping: grep -q exits at the first match and the SIGPIPE
 # it leaves would fail the command under pipefail.

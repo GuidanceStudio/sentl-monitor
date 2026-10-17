@@ -63,7 +63,7 @@ python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S
 - Exit 2, not complete JSON: save the response again from the host's file and rerun.
 - Sentl returned an error instead of results:
   `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
-- The output lists unmatched responses or a run score that differs: keep it for step 10.
+- The output lists unmatched responses or a run score that differs: keep it for step 11.
 
 ## 4. Models
 
@@ -78,7 +78,7 @@ python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inb
 
 The output says which runs the period pools, which runs were left out and why, the
 unavailable runs, and on a first report either the periods rebuilt from earlier runs or that
-there is no earlier period. Keep all of it for step 10; none of it goes in the report.
+there is no earlier period. Keep all of it for step 11; none of it goes in the report.
 
 - Exit 2 saying `report_every` is not set: ask the operator whether a report covers a week
   or a month, write it into `study.json`, rerun.
@@ -94,8 +94,9 @@ python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inb
 Exit 2 listing fields: the operator has not answered them yet; ask (see `adopt` step 6) and
 rerun. The script writes `reports/D.md`. A first report (no final report before `D` in
 `history/reports.json`) opens with the method sections; a later report opens with what
-changed and what the assistants say, and the method sections close it. The findings section
-holds one entry per dimension, marked `[[...]]`. The changes section holds either the line
+changed and what the assistants say, and the method sections close it. The summary
+section, after the method sections in a first report and first in a later one, holds the
+`[[summary]]` marker. The findings section holds one entry per dimension, marked `[[...]]`. The changes section holds either the line
 saying this is the first measurement, or the period compared with, a `[[...]]` marker for
 the changes in the answers, and one line per change in the design.
 
@@ -115,7 +116,8 @@ findings with:
   assistants use typographic characters a retyped quote loses.
 - **After each excerpt**, on a plain line: the question in «» and the assistant's public
   name.
-- **The domains** those answers cite.
+- **The domains** those answers cite:
+  the subject's own first, then the most cited, five in all.
 - **The figure**, when the material says `figure yes`: the dimension's mean as the material
   prints it (one decimal, a comma in Italian; never round it again), and how many answers
   were judged out of how many expected, written as "N su M risposte" or "N of M answers". When it says `figure no`: no mean, only how many
@@ -123,7 +125,11 @@ findings with:
   presence: in what share of the answers the subject is named (whole percent).
 - An entry cites the figures of its own dimension and the project's overall figure, never
   another dimension's.
-- **One line on what it means for the client.**
+- **The insights the material prints for the dimension** (fact currency, sources behind a fact
+  or a score, readings, episodes, presence by run, missing evidence, who wrote the sources),
+  each in one plain sentence with its figure, as `report/INSIGHTS.md` describes. State every
+  one the material holds; a fact term named in the sentence is quoted in «» as listed.
+- **One line on what it means for the client**, last.
 
 ## 8. Write the changes in the answers
 
@@ -139,16 +145,27 @@ the changes section with:
   answers the material gives, as excerpts copied by their lines, each followed by the question
   in «», the assistant's public name and which period it comes from.
 - **The domains** new or lost, per dimension.
+- **Presence changes**: for each question in the material's "Presence changes", the domains
+  that came or went with the subject, and an episode or a fact share that explains a change
+  called (`report/INSIGHTS.md`).
 - **One line** saying the other dimensions are unchanged.
 
 Keep the line above the marker and the design-change lines below it as `method` wrote them.
 
-Every figure in steps 7 and 8 must come from the material, rounded as above. Write plain
+## 9. Write the summary
+
+The summary is written last, from the findings and changes already written. Replace the
+`[[summary]]` marker with a bulleted list of three to five plain declarative sentences, each
+stating one point the reader needs, with its figure as the material prints it. Any figure of
+the period may be cited here, whichever dimension it belongs to, and in a later report the
+figures of the comparison. The summary quotes no answer: an excerpt belongs in findings.
+
+Every figure in steps 7 to 9 must come from the material, rounded as above. Write plain
 declarative sentences; no slogans, no rhetorical openers. Never write a run, project or
 question id, a question key, a model id, a file name, a credit figure, or anything about the
 skill's own steps.
 
-## 9. Check
+## 10. Check
 
 ```bash
 python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
@@ -157,10 +174,10 @@ python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
 Exit 1 lists each problem: fix the report and run it again until it passes. A quote that
 fails was not copied exactly; a figure that fails is not in the period's metrics or its
 comparison, or belongs to a dimension shown without a figure; a section out of order means
-the report was rearranged. When it passes, the report is recorded in
+the report was rearranged; a summary that quotes an answer fails. When it passes, the report is recorded in
 `history/reports.json` as final, and the next report compares with it.
 
-## 10. Tell the operator, in the chat
+## 11. Tell the operator, in the chat
 
 The report's path, the runs it covers, and anything the scripts flagged: edits detected in
 Sentl and how each affects the comparison, the periods rebuilt from earlier runs or that no
