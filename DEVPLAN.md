@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2 and M2b done; M3 next.
+live Sentl projects with read-only tools. M1, M2, M2b and M2c done; M3 next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -183,6 +183,48 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - The live report added, with the operator's approval: one `purpose` line per project when settings differ, shared origins and shared rubrics stated once, and an `In short` summary section.
 - `check` keys findings by project and dimension, reads a fact term inside «» as text, and verifies a count before a verb of citing.
 - Suite run under Python 3.14 and 3.11; 3.10 is not installed on the development machine.
+
+## M2c: A first report on a monitor younger than its report interval compares the two halves of its period ✅
+
+**Why:** A monitor started less than one `report_every` interval before its first report has no earlier interval to rebuild, so its `changes` section says this is the first measurement. The client was shown the first readings when the monitor started and reads the first periodic report for what moved since then. A live first monthly report, three and a half weeks of daily and weekly runs, said "first measurement" while its findings held a fact whose current value rose and fell, an assistant whose score on one question dropped a point, and unbranded questions that gained and lost the subject.
+
+**Approach:** Applies only to a first report with no run before the period's interval, the case where `period` now tells the operator there is no earlier period. When the period's runs span at least 14 days, `period` splits them at the midpoint between the first run's start and the report's date and compares the second half with the first by ARCHITECTURE.md §What counts as a change, with the thresholds for a single previous period (0.5 points, 20 percentage points): dimension, project and question means, verdicts, presence per question, fact currency, new and lost domains. A half is a period built like a rebuilt one, `"half": "first"` or `"second"`, written to `history/periods/` and given no report; building the first report again replaces both. The `changes` section names the two halves and their dates, and when a change has an episode (M2b) it states the episode's first date. The episodes, fact currency and presence per run for the findings still read the whole period. Under 14 days the section stays the first measurement. Later reports compare with the whole first period, never with its halves.
+
+**Tasks:**
+- [x] Test: unit — a first report on a fictional monitor started 24 days before it: two halves split at the midpoint, compared with the single-previous-period thresholds, a dimension that moves by 0.5 and one that moves by 0.4, a question that gains the subject by 20 points and one by 10, a fact whose current share moves; under 14 days the first measurement; with an earlier interval the rebuilt periods, unchanged
+- [x] Test: unit — the `changes` section names the halves and their dates, and states an episode's first date beside the change it explains; `check` refuses a halves report whose section names no halves, and accepts the figures of both halves
+- [x] Test: unit — the second report compares with the whole first period; the halves are not read as earlier periods
+- [x] Implement in `period`, `compare` and `check`; update `REPORT.md`, `ADOPT.md` §1 and §7 and ARCHITECTURE.md §Periods
+- [x] Test, then implement: the halves split at the midpoint between the first run's start and the end of the report's date
+- [x] Test, then implement: a verdict change is listed only when the pair's mean also moves by the change threshold (0.3 points, 0.5 with a single previous period), in every comparison; `change_rule` (en, it) and ARCHITECTURE.md §What counts as a change updated
+- [x] Test, then implement: the new and lost domains, and the domains of a presence change, ranked by the answers citing them, five per list, ties broken by name; "1 answer" in the material
+- [x] Test, then implement: the line naming the halves states each project's runs and answers in each half, and `check` still requires it; the material's halves header gives dates
+- [x] The project mean and fact currency stay compared in every comparison (operator, after the first dry run)
+- [x] Review fix, test first: an episode stands beside a change only on the side of its move and running in the later side of the comparison
+- [x] Review fix, test first: the halves split the whole period's kept runs by time, so a criteria change drops its old answers from both halves
+- [x] Review fix, test first: a project with runs in one half only is not compared and is stated; with no project in both halves the report is the first measurement
+- [x] Review fix, test first: on a halves report the material says first and second half where a later report says previous and this period
+- [x] Review fix, test first: every design change dated inside the period is stated on a halves report, inside the first half and across the split included
+- [x] Review fix, test first: README says what the halves can date with weekly runs; ARCHITECTURE.md says the domain cap is five per list across all dimensions and projects
+- [x] Review fix, test first: Italian date phrases elide before 8 and 11 and write the first of the month as 1°, through one helper
+- [x] Review fix, test first: `check` refuses a report whose half file is missing; `period` deletes only the halves of the date it builds
+- [x] Second review, test first: a dimension the earlier side never asked is new, with its design line; only one whose questions the earlier side dropped is a new baseline
+- [x] Second review, test first: a dimension archived inside the first half is stated on a halves report
+- [x] Second review, test first: on a halves report, assistants added or removed come from the recorded versions, and from half against half for runs older than every version
+- [x] Second review, test first: the assistants a halves comparison rests on are said to be present in both halves
+- [x] Second review, test first: the material's halves metric lines name the halves, "1 run" in the counts, episodes timed against the split instant, an episode note printed once under its question
+- [x] Test: live — the live first report's `changes` section compares the two halves and passes `check`
+- [x] Commit
+
+**Done when:** a fictional monitor three and a half weeks old gets a first report whose `changes` section compares the second half with the first and passes `check`; the live first report does the same.
+
+**Deviations:**
+- Operator, after the first dry run: the split is the midpoint to the end of the report's date; a verdict change needs the pair's mean to move by the change step, in every comparison; the new and lost domains and a presence change's domains keep the five cited by most answers per list; the halves line states each project's runs and answers; the project mean and fact currency stay compared in every comparison (`comparison.projects`, a question's `current_share` on presence's thresholds).
+- Reviews of the diff: the halves split the period's kept runs by time and compare per project (a project in one half only is stated and not compared; with none in both, the first measurement); they state every design change made inside the period, a dimension archived inside the first half included, assistants from the versions `detect` recorded and half against half for runs older than every version; an episode stands beside a change only on its side and when its last run starts after the split, once, under its question; a dimension whose questions the earlier side dropped for a criteria change is a new baseline, one it never asked is new.
+- The halves are `<date>.first.json` and `<date>.second.json`, replaced only when that date is built; `check` refuses (exit 2) a report whose half file is missing; the comparison keeps `previous` null and gains `halves`; episodes gain `first_at` and `last_at`.
+- The halves get their own changes marker, and `check` requires the line `method` wrote naming them; Italian dated sentences elide before 8 and 11 and write the first of the month as 1° through one helper (`i18n.phrase`); ADOPT.md §1 is the connection step, so its §6 cadence bullet was updated with §7.
+- Existing tests updated for the new behaviour: `test_three_reports` asserts the halves line, `test_insights_period` fills the new marker, `test_rebuild` keeps its no-earlier-period case with two weeks of runs, `test_method` pins the title with 1°.
+- Open: a dimension added inside the first half is compared between the halves and stated only by its questions' creation line, not as a dimension added.
 
 ## M3: Build the theme inventory and collect search demand
 

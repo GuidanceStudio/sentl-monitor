@@ -75,8 +75,9 @@ the report as written, so they are written in the report's language:
 - **Report cadence** (`report_every`: `weekly` or `monthly`). Propose `monthly` when the
   project runs weekly or daily, so a report pools several runs. The first report covers the
   last week or month and compares with up to four earlier weeks or months rebuilt from the
-  project's runs; when the project has no run before that last interval, it is the first
-  measurement. Say which applies, from the runs listed in step 4.
+  project's runs. When the project has no run before that last interval, the first report
+  compares the second half of its period with the first if its runs span at least 14 days,
+  and is the first measurement otherwise. Say which applies, from the runs listed in step 4.
 - **Where each dimension's theme came from**: one or more origins per theme, each a `kind`
   (`client_material`, `client_issue`, `client_analysis`, `search`, `probe`) and a `detail`
   (the document, the conversation, the analysis).
@@ -95,7 +96,9 @@ strings.
 Tell the operator: the study folder's path, the dimensions and questions adopted (archived
 dimensions are kept and not reported), how many completed runs the project has, the dates of
 the earliest and the latest, and that `report` writes the first report: it covers the last
-`report_every` interval and compares with the earlier intervals that have runs, up to four.
+`report_every` interval and compares with the earlier intervals that have runs, up to four,
+or, when no run precedes that interval, the second half of the interval with the first once
+its runs span at least 14 days.
 Runs older than this adoption are read with no recorded configuration: an answer to a
 question worded differently then is left out, and a run with too many of those is left out
 of its period; `report` lists them.

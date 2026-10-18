@@ -6,6 +6,7 @@ import re
 import unittest
 
 from fixtures import (CHOICE_Q, GEM, GPT, NEW, PRICE_Q, WORK_Q, StudyCase, market_project, models, results, weekly)
+from sentlmon.i18n import TEXT as WORDING
 from test_method import sections
 
 OCT = weekly("2026-10-05", 4)
@@ -217,6 +218,7 @@ class CheckFiguresTest(InsightCase, unittest.TestCase):
 
     def write(self, text_of):
         report = self.path.read_text(encoding="utf-8").replace("[[summary]]", "- Le risposte descrivono Avenello.")
+        report = report.replace(WORDING["it"]["changes_marker_halves"], "Le dimensioni sono invariate.")
         for name, text in text_of.items():
             report = re.sub(r"(^### " + name + r": )\[\[[^\]]*\]\]\n\n\[\[[^\]]*\]\]",
                             lambda m: m.group(1) + "le risposte descrivono Avenello\n\n" + text, report, flags=re.M)

@@ -38,6 +38,7 @@ is a new version inside the same folder, so the history stays in one place.
     runs/<project>/<run_id>.json.gz one normalized snapshot per ingested run
     unavailable.json                completed runs whose results Sentl could not return, retried at each invocation
     periods/<YYYY-MM-DD>.json       metrics of one report period and its comparison
+    periods/<YYYY-MM-DD>.first.json the halves of a first period with no earlier one (and .second.json)
     material/<YYYY-MM-DD>.md        the figures and candidate answers the insights are written from
     reports.json                    index of reports: period, runs, status
     last-report.json                outcome of the latest `report` invocation
@@ -329,11 +330,23 @@ per cell `given`, `stating`, `current_only`, `outdated_only`, `both`, `current_s
 assistants, `by_model` and per run in `runs`), `group_sources` (per group, `outdated`, `current`,
 `low` or `high`, up to five domains, each with `citing`, `answers` and `share` in the group and
 the same under `other` for the opposite group), `presence_runs` (per run `named` of
-`given`, for a question naming no brand), `episodes` (`measure`, `first`, `last`, `runs`,
+`given`, for a question naming no brand), `episodes` (`measure`, `first`, `last`, `first_at`, `last_at` (the start
+times of the episode's first and last run), `runs`,
 `values`, `range`, `earlier`, `side`, `closed`) and `missing` (per model `answers`, `given`,
 `judged`, `mean`, `mean_without`); each is present only when it has content. The comparison
 carries `presence_sources`: per question whose presence changed, the domains `new` and `lost`
 in the answers naming the subject. §Insights gives the rules.
+
+The comparison also carries `projects`: per project, the `dimensions` compared and the
+project's `mean` entry on them. A compared question whose facts have terms carries
+`current_share`, an entry like `presence` for the share of its answers stating a current
+term. On a first report that compares the two halves of its period (§Periods), `previous`,
+`previous_period` and `range_of` are empty and `halves` holds `first` and `second`, each with
+the `from` and `to` of its runs, and the `split` time; every other entry compares the second
+half with the first, on the projects with runs in both; `first` and `second` also hold, per
+project with runs in the half, the `runs` and `answers` of the half. The halves are written beside the period as `<date>.first.json` and
+`<date>.second.json`, period files with `"half": "first"` or `"second"`, `names` and no
+comparison.
 
 `settings` holds, per project, the models, the rounds and the schedule of the period: those
 of the latest version among its runs, or, for runs older than every version, the rounds and
@@ -373,7 +386,8 @@ computes a run's score (A4). A period rebuilt from a project's history carries
 A list of `{date, file, status, period: {from, to}, runs, previous}`, in date order.
 `monitor.py check` adds the report as `final` when it passes; `draft` is written by the
 unattended mode (M6). `previous` is the date of the period the report compared with, a
-rebuilt one included. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
+rebuilt one included; it is null on a first report, including one that compares the two
+halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
 
 ## The stages
@@ -534,7 +548,8 @@ before the first one from them (see Periods).
    coverage. A run whose results come back as a server error goes to
    `history/unavailable.json`.
 4. `monitor.py period` builds the period: the runs since the previous report, pooled; on the
-   first report, the rebuilt periods as well (see Periods). It computes the cells, the
+   first report, the rebuilt periods as well, or the two halves of the period when there is
+   no earlier one (see Periods). It computes the cells, the
    comparison with the previous period and the range of the K periods before (K = 4), and
    writes `history/periods/<date>.json` and `history/material/<date>.md`. It refuses a study
    without `report_every`.
@@ -696,13 +711,34 @@ period per interval, dated the interval's last day, written to `history/periods/
 `"rebuilt": true` and given no report of their own. The first report then compares with them
 as a later report compares with earlier periods. Runs Sentl cannot return are left out of a
 rebuilt period and listed; so are runs under the run floor; an interval with no run left
-gets no period. With no earlier run at all, `period` tells the operator there is no earlier
-period, and the report's `changes` section says this is the first measurement. Building the
-first period again replaces the rebuilt periods.
+gets no period.
+
+With no earlier period at all, a monitor started less than one interval before its first
+report, the first report compares the two halves of its own period when its runs span at
+least 14 days. `period` splits the period's runs, as the period keeps them (§Comparability:
+the runs of the latest criteria), at the midpoint between the first run's start and the end
+of the report's date, and compares the second half with the first by §Comparability and §What
+counts as a change, with the thresholds for a single previous period. A project with runs in
+one half only is not compared, and the report says so; when no project has runs in both
+halves, the report is the first measurement. The design changes stated are those made inside
+the whole period, between its first run and its last, wherever they fall, a dimension archived
+before either half's latest version included; assistants added or removed come from the
+versions `detect` recorded and, for runs older than every version, whose model lists only say
+who answered, from the second half against the first. The halves are
+written beside the period with `"half": "first"` and `"second"` and get no report. The
+insights the findings are written from (episodes, fact currency, presence by run) still read
+the whole period; an episode is given beside a change between the halves, with its first
+date, when it lies on the side of the range the change moves to and its last run starts after
+the split; the material notes it once, under its question.
+When the runs span less than 14 days, `period` tells the operator there is no earlier period
+and the report's `changes` section says this is the first measurement. Building the first
+period again replaces the rebuilt periods and that date's halves; the halves of another date
+stay with its report.
 
 A later report covers, for each project, the completed runs started after the last run of
 the previous report and up to the end of the report's date. The periods it compares with are
 those of the earlier reports in `history/reports.json` and the rebuilt ones, the latest K.
+The second report compares with the whole first period, never with its halves.
 
 ### Comparability
 
@@ -725,7 +761,9 @@ not change, and on the models present in both, so a model added or a question re
 changes neither side of the comparison. The range of earlier periods goes back to the last
 new baseline of those questions, and stops at the first period missing one of those
 questions or models, so every value of the range rests on the same questions and
-assistants. A run with no version counts as judged under the first recorded version. A question added in Sentl (`created`) is a new baseline,
+assistants. A run with no version counts as judged under the first recorded version. A
+dimension the earlier period asked, whose questions its runs dropped for a criteria change, is a
+new baseline; one the earlier period never asked is new, and its design line says so. A question added in Sentl (`created`) is a new baseline,
 like a new intent. New and lost domains are counted on the questions asked in both periods
 and the models present in both.
 
@@ -736,15 +774,23 @@ and the models present in both.
   previous period by at least 0.3 points (presence: by at least 10 percentage points). With a
   single previous period, the threshold is 0.5 points (presence: 20 points). Smaller moves
   are reported as unchanged.
+- **Project figure.** The mean of the project's compared dimensions, each on its compared
+  questions and models, follows the same rule as a dimension's figure.
+- **Fact currency.** For a question whose facts have terms, the share of its answers stating
+  a current term (§Insights) follows the rule for presence. Earlier periods that counted
+  other terms are not in its range.
 - **Verdict.** Each question–model pair has a band from its unrounded mean in the period:
   unfavourable (below 2.5), mixed (2.5 and above, below 3.5), favourable (3.5 and above). A
-  pair whose band changed is a verdict change, listed with the two answers that show it: in
-  each period, the pair's answer whose score is nearest the pair's mean, the latest on a
-  tie.
+  pair whose band changed is a verdict change when its mean also moved by at least the step
+  a change of the question's figure needs (0.3 points, 0.5 with a single previous period or
+  between the two halves), so a mean of 3.4 that becomes 3.5 is not one. It is listed with
+  the two answers that show it: in each period, the pair's answer whose score is nearest the
+  pair's mean, the latest on a tie.
 - **Sources.** Per dimension, a domain is new when at least two answers cite it in this
   period and none did in the previous one; lost in the opposite case. Domains are compared
   rather than URLs, because pages change address. Owned domains and their subdomains are
-  marked.
+  marked. The new and the lost are each listed five per list across all dimensions and
+  projects: the five cited by most answers, ties broken by domain name.
 - **Instability.** A pair whose answers in one period differ by two points or more is
   unstable. Its figure is reported with that note; it says where the assistants have no
   settled answer.
@@ -792,7 +838,8 @@ describes.
   the foil pages cited most.
 - **Presence changes.** For a question whose presence change is called, the domains cited by
   the answers naming the subject in this period and by no answer to the question in the
-  previous one, and the reverse, on the questions and models compared.
+  previous one, and the reverse, on the questions and models compared; the five cited by
+  most answers in each list, ties broken by domain name.
 
 ### Coverage
 
@@ -854,13 +901,18 @@ for the client. Every dimension gets its section, including those where nothing 
 
 **`changes`, on the first report:** one line saying this is the first measurement and the
 next report compares against it. When periods were rebuilt from the project's history, the
-section compares with them instead, as a later report does.
+section compares with them instead, as a later report does. When there is no earlier period
+and the runs span at least 14 days, the section opens with a line, written by `method`,
+naming the two halves of the period and their dates and, for each project, the runs and the
+answers in each half; the changes in the answers compare the second half with the first.
 
 **`changes`, when it compares:** a line naming the period compared with (and, when it was
-rebuilt, that no earlier report exists); the changes in the answers, written by the agent:
-the dimensions and questions whose change is called, each verdict change with its two
-answers quoted, the domains new or lost, the domains that came or went with the subject where
-its presence changed, and one line saying the rest is unchanged; then one
+rebuilt, that no earlier report exists), or the two halves; the changes in the answers,
+written by the agent: the project, dimensions and questions whose change is called, with the
+first date of an episode that explains one, the facts whose current share changed, each
+verdict change with its two answers quoted, the domains new or lost, the domains that came or
+went with the subject where its presence changed, and one line saying the rest is unchanged;
+then one
 line per design change, written by `method` as the Comparability table says: a reworded
 question with both wordings and the date, a new intent, new criteria, assistants added or
 removed with the assistants the comparison rests on, a dimension new or no longer
@@ -887,7 +939,7 @@ project. The rules it applies:
   comma in Italian) and has one decimal; a percentage is whole. Each must equal a value of
   the period file rounded the same way: its cells and, for a change, its comparison (the
   values now and before, the move, the range, the pair means of a verdict change); `changes`
-  may also cite the overall figures of the period compared with. The insights' counts and
+  may also cite the overall figures of the period compared with, or of both halves. The insights' counts and
   shares of answers may be cited whatever the coverage; their means only where the question
   has a figure; the material prints no mean for a question without one. A fact term of the
   study quoted in «» is read as text, not as a figure. A dimension's entry may cite its own
@@ -899,6 +951,9 @@ project. The rules it applies:
   or an answer, and the assistants' public names (which can carry a version number), are not
   read as figures.
 - **Findings headings** carry no figure.
+- **The halves.** A report whose period compares its two halves must keep, in `changes`, the
+  line `method` wrote naming them, their dates and each project's runs and answers. `check`
+  refuses the report when a half's file is missing, since the figures it allows come from it.
 - **The summary** may cite any figure of the period, any dimension's or question's included,
   and in a later report the figures of its comparison; it holds no excerpt, and its
   `[[summary]]` marker left in place fails like any other.

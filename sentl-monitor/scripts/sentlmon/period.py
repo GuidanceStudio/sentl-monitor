@@ -8,7 +8,11 @@ from collections import Counter, defaultdict
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
                      is_owned, load_json, load_mcp, mean, parse_time, public_name, write_json, write_text)
 from .compare import K, compare
-from .insights import classify, episodes, fact_cell, fact_terms, page_of, readings, reset, says_missing, top_sources
+from .insights import (TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset, says_missing,
+                       top_sources)
+
+
+HALVES_DAYS = 14
 
 
 class BelowFloor(Exception):
@@ -302,6 +306,41 @@ def _schedule_of(starts):
     return "daily" if median < 1.5 else "weekly" if median < 10 else "monthly"
 
 
+def _halves(study, date, current, chosen, end, reader, versions, names):
+    """The two halves of a first period that has no earlier one: the period's kept runs (`chosen`,
+    after `latest_criteria`) split at the midpoint between its first run and the end of the
+    report's date (`end`), when they span at least 14 days. A project with runs in one half only
+    is not compared, and with no project in both halves there are no halves. Returns
+    ([first, second], split time, the projects in both halves, lines for the operator), or
+    (None, None, [], lines)."""
+    start, span = parse_time(current["from"]), parse_time(current["to"]) - parse_time(current["from"])
+    if span < dt.timedelta(days=HALVES_DAYS):
+        return None, None, [], [f"The runs span {span.days} days, under the {HALVES_DAYS} needed to compare the two "
+                                "halves of the period, so this report is the first measurement (tell the operator)."]
+    split = start + (end - start) / 2
+    halves = []
+    for half, inside in (("first", lambda at: at < split), ("second", lambda at: at >= split)):
+        part = {}
+        for k, (kept, _, dropped) in chosen.items():
+            runs = [r for r in kept if inside(parse_time(r["started_at"]))]
+            ids = {str(r["run_id"]) for r in runs}
+            part[k] = (runs, [], {i: qs for i, qs in dropped.items() if i in ids})
+        built = _period(study, date, part, reader, versions)
+        built.update(half=half, names={m: public_name(m, names) for b in built["projects"].values() for m in b["by_model"]})
+        halves.append(built)
+    first, second = halves
+    both = [k for k in chosen if first["runs"].get(k) and second["runs"].get(k)]
+    if not both:
+        return None, None, [], ["No project has runs in both halves of the period, so this report is the first "
+                                "measurement (tell the operator)."]
+    lines = [f"The runs span {span.days} days: the second half of the period, runs started {second['from'][:10]} to "
+             f"{second['to'][:10]}, is compared with the first half, runs started {first['from'][:10]} to "
+             f"{first['to'][:10]}; the halves are written with no report of their own (tell the operator)."]
+    lines += [f"{k} has runs in the {h['half']} half only and is not compared (tell the operator)."
+              for k in chosen if k not in both for h in halves if h["runs"].get(k)]
+    return halves, split, both, lines
+
+
 def _left_out(period, where):
     return [f"Left out of {k}{where}: run {e['run_id']}, {e['reason']} (tell the operator)."
             for k, ex in period["excluded"].items() for e in ex]
@@ -349,11 +388,16 @@ def build(root, date, models_file=None):
                                                    ": ingest the completed runs started in it first"))
     lines += _left_out(current, "")
 
+    halves, split, both = None, None, []
     if not reports:
-        # The periods before a first report are rebuilt each time it is built, so none is left over.
+        # The periods before a first report, and the halves of its period, are built again each
+        # time it is built, so none is left over. The halves of other dates belong to their own
+        # reports and stay.
         for path in periods_dir.glob("*.json"):
             if path.stem < date and load_json(path).get("rebuilt"):
                 path.unlink()
+        for half in ("first", "second"):
+            periods_dir.joinpath(f"{date}.{half}.json").unlink(missing_ok=True)
         rebuilt = []
         for start, stop in bounds[1:]:
             day = (stop - dt.timedelta(days=1)).date().isoformat()
@@ -368,8 +412,11 @@ def build(root, date, models_file=None):
             lines.append(f"Rebuilt {len(rebuilt)} earlier period(s) from the project's runs, with no report of their own: "
                          f"{', '.join(sorted(rebuilt))}. The first report compares with them (tell the operator).")
         else:
-            lines.append(f"There is no earlier period: no completed run started before {bounds[0][0].date()} was ingested, "
-                         "so this report is the first measurement (tell the operator).")
+            halves, split, both, found = _halves(study, date, current, chosen, bounds[0][1], reader, versions, names)
+            lines += [f"There is no earlier period: no completed run started before {bounds[0][0].date()} was "
+                      "ingested.", *found]
+            for half in halves or ():
+                write_json(periods_dir / f"{date}.{half['half']}.json", half)
 
     unavailable = folder.path("history", "unavailable.json")
     for e in (load_json(unavailable)["runs"] if unavailable.exists() else []):
@@ -400,11 +447,29 @@ def build(root, date, models_file=None):
                     if (r["question"], r["model"]) == (q, m) and r["match"] != "unmatched" and r["score"] is not None]
         return out
 
-    current["comparison"] = compare(study, current, prevs, versions, answers, reader.owned)
     earlier = {k: _runs_of(prevs[0], k, run_of) if prevs else [] for k in keys}
     now = {k: [(run, ()) for run in chosen[k][0]] for k in keys}
+    if halves:
+        # No earlier period: the second half is compared with the first, as with one previous period.
+        first, second = halves
+
+        def compared(h):
+            return {**h, "projects": {k: b for k, b in h["projects"].items() if k in both}}
+        # The design changes are those made inside the whole period, between its first run and its last.
+        current["comparison"] = compare(study, compared(second), [compared(first)], versions, answers, reader.owned,
+                                        {"period": current})
+        current["comparison"].update(previous=None, previous_period=None, range_of=[], halves={
+            **{h["half"]: {"from": h["from"], "to": h["to"],
+                           "projects": {k: {"runs": len(ids), "answers": h["projects"][k]["total"]["received"]}
+                                        for k, ids in h["runs"].items()}} for h in halves},
+            "split": split.replace(microsecond=0).isoformat().replace("+00:00", "Z")})
+        before, after = ({k: _runs_of(h, k, run_of) for k in keys} for h in halves)
+    else:
+        current["comparison"] = compare(study, current, prevs, versions, answers, reader.owned)
+        before, after = earlier, now
+    # The insights the findings are written from read the whole period.
     _add_episodes(study, current, earlier, now, versions)
-    current["comparison"]["presence_sources"] = _presence_sources(current, earlier, now, reader)
+    current["comparison"]["presence_sources"] = _presence_sources(current, before, after, reader)
     seen = {m for p in [current, *prevs] for b in p["projects"].values() for m in b["by_model"]}
     current["names"] = {m: public_name(m, names) for m in sorted(seen)}
     write_json(periods_dir / f"{date}.json", current)
@@ -422,9 +487,10 @@ def build(root, date, models_file=None):
 
     c = current["comparison"]
     head = [f"Period {date}: " + "; ".join(f"{k} runs {v}" for k, v in current["runs"].items()) + "."]
-    if c["previous"]:
+    if c["previous"] or halves:
         called = sum(bool((e.get(m) or {}).get("changed")) for e in c["dimensions"].values() for m in ("mean", "presence"))
-        lines.append(f"Compared with the period of {c['previous']}: {called} dimension change(s) called, "
+        against = f"the period of {c['previous']}" if c["previous"] else "the first half of the period"
+        lines.append(f"Compared with {against}: {called} dimension change(s) called, "
                      f"{len(c['verdict_changes'])} verdict change(s), "
                      f"{len(c['domains']['new']) + len(c['domains']['lost'])} domain(s) new or lost, "
                      f"{len(c['design_changes'])} design change(s).")
@@ -478,13 +544,23 @@ def _add_episodes(study, period, earlier, now, versions):
                     for run, gone in runs:
                         rs = [] if q in gone else _answers_to([(run, ())], q, models)
                         share = fact_cell(rs, terms)["current_share"] if terms else None
-                        out.append((run["started_at"][:10], (mean([r["score"] for r in rs]), share)))
+                        out.append((run["started_at"], (mean([r["score"] for r in rs]), share)))
                     return out
                 past, current = values(before), values(now[key])
-                found = [{"measure": measure, **e} for i, measure in enumerate(("mean", "current_share"))
+                found = [_dated({"measure": measure, **e}) for i, measure in enumerate(("mean", "current_share"))
                          for e in episodes([v[i] for _, v in past], [(d, v[i]) for d, v in current])]
                 if found:
                     scope["episodes"] = found
+
+
+def _dated(episode):
+    """An episode found on run start times: its dates as days, and the start times of its first
+    and last run, which place it on either side of a split."""
+    episode.update(first_at=episode["first"], last_at=episode["last"])
+    for k in ("first", "last", "closed", "switched"):
+        if episode.get(k):
+            episode[k] = episode[k][:10]
+    return episode
 
 
 def _presence_sources(period, earlier, now, reader):
@@ -503,15 +579,23 @@ def _presence_sources(period, earlier, now, reader):
                 cited = {d for r in there for d in _domains(r)}
                 naming = Counter(d for r in here if reader.position(r["answer"]) is not None for d in _domains(r))
                 return [{"domain": d, "answers": n} for d, n in sorted(naming.items(), key=lambda kv: (-kv[1], kv[0]))
-                        if d not in cited]
+                        if d not in cited][:TOP_SOURCES]
             new, lost = moved(this, last), moved(last, this)
             if new or lost:
                 out.append({"project": key, "dimension": dkey, "question": q, "new": new, "lost": lost})
     return out
 
 
-def _share(n, m, noun=""):
-    return f"{n} of {m}" + (f" {noun}" if noun else "") + (f" ({fmt_percent(n / m)})" if m else "")
+def _n_runs(n):
+    return f"{n} run" + ("" if n == 1 else "s")
+
+
+def _n_answers(n):
+    return f"{n} answer" + ("" if n == 1 else "s")
+
+
+def _share(n, m, answers=False):
+    return f"{n} of " + (_n_answers(m) if answers else str(m)) + (f" ({fmt_percent(n / m)})" if m else "")
 
 
 def _fact_line(c):
@@ -563,7 +647,7 @@ def _question_lines(scope, name, lang):
                            + _share(other["citing"], other["answers"]))
     if scope.get("presence_runs"):
         out += ["", "##### Presence by run", ""]
-        out += [f"- {r['date']}: subject named in {_share(r['named'], r['given'], 'answers')}"
+        out += [f"- {r['date']}: subject named in {_share(r['named'], r['given'], True)}"
                 for r in scope["presence_runs"]]
     if scope.get("episodes"):
         out += ["", "##### Episodes", ""]
@@ -583,7 +667,7 @@ def _question_lines(scope, name, lang):
                        + "; ".join(shown(v) for v in e["values"]) + f"; {ending}")
     if scope.get("missing"):
         out += ["", "##### Missing evidence", ""]
-        out += [f"- {name(m)}: {_share(x['answers'], x['given'], 'answers')} say no source of the kind asked for was "
+        out += [f"- {name(m)}: {_share(x['answers'], x['given'], True)} say no source of the kind asked for was "
                 "found" + (f"; mean {_fmt(x['mean'], lang)} with them, {_fmt(x['mean_without'], lang)} without"
                            if figure else "")
                 for m, x in scope["missing"].items()]
@@ -600,7 +684,7 @@ def _author_lines(authors):
            f"{_share(authors['foil'], n)}, third-party pages in {_share(authors['third'], n)}."]
     if authors["foil_pages"]:
         out.append("Foil pages cited most: " + "; ".join(
-            f"{p['page']} ({p['foil']}, {p['answers']} answer{'s' if p['answers'] != 1 else ''})"
+            f"{p['page']} ({p['foil']}, {_n_answers(p['answers'])})"
             for p in authors["foil_pages"]))
     return out
 
@@ -616,8 +700,8 @@ def _cell_line(c, lang):
     rate = f" ({fmt_percent(p['rate'])})" if p["rate"] is not None else ""
     return (f"mean {_fmt(c['mean'], lang)} | figure {'yes' if c['figure'] else 'no'} | judged {c['judged']} of "
             f"{c['expected']} | bands 1-2:{c['bands']['1-2']} 3:{c['bands']['3']} 4-5:{c['bands']['4-5']} | "
-            f"subject named in {p['named']} of {p['given']} answers{rate}, mean position {_fmt(p['position'], lang)}"
-            + (f", resting on {c['readings']} readings of {p['given']} answers" if c["readings"] < p["given"] else ""))
+            f"subject named in {p['named']} of {_n_answers(p['given'])}{rate}, mean position {_fmt(p['position'], lang)}"
+            + (f", resting on {c['readings']} readings of {_n_answers(p['given'])}" if c["readings"] < p["given"] else ""))
 
 
 def _material(proj, dims, block, responses, runs, names, reader, lang):
@@ -656,19 +740,41 @@ def _material(proj, dims, block, responses, runs, names, reader, lang):
     return out + [""]
 
 
-def _metric_line(kind, m, lang):
+def _metric_line(kind, m, lang, halves=False):
+    label = "share stating a current term" if kind == "current_share" else kind
     if m is None:
-        return f"{kind}: not compared"
+        return f"{label}: not compared"
     sign = "-" if m["delta"] < 0 else "+"
-    if kind == "presence":
+    if kind in ("presence", "current_share"):
         shown = {k: fmt_percent(m[k]) for k in ("now", "previous")}
         lo, hi = fmt_percent(m["range"][0]), fmt_percent(m["range"][1])
         delta = f"{sign}{fmt_percent(abs(m['delta']))[:-1]} points"
     else:
         shown = {k: _fmt(m[k], lang) for k in ("now", "previous")}
         lo, hi, delta = _fmt(m["range"][0], lang), _fmt(m["range"][1], lang), sign + _fmt(abs(m["delta"]), lang)
-    return (f"{kind}: now {shown['now']}, previous {shown['previous']}, delta {delta}, range {lo} to {hi} over "
+    called = "CHANGE CALLED" if m["changed"] else "unchanged"
+    if halves:
+        return f"{label}: second half {shown['now']}, first half {shown['previous']}, delta {delta}: {called}"
+    return (f"{label}: now {shown['now']}, previous {shown['previous']}, delta {delta}, range {lo} to {hi} over "
             f"{m['periods']} earlier period(s): " + ("CHANGE CALLED" if m["changed"] else "unchanged"))
+
+
+def episodes_behind(episodes, measure, delta, later_from):
+    """The episodes of a measure that can explain a move of `delta`: on the side of the range
+    the move goes to, and running in the later side of the comparison, which starts at the time
+    `later_from` (an episode whose last run started before it belongs to the earlier side)."""
+    side = "above" if delta > 0 else "below"
+    start = parse_time(later_from)
+    return [e for e in episodes or [] if e["measure"] == measure and e["side"] == side
+            and parse_time(e["last_at"]) >= start]
+
+
+def _episode_notes(scope, measure, text, delta, later_from):
+    """The episodes of a question's measure in the whole period, beside a change they explain."""
+    label = "mean score" if measure == "mean" else "share of the answers stating a current term"
+    return [f"  - episode behind this change, «{text}»: {label} {e['side']} the range from {e['first']} to {e['last']}, "
+            f"{e['runs']} runs; state its first date beside the change"
+            for e in episodes_behind(scope.get("episodes"), measure, delta, later_from)]
 
 
 def _changes_material(study, period, versions, names, answer_of):
@@ -677,17 +783,44 @@ def _changes_material(study, period, versions, names, answer_of):
 
     lang = study.get("report_language") or "en"
     c = period["comparison"]
-    out = ["## Changes since the previous period", ""]
-    if c["previous"] is None:
-        return out + ["There is no earlier period: the report's changes section says this is the first measurement.", ""]
-    pp = c["previous_period"]
-    out += [f"Compared with the period of {c['previous']}, runs started {pp['from']} to {pp['to']}"
-            + (", rebuilt from the project's earlier runs" if pp["rebuilt"] else "")
-            + f". The range is made of the earlier periods {', '.join(c['range_of'])}.",
-            "A change is called when the value lies outside the range and moves at least 0.3 points from the previous "
-            "period (presence: 10 points); 0.5 and 20 points with a single earlier period. Write the changes called, "
-            "the verdict changes with their two answers, and the domains new or lost; the rest is unchanged. "
-            "The report's design lines below the marker are written by method: keep them.", ""]
+    halves = c.get("halves")
+    write = ("Write the changes called, the verdict changes with their two answers, and the domains new or lost; the "
+             "rest is unchanged. Where an episode is listed beside a change called, state its first date in the same "
+             "sentence.")
+    before, after = ("in the first half", "in the second half") if halves else ("in the previous period", "in this one")
+    earlier_side = "the first half" if halves else "the previous period"
+    later_from = halves["split"] if halves else period["from"]
+
+    def metric(kind, m):
+        return _metric_line(kind, m, lang, bool(halves))
+    if halves:
+        first, second = halves["first"], halves["second"]
+        counts = " ".join(
+            f"{p['name']}: {_n_runs(first['projects'].get(p['key'], {}).get('runs', 0))} and "
+            f"{_n_answers(first['projects'].get(p['key'], {}).get('answers', 0))} in the first half, "
+            f"{_n_runs(second['projects'].get(p['key'], {}).get('runs', 0))} and "
+            f"{second['projects'].get(p['key'], {}).get('answers', 0)} in the second."
+            for p in study["projects"] if p["key"] in first["projects"] or p["key"] in second["projects"])
+        out = ["## Changes between the two halves of the period", "",
+               f"There is no earlier period, so the second half of the period, runs started {second['from'][:10]} to "
+               f"{second['to'][:10]}, is compared with the first half, runs started {first['from'][:10]} to "
+               f"{first['to'][:10]}; the halves are split at {halves['split'][:16].replace('T', ' ')} UTC. " + counts,
+               "A change is called as with a single earlier period: when the value moves at least 0.5 points "
+               "(presence and the share stating a current term: 20 points). " + write + " The report's line naming "
+               "the two halves and the design lines below the marker are written by method: keep them.", ""]
+    else:
+        out = ["## Changes since the previous period", ""]
+        if c["previous"] is None:
+            return out + ["There is no earlier period: the report's changes section says this is the first "
+                          "measurement.", ""]
+        pp = c["previous_period"]
+        out += [f"Compared with the period of {c['previous']}, runs started {pp['from']} to {pp['to']}"
+                + (", rebuilt from the project's earlier runs" if pp["rebuilt"] else "")
+                + f". The range is made of the earlier periods {', '.join(c['range_of'])}.",
+                "A change is called when the value lies outside the range and moves at least 0.3 points from the "
+                "previous period (presence and the share stating a current term: 10 points); 0.5 and 20 points with a "
+                "single earlier period. " + write + " The report's design lines below the marker are written by "
+                "method: keep them.", ""]
     # Names and wordings as the period asked them; an earlier period's from the versions.
     dims = {d["key"]: d for asked in period["asked"].values() for d in asked}
     texts = {q["key"]: q["text"] for d in dims.values() for q in d["questions"]}
@@ -695,27 +828,41 @@ def _changes_material(study, period, versions, names, answer_of):
         for d in v["dimensions"]:
             dims.setdefault(d["key"], d)
             texts.update({q["key"]: q["text"] for q in d["questions"] if q["key"] not in texts})
+    projects = {p["key"]: p["name"] for p in study["projects"]}
+    for key, pe in c.get("projects", {}).items():
+        out += [f"### Project {projects.get(key, key)}: compared on the dimensions "
+                + ", ".join(dims[d]["name"] for d in pe["dimensions"]), metric("mean", pe["mean"]), ""]
     for dkey, e in c["dimensions"].items():
         status = {"compared": "compared", "new": "new: no earlier figure", "no_figure": "not compared: no figure",
-                  "new_baseline": "not compared: no question comparable with the previous period"}[e["status"]]
+                  "new_baseline": f"not compared: no question comparable with {earlier_side}"}[e["status"]]
         out += [f"### Dimension {dims[dkey]['name']}: {status}", ""]
+        scopes = period["projects"].get(e["project"], {}).get("dimensions", {}).get(dkey, {}).get("questions", {})
         if e["status"] == "compared":
             out += [f"Compared on the answers of {', '.join(name(m) for m in e['models'])} to "
                     + "; ".join(f"«{texts[q]}»" for q in e["compared_questions"]),
-                    _metric_line("mean", e["mean"], lang), _metric_line("presence", e["presence"], lang)]
+                    metric("mean", e["mean"]), metric("presence", e["presence"])]
+        dimension_moved = (e.get("mean") or {}).get("changed") and e["mean"]["delta"]
         for q, qe in e.get("questions", {}).items():
             if qe["status"] == "compared":
-                out.append(f"- «{texts[q]}»: {_metric_line('mean', qe['mean'], lang)}; "
-                           f"{_metric_line('presence', qe['presence'], lang)}")
+                out.append(f"- «{texts[q]}»: {metric('mean', qe['mean'])}; {metric('presence', qe['presence'])}"
+                           + (f"; {metric('current_share', qe['current_share'])}" if qe.get("current_share") else ""))
+                # An episode is noted once, under its question, for the question's change or its dimension's.
+                for measure in ("mean", "current_share"):
+                    own = qe.get(measure) or {}
+                    delta = own["delta"] if own.get("changed") else \
+                        dimension_moved if measure == "mean" and q in e["compared_questions"] else None
+                    if delta:
+                        out += _episode_notes(scopes.get(q, {}), measure, texts[q], delta, later_from)
             else:
                 out.append(f"- «{texts[q]}»: {qe['status'].replace('_', ' ')}" + (f" ({qe['reason']})" if qe.get("reason") else ""))
         out.append("")
     out += ["### Verdict changes", ""]
     for v in c["verdict_changes"] or []:
         out.append(f"- {dims[v['dimension']]['name']}, «{texts[v['question']]}», {name(v['model'])}: "
-                   f"{v['from']} (mean {_fmt(v['previous_mean'], lang)}) in the previous period, {v['to']} "
-                   f"(mean {_fmt(v['mean'], lang)}) in this one.")
-        for label, ref in (("Previous period", v["previous_answer"]), ("This period", v["answer"])):
+                   f"{v['from']} (mean {_fmt(v['previous_mean'], lang)}) {before}, {v['to']} "
+                   f"(mean {_fmt(v['mean'], lang)}) {after}.")
+        labels = ("First half", "Second half") if halves else ("Previous period", "This period")
+        for label, ref in zip(labels, (v["previous_answer"], v["answer"])):
             r = answer_of(v["project"], ref)
             out += ["", f"{label}, score {r['score']}, sources: " + (", ".join(s["domain"] for s in r["sources"]) or "none"),
                     "", "~~~~", r["answer"], "~~~~"]
@@ -724,8 +871,8 @@ def _changes_material(study, period, versions, names, answer_of):
         out += ["None.", ""]
     out += ["### Domains", ""]
     for kind, label in (("new", "New"), ("lost", "Lost")):
-        items = [f"{d['domain']} in {dims[d['dimension']]['name']} ({d['answers']} answers"
-                 + (" in the previous period" if kind == "lost" else "") + (", owned" if d["owned"] else "") + ")"
+        items = [f"{d['domain']} in {dims[d['dimension']]['name']} ({_n_answers(d['answers'])}"
+                 + (f" {before}" if kind == "lost" else "") + (", owned" if d["owned"] else "") + ")"
                  for d in c["domains"][kind]]
         out.append(f"{label}: " + ("; ".join(items) or "none"))
     if c.get("presence_sources"):
@@ -734,10 +881,10 @@ def _changes_material(study, period, versions, names, answer_of):
             parts = []
             if entry["new"]:
                 parts.append("cited by the answers naming the subject now and by no answer before: " + ", ".join(
-                    f"{d['domain']} ({d['answers']} answers)" for d in entry["new"]))
+                    f"{d['domain']} ({_n_answers(d['answers'])})" for d in entry["new"]))
             if entry["lost"]:
                 parts.append("cited by the answers naming the subject before and by no answer now: " + ", ".join(
-                    f"{d['domain']} ({d['answers']} answers in the previous period)" for d in entry["lost"]))
+                    f"{d['domain']} ({_n_answers(d['answers'])} {before})" for d in entry["lost"]))
             out.append(f"- «{texts[entry['question']]}» ({dims[entry['dimension']]['name']}): " + "; ".join(parts))
         out.append("")
     out += ["", "### Design changes", ""]
@@ -756,3 +903,4 @@ def _changes_material(study, period, versions, names, answer_of):
     if not c["design_changes"]:
         out.append("None.")
     return out + [""]
+

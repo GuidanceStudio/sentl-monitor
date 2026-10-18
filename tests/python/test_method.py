@@ -43,8 +43,7 @@ class MethodTest(StudyCase, unittest.TestCase):
         self.assertEqual(lines[0], "# Cosa viene detto a chi chiede a un assistente AI di Avenello?")
         head = "\n".join(lines[1:4])
         self.assertIn("Avenello", head)
-        self.assertIn("1 ottobre 2026", head)
-        self.assertIn("31 ottobre 2026", head)
+        self.assertIn("rilevazione del 1° ottobre 2026 · rapporto del 31 ottobre 2026", head)
 
     def test_purpose_names_the_assistants_and_counts_the_answers(self):
         self.ready()

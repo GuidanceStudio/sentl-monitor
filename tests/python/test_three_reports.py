@@ -61,8 +61,9 @@ class ThreeReportsTest(StudyCase, unittest.TestCase):
                          [("2026-10-31", "final", None), ("2026-11-30", "final", "2026-10-31"),
                           ("2026-12-31", "final", "2026-11-30")])
 
-    def test_the_first_changes_section_is_the_first_measurement(self):
-        self.assertIn("prima misurazione", self.changes("2026-10-31"))
+    def test_the_first_changes_section_compares_the_two_halves_of_october(self):
+        self.assertIn("la seconda metà di questo periodo, dal 19 ottobre 2026 al 26 ottobre 2026, è confrontata con "
+                      "la prima, dal 5 ottobre 2026 al 12 ottobre 2026", self.changes("2026-10-31"))
 
     def test_the_second_changes_section_states_the_answers_then_the_reworded_question(self):
         changes = self.changes("2026-11-30")

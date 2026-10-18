@@ -251,8 +251,10 @@ def parse_time(text):
 
 
 def fmt_date(value, lang):
+    """A date as the report writes it; Italian writes the first of the month as 1°."""
     day = value if isinstance(value, dt.date) else parse_time(value) if "T" in value else dt.date.fromisoformat(value)
-    return f"{day.day} {MONTHS[lang][day.month - 1]} {day.year}"
+    number = "1°" if lang == "it" and day.day == 1 else str(day.day)
+    return f"{number} {MONTHS[lang][day.month - 1]} {day.year}"
 
 
 def now_iso():

@@ -59,6 +59,7 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
 - **What the operator is told goes in the chat, never in the report:** runs covered and left
   out, unmatched responses, unavailable runs, a run score that differs from the one computed,
   dimensions shown without a figure, edits detected in Sentl, the periods rebuilt from a
-  project's earlier runs or that no earlier period exists.
+  project's earlier runs, the two halves of a first period compared with each other, or that
+  no earlier period exists.
 - Talk to the operator in their language. The report is written in the study's
   `report_language`.

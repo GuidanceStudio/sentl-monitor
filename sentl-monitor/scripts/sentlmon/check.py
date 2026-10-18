@@ -7,7 +7,7 @@ from pathlib import Path
 from .common import Refused, Study, fmt_percent, load_json, match_key, norm, round_half_up
 from .insights import fact_terms, tight
 from .i18n import SECTIONS
-from .method import measured, report_order
+from .method import halves_line, measured, report_order
 
 HEADING = re.compile(r"^## (\d+)\. (.+?)\s*$", re.M)
 SUBHEADING = re.compile(r"^#{3,4} (.+?)\s*$")
@@ -113,15 +113,17 @@ def _cells(scope):
 
 def _compared(entries, verdicts):
     """The decimals and percentages a comparison lets a report cite: the values of its
-    entries, their moves and ranges, and the pair means of its verdict changes."""
+    entries (dimensions, questions, projects), their moves and ranges, and the pair means of
+    its verdict changes."""
     decimals, percents = set(), set()
     for e in entries:
         if e.get("mean"):
             m = e["mean"]
             decimals |= {round_half_up(v, 1) for v in (m["now"], m["previous"], abs(m["delta"]), *m["range"])}
-        if e.get("presence"):
-            m = e["presence"]
-            percents |= {int(fmt_percent(v)[:-1]) for v in (m["now"], m["previous"], abs(m["delta"]), *m["range"])}
+        for kind in ("presence", "current_share"):
+            if e.get(kind):
+                m = e[kind]
+                percents |= {int(fmt_percent(v)[:-1]) for v in (m["now"], m["previous"], abs(m["delta"]), *m["range"])}
     decimals |= {round_half_up(v[k], 1) for v in verdicts for k in ("previous_mean", "mean")}
     return decimals, percents
 
@@ -344,9 +346,24 @@ def check(root, report_path, date=None):
     every_scope = [s for b in period["projects"].values() for s in [b, *b["dimensions"].values()]]
     every_scope += [q for b in period["projects"].values() for d in b["dimensions"].values() for q in d["questions"].values()]
     every_scope += list((previous or {}).get("projects", {}).values())
-    compared = _compared([e for es in entries.values() for e in es], verdicts)
+    compared = _compared([e for es in entries.values() for e in es] + list(comparison.get("projects", {}).values()),
+                         verdicts)
+    # A first period with no earlier one compares its two halves: the changes may cite the
+    # overall figures of both, and must name them.
+    halves = comparison.get("halves")
+    half_blocks = []
+    if halves:
+        if halves_line(halves, lang, study["projects"]) not in body.get("changes", ""):
+            problems.append("the changes section does not name the two halves of the period and their dates: keep "
+                            "the line method wrote above the changes in the answers")
+        for half in ("first", "second"):
+            path = folder.path("history", "periods", f"{date}.{half}.json")
+            if not path.exists():
+                raise Refused(f"the {half} half of the period of {date} is missing from history/periods: "
+                              f"run period --date {date} again, then method --force and the report's entries")
+            half_blocks += list(load_json(path)["projects"].values())
     problems += _figures(_unquote(_prose(body.get("changes", "")), questions, answers + earlier, names), lang,
-                         _allowed(every_scope, compared))
+                         _allowed(every_scope + half_blocks, compared))
     period_scopes = [s for s in every_scope if s not in list((previous or {}).get("projects", {}).values())]
     problems += _figures(_unquote(_prose(summary), questions, answers, names), lang, _allowed(period_scopes, compared))
 

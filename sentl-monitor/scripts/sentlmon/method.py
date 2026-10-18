@@ -3,7 +3,7 @@ in the order the report takes, with an entry per dimension left for the findings
 
 from .adopt import missing_answers
 from .common import Refused, Study, fmt_date, load_json, load_mcp, match_key, norm, public_name, write_text
-from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join
+from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join, phrase
 
 
 def report_order(folder, date):
@@ -139,7 +139,7 @@ def _scoring(study, projects, lang):
     t = TEXT[lang]
     criteria = study["narrative"]["criteria"]
     subject = study["subject"]["label"]
-    lines = [t["judge"].format(by=criteria["by"], date=fmt_date(criteria["date"], lang)), ""]
+    lines = [phrase(lang, "judge", by=criteria["by"], date=fmt_date(criteria["date"], lang)), ""]
 
     def anchors(q):
         r = q.get("rubric") or {}
@@ -178,33 +178,65 @@ def _scoring(study, projects, lang):
     return lines
 
 
-def _design_line(change, names, lang):
+def _design_line(change, names, lang, halves=False):
     t, kind = TEXT[lang], change["change"]
     if kind == "models":
         def shown(models):
             return join([names.get(m) or public_name(m, {}) for m in models], lang)
         out = [t[k][len(change[field]) > 1].format(names=shown(change[field]))
                for k, field in (("models_added", "added"), ("models_removed", "removed")) if change[field]]
-        basis = change["basis"]
-        return " ".join(out + [t["models_basis"][len(basis) > 1].format(names=shown(basis)) if basis
-                               else t["models_none"]])
+        basis, both = change["basis"], "_halves" if halves else ""
+        return " ".join(out + [t["models_basis" + both][len(basis) > 1].format(names=shown(basis)) if basis
+                               else t["models_none" + both]])
     if kind.startswith("dimension_"):
         return t[kind].format(name=change["name"])
-    return t[kind].format(since=fmt_date(change["since"], lang) if change.get("since") else "",
-                          text=change.get("text"), previous=change.get("previous_text"))
+    return phrase(lang, kind, since=fmt_date(change["since"], lang) if change.get("since") else "",
+                  text=change.get("text"), previous=change.get("previous_text"))
 
 
-def _changes(period, lang):
+def halves_line(halves, lang, projects):
+    """The line naming the two halves of a first period, their dates, and each project's runs
+    and answers in each, which `check` requires. `projects`: the study's projects, in order."""
+    t = TEXT[lang]
+
+    def span(half):
+        start, end = fmt_date(half["from"], lang), fmt_date(half["to"], lang)
+        return phrase(lang, "span_day" if start == end else "span", start=start, end=end)
+
+    def counts(half, key):
+        c = halves[half]["projects"].get(key, {})
+        return c.get("runs", 0), c.get("answers", 0)
+    line = [t["halves"].format(first=span(halves["first"]), second=span(halves["second"]))]
+    for p in projects:
+        (r1, a1), (r2, a2) = counts("first", p["key"]), counts("second", p["key"])
+        if r1 and r2:
+            line.append(t["half_counts"].format(project=p["name"], runs1=t["runs_n"][r1 != 1].format(n=r1),
+                                                answers1=t["answers_n"][a1 != 1].format(n=a1),
+                                                runs2=t["runs_n"][r2 != 1].format(n=r2), answers2=a2))
+        elif r1 or r2:
+            half, (runs, answers) = ("first", (r1, a1)) if r1 else ("second", (r2, a2))
+            line.append(t["half_counts_one"].format(project=p["name"], runs=t["runs_n"][runs != 1].format(n=runs),
+                                                    answers=t["answers_n"][answers != 1].format(n=answers),
+                                                    half=t["half_names"][half]))
+    return " ".join(line)
+
+
+def _changes(period, lang, projects):
     """The comparison line, the entry the agent writes on the answers, then the design changes."""
     t, c = TEXT[lang], period["comparison"]
-    if c["previous"] is None:
+    marker = t["changes_marker"]
+    if c.get("halves"):
+        intro, marker = halves_line(c["halves"], lang, projects), t["changes_marker_halves"]
+    elif c["previous"] is None:
         return [t["first"]]
-    before = c["previous_period"]
-    start, end = fmt_date(before["from"], lang), fmt_date(before["to"], lang)
-    intro = (t["compared_day"] if start == end else t["compared_period"]).format(start=start, end=end)
-    lines = [intro + (" " + t["rebuilt_previous"] if before["rebuilt"] else ""), "", t["changes_marker"], ""]
+    else:
+        before = c["previous_period"]
+        start, end = fmt_date(before["from"], lang), fmt_date(before["to"], lang)
+        intro = phrase(lang, "compared_day" if start == end else "compared_period", start=start, end=end)
+        intro += (" " + t["rebuilt_previous"]) if before["rebuilt"] else ""
+    lines = [intro, "", marker, ""]
     for change in c["design_changes"]:
-        lines += [_design_line(change, period.get("names", {}), lang), ""]
+        lines += [_design_line(change, period.get("names", {}), lang, bool(c.get("halves"))), ""]
     return lines
 
 
@@ -239,8 +271,8 @@ def write(root, date, models_file, force=False):
 
     start, end = (fmt_date(period[k], lang) for k in ("from", "to"))
     when = fmt_date(date, lang)
-    subtitle = TEXT[lang]["title_day" if start == end else "title_period"].format(
-        subject=study["subject"]["label"], start=start, end=end, date=when)
+    subtitle = phrase(lang, "title_day" if start == end else "title_period",
+                      subject=study["subject"]["label"], start=start, end=end, date=when)
     projects = measured(study, period)
     builders = {
         "purpose": lambda: _purpose(study, projects, period, names, lang),
@@ -249,7 +281,7 @@ def write(root, date, models_file, force=False):
         "questions": lambda: _questions(projects, lang),
         "scoring": lambda: _scoring(study, projects, lang),
         "findings": lambda: _findings(projects, lang),
-        "changes": lambda: _changes(period, lang),
+        "changes": lambda: _changes(period, lang, study["projects"]),
         "summary": lambda: ["[[summary]]"],
     }
     out = [f"# {study['narrative']['research_question']}", "", subtitle, ""]

@@ -77,8 +77,10 @@ python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inb
 ```
 
 The output says which runs the period pools, which runs were left out and why, the
-unavailable runs, and on a first report either the periods rebuilt from earlier runs or that
-there is no earlier period. Keep all of it for step 11; none of it goes in the report.
+unavailable runs, and on a first report the periods rebuilt from earlier runs or, when there
+is none, either the two halves of the period compared with each other (runs spanning at least
+14 days) or that this is the first measurement. Keep all of it for step 11; none of it goes
+in the report.
 
 - Exit 2 saying `report_every` is not set: ask the operator whether a report covers a week
   or a month, write it into `study.json`, rerun.
@@ -97,8 +99,10 @@ rerun. The script writes `reports/D.md`. A first report (no final report before 
 changed and what the assistants say, and the method sections close it. The summary
 section, after the method sections in a first report and first in a later one, holds the
 `[[summary]]` marker. The findings section holds one entry per dimension, marked `[[...]]`. The changes section holds either the line
-saying this is the first measurement, or the period compared with, a `[[...]]` marker for
-the changes in the answers, and one line per change in the design.
+saying this is the first measurement, or the period compared with (on a first report with no
+earlier period, the line naming the two halves of the period, their dates and each project's
+runs and answers in each), a `[[...]]`
+marker for the changes in the answers, and one line per change in the design.
 
 ## 7. Write the findings
 
@@ -134,23 +138,30 @@ findings with:
 ## 8. Write the changes in the answers
 
 Skip this step when the changes section says this is the first measurement. Otherwise read
-the material's part "Changes since the previous period" and replace the `[[...]]` marker of
+the material's part "Changes since the previous period", or "Changes between the two halves
+of the period" on a first report with no earlier period, and replace the `[[...]]` marker of
 the changes section with:
 
-- **Each change called**, dimension or question: one sentence saying what moved, with the
-  value before and now as the material prints them (a mean with one decimal, a presence in
-  whole percent). A dimension
-  the material marks as not compared, or new, gets no figure here.
+- **Each change called**, project, dimension or question: one sentence saying what moved, with
+  the value before and now as the material prints them (a mean with one decimal, a presence
+  or a share in whole percent). Between the halves, "before" is the first half and "now" the
+  second. A dimension the material marks as not compared, or new, gets no figure here.
+- **The facts whose current share changed**: the share of the answers stating a current term,
+  before and now.
+- **An episode beside a change**: where the material lists an episode under a change called,
+  state the episode's first date in the same sentence ("from 9 October"). The material lists
+  only the episodes on the side the change moves to that run in the later period or half.
 - **Each verdict change**: one sentence naming the assistant and the question, then the two
   answers the material gives, as excerpts copied by their lines, each followed by the question
-  in «», the assistant's public name and which period it comes from.
-- **The domains** new or lost, per dimension.
+  in «», the assistant's public name and which period, or which half, it comes from.
+- **The domains** new or lost: the material lists the five cited by most answers in each list.
 - **Presence changes**: for each question in the material's "Presence changes", the domains
   that came or went with the subject, and an episode or a fact share that explains a change
   called (`report/INSIGHTS.md`).
 - **One line** saying the other dimensions are unchanged.
 
-Keep the line above the marker and the design-change lines below it as `method` wrote them.
+Keep the line above the marker and the design-change lines below it as `method` wrote them;
+`check` refuses a report on the two halves whose changes section no longer names them.
 
 ## 9. Write the summary
 
@@ -174,13 +185,17 @@ python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
 Exit 1 lists each problem: fix the report and run it again until it passes. A quote that
 fails was not copied exactly; a figure that fails is not in the period's metrics or its
 comparison, or belongs to a dimension shown without a figure; a section out of order means
-the report was rearranged; a summary that quotes an answer fails. When it passes, the report is recorded in
+the report was rearranged; a summary that quotes an answer fails; a first report on the two
+halves of its period fails when the line naming the halves was changed or removed, and is
+refused (exit 2) when a half's file is missing: run `period` again. When it passes, the report is recorded in
 `history/reports.json` as final, and the next report compares with it.
 
 ## 11. Tell the operator, in the chat
 
 The report's path, the runs it covers, and anything the scripts flagged: edits detected in
-Sentl and how each affects the comparison, the periods rebuilt from earlier runs or that no
-earlier period exists, runs left out or unavailable, unmatched responses, a Sentl run score
+Sentl and how each affects the comparison, the periods rebuilt from earlier runs, the two
+halves compared on a first report and any project with runs in one half only, or that no
+earlier period exists, runs left out or
+unavailable, unmatched responses, a Sentl run score
 that differs from the one computed, dimensions shown without a figure. None of this goes in
 the report.

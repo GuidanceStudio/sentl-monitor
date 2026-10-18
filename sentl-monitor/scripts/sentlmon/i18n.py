@@ -1,5 +1,7 @@
 """Report wording in the two report languages."""
 
+import re
+
 SECTIONS = {
     "it": {
         "purpose": "Cosa abbiamo fatto e a che scopo",
@@ -89,12 +91,25 @@ TEXT = {
                        "quando esce dall'intervallo dei quattro periodi precedenti e si discosta dal precedente di "
                        "almeno 0,3 punti, 0,5 se c'è un solo periodo precedente; la presenza, quando si discosta di "
                        "almeno 10 punti percentuali, 20 con un solo periodo precedente. Il giudizio di un assistente "
-                       "su una domanda è sfavorevole sotto 2,5, intermedio da 2,5 a 3,5 e favorevole da 3,5 in su.",
+                       "su una domanda è sfavorevole sotto 2,5, intermedio da 2,5 a 3,5 e favorevole da 3,5 in su; un "
+                       "cambio di giudizio è riportato solo quando la media dell'assistente sulla domanda si sposta "
+                       "anche di almeno 0,3 punti, 0,5 con un solo periodo precedente.",
         "changes_marker": "[[da scrivere: cosa è cambiato nelle risposte rispetto al periodo precedente]]",
+        "changes_marker_halves": "[[da scrivere: cosa è cambiato nelle risposte tra la prima e la seconda metà del "
+                                 "periodo]]",
         "compared_period": "Il confronto è con il periodo precedente, dal {start} al {end}.",
         "compared_day": "Il confronto è con la rilevazione precedente, del {start}.",
         "rebuilt_previous": "Non c'è un rapporto precedente: i dati del confronto vengono dalle rilevazioni già "
                             "presenti nel progetto.",
+        "halves": "Non essendoci un periodo precedente, la seconda metà di questo periodo, {second}, è confrontata con "
+                  "la prima, {first}.",
+        "span": "dal {start} al {end}",
+        "span_day": "il {start}",
+        "half_counts": "{project}: {runs1} e {answers1} nella prima metà, {runs2} e {answers2} nella seconda.",
+        "half_counts_one": "{project}: {runs} e {answers} solo nella {half} metà, quindi non è confrontato.",
+        "half_names": {"first": "prima", "second": "seconda"},
+        "runs_n": ("{n} rilevazione", "{n} rilevazioni"),
+        "answers_n": ("{n} risposta", "{n} risposte"),
         "reworded": "Dal {since} la domanda «{previous}» è posta nella formulazione «{text}».",
         "new_intent": "Dal {since} la domanda «{text}» sostituisce «{previous}»: il confronto per questa domanda "
                       "riparte da questo periodo.",
@@ -112,6 +127,11 @@ TEXT = {
                          "I confronti sono calcolati sulle risposte degli assistenti presenti in entrambi i periodi: "
                          "{names}."),
         "models_none": "Nessun assistente è presente in entrambi i periodi: i punteggi non sono confrontati.",
+        "models_basis_halves": ("I confronti sono calcolati sulle risposte dell'unico assistente presente in entrambe "
+                                "le metà, {names}.",
+                                "I confronti sono calcolati sulle risposte degli assistenti presenti in entrambe le "
+                                "metà: {names}."),
+        "models_none_halves": "Nessun assistente è presente in entrambe le metà: i punteggi non sono confrontati.",
     },
     "en": {
         "and": "and",
@@ -155,11 +175,24 @@ TEXT = {
                        "outside the range of the four previous periods and differs from the previous one by at least "
                        "0.3 points, or 0.5 with a single previous period; presence, when it differs by at least 10 "
                        "percentage points, or 20 with a single previous period. An assistant's verdict on a question is "
-                       "unfavourable below 2.5, mixed from 2.5 to 3.5 and favourable from 3.5.",
+                       "unfavourable below 2.5, mixed from 2.5 to 3.5 and favourable from 3.5; a change of verdict is "
+                       "reported only when the assistant's mean on the question also moves by at least 0.3 points, or "
+                       "0.5 with a single previous period.",
         "changes_marker": "[[to write: what changed in the answers since the previous period]]",
+        "changes_marker_halves": "[[to write: what changed in the answers between the first and the second half of "
+                                 "the period]]",
         "compared_period": "The comparison is with the previous period, from {start} to {end}.",
         "compared_day": "The comparison is with the previous measurement, of {start}.",
         "rebuilt_previous": "There is no earlier report: the data compared come from the runs already in the project.",
+        "halves": "There is no earlier period, so the second half of this period, {second}, is compared with the first "
+                  "half, {first}.",
+        "span": "from {start} to {end}",
+        "span_day": "on {start}",
+        "half_counts": "{project}: {runs1} and {answers1} in the first half, {runs2} and {answers2} in the second.",
+        "half_counts_one": "{project}: {runs} and {answers} in the {half} half only, so it is not compared.",
+        "half_names": {"first": "first", "second": "second"},
+        "runs_n": ("{n} run", "{n} runs"),
+        "answers_n": ("{n} answer", "{n} answers"),
         "reworded": "From {since} the question «{previous}» is asked as «{text}».",
         "new_intent": "From {since} the question «{text}» replaces «{previous}»: the comparison for this question "
                       "starts again from this period.",
@@ -174,6 +207,9 @@ TEXT = {
         "models_basis": ("The comparisons use the answers of the one assistant present in both periods, {names}.",
                          "The comparisons use the answers of the assistants present in both periods: {names}."),
         "models_none": "No assistant is present in both periods: the scores are not compared.",
+        "models_basis_halves": ("The comparisons use the answers of the one assistant present in both halves, {names}.",
+                                "The comparisons use the answers of the assistants present in both halves: {names}."),
+        "models_none_halves": "No assistant is present in both halves: the scores are not compared.",
     },
 }
 
@@ -236,3 +272,20 @@ THIRD_PERSON = {
     "it": r"\b(?:utenti|utente|clienti|cliente|consumatori|acquirenti|abbonati)\b(?: [\w'-]+){0,3}? "
           r"(?:dicono|dice|hanno detto|segnalano|segnala|lamentano|lamenta|riferiscono|raccontano|non)\b",
 }
+
+
+# An Italian articulated preposition before a date elides when the day's number starts with a
+# vowel sound (otto, undici): dall'8, all'11, dell'8, l'8.
+ELIDED = {"il": "l'", "dal": "dall'", "al": "all'", "del": "dell'", "Dal": "Dall'"}
+DATE_AFTER = re.compile(r"\b(il|dal|al|del|Dal) \{(\w+)\}")
+VOWEL_DAY = re.compile(r"(?:8|11) ")
+
+
+def phrase(lang, key, **values):
+    """TEXT[lang][key] filled with `values`, every date already written by `fmt_date`. Each
+    sentence that carries a date goes through here, so an Italian preposition before it elides."""
+    template = TEXT[lang][key]
+    if lang == "it":
+        template = DATE_AFTER.sub(lambda m: ELIDED[m.group(1)] + "{" + m.group(2) + "}"
+                                  if VOWEL_DAY.match(str(values.get(m.group(2), ""))) else m.group(0), template)
+    return template.format(**values)

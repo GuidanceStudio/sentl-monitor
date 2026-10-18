@@ -133,7 +133,11 @@ every month.
    done and to what end, where the themes came from, the dimensions and how they were
    reached, the questions, and how the answers are scored. Then, dimension by dimension,
    what the person asking is told, with verbatim answers (question and assistant) and the
-   sites those answers cite. The last section says this is the first measurement and the
+   sites those answers cite. The last section compares the second half of the month with the
+   first, since there is no earlier month: the dimensions and questions whose score or
+   presence moved and the facts whose current value rose or fell. With daily runs it also
+   gives the date a movement started; four weekly runs are too few to date one. A monitor
+   whose runs span under two weeks gets the line saying this is the first measurement and the
    next report compares against it.
 
 5. **`report`, every month after.** The report opens with what changed since the previous

@@ -4,10 +4,12 @@ cells, so a figure restricted to the questions and models two periods share is e
 
 from collections import Counter
 
-from .common import is_owned
+from .common import is_owned, mean
+from .insights import TOP_SOURCES
 
 K = 4
-STEPS = {"mean": (0.3, 0.5), "presence": (0.10, 0.20)}
+# A fact's current share is a rate, so it takes presence's steps.
+STEPS = {"mean": (0.3, 0.5), "presence": (0.10, 0.20), "current_share": (0.10, 0.20)}
 EPS = 1e-9
 NEW_QUESTION = ("new_intent", "created")
 
@@ -38,9 +40,10 @@ def _asked(dim):
 
 
 def _pool(dim, questions, models):
-    judged, total, named, given, domains = 0, 0.0, 0, 0, Counter()
+    judged, total, named, given, domains, stating, current = 0, 0.0, 0, 0, Counter(), 0, 0
     for q in questions:
-        cells = dim["questions"].get(q, {}).get("by_model", {})
+        scope = dim["questions"].get(q, {})
+        cells, facts = scope.get("by_model", {}), (scope.get("facts") or {}).get("by_model", {})
         for m in models:
             c = cells.get(m)
             if not c:
@@ -50,8 +53,12 @@ def _pool(dim, questions, models):
                 total += c["mean"] * c["judged"]
             named, given = named + c["presence"]["named"], given + c["presence"]["given"]
             domains.update(c["domains"])
+            f = facts.get(m)
+            if f:
+                stating, current = stating + f["stating"], current + f["current_only"] + f["both"]
     return {"mean": round(total / judged, 10) if judged else None,
-            "presence": round(named / given, 10) if given else None, "domains": domains}
+            "presence": round(named / given, 10) if given else None, "domains": domains,
+            "current_share": round(current / stating, 10) if stating else None}
 
 
 def _metric(kind, now, values):
@@ -63,6 +70,11 @@ def _metric(kind, now, values):
 
 def _version_max(period, key):
     return max((v for v in period["versions"].get(key, []) if v is not None), default=0)
+
+
+def _version_min(period, key):
+    """The version of a period's first run; 0 for a run older than every version."""
+    return min((v or 0 for v in period["versions"].get(key, [])), default=0)
 
 
 class _History:
@@ -83,6 +95,11 @@ class _History:
         v = self.by_number.get(number) or {}
         return next(((d["key"], q) for d in v.get("dimensions", []) for q in d["questions"] if q["key"] == key),
                     (None, {}))
+
+    def measured(self, number):
+        """The dimensions measured under a version; the first version for runs older than every one."""
+        layout = self.by_number.get(number) or self.by_number.get(min(self.by_number, default=0), {})
+        return {d["key"] for d in layout.get("dimensions", []) if not d["archived"]}
 
     def text(self, number, key):
         return self._question(number, key)[1].get("text")
@@ -107,11 +124,13 @@ def _series(kind, key, dkey, questions, models, prevs, history, upto, figure_of)
     return values
 
 
-def compare(study, current, prevs, versions, answers, owned):
+def compare(study, current, prevs, versions, answers, owned, within=None):
     """`prevs`: the earlier periods, latest first. `answers(period, key, q, m)` lists the
-    judged responses of a pair in a period, each with its run's start."""
-    out = {"previous": None, "previous_period": None, "range_of": [], "dimensions": {}, "verdict_changes": [],
-           "domains": {"new": [], "lost": []}, "design_changes": []}
+    judged responses of a pair in a period, each with its run's start. `within`, when the two
+    halves of one period are compared: that whole `period`, whose design changes are those made
+    inside it rather than between the two halves."""
+    out = {"previous": None, "previous_period": None, "range_of": [], "dimensions": {}, "projects": {},
+           "verdict_changes": [], "domains": {"new": [], "lost": []}, "design_changes": []}
     if not prevs:
         return out
     prev = prevs[0]
@@ -126,7 +145,7 @@ def compare(study, current, prevs, versions, answers, owned):
             continue
         history = _History(versions.get(key, []))
         upto = _version_max(current, key)
-        since = _since(current, key, history)
+        since = _since(within["period"] if within else current, key, history)
         if pblock is None:
             for dkey in block["dimensions"]:
                 out["dimensions"][dkey] = {"project": key, "status": "new"}
@@ -134,9 +153,15 @@ def compare(study, current, prevs, versions, answers, owned):
         now_models, prev_models = _models(block), _models(pblock)
         basis = now_models & prev_models
         blocked = history.blocked(_version_max(prev, key), upto)
-        design, dims_design = [], []
+        design, dims_design, entries = [], [], {}
+        gone = {q for qs in prev.get("dropped", {}).get(key, {}).values() for q in qs}
         for dkey, dim in block["dimensions"].items():
             pdim = pblock["dimensions"].get(dkey)
+            if (pdim is None or not _asked(pdim)) and gone & set(dim["questions"]):
+                # Asked then, with its questions dropped from those runs (criteria changed): nothing to
+                # compare, and nothing new.
+                out["dimensions"][dkey] = {"project": key, "status": "new_baseline"}
+                continue
             if pdim is None or not _asked(pdim):
                 out["dimensions"][dkey] = {"project": key, "status": "new"}
                 dims_design.append({"project": key, "change": "dimension_added", "dimension": dkey,
@@ -144,18 +169,23 @@ def compare(study, current, prevs, versions, answers, owned):
                 continue
             entry, verdicts, domains = _dimension(key, dkey, dim, pdim, prevs, basis, blocked, history, upto,
                                                   answers, owned, current, prev)
-            out["dimensions"][dkey] = entry
+            out["dimensions"][dkey] = entries[dkey] = entry
             out["verdict_changes"] += verdicts
             out["domains"]["new"] += domains["new"]
             out["domains"]["lost"] += domains["lost"]
-        layout = history.by_number.get(upto) or history.by_number.get(min(history.by_number, default=0), {})
-        measured = {d["key"] for d in layout.get("dimensions", []) if not d["archived"]}
+        project = _project(key, block, entries, prevs, basis, history, upto)
+        if project:
+            out["projects"][key] = project
+        measured = history.measured(upto)
+        archived = {dkey for dkey, pdim in pblock["dimensions"].items()
+                    if dkey not in block["dimensions"] and dkey not in measured and _asked(pdim)}
+        if within:
+            # Archived inside the period, before either half's latest version.
+            archived |= history.measured(_version_min(within["period"], key)) - measured - set(block["dimensions"])
         dims_design += [{"project": key, "change": "dimension_archived", "dimension": dkey,
-                         "name": names.get(dkey, dkey)}
-                        for dkey, pdim in pblock["dimensions"].items()
-                        if dkey not in block["dimensions"] and dkey not in measured and _asked(pdim)]
+                         "name": names.get(dkey, dkey)} for dkey in sorted(archived)]
         new_dims = {d["dimension"] for d in dims_design if d["change"] == "dimension_added"}
-        changes = history.changes(_version_max(prev, key), upto)
+        changes = history.changes(_version_min(within["period"], key) if within else _version_max(prev, key), upto)
         replaced = {c.get("replaces") for _, c in changes}
         for number, c in changes:
             kind, q = c["change"], c.get("question")
@@ -175,10 +205,22 @@ def compare(study, current, prevs, versions, answers, owned):
             if kind != "retired":
                 item["since"] = since(number)
             design.append(item)
-        if now_models != prev_models:
-            design.append({"project": key, "change": "models", "added": sorted(now_models - prev_models),
-                           "removed": sorted(prev_models - now_models), "basis": sorted(basis)})
+        if within:
+            # Inside one period: the models changes detect recorded, and, for runs older than every
+            # version, whose model lists are only who answered, the second half against the first.
+            added = {m for _, c in changes if c["change"] == "models" for m in c["added"]}
+            removed = {m for _, c in changes if c["change"] == "models" for m in c["removed"]}
+            if None in within["period"]["versions"].get(key, []):
+                added, removed = added | (now_models - prev_models), removed | (prev_models - now_models)
+        else:
+            added, removed = now_models - prev_models, prev_models - now_models
+        if added or removed:
+            design.append({"project": key, "change": "models", "added": sorted(added), "removed": sorted(removed),
+                           "basis": sorted(basis)})
         out["design_changes"] += dims_design + design
+    for kind in ("new", "lost"):
+        out["domains"][kind] = sorted(out["domains"][kind], key=lambda d: (-d["answers"], d["domain"], d["project"],
+                                                                           d["dimension"]))[:TOP_SOURCES]
     return out
 
 
@@ -208,6 +250,9 @@ def _dimension(key, dkey, dim, pdim, prevs, basis, blocked, history, upto, answe
         else:
             entry["questions"][q] = {"status": "compared", **_metrics(
                 [q], dkey, key, dim, prevs, basis, history, upto, lambda d, q=q: d["questions"][q]["total"]["figure"])}
+            share = _current_share(q, dkey, key, dim, prevs, basis, history, upto)
+            if share:
+                entry["questions"][q]["current_share"] = share
     if compared and not (dim["total"]["figure"] and pdim["total"]["figure"]):
         entry["status"] = "no_figure"
     elif compared:
@@ -215,10 +260,14 @@ def _dimension(key, dkey, dim, pdim, prevs, basis, blocked, history, upto, answe
 
     verdicts = []
     for q in compared:
+        # A band crossed by a small move is noise: the pair's mean must move by the step a
+        # change of the question's mean needs.
+        periods = (entry["questions"][q].get("mean") or {}).get("periods", len(prevs))
+        step = STEPS["mean"][1 if periods == 1 else 0]
         for m in sorted(basis):
             before = pdim["questions"][q]["by_model"].get(m, {}).get("mean")
             after = dim["questions"][q]["by_model"].get(m, {}).get("mean")
-            if band(before) and band(after) and band(before) != band(after):
+            if band(before) and band(after) and band(before) != band(after) and abs(after - before) >= step - EPS:
                 verdicts.append({"project": key, "dimension": dkey, "question": q, "model": m,
                                  "from": band(before), "to": band(after), "previous_mean": before, "mean": after,
                                  "previous_answer": _closest(answers(prev, key, q, m), before),
@@ -238,10 +287,48 @@ def _metrics(questions, dkey, key, dim, prevs, basis, history, upto, figure_of):
             for kind in ("mean", "presence")}
 
 
-def _closest(responses, mean):
+def _current_share(q, dkey, key, dim, prevs, basis, history, upto):
+    """A question's share of answers stating a current term, against the earlier periods that
+    counted the same terms."""
+    terms = (dim["questions"][q].get("facts") or {}).get("terms")
+    if not terms:
+        return None
+
+    def same(d):
+        return d["questions"][q]["total"]["figure"] and (d["questions"][q].get("facts") or {}).get("terms") == terms
+    return _metric("current_share", _pool(dim, [q], basis)["current_share"],
+                   _series("current_share", key, dkey, [q], basis, prevs, history, upto, same))
+
+
+def _project(key, block, entries, prevs, basis, history, upto):
+    """The project's mean on the dimensions compared, each on its compared questions and the
+    models of both periods, against the earlier periods that hold all of them."""
+    dims = {d: e["compared_questions"] for d, e in entries.items() if e.get("mean")}
+    if not dims:
+        return None
+
+    def value(b):
+        means = [_pool(b["dimensions"][d], qs, basis)["mean"] for d, qs in dims.items()]
+        return None if None in means else mean(means)
+    values = []
+    for p in prevs:
+        pb = p["projects"].get(key)
+        blocked = set(history.blocked(_version_max(p, key), upto))
+        if pb is None or not basis <= _models(pb) or any(
+                d not in pb["dimensions"] or blocked & set(qs) or not set(qs) <= set(_asked(pb["dimensions"][d]))
+                for d, qs in dims.items()):
+            break
+        v = value(pb) if all(pb["dimensions"][d]["total"]["figure"] for d in dims) else None
+        if v is not None:
+            values.append(v)
+    metric = _metric("mean", value(block), values)
+    return {"dimensions": sorted(dims), "mean": metric} if metric else None
+
+
+def _closest(responses, target):
     """Of a pair's (run start, run id, response), the one whose score is nearest the pair's
-    mean; the latest on a tie."""
+    mean `target`; the latest on a tie."""
     if not responses:
         return None
-    start, run_id, r = max(responses, key=lambda x: (-abs(x[2]["score"] - mean), x[0]))
+    start, run_id, r = max(responses, key=lambda x: (-abs(x[2]["score"] - target), x[0]))
     return {"run_id": run_id, "response_id": r["response_id"], "score": r["score"]}

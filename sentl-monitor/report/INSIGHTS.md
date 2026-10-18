@@ -90,7 +90,10 @@ For a question shown without a figure the mean episode carries no values.
 
 **How a finding states it.** "From 6 to 8 October the answers giving the current price were
 50% each day, against 0% in the eight runs before; from 12 October they were back inside that
-range."
+range." In the changes section, an episode that explains a change called is given beside it
+with its first date, when it lies on the side the change moves to and runs in the later period
+or half: "The current price is given in 42% of the answers that quote a price,
+against 0% in the first half of the month; the rise starts on 21 October."
 
 **Limit.** It needs at least five earlier runs, so it shows with daily or frequent runs; an
 episode says when the answers moved, not why.
@@ -152,8 +155,8 @@ cited by the answers naming the subject now and by no answer to the question bef
 reverse: the pages that brought the subject into the answers, or whose disappearance went with
 it leaving them.
 
-**Figures.** In the material's changes part, heading "Presence changes": each domain with the
-answers citing it.
+**Figures.** In the material's changes part, heading "Presence changes": the five domains cited
+by most answers in each list, ties broken by name, each with the answers citing it.
 
 **How a finding states it**, in the changes section: "Avenello is named in 29% of the answers on
 which oat drink to buy, against 0% in the previous period; the answers that name it cite

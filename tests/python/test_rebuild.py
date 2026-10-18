@@ -79,8 +79,8 @@ class RebuildTest(StudyCase, unittest.TestCase):
         self.assertEqual((salute["received"], salute["expected"]), (4 + 4 + 12 + 12, 32))
         self.assertEqual(self.read_run("brand", 9110)["plan"]["rounds"], 3)
 
-    def test_a_monthly_cadence_with_three_weeks_has_no_earlier_period_and_the_operator_is_told(self):
-        self.history(TEN_WEEKS[-3:], report_every="monthly")
+    def test_a_monthly_cadence_with_two_weeks_has_no_earlier_period_and_the_operator_is_told(self):
+        self.history(TEN_WEEKS[-2:], report_every="monthly")
         proc = self.build("2026-10-16")
         self.assertEqual(self.period_dates(), ["2026-10-16"])
         self.assertIn("no earlier period", proc.stdout)
