@@ -16,7 +16,8 @@ taken into a study folder and reported on period by period, each report compared
 earlier periods; the first report on a project with earlier runs compares with periods
 rebuilt from them. Each figure comes with what explains it: which facts the answers state
 and the pages behind them, how many independent readings the answers are, episodes inside a
-period, answers that found no evidence, and who wrote the cited pages. The other routes are planned; the design is in
+period, answers that found no evidence, and who wrote the cited pages. For a report presented as a deck,
+`monitor.py charts` writes its figures as md2 chart tables. The other routes are planned; the design is in
 [ARCHITECTURE.md](ARCHITECTURE.md) and the plan in [DEVPLAN.md](DEVPLAN.md).
 
 ## Who it is for
@@ -33,7 +34,7 @@ to a client or to management every week or month.
 | `design` | Derives the dimensions from the themes, groups them into projects, decides who asks, writes the questions as people type them and a 1–5 rubric for each → `study.json`, `study-review.md` |
 | `setup` | Creates or updates the Sentl projects, shows the credit estimate, and starts a run or activates the schedule only on your explicit go |
 | `adopt <project>` | Takes a project that already exists in Sentl into a study folder, so it can be reported on; the first report rebuilds the previous periods from the project's past runs and compares with them |
-| `report` | Reads the new runs, compares them with the previous period, and writes `reports/<date>.md`; from the second report on, the report opens with what changed; meant to run on a schedule |
+| `report` | Reads the new runs, compares them with the previous period, and writes `reports/<date>.md`; from the second report on, the report opens with what changed; meant to run on a schedule. On request, `reports/<date>.charts.md` holds the report's figures as md2 chart tables for a deck |
 | `snapshot <subject>` | A one-off check: 4–5 dimensions from the catalogue, one question and one rubric each, an ad-hoc Sentl project, one run on your go, a short report, then the project is paused and left for you to archive → `study.json`, `study-review.md`, `reports/<date>.md` |
 
 Each route writes files that the next one reads. Nothing is written to Sentl without your
@@ -211,7 +212,7 @@ sentl-monitor/         the skill payload
   setup/SETUP.md       planned
   snapshot/SNAPSHOT.md planned
   catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, detect, ingest, period, method, check (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, ingest, period, method, check, charts (more with each route)
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```

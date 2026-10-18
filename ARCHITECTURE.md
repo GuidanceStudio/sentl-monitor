@@ -15,7 +15,7 @@ calls Sentl.
 | `design` | `brief.md`, `search-demand.json`, a saved `list-ai-models` response | `study.json`, `study-review.md` | the operator's review of the questions, rubrics and credit estimate |
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
 | `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
-| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json` | nothing when run unattended |
+| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json`; `reports/<date>.charts.md` when the operator asks for charts | nothing when run unattended |
 | `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 
 ## The study folder
@@ -43,6 +43,7 @@ is a new version inside the same folder, so the history stays in one place.
     reports.json                    index of reports: period, runs, status
     last-report.json                outcome of the latest `report` invocation
   reports/<YYYY-MM-DD>.md        the reports
+  reports/<YYYY-MM-DD>.charts.md the report's figures as md2 chart tables for a deck (optional)
 ```
 
 A snapshot folder has the same layout without `brief.md`, `seeds.json`, `volumes.json` and
@@ -566,6 +567,8 @@ before the first one from them (see Periods).
    says which check failed.
 8. In the chat, never in the report: the runs covered, runs left out, unmatched responses,
    versions detected, facts older than 90 days.
+9. Optional, when the report is presented as a deck: `monitor.py charts` writes the report's
+   figures as md2 chart tables (§Charts for a deck).
 
 ### `snapshot <subject>`
 
@@ -969,6 +972,36 @@ project. The rules it applies:
   projects may have dimensions of the same name: each entry cites its own project's
   figures, and each project needs an entry for each of its dimensions). `method` leaves a
   `[[...]]` marker for each, and a report that still holds one fails.
+
+## Charts for a deck
+
+`monitor.py charts --date D` writes `reports/<D>.charts.md` from the period file of `D`, for an
+operator who presents the report as a deck. The report does not include the file, and `check`
+does not read it. Each chart is an md2 `:::chart` block (a Markdown table under a
+`:::chart <type> --title "…"` line, closed by `:::`) under a `##` heading that says, in the
+report's language, what the chart shows and the period or the halves it covers, with the bounds
+the report prints for them; a project whose own runs start or end on other days than the period's
+has its first and last run days after its name. The first column holds the labels and each further
+column a series; a series is labelled with the report's bounds, never a project's own days. Values are bare numbers with a point, rounded
+as `check` rounds them: a mean with one decimal, a share in whole percent; the title carries the
+unit.
+
+| Chart | md2 type | Rows | Series | Values |
+|---|---|---|---|---|
+| Profile, per project | `radar` and `bar` | the dimensions | the previous period and this one, or the two halves; this period alone on a first measurement or when no dimension of the project is compared | each compared dimension's `mean` in the comparison, `previous` and `now`, on the questions and assistants both sides share; when those differ from either side's own (an assistant added or removed, a question not comparable), the heading names the assistants and the questions left out; on one series, each dimension's figure |
+| By assistant, per project with more than one assistant | `bar` | the dimensions | the assistants, by public name | each dimension's mean by assistant over the period |
+| Fact currency, per question with current terms | `line` | the project's runs in the period, by start day in UTC, with the start time in UTC where two runs share a day | one | the share of the answers stating a current term, of those stating a term |
+| Presence by run, per question whose text does not name the subject | `column` | the runs, labelled as for fact currency | one | the share of the answers naming the subject |
+| Sources behind a fact or a score, per pair of groups the period lists | `bar` | the five domains of the first group, then those of the second not already listed | the two groups | each group's share of its answers citing a source that cite the domain |
+
+md2 reads an empty cell as 0, so a value that does not exist is left out, never written. Left
+out, and listed to the operator on stdout: a chart with no row; from the profile's two series, a
+dimension not compared, and from one series a dimension without a figure; from the chart by
+assistant, a dimension on which an assistant has no figure; from the fact line, a run with no
+answer stating a term; from the presence columns, a run with no answer; a chart by run with fewer
+than two runs left (the fact stated in one run only), since md2 draws a line between two runs or
+more; the radar of a profile with fewer than
+3 or more than 12 dimensions, which md2 does not draw (the bar keeps them).
 
 ## Scheduling
 

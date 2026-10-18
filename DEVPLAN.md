@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b and M2c done; M3 next.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c and M2d done; M2e proposed; M3 next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -225,6 +225,55 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - The halves get their own changes marker, and `check` requires the line `method` wrote naming them; Italian dated sentences elide before 8 and 11 and write the first of the month as 1° through one helper (`i18n.phrase`); ADOPT.md §1 is the connection step, so its §6 cadence bullet was updated with §7.
 - Existing tests updated for the new behaviour: `test_three_reports` asserts the halves line, `test_insights_period` fills the new marker, `test_rebuild` keeps its no-earlier-period case with two weeks of runs, `test_method` pins the title with 1°.
 - Open: a dimension added inside the first half is compared between the halves and stated only by its questions' creation line, not as a dimension added.
+
+## M2d: Export each report's figures as chart tables for a deck ✅
+
+**Why:** a report is often presented as a deck, and the figures a deck shows as charts (a dimension profile in two periods, a fact's current share run by run, the subject's presence run by run, the sources behind a fact, the score by assistant) are in the period files, partly not in the report. Copying them by hand each month is slow and lets a figure drift from the checked one.
+
+**Approach:** `monitor.py charts --study S --date D` reads the period file of `D` (and its comparison, or its halves) and writes `reports/D.charts.md`: one `:::chart` block per chart in md2's syntax (a Markdown table under a `:::chart <type>` line), each with a heading saying what it shows and the period or halves it covers, figures rounded as `check` rounds them. Charts:
+- **Profile:** per project, a `radar` of the dimension means, one series per period compared (the previous period and this one, or the two halves; one series on a first measurement), and a `bar` with the same values.
+- **Fact currency by run:** per question with `current` terms, a `line` of the share of the answers stating a current term, one point per run.
+- **Presence by run:** per question whose answers do not name the subject in the text, a `column` of the share of answers naming it, one column per run.
+- **Sources behind a fact or a score:** per pair of groups the material lists, a `bar` with two series, the share of each group citing each of the five domains.
+- **By assistant:** per project with more than one assistant, a `bar` of each dimension's mean by assistant.
+A chart with no data is left out and listed on stdout. The file is for the operator's deck; the report does not include it. `REPORT.md` gains a last optional step pointing to it; README and ARCHITECTURE.md describe it.
+
+**Tasks:**
+- [x] Test: unit — on a fictional study with two periods: the radar and bar of each project carry both periods' dimension means; on a halves report the two halves; on a first measurement one series
+- [x] Test: unit — the line of a fact's current share has one point per run with the period file's values; the presence columns one per run; the sources bars the five domains with both groups' shares; the assistant bars one series per assistant
+- [x] Test: unit — every value in the file equals the period file's figure as `check` rounds it; a chart with no data is omitted and listed; the output parses as md2 `:::chart` blocks (type line, table, closing `:::`)
+- [x] Implement `monitor.py charts`; `REPORT.md` optional last step; README; ARCHITECTURE.md
+- [x] Test: live — the live study's chart file for its latest report holds the profile radars of both projects and the fact-currency line
+- [x] Review fix: a fact line with a 0% run is drawn on a raised axis by md2 (zeros pushed to the floor); fix md2's line axis to include 0, or emit a column (fixed in md2 M121; `line` kept)
+- [x] Review fix: a by-run chart with one run is empty in md2 (N−1 segments); omit and list it, or draw a column
+- [x] Review fix: two runs on the same day get the same label; add the time when a day repeats
+- [x] Review fix: the profile series are comparison means on shared assistants and questions; the heading names them when they differ from the period's figures; unit test for that case
+- [x] Review fix: the live test expects a radar per project with 3–12 dimensions asked, the code draws one for 3–12 with a value; align; its md2 check counts chart divs only
+- [x] Review fix: headings use the project's own run span, not the whole period's; collapse whitespace in titles
+- [x] Re-review fix, test first: series labels use the bounds the report prints (halves, previous period, period), a project's own run days only in its heading; the live test expects a line where the fact is stated in two runs or more; a line left out says in how many runs the fact is stated; singular notes for one assistant or one question; same-day times in UTC
+- [x] Commit
+
+**Done when:** `monitor.py charts` on the live study writes a chart file whose figures match its period file, and md2 renders every block in it.
+
+**Deviations:**
+- The profile's two series are each compared dimension's comparison `mean` (`previous`, `now`), on the questions and assistants both sides share, so they match the changes section; a dimension not compared is left out and listed; when that basis differs from either side's own (an assistant added or removed, a question not comparable), the heading names the assistants and the questions left out.
+- Sources: one bar per pair of groups, rows the union of the two groups' five domains (up to ten), each with both groups' shares.
+- md2 reads an empty cell as 0, so rows without a value (a run with no answer stating the fact, a dimension without a figure) are left out and listed, like a chart with no data; a chart by run needs two runs with a value (stdout says in how many the fact is stated) and the radar 3 to 12 dimensions, otherwise it is left out and listed (the bar keeps the dimensions).
+- Series carry the bounds the report prints (the period, the previous period, the two halves); a project whose runs start or end on other days has its own first and last run days after its name in the headings; run labels are the start day in UTC, with the UTC start time where two runs share a day; the basis notes are singular for one assistant or one question.
+- Headings, titles and series labels are in the report's language (`i18n.CHARTS`); the command's own output is in English, for the operator.
+
+## M2e: The comparison keys each dimension by its project
+
+**Why:** found while executing M2d: `compare.py` keys the comparison's dimensions by dimension key alone, so when two projects of a study share a key, one overwrites the other and the first project's dimension is reported as not compared, in the changes section and in the charts.
+
+**Approach:** key the comparison's dimensions, verdicts and presence changes by project and dimension key, as `check` already keys findings; read them so in `period`'s material, `check` and `charts`.
+
+**Tasks:**
+- [ ] Test: unit — two projects sharing a dimension key are both compared, in the material, `check` and the charts
+- [ ] Implement in `compare.py`, `period.py`, `check.py`, `charts.py`; ARCHITECTURE.md
+- [ ] Commit
+
+**Done when:** a fictional study whose two projects share a dimension key gets both dimensions compared.
 
 ## M3: Build the theme inventory and collect search demand
 

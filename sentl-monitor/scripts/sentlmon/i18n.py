@@ -214,6 +214,71 @@ TEXT = {
 }
 
 
+# The chart file for a deck: a heading per chart naming what it shows and the period or halves it
+# covers as the report names them, and an md2 title with the unit.
+CHARTS = {
+    "it": {
+        "file_title": "{subject}: grafici del rapporto del {date}",
+        "profile": "{project}: punteggio medio per dimensione, {covers}",
+        "profile_title": "Punteggio medio per dimensione (1–5)",
+        "by_model": "{project}: punteggio medio per dimensione e assistente, {covers}",
+        "by_model_title": "Punteggio medio per dimensione e assistente (1–5)",
+        "currency": "{project} · {dimension}, «{question}»: risposte che riportano il dato attuale, su quelle che lo "
+                    "riportano attuale o superato, per rilevazione, {covers}",
+        "currency_title": "Risposte che riportano il dato attuale (%)",
+        "presence": "{project} · {dimension}, «{question}»: risposte che nominano {subject}, per rilevazione, {covers}",
+        "presence_title": "Risposte che nominano {subject} (%)",
+        "sources_fact": "{project} · {dimension}, «{question}»: domini citati dalle risposte che riportano solo il dato "
+                        "superato e da quelle che riportano il dato attuale, {covers}",
+        "sources_score": "{project} · {dimension}, «{question}»: domini citati dalle risposte con punteggio 1-2 e da "
+                         "quelle con punteggio 4-5, {covers}",
+        "sources_title": "Risposte che citano il dominio, su quelle del gruppo che citano una fonte (%)",
+        "groups": {"outdated": "Solo il dato superato", "current": "Il dato attuale", "low": "Punteggio 1-2",
+                   "high": "Punteggio 4-5"},
+        "half": {"first": "prima metà", "second": "seconda metà"},
+        # [halves][plural], worded as the report's own sentences (models_basis, models_basis_halves).
+        "basis_models": (("sulle risposte dell'unico assistente presente in entrambi i periodi, {names}",
+                          "sulle risposte degli assistenti presenti in entrambi i periodi: {names}"),
+                         ("sulle risposte dell'unico assistente presente in entrambe le metà, {names}",
+                          "sulle risposte degli assistenti presenti in entrambe le metà: {names}")),
+        "basis_questions": (("senza {questions}, non confrontabile tra i due periodi",
+                             "senza {questions}, non confrontabili tra i due periodi"),
+                            ("senza {questions}, non confrontabile tra le due metà",
+                             "senza {questions}, non confrontabili tra le due metà")),
+        "own_runs": "rilevazioni",
+        "dimension": "Dimensione", "run": "Rilevazione", "domain": "Dominio",
+    },
+    "en": {
+        "file_title": "{subject}: charts of the report of {date}",
+        "profile": "{project}: mean score by dimension, {covers}",
+        "profile_title": "Mean score by dimension (1–5)",
+        "by_model": "{project}: mean score by dimension and assistant, {covers}",
+        "by_model_title": "Mean score by dimension and assistant (1–5)",
+        "currency": "{project} · {dimension}, «{question}»: answers stating the current fact, of those stating it "
+                    "current or outdated, by run, {covers}",
+        "currency_title": "Answers stating the current fact (%)",
+        "presence": "{project} · {dimension}, «{question}»: answers naming {subject}, by run, {covers}",
+        "presence_title": "Answers naming {subject} (%)",
+        "sources_fact": "{project} · {dimension}, «{question}»: domains cited by the answers stating only the outdated "
+                        "fact and by those stating the current one, {covers}",
+        "sources_score": "{project} · {dimension}, «{question}»: domains cited by the answers scored 1-2 and by those "
+                         "scored 4-5, {covers}",
+        "sources_title": "Answers citing the domain, of the group's answers citing a source (%)",
+        "groups": {"outdated": "Outdated fact only", "current": "Current fact", "low": "Scored 1-2",
+                   "high": "Scored 4-5"},
+        "half": {"first": "first half", "second": "second half"},
+        "basis_models": (("on the answers of the one assistant present in both periods, {names}",
+                          "on the answers of the assistants present in both periods: {names}"),
+                         ("on the answers of the one assistant present in both halves, {names}",
+                          "on the answers of the assistants present in both halves: {names}")),
+        "basis_questions": (("without {questions}, not comparable between the two periods",) * 2,
+                            ("without {questions}, not comparable between the two halves",) * 2),
+        "own_runs": "runs",
+        "dimension": "Dimension", "run": "Run", "domain": "Domain",
+    },
+}
+
+
 def join(items, lang):
     items = list(items)
     if len(items) < 2:

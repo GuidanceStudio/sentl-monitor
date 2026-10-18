@@ -141,7 +141,7 @@ else
     bad "monitor.py --help exits 0"
     echo "$HELP_TEXT" | sed 's/^/        /'
 fi
-for cmd in adopt detect ingest period method check; do
+for cmd in adopt detect ingest period method check charts; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else

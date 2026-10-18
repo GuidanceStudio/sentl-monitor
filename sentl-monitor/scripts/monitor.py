@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sentlmon import adopt, check, detect, ingest, method, period  # noqa: E402
+from sentlmon import adopt, charts, check, detect, ingest, method, period  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 
@@ -59,6 +59,10 @@ def _parser():
     c.add_argument("--study", default=".")
     c.add_argument("--date", help="period date (default: from the report's file name)")
     c.add_argument("report", help="the report file")
+
+    g = sub.add_parser("charts", help="write a report's figures as md2 chart tables for a deck")
+    g.add_argument("--study", default=".")
+    g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
     return p
 
 
@@ -88,6 +92,8 @@ def main(argv=None):
             print("check passed: quotes are verbatim, figures and counts are the period's, sections are in order, "
                   "and no id, key, model id, file name or credit figure appears. The report is recorded as final "
                   "in history/reports.json.")
+        elif args.command == "charts":
+            print(charts.write(args.study, args.date))
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

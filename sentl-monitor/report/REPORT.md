@@ -199,3 +199,19 @@ earlier period exists, runs left out or
 unavailable, unmatched responses, a Sentl run score
 that differs from the one computed, dimensions shown without a figure. None of this goes in
 the report.
+
+## 12. Charts for a deck (optional)
+
+When the operator presents the report as a deck, after `check` has passed:
+
+```bash
+python3 <skill>/scripts/monitor.py charts --study "$S" --date D
+```
+
+It writes `reports/D.charts.md`: the report's figures as md2 `:::chart` tables, each under a
+heading that says what it shows and the period or halves it covers. Per project, the dimension
+means as a radar and a bar (the previous period and this one, the two halves, or this period
+alone) and, with more than one assistant, by assistant; per question, the share stating the
+current fact run by run, the share naming the subject run by run, and the domains behind a fact
+or a score. Give the operator the file's path and the charts the output lists as left out; the
+report itself does not change.
