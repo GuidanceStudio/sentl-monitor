@@ -84,7 +84,7 @@ class HalvesCase(StudyCase):
         return self.period_file(date)["comparison"]
 
     def question(self, dim, date=REPORT):
-        return next(iter(self.comparison(date)["dimensions"][dim]["questions"].values()))
+        return next(iter(self.comparison(date)["dimensions"]["market"][dim]["questions"].values()))
 
     def half_files(self):
         return sorted(p.name for p in (self.study / "history/periods").glob("*.json")
@@ -122,7 +122,7 @@ class HalvesTest(HalvesCase, unittest.TestCase):
     def test_a_dimension_moving_half_a_point_is_a_change_and_one_moving_less_is_not(self):
         self.history()
         self.build(REPORT)
-        lavoro, scelta = (self.comparison()["dimensions"][d]["mean"] for d in ("lavoro", "scelta"))
+        lavoro, scelta = (self.comparison()["dimensions"]["market"][d]["mean"] for d in ("lavoro", "scelta"))
         self.assertEqual((lavoro["previous"], lavoro["now"], lavoro["periods"]), (3.0, 3.5, 1))
         self.assertAlmostEqual(lavoro["delta"], 0.5)
         self.assertTrue(lavoro["changed"])
@@ -244,7 +244,7 @@ class HalvesTest(HalvesCase, unittest.TestCase):
         self.assertEqual(first["total"]["received"] + second["total"]["received"], whole["total"]["received"])
         self.assertEqual(second["dimensions"]["prezzo"]["total"]["received"], 7 * 2)
         c = self.comparison()
-        self.assertEqual(c["dimensions"]["prezzo"]["status"], "new_baseline")
+        self.assertEqual(c["dimensions"]["market"]["prezzo"]["status"], "new_baseline")
         self.assertEqual([(d["change"], d.get("since")) for d in c["design_changes"]], [("criteria", "2026-10-25")])
 
     def test_a_question_reworded_inside_the_first_half_is_stated(self):
@@ -383,7 +383,7 @@ class HalvesReportTest(HalvesCase, unittest.TestCase):
     def test_a_report_with_the_figures_of_both_halves_passes_check(self):
         c = self.period_file(REPORT)["comparison"]
         first, second = (self.read(f"history/periods/{REPORT}.{h}.json")["projects"]["market"] for h in ("first", "second"))
-        project, lavoro = c["projects"]["market"]["mean"], c["dimensions"]["lavoro"]["mean"]
+        project, lavoro = c["projects"]["market"]["mean"], c["dimensions"]["market"]["lavoro"]["mean"]
         presence, share = self.question("scelta")["presence"], self.question("prezzo")["current_share"]
         changes = (f"Il punteggio complessivo passa da {it(project['previous'])} a {it(project['now'])}. Lavoro passa da "
                    f"{it(lavoro['previous'])} a {it(lavoro['now'])}, dal 20 ottobre. Avenello è nominato nel "
@@ -429,7 +429,7 @@ class AddedBeforeAdoptionTest(HalvesCase, unittest.TestCase):
             self.ingest_market(9600 + d, f"2026-10-{d:02d}T06:00:00Z", plain(True))
         self.build(REPORT)
         c = self.comparison()
-        self.assertEqual((c["previous"], c["dimensions"]["lavoro"]["status"]), ("2026-09-30", "new"))
+        self.assertEqual((c["previous"], c["dimensions"]["market"]["lavoro"]["status"]), ("2026-09-30", "new"))
         self.assertEqual([(d["change"], d.get("dimension")) for d in c["design_changes"]],
                          [("dimension_added", "lavoro")])
 
@@ -439,7 +439,7 @@ class AddedBeforeAdoptionTest(HalvesCase, unittest.TestCase):
             self.ingest_market(9100 + n, day(n), plain(n >= 15))
         self.build(REPORT)
         c = self.comparison()
-        self.assertEqual((("halves" in c), c["dimensions"]["lavoro"]["status"]), (True, "new"))
+        self.assertEqual((("halves" in c), c["dimensions"]["market"]["lavoro"]["status"]), (True, "new"))
         self.assertEqual([(d["change"], d.get("dimension")) for d in c["design_changes"]],
                          [("dimension_added", "lavoro")])
 
@@ -460,7 +460,7 @@ class OneHalfProjectTest(HalvesCase, unittest.TestCase):
         self.branded()
         proc = self.build(REPORT)
         c = self.comparison()
-        self.assertEqual({e["project"] for e in c["dimensions"].values()}, {"market"})
+        self.assertEqual(set(c["dimensions"]), {"market"})
         self.assertEqual(c["halves"]["first"]["projects"]["brand"], {"runs": 2, "answers": 12})
         self.assertNotIn("brand", c["halves"]["second"]["projects"])
         self.assertNotIn("brand", c["projects"])
@@ -579,8 +579,8 @@ class SecondReportTest(HalvesCase, unittest.TestCase):
         self.assertNotIn("halves", c)
         self.assertEqual(c["previous_period"]["from"], day(1))
         whole = self.period_file(REPORT)["projects"]["market"]["dimensions"]["lavoro"]["total"]["mean"]
-        self.assertEqual(c["dimensions"]["lavoro"]["mean"]["previous"], whole)
-        self.assertEqual(c["dimensions"]["lavoro"]["mean"]["periods"], 1)
+        self.assertEqual(c["dimensions"]["market"]["lavoro"]["mean"]["previous"], whole)
+        self.assertEqual(c["dimensions"]["market"]["lavoro"]["mean"]["periods"], 1)
         self.assertEqual(self.half_files(), [f"{REPORT}.first.json", f"{REPORT}.second.json"])
         self.assertEqual(self.read("history/reports.json")[0]["previous"], None)
 

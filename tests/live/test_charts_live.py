@@ -23,6 +23,7 @@ MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
 sys.path.insert(0, str(MONITOR.parent))
 
 from sentlmon import check  # noqa: E402
+from sentlmon.compare import dimension_entries  # noqa: E402
 from sentlmon.i18n import CHARTS  # noqa: E402
 
 BLOCK = re.compile(r'^## (?P<heading>.+)\n\n:::chart (?P<type>\S+) --title "(?P<title>[^"\n]*)"\n'
@@ -83,7 +84,7 @@ class LiveChartsTest(unittest.TestCase):
         scopes = [s for b in self.period["projects"].values() for s in [b, *b["dimensions"].values()]]
         scopes += [q for b in self.period["projects"].values() for d in b["dimensions"].values()
                    for q in d["questions"].values()]
-        entries = [e for d in comparison.get("dimensions", {}).values() for e in [d, *d.get("questions", {}).values()]]
+        entries = [e for d in dimension_entries(comparison).values() for e in [d, *d.get("questions", {}).values()]]
         decimals, percents, _ = check._allowed(scopes, check._compared(entries, comparison.get("verdict_changes", [])))
         for m in self.blocks:
             for line in m.group("table").splitlines()[2:]:

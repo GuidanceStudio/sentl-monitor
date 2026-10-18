@@ -124,6 +124,19 @@ def _series(kind, key, dkey, questions, models, prevs, history, upto, figure_of)
     return values
 
 
+def dimension_entries(comparison):
+    """{(project key, dimension key): entry} of a comparison. Its dimensions are keyed by project,
+    then dimension, since two projects may share a dimension key; a period file written before that
+    keys them by dimension alone, each entry naming its project, and reads the same way."""
+    out = {}
+    for key, value in ((comparison or {}).get("dimensions") or {}).items():
+        if isinstance(value.get("status"), str):
+            out[(value["project"], key)] = value
+        else:
+            out.update({(key, dkey): entry for dkey, entry in value.items()})
+    return out
+
+
 def compare(study, current, prevs, versions, answers, owned, within=None):
     """`prevs`: the earlier periods, latest first. `answers(period, key, q, m)` lists the
     judged responses of a pair in a period, each with its run's start. `within`, when the two
@@ -136,19 +149,20 @@ def compare(study, current, prevs, versions, answers, owned, within=None):
     prev = prevs[0]
     out.update(previous=prev["date"], range_of=sorted(p["date"] for p in prevs),
                previous_period={"from": prev["from"], "to": prev["to"], "rebuilt": bool(prev.get("rebuilt"))})
-    names = {d["key"]: d["name"] for vs in versions.values() for v in vs for d in v["dimensions"]}
-    names.update({d["key"]: d["name"] for p in study["projects"] for d in p["dimensions"]})
     for proj in study["projects"]:
         key = proj["key"]
         block, pblock = current["projects"].get(key), prev["projects"].get(key)
         if block is None:
             continue
+        names = {d["key"]: d["name"] for v in versions.get(key, []) for d in v["dimensions"]}
+        names.update({d["key"]: d["name"] for d in proj["dimensions"]})
+        mine = out["dimensions"][key] = {}
         history = _History(versions.get(key, []))
         upto = _version_max(current, key)
         since = _since(within["period"] if within else current, key, history)
         if pblock is None:
             for dkey in block["dimensions"]:
-                out["dimensions"][dkey] = {"project": key, "status": "new"}
+                mine[dkey] = {"project": key, "status": "new"}
             continue
         now_models, prev_models = _models(block), _models(pblock)
         basis = now_models & prev_models
@@ -160,16 +174,16 @@ def compare(study, current, prevs, versions, answers, owned, within=None):
             if (pdim is None or not _asked(pdim)) and gone & set(dim["questions"]):
                 # Asked then, with its questions dropped from those runs (criteria changed): nothing to
                 # compare, and nothing new.
-                out["dimensions"][dkey] = {"project": key, "status": "new_baseline"}
+                mine[dkey] = {"project": key, "status": "new_baseline"}
                 continue
             if pdim is None or not _asked(pdim):
-                out["dimensions"][dkey] = {"project": key, "status": "new"}
+                mine[dkey] = {"project": key, "status": "new"}
                 dims_design.append({"project": key, "change": "dimension_added", "dimension": dkey,
                                     "name": names.get(dkey, dkey)})
                 continue
             entry, verdicts, domains = _dimension(key, dkey, dim, pdim, prevs, basis, blocked, history, upto,
                                                   answers, owned, current, prev)
-            out["dimensions"][dkey] = entries[dkey] = entry
+            mine[dkey] = entries[dkey] = entry
             out["verdict_changes"] += verdicts
             out["domains"]["new"] += domains["new"]
             out["domains"]["lost"] += domains["lost"]

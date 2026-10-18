@@ -73,7 +73,7 @@ class InsightHistoryTest(StudyCase, unittest.TestCase):
         _, work = self.scope("lavoro")
         missing = work["missing"][GPT]
         work_episode = work["episodes"][0]
-        presence = self.period["comparison"]["dimensions"]["scelta"]["questions"][next(iter(choice_block["questions"]))]["presence"]
+        presence = self.period["comparison"]["dimensions"]["market"]["scelta"]["questions"][next(iter(choice_block["questions"]))]["presence"]
         [moved] = self.period["comparison"]["presence_sources"]
 
         findings = {

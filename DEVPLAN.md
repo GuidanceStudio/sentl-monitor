@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c and M2d done; M2e proposed; M3 next.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d and M2e done; M2f in progress (approved 2026-10-18); M3 next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -262,18 +262,39 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - Series carry the bounds the report prints (the period, the previous period, the two halves); a project whose runs start or end on other days has its own first and last run days after its name in the headings; run labels are the start day in UTC, with the UTC start time where two runs share a day; the basis notes are singular for one assistant or one question.
 - Headings, titles and series labels are in the report's language (`i18n.CHARTS`); the command's own output is in English, for the operator.
 
-## M2e: The comparison keys each dimension by its project
+## M2e: The comparison keys each dimension by its project ✅
 
 **Why:** found while executing M2d: `compare.py` keys the comparison's dimensions by dimension key alone, so when two projects of a study share a key, one overwrites the other and the first project's dimension is reported as not compared, in the changes section and in the charts.
 
 **Approach:** key the comparison's dimensions, verdicts and presence changes by project and dimension key, as `check` already keys findings; read them so in `period`'s material, `check` and `charts`.
 
 **Tasks:**
-- [ ] Test: unit — two projects sharing a dimension key are both compared, in the material, `check` and the charts
-- [ ] Implement in `compare.py`, `period.py`, `check.py`, `charts.py`; ARCHITECTURE.md
-- [ ] Commit
+- [x] Test: unit — two projects sharing a dimension key are both compared, in the material, `check` and the charts
+- [x] Implement in `compare.py`, `period.py`, `check.py`, `charts.py`; ARCHITECTURE.md
+- [x] Commit
 
 **Done when:** a fictional study whose two projects share a dimension key gets both dimensions compared.
+
+**Deviations:**
+- `adopt` and `detect` already keep dimension keys unique across a study; two projects share one only when a dimension archived at adoption is restored after another project took its key, and the test builds that path. Its question keys are shared too, so the material reads question texts by project as well.
+- The comparison's `dimensions` are `{project: {dimension key: entry}}`, schema `period@2`; `check` and `charts` read a `period@1` file (keyed by dimension alone, each entry naming its project) through `compare.dimension_entries`, so earlier period files are read, not rebuilt.
+- The material names a dimension with its project only when another project shares its key or name, so a study whose projects share no dimension key or name gets the same material; design changes take dimension names from their own project, without it.
+- Open: in the collision case themes stay keyed by dimension key across the study (`method`, `adopt`, `detect`), so the restored dimension shows the other project's theme; a collision implies names with the same slug, so the impact is small.
+- Tests reading the comparison's raw shape now read it per project (9 files), and `test_period` expects `period@2`.
+
+## M2f: An episode's close is one run, not the state after it 🔄
+
+**Why:** a report could describe an episode's close as the end of the movement while later runs of the period lay on the episode's side again. The close is the first run back inside the range; the runs after it are not described by it. Approved by the operator on 2026-10-18.
+
+**Approach:** `INSIGHTS.md`'s example states the close as one date ("on 12 October it was back inside that range") and the rule says the runs after the close are read from the by-run figures, and that "only" is not written about an episode when a later run of the period lies on the same side. `period`'s material prints, under each closed episode, the later runs of the period that lie on the episode's side, with their values, so the finding can state them. `check` refuses "only" (and "solo" in Italian) in a sentence that names a closed episode's dates when the material lists such a later run.
+
+**Tasks:**
+- [ ] Test: unit — the material lists, under a closed episode, the later runs on its side with their values; none when there is none
+- [ ] Test: unit — `check` refuses "only"/"solo" beside a closed episode's dates when a later run lies on its side, and accepts it when none does
+- [ ] Implement in `period.py` and `check.py`; `INSIGHTS.md` example and rule; `REPORT.md` step 7
+- [ ] Commit
+
+**Done when:** on a fictional history with an episode and a later run on its side, the material lists that run and `check` refuses a finding that says the measure was high only during the episode.
 
 ## M3: Build the theme inventory and collect search demand
 

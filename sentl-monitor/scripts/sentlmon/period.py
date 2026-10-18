@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
                      is_owned, load_json, load_mcp, mean, parse_time, public_name, write_json, write_text)
-from .compare import K, compare
+from .compare import K, compare, dimension_entries
 from .insights import (TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset, says_missing,
                        top_sources)
 
@@ -240,7 +240,7 @@ def _period(study, date, chosen, reader, versions):
     Its dimensions and questions are those of its runs' latest version, named and worded as
     then (an edit made after its last run belongs to the next period), less any with no
     answer expected; a period of runs older than every version takes the first one."""
-    period = {"schema": "sentl-monitor/period@1", "date": date, "runs": {}, "excluded": {}, "versions": {},
+    period = {"schema": "sentl-monitor/period@2", "date": date, "runs": {}, "excluded": {}, "versions": {},
               "starts": {}, "dropped": {}, "asked": {}, "settings": {}, "projects": {}}
     starts = []
     lang = (study.get("market") or {}).get("language")
@@ -488,7 +488,8 @@ def build(root, date, models_file=None):
     c = current["comparison"]
     head = [f"Period {date}: " + "; ".join(f"{k} runs {v}" for k, v in current["runs"].items()) + "."]
     if c["previous"] or halves:
-        called = sum(bool((e.get(m) or {}).get("changed")) for e in c["dimensions"].values() for m in ("mean", "presence"))
+        called = sum(bool((e.get(m) or {}).get("changed")) for e in dimension_entries(c).values()
+                     for m in ("mean", "presence"))
         against = f"the period of {c['previous']}" if c["previous"] else "the first half of the period"
         lines.append(f"Compared with {against}: {called} dimension change(s) called, "
                      f"{len(c['verdict_changes'])} verdict change(s), "
@@ -567,11 +568,11 @@ def _presence_sources(period, earlier, now, reader):
     """For each question whose presence changed, the domains cited by the answers naming the
     subject in one period and by no answer to the question in the other."""
     out = []
-    for dkey, e in period["comparison"]["dimensions"].items():
+    for (key, dkey), e in dimension_entries(period["comparison"]).items():
         for q, qe in (e.get("questions") or {}).items():
             if qe.get("status") != "compared" or not (qe.get("presence") or {}).get("changed"):
                 continue
-            key, models = e["project"], set(e["models"])
+            models = set(e["models"])
             this = [r for r in _answers_to(now[key], q, models) if r["answer"] is not None]
             last = [r for r in _answers_to(earlier[key], q, models) if r["answer"] is not None]
 
@@ -821,30 +822,39 @@ def _changes_material(study, period, versions, names, answer_of):
                 "previous period (presence and the share stating a current term: 10 points); 0.5 and 20 points with a "
                 "single earlier period. " + write + " The report's design lines below the marker are written by "
                 "method: keep them.", ""]
-    # Names and wordings as the period asked them; an earlier period's from the versions.
-    dims = {d["key"]: d for asked in period["asked"].values() for d in asked}
-    texts = {q["key"]: q["text"] for d in dims.values() for q in d["questions"]}
-    for v in (v for vs in versions.values() for v in reversed(vs)):
-        for d in v["dimensions"]:
-            dims.setdefault(d["key"], d)
-            texts.update({q["key"]: q["text"] for q in d["questions"] if q["key"] not in texts})
+    # Names and wordings as the period asked them; an earlier period's from the versions. Two
+    # projects may share a dimension key, and so a question key: both are read with the project.
+    dims = {(key, d["key"]): d for key, asked in period["asked"].items() for d in asked}
+    texts = {(key, q["key"]): q["text"] for (key, _), d in dims.items() for q in d["questions"]}
+    for key, vs in versions.items():
+        for d in (d for v in reversed(vs) for d in v["dimensions"]):
+            dims.setdefault((key, d["key"]), d)
+            texts.update({(key, q["key"]): q["text"] for q in d["questions"] if (key, q["key"]) not in texts})
     projects = {p["key"]: p["name"] for p in study["projects"]}
+    entries = dimension_entries(c)
+    shared_keys = Counter(dkey for _, dkey in entries)
+    shared_names = Counter(dims[e]["name"] for e in entries)
+
+    def dim_name(key, dkey):
+        """The dimension's name, with its project's when another project's dimension shares the key or the name."""
+        found = dims[(key, dkey)]["name"]
+        return f"{found} ({projects.get(key, key)})" if shared_keys[dkey] > 1 or shared_names[found] > 1 else found
     for key, pe in c.get("projects", {}).items():
         out += [f"### Project {projects.get(key, key)}: compared on the dimensions "
-                + ", ".join(dims[d]["name"] for d in pe["dimensions"]), metric("mean", pe["mean"]), ""]
-    for dkey, e in c["dimensions"].items():
+                + ", ".join(dims[(key, d)]["name"] for d in pe["dimensions"]), metric("mean", pe["mean"]), ""]
+    for (key, dkey), e in entries.items():
         status = {"compared": "compared", "new": "new: no earlier figure", "no_figure": "not compared: no figure",
                   "new_baseline": f"not compared: no question comparable with {earlier_side}"}[e["status"]]
-        out += [f"### Dimension {dims[dkey]['name']}: {status}", ""]
-        scopes = period["projects"].get(e["project"], {}).get("dimensions", {}).get(dkey, {}).get("questions", {})
+        out += [f"### Dimension {dim_name(key, dkey)}: {status}", ""]
+        scopes = period["projects"].get(key, {}).get("dimensions", {}).get(dkey, {}).get("questions", {})
         if e["status"] == "compared":
             out += [f"Compared on the answers of {', '.join(name(m) for m in e['models'])} to "
-                    + "; ".join(f"«{texts[q]}»" for q in e["compared_questions"]),
+                    + "; ".join(f"«{texts[(key, q)]}»" for q in e["compared_questions"]),
                     metric("mean", e["mean"]), metric("presence", e["presence"])]
         dimension_moved = (e.get("mean") or {}).get("changed") and e["mean"]["delta"]
         for q, qe in e.get("questions", {}).items():
             if qe["status"] == "compared":
-                out.append(f"- «{texts[q]}»: {metric('mean', qe['mean'])}; {metric('presence', qe['presence'])}"
+                out.append(f"- «{texts[(key, q)]}»: {metric('mean', qe['mean'])}; {metric('presence', qe['presence'])}"
                            + (f"; {metric('current_share', qe['current_share'])}" if qe.get("current_share") else ""))
                 # An episode is noted once, under its question, for the question's change or its dimension's.
                 for measure in ("mean", "current_share"):
@@ -852,13 +862,15 @@ def _changes_material(study, period, versions, names, answer_of):
                     delta = own["delta"] if own.get("changed") else \
                         dimension_moved if measure == "mean" and q in e["compared_questions"] else None
                     if delta:
-                        out += _episode_notes(scopes.get(q, {}), measure, texts[q], delta, later_from)
+                        out += _episode_notes(scopes.get(q, {}), measure, texts[(key, q)], delta, later_from)
             else:
-                out.append(f"- «{texts[q]}»: {qe['status'].replace('_', ' ')}" + (f" ({qe['reason']})" if qe.get("reason") else ""))
+                out.append(f"- «{texts[(key, q)]}»: {qe['status'].replace('_', ' ')}"
+                           + (f" ({qe['reason']})" if qe.get("reason") else ""))
         out.append("")
     out += ["### Verdict changes", ""]
     for v in c["verdict_changes"] or []:
-        out.append(f"- {dims[v['dimension']]['name']}, «{texts[v['question']]}», {name(v['model'])}: "
+        out.append(f"- {dim_name(v['project'], v['dimension'])}, «{texts[(v['project'], v['question'])]}», "
+                   f"{name(v['model'])}: "
                    f"{v['from']} (mean {_fmt(v['previous_mean'], lang)}) {before}, {v['to']} "
                    f"(mean {_fmt(v['mean'], lang)}) {after}.")
         labels = ("First half", "Second half") if halves else ("Previous period", "This period")
@@ -871,7 +883,7 @@ def _changes_material(study, period, versions, names, answer_of):
         out += ["None.", ""]
     out += ["### Domains", ""]
     for kind, label in (("new", "New"), ("lost", "Lost")):
-        items = [f"{d['domain']} in {dims[d['dimension']]['name']} ({_n_answers(d['answers'])}"
+        items = [f"{d['domain']} in {dim_name(d['project'], d['dimension'])} ({_n_answers(d['answers'])}"
                  + (f" {before}" if kind == "lost" else "") + (", owned" if d["owned"] else "") + ")"
                  for d in c["domains"][kind]]
         out.append(f"{label}: " + ("; ".join(items) or "none"))
@@ -885,7 +897,8 @@ def _changes_material(study, period, versions, names, answer_of):
             if entry["lost"]:
                 parts.append("cited by the answers naming the subject before and by no answer now: " + ", ".join(
                     f"{d['domain']} ({_n_answers(d['answers'])} {before})" for d in entry["lost"]))
-            out.append(f"- «{texts[entry['question']]}» ({dims[entry['dimension']]['name']}): " + "; ".join(parts))
+            key = entry["project"]
+            out.append(f"- «{texts[(key, entry['question'])]}» ({dim_name(key, entry['dimension'])}): " + "; ".join(parts))
         out.append("")
     out += ["", "### Design changes", ""]
     for d in c["design_changes"]:

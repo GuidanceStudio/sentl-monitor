@@ -145,7 +145,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         p = self.period_file("2026-11-30")
         self.assertEqual(p["runs"], {"brand": [9201, 9202, 9203, 9204, 9205]})
         self.assertEqual((c["previous"], c["range_of"]), ("2026-10-31", ["2026-10-31"]))
-        salute = c["dimensions"]["salute"]
+        salute = c["dimensions"]["brand"]["salute"]
         self.assertEqual((salute["status"], salute["models"]), ("compared", [GPT, GEM]))
         self.assertAlmostEqual(salute["mean"]["delta"], 0.0)
         self.assertFalse(salute["mean"]["changed"])
@@ -155,12 +155,12 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
     def test_a_move_beyond_the_threshold_is_a_change_and_a_new_band_a_verdict_change(self):
         self.november(all_overrides={("prezzo-1", GEM): (CHEAPER, 4, "positive", ["https://prezzi.example/avena"])})
         c = self.comparison()
-        prezzo = c["dimensions"]["prezzo"]["mean"]
+        prezzo = c["dimensions"]["brand"]["prezzo"]["mean"]
         self.assertEqual((prezzo["now"], prezzo["previous"], prezzo["range"], prezzo["periods"]),
                          (3.5, 2.5, [2.5, 2.5], 1))
         self.assertAlmostEqual(prezzo["delta"], 1.0)
         self.assertTrue(prezzo["changed"])
-        self.assertTrue(c["dimensions"]["prezzo"]["questions"]["prezzo-1"]["mean"]["changed"])
+        self.assertTrue(c["dimensions"]["brand"]["prezzo"]["questions"]["prezzo-1"]["mean"]["changed"])
         [verdict] = c["verdict_changes"]
         self.assertEqual({k: verdict[k] for k in ("dimension", "question", "model", "from", "to")},
                          {"dimension": "prezzo", "question": "prezzo-1", "model": GEM,
@@ -191,7 +191,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         self.detect(edited(text=NEW_TEXT), FOUND)
         self.november(texts={"salute-2": NEW_TEXT})
         c = self.comparison()
-        self.assertEqual(c["dimensions"]["salute"]["questions"]["salute-2"]["status"], "compared")
+        self.assertEqual(c["dimensions"]["brand"]["salute"]["questions"]["salute-2"]["status"], "compared")
         self.assertEqual(c["design_changes"], [{"project": "brand", "change": "reworded", "question": "salute-2",
                                                 "text": NEW_TEXT, "previous_text": OLD_TEXT, "since": "2026-11-02"}])
 
@@ -200,7 +200,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         self.november(texts={"salute-2": NEW_TEXT},
                       all_overrides={("salute-2", GEM): ("Avenello non fa bene.", 1, "negative", [])})
         c = self.comparison()
-        salute = c["dimensions"]["salute"]
+        salute = c["dimensions"]["brand"]["salute"]
         self.assertEqual(salute["questions"]["salute-3"], {"status": "new_baseline", "reason": "new_intent"})
         self.assertEqual(salute["compared_questions"], ["salute-1"])
         self.assertEqual([v for v in c["verdict_changes"] if v["question"] == "salute-3"], [])
@@ -212,7 +212,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         self.detect(edited(rubric="Prezzo corretto, con la fonte del listino"), "2026-11-01T12:00:00Z")
         self.november(all_overrides={("prezzo-1", GEM): (CHEAPER, 4, "positive", [])})
         c = self.comparison()
-        prezzo = c["dimensions"]["prezzo"]
+        prezzo = c["dimensions"]["brand"]["prezzo"]
         self.assertEqual(prezzo["status"], "new_baseline")
         self.assertEqual(prezzo["questions"]["prezzo-1"], {"status": "new_baseline", "reason": "criteria"})
         self.assertEqual(c["verdict_changes"], [])
@@ -224,8 +224,8 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         self.detect(edited(add_model=NEW), FOUND)
         self.november(models=[GPT, GEM, NEW], all_overrides={("salute-1", NEW): ("Avenello fa male.", 1, "negative", [])})
         c = self.comparison()
-        self.assertEqual(c["dimensions"]["salute"]["models"], [GPT, GEM])
-        self.assertAlmostEqual(c["dimensions"]["salute"]["mean"]["now"], 3.75)
+        self.assertEqual(c["dimensions"]["brand"]["salute"]["models"], [GPT, GEM])
+        self.assertAlmostEqual(c["dimensions"]["brand"]["salute"]["mean"]["now"], 3.75)
         self.assertEqual(c["verdict_changes"], [])
         self.assertEqual(c["design_changes"], [{"project": "brand", "change": "models", "added": [NEW], "removed": [],
                                                 "basis": [GPT, GEM]}])
@@ -235,7 +235,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         for n, start in enumerate(NOV):
             self.ingest(without_prezzo(run(run_id=9201 + n, started=start)), name=f"run-{9201 + n}.json")
         c = self.comparison()
-        self.assertNotIn("prezzo", c["dimensions"])
+        self.assertNotIn("prezzo", c["dimensions"]["brand"])
         self.assertEqual(c["design_changes"], [{"project": "brand", "change": "dimension_archived",
                                                 "dimension": "prezzo", "name": "Prezzo"}])
 
@@ -247,7 +247,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         for n, start in enumerate(NOV):
             self.ingest(run(run_id=9201 + n, started=start, extra=gusto), name=f"run-{9201 + n}.json")
         c = self.comparison()
-        self.assertEqual(c["dimensions"]["gusto"]["status"], "new")
+        self.assertEqual(c["dimensions"]["brand"]["gusto"]["status"], "new")
         self.assertIn({"project": "brand", "change": "dimension_added", "dimension": "gusto", "name": "Gusto"},
                       c["design_changes"])
 
@@ -263,7 +263,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         self.detect(edited(text=NEW_TEXT, add_dimension=True), FOUND)
         self.answer_operator()
         c = self.comparison()
-        self.assertNotIn("gusto", c["dimensions"])
+        self.assertNotIn("gusto", c["dimensions"]["brand"])
         self.assertEqual(c["design_changes"], [])
         material = (self.study / "history/material/2026-11-30.md").read_text(encoding="utf-8")
         self.assertIn(OLD_TEXT, material)
@@ -289,7 +289,7 @@ class ModelsAcrossPeriodsTest(StudyCase, unittest.TestCase):
         p = self.period_file("2026-11-30")
         c = p["comparison"]
         self.assertEqual(c["previous"], "2026-10-31")
-        salute = c["dimensions"]["salute"]
+        salute = c["dimensions"]["brand"]["salute"]
         self.assertEqual(salute["models"], [GPT])
         self.assertEqual((salute["mean"]["now"], salute["mean"]["previous"]), (3.5, 4.5))
         self.assertTrue(salute["mean"]["changed"])
@@ -306,8 +306,8 @@ class ModelsAcrossPeriodsTest(StudyCase, unittest.TestCase):
         self.build("2026-12-31")
         c = self.period_file("2026-12-31")["comparison"]
         self.assertEqual(c["range_of"], ["2026-10-31", "2026-11-30"])
-        self.assertEqual(c["dimensions"]["salute"]["models"], [GPT, GEM, NEW])
-        self.assertEqual(c["dimensions"]["salute"]["mean"]["periods"], 1)
+        self.assertEqual(c["dimensions"]["brand"]["salute"]["models"], [GPT, GEM, NEW])
+        self.assertEqual(c["dimensions"]["brand"]["salute"]["mean"]["periods"], 1)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ class RebuildTest(StudyCase, unittest.TestCase):
             self.assertFalse((self.study / f"history/material/{date}.md").exists())
         self.assertNotIn("rebuilt", p)
         self.assertEqual((p["comparison"]["previous"], p["comparison"]["range_of"]), ("2026-10-09", REBUILT_WEEKS))
-        self.assertEqual(p["comparison"]["dimensions"]["salute"]["mean"]["periods"], 4)
+        self.assertEqual(p["comparison"]["dimensions"]["brand"]["salute"]["mean"]["periods"], 4)
         self.assertFalse((self.study / "history/reports.json").exists())
         for date in REBUILT_WEEKS:
             self.assertIn(date, proc.stdout)

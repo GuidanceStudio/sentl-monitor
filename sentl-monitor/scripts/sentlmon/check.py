@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from .common import Refused, Study, fmt_percent, load_json, match_key, norm, round_half_up
+from .compare import dimension_entries
 from .insights import fact_terms, tight
 from .i18n import SECTIONS
 from .method import halves_line, measured, report_order
@@ -242,8 +243,9 @@ def _findings_parts(findings, projects, period, extras):
     """Split the findings into (owner, heading, text, scopes, extra) parts, one per entry.
     With several projects, a `### <project>` heading opens each project's chapter. An entry's
     owner is its (project, dimension); it may cite figures of that dimension and its
-    questions, their comparison (`extras` by dimension key), and its project's overall
-    figure. Any other part may cite figures of the projects."""
+    questions, their comparison (`extras`), and its project's overall
+    figure. Any other part may cite figures of the projects. `extras` is keyed by project and
+    dimension key, since two projects may share a dimension key."""
     owners = {}
     for proj, dims in projects:
         block = period["projects"][proj["key"]]
@@ -251,7 +253,7 @@ def _findings_parts(findings, projects, period, extras):
         for d in dims:
             dim = block["dimensions"][d["key"]]
             owners[(proj["name"], d["name"])] = ([overall, dim, *dim["questions"].values()],
-                                                 extras.get(d["key"], (set(), set())))
+                                                 extras.get((proj["key"], d["key"]), (set(), set())))
     titles = {proj["name"] for proj, _ in projects} if len(projects) > 1 else set()
     fallback = (list(period["projects"].values()), (set(), set()))
     project = projects[0][0]["name"] if len(projects) == 1 else None
@@ -307,9 +309,10 @@ def check(root, report_path, date=None):
     body = dict(found)
     findings = body.get("findings", "")
     projects = measured(study, period)
-    entries = {dkey: [e, *e.get("questions", {}).values()] for dkey, e in comparison.get("dimensions", {}).items()}
+    entries = {at: [e, *e.get("questions", {}).values()] for at, e in dimension_entries(comparison).items()}
     verdicts = comparison.get("verdict_changes", [])
-    extras = {dkey: _compared(es, [v for v in verdicts if v["dimension"] == dkey]) for dkey, es in entries.items()}
+    extras = {at: _compared(es, [v for v in verdicts if (v["project"], v["dimension"]) == at])
+              for at, es in entries.items()}
     parts = _findings_parts(findings, projects, period, extras)
     written = {owner for owner, *_ in parts}
     for proj, dims in projects:

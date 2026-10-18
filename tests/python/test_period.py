@@ -28,7 +28,7 @@ class PeriodTest(StudyCase, unittest.TestCase):
     def test_period_file_names_its_runs_and_has_no_previous_period(self):
         self.ready()
         p = self.read("history/periods/2026-10-31.json")
-        self.assertEqual(p["schema"], "sentl-monitor/period@1")
+        self.assertEqual(p["schema"], "sentl-monitor/period@2")
         self.assertEqual(p["runs"], {"brand": [9001]})
         self.assertEqual(p["comparison"]["previous"], None)
         self.assertEqual(p["from"], "2026-10-01T06:00:00Z")

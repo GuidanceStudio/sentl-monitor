@@ -85,8 +85,8 @@ class ThreeReportsTest(StudyCase, unittest.TestCase):
     def test_the_third_period_compares_on_the_two_earlier_periods_and_restarts_prezzo(self):
         c = self.period_file("2026-12-31")["comparison"]
         self.assertEqual(c["range_of"], ["2026-10-31", "2026-11-30"])
-        self.assertEqual(c["dimensions"]["salute"]["mean"]["periods"], 2)
-        self.assertEqual(c["dimensions"]["prezzo"]["status"], "new_baseline")
+        self.assertEqual(c["dimensions"]["brand"]["salute"]["mean"]["periods"], 2)
+        self.assertEqual(c["dimensions"]["brand"]["prezzo"]["status"], "new_baseline")
         p = self.period_file("2026-12-31")
         self.assertEqual(p["versions"], {"brand": [2, 3, 3, 3]})
         self.assertEqual(p["projects"]["brand"]["dimensions"]["prezzo"]["total"]["expected"], 3 * 3)

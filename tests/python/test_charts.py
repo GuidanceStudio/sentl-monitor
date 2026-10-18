@@ -8,6 +8,7 @@ import unittest
 
 from fixtures import CHOICE_Q, GEM, GPT, NEW, PRICE_Q, WORK_Q, market_project, project, results, run
 from sentlmon import check
+from sentlmon.compare import dimension_entries
 from sentlmon.common import round_half_up
 from sentlmon.i18n import CHARTS, TEXT
 from test_detect import ADOPTED, FOUND, NEW_TEXT, OLD_TEXT, edited
@@ -113,7 +114,7 @@ class ProfileBasisTest(ChartsCase, unittest.TestCase):
             self.ingest_market(9100 + n, day(n), rows_of(n) + low)
         self.build(REPORT)
         [radar], [bar] = self.profile(blocks(self.charts()[1]))
-        compared = self.comparison()["dimensions"]
+        compared = self.comparison()["dimensions"]["market"]
         self.assertIn(T["basis_models"][1][1].format(names="Acme Chat e Orbit Reason"), radar.heading)
         self.assertNotIn("Zenith", radar.heading)
         self.assertEqual(radar.rows, [[d["name"], mean(compared[d["key"]]["mean"]["previous"]),
@@ -265,7 +266,7 @@ class ChartFileTest(ChartsCase, unittest.TestCase):
         comparison = period.get("comparison") or {}
         scopes = [s for b in period["projects"].values() for s in [b, *b["dimensions"].values()]]
         scopes += [q for b in period["projects"].values() for d in b["dimensions"].values() for q in d["questions"].values()]
-        entries = [e for d in comparison.get("dimensions", {}).values() for e in [d, *d.get("questions", {}).values()]]
+        entries = [e for d in dimension_entries(comparison).values() for e in [d, *d.get("questions", {}).values()]]
         decimals, percents, _ = check._allowed(scopes, check._compared(entries, comparison.get("verdict_changes", [])))
         found = blocks(text)
         self.assertGreater(len(found), 5)
@@ -346,7 +347,7 @@ class ChartFileTest(ChartsCase, unittest.TestCase):
         for n in range(18, 25):
             self.ingest_market(9100 + n, day(n), rows_of(n))
         self.build(REPORT)
-        self.assertEqual(self.comparison()["dimensions"]["prezzo"]["status"], "new_baseline")
+        self.assertEqual(self.comparison()["dimensions"]["market"]["prezzo"]["status"], "new_baseline")
         proc, text = self.charts()
         radar, [bar] = self.profile(blocks(text))
         self.assertEqual(radar, [])

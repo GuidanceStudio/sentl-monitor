@@ -19,6 +19,7 @@ REPO = Path(__file__).resolve().parents[2]
 MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
 sys.path.insert(0, str(MONITOR.parent))
 
+from sentlmon.compare import dimension_entries  # noqa: E402
 from sentlmon.i18n import SECTIONS, TEXT  # noqa: E402
 from sentlmon.method import halves_line  # noqa: E402
 
@@ -63,7 +64,7 @@ class LiveHalvesTest(unittest.TestCase):
         for path, half in zip(self.halves, ("first", "second")):
             self.assertTrue(path.exists(), f"the {half} half is not in history/periods/")
             self.assertEqual(load(path)["half"], half)
-        compared = [e for e in comparison["dimensions"].values() if e["project"] == self.key]
+        compared = [e for (key, _), e in dimension_entries(comparison).items() if key == self.key]
         self.assertTrue(compared, "no dimension of the project is in the comparison")
         self.assertTrue(any(e["status"] == "compared" for e in compared), "no dimension is compared between the halves")
 

@@ -179,7 +179,7 @@ class PresenceChangeTest(InsightCase, unittest.TestCase):
             self.ingest_market(9101 + n, start, rows(choice=october))
         self.build("2026-10-31")
         c = self.period_file("2026-10-31")["comparison"]
-        self.assertTrue(c["dimensions"]["scelta"]["presence"]["changed"])
+        self.assertTrue(c["dimensions"]["market"]["scelta"]["presence"]["changed"])
         [entry] = c["presence_sources"]
         self.assertEqual(entry["dimension"], "scelta")
         self.assertEqual(entry["new"], [{"domain": "avenello.example", "answers": 4},

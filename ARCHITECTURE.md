@@ -293,7 +293,7 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
 
 ```json
 {
-  "schema": "sentl-monitor/period@1",
+  "schema": "sentl-monitor/period@2",
   "date": "2026-11-30", "from": "2026-11-02T06:00:00Z", "to": "2026-11-30T06:00:00Z",
   "runs": {"brand": [0, 0, 0, 0]}, "versions": {"brand": [2, 3, 3, 3]},
   "starts": {"brand": ["2026-11-02T06:00:00Z", "..."]},
@@ -305,13 +305,13 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
   "comparison": {"previous": "2026-10-31",
                  "previous_period": {"from": "...", "to": "...", "rebuilt": false},
                  "range_of": ["2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31"],
-                 "dimensions": {"health": {"project": "brand", "status": "compared",
+                 "dimensions": {"brand": {"health": {"project": "brand", "status": "compared",
                                            "models": ["<model id>"], "compared_questions": ["health-1"],
                                            "mean": {"now": 3.6, "previous": 3.1, "delta": 0.5,
                                                     "range": [2.9, 3.2], "periods": 4, "changed": true},
                                            "presence": {},
                                            "questions": {"health-1": {"status": "compared", "mean": {}, "presence": {}},
-                                                         "health-3": {"status": "new_baseline", "reason": "criteria"}}}},
+                                                         "health-3": {"status": "new_baseline", "reason": "criteria"}}}}},
                  "verdict_changes": [{"project": "brand", "dimension": "health", "question": "health-1",
                                       "model": "<model id>", "from": "mixed", "to": "favourable",
                                       "previous_mean": 3.0, "mean": 4.0,
@@ -337,6 +337,14 @@ times of the episode's first and last run), `runs`,
 `judged`, `mean`, `mean_without`); each is present only when it has content. The comparison
 carries `presence_sources`: per question whose presence changed, the domains `new` and `lost`
 in the answers naming the subject. §Insights gives the rules.
+
+The comparison's `dimensions` are keyed by project, then by dimension key, and its verdict,
+domain and presence changes each name their project and dimension, because two projects of a study
+may share a dimension key: `adopt` and `detect` keep keys unique across the study, except for a
+dimension archived when its project was adopted and restored after another project took its key.
+A period file of schema `period@1` keys them by dimension key alone, each entry naming its project;
+`check` and `charts` read both shapes, and `period` writes the current one whenever it builds a
+period.
 
 The comparison also carries `projects`: per project, the `dimensions` compared and the
 project's `mean` entry on them. A compared question whose facts have terms carries

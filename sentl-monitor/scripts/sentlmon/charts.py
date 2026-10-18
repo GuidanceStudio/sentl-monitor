@@ -5,6 +5,7 @@ import datetime as dt
 from collections import Counter
 
 from .common import MONTHS, Refused, Study, fmt_date, load_json, parse_time, round_half_up, write_text
+from .compare import dimension_entries
 from .i18n import CHARTS, join, phrase
 
 RADAR_AXES = range(3, 13)
@@ -131,7 +132,7 @@ def _profile(charts, t, lang, name, label, key, dims, block, period, sides, whol
     halves, on the questions and assistants the comparison rests on; this period alone when no
     dimension of the project is compared."""
     c = period.get("comparison") or {}
-    entries = {d: e for d, e in c.get("dimensions", {}).items() if e["project"] == key}
+    entries = {d: e for (p, d), e in dimension_entries(c).items() if p == key}
     rows, notes = [], []
     if any(e.get("mean") for e in entries.values()):
         halves = c.get("halves")
