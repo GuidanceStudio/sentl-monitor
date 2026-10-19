@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R1 and R5 done; v0.1.0 next; R3d waits for Sentl; M3 after the release.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R1 and R5 done; v0.1.0 released 2026-10-19; R3d waits for Sentl; M3 after the release.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route

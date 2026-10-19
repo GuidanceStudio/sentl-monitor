@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-19)
 
 The first release. It reports on Sentl projects that already exist; the routes that design a
 study and create projects in Sentl are planned (README, "Planned").
