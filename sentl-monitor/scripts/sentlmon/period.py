@@ -6,7 +6,8 @@ import datetime as dt
 from collections import Counter, defaultdict
 
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
-                     is_owned, load_json, mean, parse_time, public_name, write_json, write_text)
+                     is_owned, load_json, mean, parse_time, public_name, require_language, write_json,
+                     write_text)
 from . import schema
 from .compare import K, compare, dimension_entries
 from .insights import (EPS, TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset,
@@ -367,6 +368,7 @@ def build(root, date, models_file=None):
     reset()
     folder = Study(root)
     study = folder.study
+    require_language(study)
     every = cadence(study)
     reader = Reader(study)
     names = schema.models(models_file) if models_file else {}

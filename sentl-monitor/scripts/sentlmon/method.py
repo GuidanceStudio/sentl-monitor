@@ -3,7 +3,7 @@ in the order the report takes, with an entry per dimension left for the findings
 
 from .adopt import missing_answers
 from . import schema
-from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, write_text
+from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, require_language, write_text
 from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join, phrase
 
 
@@ -257,6 +257,7 @@ def _findings(projects, lang):
 def write(root, date, models_file, force=False):
     folder = Study(root)
     study = folder.study
+    require_language(study)
     missing = missing_answers(study)
     if missing:
         raise Refused("the report needs the operator's answers to:\n  " + "\n  ".join(missing))

@@ -4,7 +4,8 @@ import hashlib
 import json
 
 from . import schema
-from .common import Refused, Study, load_json, match_key, norm, now_iso, slug, write_json
+from .i18n import SECTIONS
+from .common import Refused, Study, load_json, match_key, norm, now_iso, require_language, slug, write_json
 
 ORIGIN_KINDS = ("client_material", "client_issue", "client_analysis", "search", "probe")
 AUDIENCES = ("generic_consumer", "personas", "stakeholders", "mixed")
@@ -18,7 +19,7 @@ QUESTIONS_FOR_THE_OPERATOR = [
     ("foils", '[{"id": "...", "label": "...", "aliases": ["..."], "domains": ["..."]}], competitors or alternatives '
               "and the websites they own (optional)"),
     ("market", '{"country": ISO 3166 code such as "IT" or "GB", "language": ISO 639 code such as "it" or "en"}'),
-    ("report_language", "it or en"),
+    ("report_language", " or ".join(sorted(SECTIONS))),
     ("report_every", "weekly or monthly"),
     ("themes[].origins", "for each theme: [{\"kind\": one of " + ", ".join(ORIGIN_KINDS) + ', "detail": "..."}]'),
 ]
@@ -56,7 +57,7 @@ def missing_answers(study):
     market = study.get("market") or {}
     if not market.get("country") or not market.get("language"):
         missing.append("market")
-    if study.get("report_language") not in ("it", "en"):
+    if study.get("report_language") not in SECTIONS:
         missing.append("report_language")
     if study.get("report_every") not in ("weekly", "monthly"):
         missing.append("report_every")
@@ -114,6 +115,8 @@ def adopt(root, project_file, run_file=None, key=None):
     study_path, binding_path = folder.path("study.json"), folder.path("sentl.json")
     study = load_json(study_path) if study_path.exists() else None
     binding = load_json(binding_path) if binding_path.exists() else None
+    if study:
+        require_language(study)
     key = key or slug(proj["name"])
     if binding and key in binding["projects"]:
         raise Refused(f"project key {key!r} is already in this study")

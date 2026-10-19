@@ -42,6 +42,17 @@ assert_ignored "snapshots/probe/report.md"
 assert_ignored "sentl-monitor/scripts/__pycache__/probe.pyc"
 
 echo ""
+echo "=== Line endings stay LF on every system ==="
+assert_file ".gitattributes"
+for rule in "*.sh text eol=lf" "*.py text eol=lf"; do
+    if grep -qxF "$rule" "$REPO_ROOT/.gitattributes" 2>/dev/null; then
+        ok ".gitattributes has '$rule'"
+    else
+        bad ".gitattributes lacks '$rule'"
+    fi
+done
+
+echo ""
 echo "=== Installable payload ==="
 assert_dir "sentl-monitor"
 assert_nonempty "sentl-monitor/SKILL.md"

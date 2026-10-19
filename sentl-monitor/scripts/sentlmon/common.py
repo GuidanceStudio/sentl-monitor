@@ -11,6 +11,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .i18n import SECTIONS
+
 FINAL = ("completed", "completed_with_warnings")
 RUN_FLOOR = 0.90
 FIGURE_FLOOR = 0.80
@@ -18,6 +20,13 @@ FIGURE_FLOOR = 0.80
 
 class Refused(Exception):
     """Input the command cannot act on; exit code 2."""
+
+
+def require_language(study):
+    """Refuse a report language the report has no wording for; an unset one is the operator's to answer."""
+    lang = study.get("report_language")
+    if lang is not None and lang not in SECTIONS:
+        raise Refused(f"report_language {lang!r} is not supported; supported: {', '.join(sorted(SECTIONS))}")
 
 
 # --- files ------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 and R2 done; R4 next; M3 after R4.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a next, then R3b and R1; R3d waits for Sentl; M3 after the release.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -444,16 +444,24 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Done when:** every host in the README's table is backed by a recorded run on the released version.
 
-## R4: Portable across systems, time zones and languages
+## R4: Portable across systems, time zones and languages ✅
 
 **Why:** on Windows `detect` and `check` crash on a cp1252 console and a checkout gets CRLF in `install.sh`; the period boundaries are UTC midnights while the report date is local, and no doc says so; a report language other than `it` or `en` is refused with a message that does not say why; a timestamp without a time zone raises a TypeError.
 
 **Approach:** the script writes UTF-8 to its output on every system; `.gitattributes` keeps `*.sh` in LF; the README states the supported systems. The docs state that periods are counted in UTC and how the report date maps to them. An unsupported report language is refused with the list of supported ones; a timestamp without a time zone is read as UTC.
 
 **Tasks:**
-- [ ] Test: unit — output with non-ASCII text to a cp1252 stream; a report language outside the list is refused naming the supported ones; a naive timestamp is read as UTC
-- [ ] Implement; docs
-- [ ] Commit
+- [x] Test: unit — output with non-ASCII text to a cp1252 stream; a report language outside the list is refused naming the supported ones; a naive timestamp is read as UTC
+- [x] Test: structure — `.gitattributes` holds `*.sh text eol=lf` and `*.py text eol=lf`
+- [x] Implement: UTF-8 output, `.gitattributes`, unsupported report language refused
+- [x] Docs: periods counted in UTC in `report/REPORT.md`; README "Systems and languages"
+- [x] Commit
+
+**Deviations:**
+- A timestamp without a time zone read as UTC: done in R2 (`common.parse_time`); nothing ticked for it here.
+- The language check is `require_language` in `common.py`, reading the supported list from the keys of `i18n.SECTIONS`; `adopt` (on an existing study), `method` and `period` call it. A `report_language` that is not set is still the operator's to answer.
+- `adopt`'s question for `report_language` and `missing_answers` read the same list.
+- The UTF-8 test runs `detect --dry-run` in a subprocess with `PYTHONIOENCODING=cp1252` and `PYTHONUTF8=0`.
 
 **Done when:** the tests pass and the README states systems, time zone and languages.
 

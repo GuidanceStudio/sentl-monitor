@@ -61,6 +61,16 @@ asks for the token and never stores it.
 
 **Python 3.10 or later**, standard library only.
 
+### Systems and languages
+
+Linux and macOS are supported, and Windows through WSL. On native Windows the script runs, but the
+playbooks' commands assume a POSIX shell.
+
+macOS ships Python 3.9: install 3.10 or newer before the first run.
+
+Reports are written in English or Italian. The detection of answers that found no evidence reads
+English and Italian answers only.
+
 ## Install
 
 ```bash

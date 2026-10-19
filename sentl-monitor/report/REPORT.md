@@ -97,6 +97,9 @@ name; the report never shows a model id.
 
 ## 5. Period
 
+Periods are counted in UTC: the report date `D` covers the runs started up to the end of `D`
+in UTC, and the default date is today's local date.
+
 ```bash
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
 ```
