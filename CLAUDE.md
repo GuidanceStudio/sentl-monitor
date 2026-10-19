@@ -35,6 +35,9 @@ The status of the work lives in `DEVPLAN.md` only. This file does not repeat it.
 - No real client, brand, agency, person or study name anywhere: code, tests, fixtures, examples,
   docs, commit messages. Examples use fictional subjects; the docs use a fictional oat-drink
   brand. Add a deny-list test with the first code milestone.
+- The denied names live outside the repository, in the file `SKILL_DENYLIST` names (default
+  `~/.config/skill-denylist/digests.txt`), and are never committed, as names or as digests: an
+  unsalted digest of a name is disclosed by anyone who guesses the name.
 - No paths from a developer's machine.
 - English, plain declarative sentences, no slogans. A sentence that can be deleted without losing
   information is deleted.

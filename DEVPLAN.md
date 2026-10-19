@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; M3 next.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 done; M3 after R4.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -301,6 +301,69 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - The rule reads a clause rather than a sentence: a word for "only" (only, solely, exclusively, just; solo, soltanto, solamente, unicamente, esclusivamente) before the episode's span or its first, last or close date, with no `, ; : . ! ?` between them and the date within about 40 characters; quoted text is not read and a paragraph's lines are joined first.
 - "Only" is accepted when the sentence names every later run of the episode; a finding is read against its own dimension's episodes, the summary and the changes against all of them.
 - Left for a later item, from the review: "just" or "solo" followed by a number ("just 3 of 12") is refused although it makes no claim about the episode; a decimal comma or point ends the clause, so "only to 4.5 from 14 to 16 October" passes; the 40-character reach misses longer clauses; a «» quote holding a full stop is split before it is stripped; later runs named as "21 and 24 October" are not all read; a span in another month is refused.
+
+## R0: The deny-list lives outside the repository ✅
+
+**Why:** `tests/python/test_no_real_names.py` keeps the denied names as unsalted sha256 digests of lowercased words. A guess can be tested against them in seconds, so the public history discloses the names it protects. Every commit also carries the author's personal email. Approved by the operator on 2026-10-19, with the history rewritten while the repository stays public and the email replaced by the GitHub noreply address.
+
+**Approach:** the test reads the digests from a file outside the repository, named by `SKILL_DENYLIST` or, when unset, `~/.config/skill-denylist/digests.txt`; a line is either a 64-character digest or a name, normalised and hashed as before; `#` starts a comment. With no file the name check is skipped and the token and path checks still run. The digests move to that file. `git filter-repo` removes every digest the file ever held from all commits and maps the author email to the noreply address; main is force-pushed. The repository's CLAUDE.md states that the list is never committed, in any form. llm-rep's test, which this one copied, gets the same change under its own devplan.
+
+**Tasks:**
+- [x] Test: unit — the name check reads digests and names from the file `SKILL_DENYLIST` names, reports a hit as `path:line`, and is skipped when the file is missing while the token and path checks still run
+- [x] Implement in `test_no_real_names.py`; move the digests to the local file; CLAUDE.md rule
+- [x] Rewrite the history: digests removed from every commit, author email mapped to the noreply address; force-push main; a fresh clone holds none of the digests and no personal email
+- [x] Commit
+
+**Done when:** a fresh clone of the public repository contains none of the digests and no personal email in any commit, and the test still fails on a planted denied name when the local file exists.
+
+## R1: The README describes what works, for someone who has never seen the skill
+
+**Why:** the README presents the planned routes (`brief`, `design`, `setup`, `snapshot`, scheduled reports) as working, and a newcomer cannot get from it to a first report. DEVPLAN.md, CLAUDE.md and the README point to skills that are not public.
+
+**Approach:** the README opens with what works (`adopt`, `report`, `charts`) and its walk-through goes adopt → report on a fictional study; the planned routes move under "Planned". It adds prerequisites (Python 3.10+, with the macOS note; the Sentl MCP server), the answers `adopt` asks for, a sample report on the fictional subject, what each exit code means and what to do, how to update and uninstall, a version and a CHANGELOG, contribution and support. Notes about live studies, operator approvals and private skills leave the public files.
+
+**Tasks:**
+- [ ] Test: bash — the README's routes table lists only routes whose playbook exists, outside "Planned"; the sample report passes `check`
+- [ ] README, CHANGELOG, sample report; public files cleaned
+- [ ] Commit
+
+**Done when:** a reader with a Sentl account and an assistant can go from the README alone to a first report, and no public file names a private skill or a live study.
+
+## R2: Sentl's responses are checked against what the skill expects
+
+**Why:** read-only probes showed that a change on Sentl's side gives wrong figures with exit 0 (scores on another scale, renamed sources or rubric fields) or a Python traceback with exit 1, the code that means `check` found problems. The run listing has no paging and no script reads it.
+
+**Approach:** one module states the fields, types and ranges the skill reads from each Sentl tool (scores 1–5 or null, the known statuses, sources as url and title); `adopt`, `detect` and `ingest` refuse a response that does not match, naming the field, with exit 5. Any other unexpected error exits 6 with a one-line message. A new `monitor.py runs` reads the saved run listing, prints the runs to fetch for the report, and warns when the oldest listed run is newer than the window's start. An unknown status is reported as such, apart from runs not final yet. A question or dimension whose id changed but whose text is identical to a retired one is linked to it. The playbooks say what to do when Sentl answers with an internal error.
+
+**Tasks:**
+- [ ] Test: unit — each probed change (score scale, renamed field, wrong type, missing timestamp, unknown status) exits 5 naming the field; an unexpected error exits 6
+- [ ] Test: unit — `runs` lists the runs of the window and warns on a listing that does not reach its start; a renumbered question with identical text keeps its comparison
+- [ ] Implement; playbooks and SKILL.md exit codes
+- [ ] Commit
+
+**Done when:** none of the probed changes produces a report or a traceback.
+
+## R3: Every host: Claude Code, opencode, Codex, claude.ai and ChatGPT
+
+**Why:** the skill relies on Claude Code saving large tool results to a file; the operator wants it installable and usable in Claude Code, opencode, Codex and above all the claude.ai and ChatGPT web clients, where results are not saved to a file and the sandbox does not keep files between conversations.
+
+**Approach:** to be designed after a survey of how each host installs a skill, runs its scripts, connects a remote MCP server and handles large results; the design is shown to the operator before any code.
+
+**Tasks:**
+- [ ] Design, approved by the operator
+
+## R4: Portable across systems, time zones and languages
+
+**Why:** on Windows `detect` and `check` crash on a cp1252 console and a checkout gets CRLF in `install.sh`; the period boundaries are UTC midnights while the report date is local, and no doc says so; a report language other than `it` or `en` is refused with a message that does not say why; a timestamp without a time zone raises a TypeError.
+
+**Approach:** the script writes UTF-8 to its output on every system; `.gitattributes` keeps `*.sh` in LF; the README states the supported systems. The docs state that periods are counted in UTC and how the report date maps to them. An unsupported report language is refused with the list of supported ones; a timestamp without a time zone is read as UTC.
+
+**Tasks:**
+- [ ] Test: unit — output with non-ASCII text to a cp1252 stream; a report language outside the list is refused naming the supported ones; a naive timestamp is read as UTC
+- [ ] Implement; docs
+- [ ] Commit
+
+**Done when:** the tests pass and the README states systems, time zone and languages.
 
 ## M3: Build the theme inventory and collect search demand
 

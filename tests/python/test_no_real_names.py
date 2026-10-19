@@ -5,12 +5,13 @@ untracked files .gitignore does not exclude, and skips files that are not
 UTF-8 text. A hit is reported as `path:line` with what was found, never with
 the matched text, so a failing run prints no name and no secret.
 
-Names are kept as sha256 digests of each name, lowercased with accents
-stripped and words joined by one space, so this file names nobody either: add
-a name of up to three words as `digest("its normalised form")`. DENY_SHA256 is
-the list carried over from llm-rep. SENTL_ACCOUNT_DIGESTS holds the names read
-from Sentl accounts while developing this skill: organizations, projects,
-brands.
+The denied names are not in the repository in any form: a list of names, or of
+their unsalted digests, would disclose them to anyone who guesses one. The
+list is read from a file outside it, named by the SKILL_DENYLIST variable or,
+when unset, ~/.config/skill-denylist/digests.txt. Each line holds a name, or
+the sha256 digest of a name lowercased with accents stripped and words joined
+by one space; `#` starts a comment. Without the file the name check is
+skipped; the token and path checks still run.
 """
 
 import hashlib
@@ -24,71 +25,8 @@ import unittest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DENY_SHA256 = frozenset({
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-    "REMOVED",
-})
-
-SENTL_ACCOUNT_DIGESTS = frozenset({
-    "REMOVED",
-    "REMOVED",
-})
-
-# Real brands once used by mistake as fictional examples.
-EXAMPLE_DIGESTS = frozenset({
-    "REMOVED",
-})
-
-KNOWN_DIGESTS = DENY_SHA256 | SENTL_ACCOUNT_DIGESTS | EXAMPLE_DIGESTS
+DENYLIST_ENV = "SKILL_DENYLIST"
+DIGEST = re.compile(r"[0-9a-fA-F]{64}")
 
 # The value must start with a letter or digit, so `<REPLACE_WITH_TOKEN>` and
 # `$SENTL_TOKEN` pass, and so does prose where a backtick follows the scheme.
@@ -111,6 +49,27 @@ HOME_PATH_PATTERNS = (
 
 def digest(name):
     return hashlib.sha256(name.encode()).hexdigest()
+
+
+def normalised(name):
+    """`name` lowercased, without accents, its words joined by one space."""
+    return " ".join(tok for tok, _ in tokens_with_lines(name))
+
+
+def denylist_path(environ=os.environ):
+    return environ.get(DENYLIST_ENV) or os.path.join(os.path.expanduser("~"), ".config", "skill-denylist",
+                                                     "digests.txt")
+
+
+def load_denylist(path):
+    """The digests the file at `path` lists, a name hashed in its normalised form; None when it is missing."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except FileNotFoundError:
+        return None
+    entries = (line.split("#", 1)[0].strip() for line in lines)
+    return frozenset(e.lower() if DIGEST.fullmatch(e) else digest(normalised(e)) for e in entries if e)
 
 
 def tokens_with_lines(text):
@@ -144,8 +103,7 @@ def line_of(text, pos):
 def token_shaped(text):
     """(line, kind) for every string in `text` shaped like a credential."""
     hits = [(line_of(text, m.start()), kind) for kind, rx in TOKEN_PATTERNS for m in rx.finditer(text)]
-    hits += [(line_of(text, m.start()), "hex run") for m in HEX_RUN.finditer(text)
-             if m.group(0).lower() not in KNOWN_DIGESTS]
+    hits += [(line_of(text, m.start()), "hex run") for m in HEX_RUN.finditer(text)]
     # Requiring upper case, lower case and a digit keeps long snake_case identifiers out.
     hits += [(line_of(text, m.start()), "base64url run") for m in B64URL_RUN.finditer(text)
              if not HEX_RUN.fullmatch(m.group(0))
@@ -206,7 +164,10 @@ class RepositoryTest(unittest.TestCase):
         cls.files = repo_files(REPO_ROOT)
 
     def test_no_deny_listed_name(self):
-        found = scan(REPO_ROOT, self.files, names_finder(KNOWN_DIGESTS))
+        deny = load_denylist(denylist_path())
+        if deny is None:
+            self.skipTest(f"no deny-list file; set {DENYLIST_ENV} to check names")
+        found = scan(REPO_ROOT, self.files, names_finder(deny))
         self.assertEqual(found, [], "deny-listed names (digest prefix shown); replace them with fictional ones:\n"
                          + "\n".join(found))
 
@@ -247,6 +208,35 @@ class NamesFinderTest(unittest.TestCase):
         self.assertNotIn("zorblax", found[0].lower())
 
 
+class DenylistFileTest(unittest.TestCase):
+    """The list is read from a file outside the repository, so the repository holds no name in any form."""
+
+    def write(self, text):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        path = os.path.join(root, "digests.txt")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def test_digests_and_names_are_read_and_comments_skipped(self):
+        path = self.write(f"# planted names\n{digest('zorblax').upper()}\n\n  Casa   Velbrùn  \n")
+        self.assertEqual(load_denylist(path), frozenset({digest("zorblax"), digest("casa velbrun")}))
+
+    def test_a_missing_file_gives_no_list(self):
+        self.assertIsNone(load_denylist(os.path.join(tempfile.gettempdir(), "no-such-dir-x7", "digests.txt")))
+
+    def test_the_variable_names_the_file_and_the_default_is_under_the_user_config(self):
+        path = self.write("zorblax\n")
+        self.assertEqual(denylist_path({DENYLIST_ENV: path}), path)
+        self.assertEqual(denylist_path({}),
+                         os.path.join(os.path.expanduser("~"), ".config", "skill-denylist", "digests.txt"))
+
+    def test_this_file_holds_no_digest(self):
+        with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+            self.assertIsNone(re.search(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])", fh.read()))
+
+
 class TokenShapedTest(unittest.TestCase):
     # Built at run time so this file holds no string the check would flag.
     SK = "sk" + "-" + "a1B2c3D4" * 3
@@ -273,9 +263,9 @@ class TokenShapedTest(unittest.TestCase):
                      "pass it as an `Authorization: Bearer` header", "Authorization: Bearer ${SENTL_TOKEN}"]:
             self.assertEqual(self.kinds(text), [], text)
 
-    def test_long_identifiers_rules_and_known_digests_pass(self):
+    def test_long_identifiers_and_rules_pass(self):
         for text in ["def test_a_name_of_two_words_is_found_across_a_line_break(self):", "-" * 60,
-                     "NoRealNamesTestCaseWithAVeryLongCamelCaseIdentifierName", next(iter(DENY_SHA256)),
+                     "NoRealNamesTestCaseWithAVeryLongCamelCaseIdentifierName",
                      "risk_assessment_dimension_with_a_long_key_name", "sk-short"]:
             self.assertEqual(self.kinds(text), [], text)
 
