@@ -37,6 +37,8 @@ TOKEN_PATTERNS = (
     ("github token", re.compile(r"(?<![A-Za-z0-9])(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})")),
 )
 HEX_RUN = re.compile(r"(?<![0-9A-Za-z])[0-9a-fA-F]{40,}(?![0-9A-Za-z])")
+# A workflow step that pins an action to a commit: the hex run is a public commit id.
+PINNED_ACTION = re.compile(r"^\s*(?:-\s*)?uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}(?![0-9A-Za-z])", re.M)
 B64URL_RUN = re.compile(r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{40,}(?![A-Za-z0-9_-])")
 
 # A path segment before the slash means a URL or a deeper path, not a home directory.
@@ -103,7 +105,8 @@ def line_of(text, pos):
 def token_shaped(text):
     """(line, kind) for every string in `text` shaped like a credential."""
     hits = [(line_of(text, m.start()), kind) for kind, rx in TOKEN_PATTERNS for m in rx.finditer(text)]
-    hits += [(line_of(text, m.start()), "hex run") for m in HEX_RUN.finditer(text)]
+    pinned = {m.end() - 40 for m in PINNED_ACTION.finditer(text)}
+    hits += [(line_of(text, m.start()), "hex run") for m in HEX_RUN.finditer(text) if m.start() not in pinned]
     # Requiring upper case, lower case and a digit keeps long snake_case identifiers out.
     hits += [(line_of(text, m.start()), "base64url run") for m in B64URL_RUN.finditer(text)
              if not HEX_RUN.fullmatch(m.group(0))
@@ -262,6 +265,17 @@ class TokenShapedTest(unittest.TestCase):
         for text in ["Authorization: Bearer <REPLACE_WITH_TOKEN>", "-H 'Authorization: Bearer $SENTL_TOKEN'",
                      "pass it as an `Authorization: Bearer` header", "Authorization: Bearer ${SENTL_TOKEN}"]:
             self.assertEqual(self.kinds(text), [], text)
+
+    def test_an_action_pinned_to_a_commit_passes(self):
+        # A workflow pins an action to a public commit id, not a secret.
+        sha = "a1b2c3d4e5" * 4
+        for text in [f"      - uses: actions/checkout@{sha} # v7.0.1", f"uses: owner/some.repo@{sha}"]:
+            self.assertEqual(self.kinds(text), [], text)
+
+    def test_a_hex_run_after_an_at_sign_elsewhere_is_still_found(self):
+        sha = "a1b2c3d4e5" * 4
+        for text in [f"token@{sha}", f"- run: echo actions/checkout@{sha}"]:
+            self.assertEqual(self.kinds(text), ["hex run"], text)
 
     def test_long_identifiers_and_rules_pass(self):
         for text in ["def test_a_name_of_two_words_is_found_across_a_line_break(self):", "-" * 60,

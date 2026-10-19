@@ -8,7 +8,7 @@ set -uo pipefail
 # placeholder files for routes not built yet.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PAYLOAD="$REPO_ROOT/sentl-monitor"
+PAYLOAD="$REPO_ROOT/skills/sentl-monitor"
 SKILL="$PAYLOAD/SKILL.md"
 MONITOR="$PAYLOAD/scripts/monitor.py"
 PASS=0
@@ -24,7 +24,7 @@ has() {
 }
 
 if [ ! -f "$SKILL" ]; then
-    bad "sentl-monitor/SKILL.md missing; every check below reads it"
+    bad "skills/sentl-monitor/SKILL.md missing; every check below reads it"
 fi
 
 echo "=== Frontmatter ==="
@@ -39,32 +39,131 @@ has '^name: sentl-monitor$' "$SKILL" "frontmatter declares name: sentl-monitor"
 has '^description:'         "$SKILL" "frontmatter declares a description"
 has '^compatibility:'       "$SKILL" "frontmatter declares compatibility"
 
-# The agentskills.io spec caps compatibility at 500 characters.
-COMPAT_LEN=$(python3 - "$SKILL" <<'PY' 2>/dev/null
-import re, sys
-text = open(sys.argv[1], encoding="utf-8").read()
+# The limits every host applies: the agentskills.io spec (name, compatibility, metadata) and
+# claude.ai's upload (description <= 200 characters, no XML tags, "claude" and "anthropic"
+# reserved). The parser reads the YAML subset SKILL.md uses: plain, quoted and folded scalars
+# and one nested mapping.
+FM=$(python3 - "$SKILL" <<'PY' 2>/dev/null
+import json, re, sys
+text = open(sys.argv[1], encoding="utf-8").read().replace("\r\n", "\n")
 m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
 if not m:
-    print(-1); raise SystemExit
-value, grabbing = [], False
+    print("{}"); raise SystemExit
+fm, key, block, nested = {}, None, None, None
+def scalar(v):
+    v = v.strip()
+    if v[:1] == '"' and v[-1:] == '"':
+        return json.loads(v)
+    if v[:1] == "'" and v[-1:] == "'":
+        return v[1:-1].replace("''", "'")
+    return v
 for line in m.group(1).split("\n"):
-    if line.startswith("compatibility:"):
-        grabbing = True
-        value.append(line.split(":", 1)[1].strip().lstrip(">|-").strip())
+    if line.strip().startswith("#") or not line.strip():
+        if block is not None:
+            block.append("")
         continue
-    if grabbing:
-        if re.match(r"^[A-Za-z_]+:", line):
-            break
-        value.append(line.strip())
-print(len(" ".join(v for v in value if v)))
+    if not line.startswith(" "):
+        key, rest = line.split(":", 1)
+        rest = rest.strip()
+        block = nested = None
+        if rest in (">", ">-", "|", "|-"):
+            block = []
+            fm[key] = block
+        elif rest == "":
+            nested = fm[key] = {}
+        else:
+            fm[key] = scalar(rest)
+    elif block is not None:
+        block.append(line.strip())
+    elif nested is not None:
+        k, v = line.strip().split(":", 1)
+        nested[k] = v.strip()
+for k, v in fm.items():
+    if isinstance(v, list):
+        fm[k] = " ".join(x for x in v if x)
+print(json.dumps(fm))
 PY
 )
-COMPAT_LEN="${COMPAT_LEN:--1}"
-if [ "$COMPAT_LEN" -gt 0 ] && [ "$COMPAT_LEN" -le 500 ]; then
-    ok "compatibility is $COMPAT_LEN chars (<= 500)"
+fm() { python3 -c 'import json,sys; d=json.loads(sys.argv[1]); 
+for k in sys.argv[2].split("."): d = d.get(k, "") if isinstance(d, dict) else ""
+print(d if isinstance(d, str) else json.dumps(d))' "${FM:-{\}}" "$1"; }
+
+NAME="$(fm name)"
+FOLDER="$(basename "$PAYLOAD")"
+if [ "$NAME" = "$FOLDER" ]; then ok "name equals the folder ($FOLDER)"; else bad "name '$NAME' differs from the folder '$FOLDER'"; fi
+if [[ "$NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && [ "${#NAME}" -le 64 ]; then
+    ok "name is lowercase letters, digits and single hyphens, at most 64 characters"
 else
-    bad "compatibility is $COMPAT_LEN chars (must be 1..500)"
+    bad "name '$NAME' breaks the spec's pattern or length"
 fi
+if grep -qiE 'claude|anthropic' <<<"$NAME"; then bad "name holds a word claude.ai reserves"; else ok "name holds no word claude.ai reserves"; fi
+
+DESC="$(fm description)"
+if [ "${#DESC}" -gt 0 ] && [ "${#DESC}" -le 200 ]; then
+    ok "description is ${#DESC} characters (claude.ai allows 200)"
+else
+    bad "description is ${#DESC} characters (must be 1..200)"
+fi
+if grep -q '[<>]' <<<"$DESC"; then bad "description holds < or >"; else ok "description holds no < or >"; fi
+
+COMPAT="$(fm compatibility)"
+if [ "${#COMPAT}" -gt 0 ] && [ "${#COMPAT}" -le 500 ]; then
+    ok "compatibility is ${#COMPAT} chars (<= 500)"
+else
+    bad "compatibility is ${#COMPAT} chars (must be 1..500)"
+fi
+for host in "Claude Code" opencode Codex claude.ai ChatGPT; do
+    if grep -qF "$host" <<<"$COMPAT"; then ok "compatibility names $host"; else bad "compatibility names $host"; fi
+done
+
+if [ "$(fm license)" = "MIT" ]; then ok "license is MIT"; else bad "license is MIT (found '$(fm license)')"; fi
+VERSION="$(fm metadata.version)"
+if [[ "$VERSION" =~ ^\"[0-9]+\.[0-9]+\.[0-9]+\"$ ]]; then
+    ok "metadata.version is a quoted version string ($VERSION)"
+else
+    bad "metadata.version is a quoted version string, such as \"0.1.0\" (found '$VERSION')"
+fi
+
+if cmp -s "$REPO_ROOT/LICENSE" "$PAYLOAD/LICENSE"; then
+    ok "the payload's LICENSE equals the root one"
+else
+    bad "the payload's LICENSE equals the root one"
+fi
+
+echo ""
+echo "=== The body says when to use the skill ==="
+WHEN=$(awk '/^## When to use$/ {on=1; next} on && /^## / {exit} on' "$SKILL" 2>/dev/null)
+if [ -n "$WHEN" ]; then ok "SKILL.md has a '## When to use' section"; else bad "SKILL.md has a '## When to use' section"; fi
+# The trigger phrases sit in the description, which is all a host reads before choosing the skill.
+for phrase in "AI visibility" "GEO" "AEO" "LLM reputation"; do
+    if grep -qF "$phrase" <<<"$DESC"; then ok "the description names $phrase"; else bad "the description names $phrase"; fi
+done
+for phrase in "sentl-monitor adopt" "sentl-monitor report"; do
+    if grep -qF "$phrase" <<<"$WHEN"; then ok "'When to use' names $phrase"; else bad "'When to use' names $phrase"; fi
+done
+# 'When to use' chooses the route; what each route does is the Routes table's, said once.
+REPEATED=$(python3 - "$SKILL" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+when = re.search(r"^## When to use\n(.*?)(?=^## )", text, re.M | re.S)
+routes = re.search(r"^## Routes\n(.*?)(?=^## )", text, re.M | re.S)
+words = lambda s: re.findall(r"[a-z0-9<>/.-]+", s.lower())
+grams = lambda ws: {" ".join(ws[i:i + 4]) for i in range(len(ws) - 3)}
+cells = [row.split("|")[3] for row in (routes.group(1) if routes else "").splitlines()
+         if row.startswith("| `") and row.count("|") >= 4]
+when_grams = grams(words(when.group(1) if when else ""))
+for cell in cells:
+    for gram in sorted(grams(words(cell)) & when_grams):
+        print(gram)
+PY
+)
+if [ -z "$REPEATED" ]; then
+    ok "'When to use' repeats no wording of the Routes table"
+else
+    bad "'When to use' repeats the Routes table: $(tr '\n' ';' <<<"$REPEATED")"
+fi
+FIRST_H2=$(grep -m1 '^## ' "$SKILL" 2>/dev/null)
+if [ "$FIRST_H2" = "## When to use" ]; then ok "'When to use' is the body's first section"; else bad "'When to use' is the body's first section (first is '$FIRST_H2')"; fi
 
 echo ""
 echo "=== Router names the routes M1 ships ==="
@@ -158,7 +257,7 @@ fi
 
 echo ""
 echo "=== monitor.py --help, commands ==="
-for cmd in adopt detect runs ingest period method check charts; do
+for cmd in adopt detect runs ingest period method check charts doctor; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else

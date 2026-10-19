@@ -1,0 +1,19 @@
+{
+  "name": "sentl-monitor",
+  "version": "0.1.0",
+  "description": "Reports what AI assistants say about a brand or topic from a Sentl project's runs, compared with earlier periods. Use for AI visibility, GEO/AEO monitoring and LLM reputation reports.",
+  "author": {
+    "name": "Guidance Studio"
+  },
+  "homepage": "https://github.com/GuidanceStudio/sentl-monitor",
+  "repository": "https://github.com/GuidanceStudio/sentl-monitor",
+  "license": "MIT",
+  "keywords": [
+    "sentl",
+    "ai-visibility",
+    "geo",
+    "aeo",
+    "llm-reputation",
+    "mcp"
+  ]
+}

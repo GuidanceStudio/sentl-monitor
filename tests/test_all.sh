@@ -11,6 +11,7 @@ SUITES=(
     "test_structure.sh"
     "test_skill.sh"
     "test_install.sh"
+    "test_package.sh"
 )
 
 PASSED=()

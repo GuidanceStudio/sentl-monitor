@@ -1,0 +1,44 @@
+name: release
+
+# On a pushed v* tag: run the tests, check that the tag is SKILL.md's version, build the zip,
+# and attach it and its sha256 to the tag's GitHub release under fixed names, so
+# releases/latest/download/sentl-monitor.zip always serves the latest release.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Tests
+        run: bash tests/test_all.sh
+      - name: The tag is SKILL.md's version
+        run: |
+          version="$(python3 skills/sentl-monitor/scripts/monitor.py --version)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag $GITHUB_REF_NAME differs from SKILL.md's version $version." >&2
+            exit 1
+          fi
+      - name: Build the zip
+        run: python3 tools/build_zip.py
+      - name: Attach the zip and its sha256 to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+              --notes "sentl-monitor ${GITHUB_REF_NAME#v}. Upload sentl-monitor.zip as a skill; sentl-monitor.zip.sha256 holds its digest."
+          fi
+          gh release upload "$GITHUB_REF_NAME" dist/sentl-monitor.zip dist/sentl-monitor.zip.sha256 --clobber

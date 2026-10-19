@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 REPO = Path(__file__).resolve().parents[2]
-MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
+MONITOR = REPO / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 _spec = importlib.util.spec_from_file_location("monitor", MONITOR)
 monitor = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(monitor)

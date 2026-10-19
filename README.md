@@ -73,16 +73,108 @@ English and Italian answers only.
 
 ## Install
 
+| Host | Install with | Status |
+|---|---|---|
+| Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin install is not yet tested. |
+| opencode | `./install.sh --host agents` | Not yet tested: it installs, and `adopt` and `report` have not been run there. |
+| Codex | `./install.sh --host agents` | Not yet tested: it installs; reports wait for Sentl's run export. |
+| claude.ai | the release zip, uploaded as a skill | Not yet tested; reports wait for Sentl's run export, since a run's results do not fit in a conversation. |
+| ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and reports wait for Sentl's run export. |
+
+### Claude Code
+
+From the plugin marketplace, in a terminal:
+
 ```bash
-./install.sh            # installs for Claude Code, and for opencode when it is present
-./install.sh --check    # OK when the installed copy matches this repository, DRIFT otherwise
-./install.sh --force    # overwrites an existing install
+claude plugin install sentl-monitor --marketplace GuidanceStudio/sentl-monitor
 ```
 
-Then ask your assistant, in the folder where you keep client work, for
-`sentl-monitor adopt <project>` and then `sentl-monitor report`.
+The command adds the marketplace first when it is not added yet. If `claude plugin install
+--help` does not list `--marketplace`, add the marketplace, then install:
 
-**Optional: a keyword-data source.** Sentl gives no search data. Without a key, the skill
+```bash
+claude plugin marketplace add GuidanceStudio/sentl-monitor
+claude plugin install sentl-monitor@sentl-monitor
+```
+
+Or from a clone of this repository:
+
+```bash
+git clone https://github.com/GuidanceStudio/sentl-monitor
+cd sentl-monitor
+./install.sh --host claude
+```
+
+Connect Sentl, then run `/mcp`, select `sentinel-reputation` and sign in:
+
+```bash
+claude mcp add --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation
+```
+
+### opencode
+
+```bash
+./install.sh --host agents
+```
+
+opencode reads `~/.agents/skills` and `~/.claude/skills`. `install.sh` no longer writes
+`~/.config/opencode/skills`, and it removes an older copy there after asking. Add Sentl to
+`opencode.json` as a remote MCP server, as Sentl's setup page shows:
+https://app.sentl.ai/mcp/setup.
+
+### Codex
+
+```bash
+./install.sh --host agents
+```
+
+Connect Sentl as the server `sentinel-reputation`, then sign in:
+
+```bash
+codex mcp add sentinel-reputation --url https://app.sentl.ai/mcp/reputation
+codex mcp login sentinel-reputation
+```
+
+### claude.ai
+
+1. Download `sentl-monitor.zip` from the latest release,
+   https://github.com/GuidanceStudio/sentl-monitor/releases/latest/download/sentl-monitor.zip.
+   Its sha256 is in `sentl-monitor.zip.sha256`, next to it.
+2. In Settings → Capabilities, turn on code execution.
+3. In Customize → Skills, upload the zip.
+4. In Settings → Connectors, add a custom connector with the URL
+   `https://app.sentl.ai/mcp/reputation`, and sign in.
+
+On Team and Enterprise plans, an owner can add the skill for the whole organization.
+
+### ChatGPT
+
+OpenAI documents standalone skills in the ChatGPT desktop app, the Codex CLI and the
+IDE extension, and on the web only inside plugins. Whether the release zip uploads as a skill
+on chatgpt.com is not confirmed. Sentl connects as a connector in developer mode, with the URL
+`https://app.sentl.ai/mcp/reputation`.
+
+### Check, update and remove an install
+
+```bash
+./install.sh                # installs for every assistant it finds: ~/.claude, ~/.codex, ~/.config/opencode, codex or opencode on PATH
+./install.sh --check        # lists every install, its version, and whether it matches this repository
+./install.sh --force        # overwrites without asking; needed without a terminal
+./install.sh --uninstall    # removes sentl-monitor from ~/.claude/skills, ~/.agents/skills and ~/.config/opencode/skills
+```
+
+To update a clone, run `git pull` and then `./install.sh --force`.
+
+### First run
+
+`python3 <skill folder>/scripts/monitor.py doctor --study <folder>` reports the Python version,
+whether the study folder is writable, and whether it lies in a web sandbox whose files are
+deleted when the conversation ends. Then ask your assistant, in the folder where you keep client
+work, for `sentl-monitor adopt <project>` and then `sentl-monitor report`.
+
+### Optional: a keyword-data source
+
+Sentl gives no search data. Without a key, the skill
 collects Google autocomplete suggestions in the market's language and country. When a
 keyword-data MCP server is connected (Mangools is one; any server that returns monthly volume
 and related searches for a location and a language works), or when you supply an export file
@@ -211,9 +303,14 @@ README.md              this file
 LICENSE                MIT
 ARCHITECTURE.md        stages, files, schemas, MCP mapping, history model, gaps
 DEVPLAN.md             milestones
-install.sh             installs the skill for Claude Code and opencode
-sentl-monitor/         the skill payload
+install.sh             installs the skill for Claude Code, Codex and opencode
+.claude-plugin/        the Claude Code plugin and marketplace manifests
+.github/workflows/     the tests on Python 3.10 to 3.13; the release zip on a v* tag
+tools/build_zip.py     builds dist/sentl-monitor.zip, the zip claude.ai and ChatGPT upload
+skills/sentl-monitor/  the skill payload
   SKILL.md             router
+  LICENSE              copy of LICENSE, shipped in the zip
+  agents/openai.yaml   Codex's display fields and the Sentl MCP dependency
   adopt/ADOPT.md       route playbooks, one per route
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
@@ -222,7 +319,7 @@ sentl-monitor/         the skill payload
   setup/SETUP.md       planned
   snapshot/SNAPSHOT.md planned
   catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor (more with each route)
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```

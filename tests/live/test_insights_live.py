@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
+MONITOR = REPO / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 
 
 def load(path):

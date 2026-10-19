@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fixtures import StudyCase, models, project
 
-MONITOR = Path(__file__).resolve().parents[2] / "sentl-monitor" / "scripts" / "monitor.py"
+MONITOR = Path(__file__).resolve().parents[2] / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 
 
 class Utf8OutputTest(StudyCase, unittest.TestCase):

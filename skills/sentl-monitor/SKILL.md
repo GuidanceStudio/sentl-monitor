@@ -1,20 +1,18 @@
 ---
 name: sentl-monitor
 description: >-
-  Monitor what AI assistants tell people about a subject — a brand, a product category, a
-  production method or an organisation — with Sentl, through Sentl's MCP server. Routes:
-  `adopt <project>` (take a project that already exists in Sentl into a study folder) and
-  `report` (pool the runs since the previous report and write a dated Markdown report that
-  compares them with the earlier periods: what the assistants say, dimension by dimension,
-  with verbatim answers and cited sources; the first report opens with the method, later
-  ones with what changed).
-  Use for AI visibility, GEO or AEO monitoring, LLM reputation reports, or any report on a
-  Sentl project's runs.
+  Reports what AI assistants say about a brand or topic from a Sentl project's runs, compared
+  with earlier periods. Use for AI visibility, GEO/AEO monitoring and LLM reputation reports.
+license: MIT
 compatibility: >-
-  Requires python3 3.10+ (standard library only) and the Sentl MCP server connected to the
-  assistant (https://app.sentl.ai/mcp/setup). The skill makes no model calls and stores no
-  token. Writes to Sentl need the Owner or Admin role and the operator's approval each time;
-  the adopt and report routes only read. Assistant-neutral.
+  Python 3.10+ (standard library only) and Sentl's MCP server connected to the assistant
+  (https://app.sentl.ai/mcp/setup). Tested in Claude Code, which keeps the study folder on
+  disk. opencode and Codex install it; not tested there yet. claude.ai and ChatGPT need code
+  execution, and reports there wait for Sentl's run export. Makes no model calls and stores
+  no token.
+metadata:
+  version: "0.1.0"
+  homepage: https://github.com/GuidanceStudio/sentl-monitor
 ---
 
 # sentl-monitor
@@ -23,6 +21,15 @@ A Sentl project asks its questions to several researcher models; a judge scores 
 from 1 to 5 against a rubric written for that question. This skill keeps a **study folder**
 per monitored subject, reads the project's runs into it, and writes reports a client can
 read without having seen an earlier one.
+
+## When to use
+
+Use it when someone asks what AI assistants tell people about a brand, a product category, a
+production method or an organisation, and the answers are measured in a Sentl project. Choose
+the route by the state of the study:
+
+- No study folder holds the Sentl project yet: `sentl-monitor adopt <project>`.
+- The study folder exists and runs have completed after its last report: `sentl-monitor report`.
 
 ## Routes
 
@@ -43,7 +50,8 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
   operator the connection steps from https://app.sentl.ai/mcp/setup.
 - **Writes need the operator's approval, each time.** `create-project-tool`,
   `save-project-questions-tool`, `update-project-settings-tool` and `trigger-run-tool` change
-  the account or spend credits; `adopt` and `report` never call them.
+  the account or spend credits, and need the Owner or Admin role in the organization; `adopt`
+  and `report` never call them.
 - **Saving a response into `inbox/`.** The script reads Sentl's responses from files and never
   calls Sentl. When the host saved a large response to a file and says where, copy that file
   with `cp`; a host may word this as an error ("result exceeds maximum allowed tokens. Output
@@ -54,7 +62,11 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
 - **Never write** a token, an organization name or any account data into the skill's own
   directory. Study folders live where the operator keeps client work.
 - **The script.** `python3 <skill dir>/scripts/monitor.py <command> --study <folder> ...`
-  (`--help` lists the commands). Exit codes: 0 done; 1 `check` found problems; 2 input refused
+  (`--help` lists the commands, `--version` prints the skill's version). On a host where the
+  skill has not run before, run `monitor.py doctor --study <folder>` first: it reports the
+  Python version, whether the folder is writable, and whether it lies in a web sandbox whose
+  files are deleted when the conversation ends. Exit codes: 0 done; 1 `check` or `doctor` found
+  problems; 2 input refused
   (the message says why and what to do); 3 run not final yet; 4 no run left in the period;
   5 a Sentl response does not have the shape the skill reads (the message names the tool and the
   field): Sentl changed what it returns, so stop, do not edit the saved file, and tell the

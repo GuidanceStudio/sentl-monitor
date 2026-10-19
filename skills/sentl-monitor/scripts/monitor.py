@@ -2,9 +2,9 @@
 """sentl-monitor's deterministic steps. It reads the Sentl MCP responses the
 assistant saved into a study folder and never calls Sentl.
 
-Exit codes: 0 done; 1 check found problems; 2 input refused; 3 run not final;
-4 no run left in the period; 5 a Sentl response does not have the shape the skill
-reads; 6 unexpected error.
+Exit codes: 0 done; 1 check or doctor found problems; 2 input refused; 3 run not
+final; 4 no run left in the period; 5 a Sentl response does not have the shape the
+skill reads; 6 unexpected error.
 """
 
 import argparse
@@ -16,10 +16,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sentlmon import adopt, charts, check, detect, ingest, method, period, runs, schema  # noqa: E402
+# Checked before the other modules load, so an older Python gets one line instead of a syntax error.
+from sentlmon import doctor  # noqa: E402
+
+if doctor.python_problem():
+    print(doctor.python_problem(), file=sys.stderr)
+    sys.exit(2)
+
+from sentlmon import adopt, charts, check, detect, frontmatter, ingest, method, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
+
+
+def _skill_version():
+    """SKILL.md's version; "unknown" when its frontmatter cannot be read, so no command fails on it."""
+    try:
+        return frontmatter.version()
+    except (OSError, ValueError):
+        return "unknown"
 
 
 def _parser():
@@ -27,6 +42,8 @@ def _parser():
     p = argparse.ArgumentParser(prog="monitor.py", description=__doc__.split("\n\n")[0])
     debug = f"on an unexpected error, print the traceback (or set {DEBUG_ENV}=1)"
     p.add_argument("--debug", action="store_true", help=debug)
+    p.add_argument("--version", action="version", version=_skill_version(),
+                   help="print the skill's version, from SKILL.md, and exit")
     # Accepted after the command too; SUPPRESS keeps the command's default from overwriting a
     # --debug given before it.
     common = argparse.ArgumentParser(add_help=False)
@@ -84,6 +101,9 @@ def _parser():
     g = command("charts", "write a report's figures as md2 chart tables for a deck")
     g.add_argument("--study", default=".")
     g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
+
+    h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
+    h.add_argument("--study", help="study folder to check (optional)")
     return p
 
 
@@ -120,6 +140,10 @@ def main(argv=None):
                   "in history/reports.json.")
         elif args.command == "charts":
             print(charts.write(args.study, args.date))
+        elif args.command == "doctor":
+            lines, ok = doctor.report(args.study, skill_version=_skill_version())
+            print("\n".join(lines))
+            return 0 if ok else 1
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

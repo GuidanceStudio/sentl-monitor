@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-MONITOR = REPO / "sentl-monitor" / "scripts" / "monitor.py"
+MONITOR = REPO / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 
 
 @unittest.skipUnless(os.environ.get("RUN_LIVE") == "1" and os.environ.get("SENTL_LIVE_STUDY")

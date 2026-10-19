@@ -1,0 +1,11 @@
+interface:
+  display_name: "Sentl Monitor"
+  short_description: "What AI assistants say about a brand or topic, from Sentl runs"
+  default_prompt: "Use $sentl-monitor to write the report on a Sentl project's runs since the previous report."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "sentinel-reputation"
+      description: "Sentl's MCP server, read-only for the adopt and report routes"
+      transport: "streamable_http"
+      url: "https://app.sentl.ai/mcp/reputation"

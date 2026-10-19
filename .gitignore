@@ -12,3 +12,6 @@ __pycache__/
 .env
 *.tmp
 .DS_Store
+
+# Release builds
+/dist/
