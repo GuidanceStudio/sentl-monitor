@@ -256,8 +256,90 @@ else
 fi
 
 echo ""
+echo "=== Hosts without a lasting folder (R3b) ==="
+has "Hosts without a lasting folder" "$SKILL" "SKILL.md has the rule for hosts without a lasting folder"
+# The rule, from its bold title to the next bullet: doctor first, unpack before the first
+# command, pack after check, both files offered for download.
+RULE=$(awk '/\*\*Hosts without a lasting folder/ {on=1} on && /^- \*\*/ && !/Hosts without a lasting folder/ {exit} on' "$SKILL" 2>/dev/null)
+for word in "monitor.py doctor" "unpack" "monitor.py pack" "download"; do
+    if grep -qF "$word" <<<"$RULE"; then ok "the rule names $word"; else bad "the rule names $word"; fi
+done
+# Positions in the rule: doctor, then unpack, then check, then pack.
+ORDERED=$(python3 - "$RULE" <<'PY'
+import sys
+rule = sys.argv[1]
+at = [rule.find(w) for w in ("doctor", "unpack", "check", "monitor.py pack")]
+print("yes" if all(n >= 0 for n in at) and at == sorted(at) else "no")
+PY
+)
+if [ "$ORDERED" = "yes" ]; then
+    ok "the rule says doctor, then unpack, then pack after check"
+else
+    bad "the rule says doctor, then unpack, then pack after check"
+fi
+# In each playbook the first command run (`scripts/monitor.py <command>`, not a mention in prose)
+# is doctor, in the section that opens the route (ADOPT §2, REPORT §1), the second is unpack, and
+# pack comes after the command that closes the route: check in report, adopt in adopt.
+playbook_order() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+last, section = sys.argv[2], sys.argv[3]
+commands = [(m.start(), m.group(1)) for m in re.finditer(r"scripts/monitor\.py (\w+)", text)]
+opens = text.find(section)
+nxt = text.find("\n## ", opens + 1)
+names = [c for _, c in commands]
+first_ok = names[:2] == ["doctor", "unpack"] and opens >= 0 and opens < commands[0][0] < (nxt if nxt >= 0 else len(text))
+pack = [at for at, c in commands if c == "pack"]
+closing = [at for at, c in commands if c == last]
+last_ok = bool(pack) and bool(closing) and pack[0] > max(closing)
+print(("doctor-unpack-first " if first_ok else "") + ("pack-last" if last_ok else ""))
+PY
+}
+for spec in "adopt/ADOPT.md:adopt:## 2. Study folder" "report/REPORT.md:check:## 1. Preflight"; do
+    rel="${spec%%:*}"; rest="${spec#*:}"; closing="${rest%%:*}"; section="${rest#*:}"
+    file="$PAYLOAD/$rel"; name="$(basename "$file")"
+    found=$(playbook_order "$file" "$closing" "$section")
+    if grep -q "doctor-unpack-first" <<<"$found"; then
+        ok "$name runs monitor.py doctor first, in '$section', then monitor.py unpack"
+    else
+        bad "$name runs monitor.py doctor first, in '$section', then monitor.py unpack"
+    fi
+    if grep -q "pack-last" <<<"$found"; then
+        ok "$name runs monitor.py pack after monitor.py $closing"
+    else
+        bad "$name runs monitor.py pack after monitor.py $closing"
+    fi
+    has "Hosts without a lasting folder|without a lasting folder" "$file" "$name says when the pack steps apply"
+    if grep -qF "Project's files" "$file"; then
+        ok "$name says to keep the latest pack in the Project's files"
+    else
+        bad "$name says to keep the latest pack in the Project's files"
+    fi
+done
+# What the user keeps, and which pack to unpack.
+for word in "PDF" "Project's files" "latest date" "keep"; do
+    if grep -qF "$word" <<<"$RULE"; then ok "the rule names $word"; else bad "the rule names $word"; fi
+done
+# The charts are offered for download once step 12 has written them, never before.
+CHARTS_OFFER=$(python3 - "$PAYLOAD/report/REPORT.md" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+step12 = text.find("## 12.")
+offers = [m.start() for m in re.finditer(r"charts\.md[^\n]*download|download[^\n]*charts", text)]
+print("yes" if step12 >= 0 and offers and min(offers) > text.find("monitor.py charts", step12) > step12 else "no")
+PY
+)
+if [ "$CHARTS_OFFER" = "yes" ]; then
+    ok "REPORT.md offers the charts for download after step 12 writes them"
+else
+    bad "REPORT.md offers the charts for download after step 12 writes them"
+fi
+has "pack's manifest" "$SKILL" "SKILL.md names exit 5 for a pack's manifest it cannot read"
+
+echo ""
 echo "=== monitor.py --help, commands ==="
-for cmd in adopt detect runs ingest period method check charts doctor; do
+for cmd in adopt detect runs ingest period method check charts doctor pack unpack; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else

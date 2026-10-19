@@ -3,8 +3,8 @@
 assistant saved into a study folder and never calls Sentl.
 
 Exit codes: 0 done; 1 check or doctor found problems; 2 input refused; 3 run not
-final; 4 no run left in the period; 5 a Sentl response does not have the shape the
-skill reads; 6 unexpected error.
+final; 4 no run left in the period; 5 a Sentl response, or a pack's manifest, does not
+have the shape the skill reads; 6 unexpected error.
 """
 
 import argparse
@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, detect, frontmatter, ingest, method, period, runs, schema  # noqa: E402
+from sentlmon import adopt, charts, check, detect, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -104,6 +104,17 @@ def _parser():
 
     h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
     h.add_argument("--study", help="study folder to check (optional)")
+
+    k = command("pack", "write the state the next report needs as one zip, to carry a study between web "
+                        "conversations")
+    k.add_argument("--study", default=".")
+    k.add_argument("--full", action="store_true", help="hold every run and period, to move or archive a study")
+    k.add_argument("--out", help="the zip to write, or a folder for it (default: next to the study folder, "
+                                 "named <study folder>-<last report date>.sentl-pack.zip)")
+
+    u = command("unpack", "check a pack and write its files into the study folder")
+    u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
+    u.add_argument("pack", help="the pack written by pack")
     return p
 
 
@@ -138,12 +149,20 @@ def main(argv=None):
             print("check passed: quotes are verbatim, figures and counts are the period's, sections are in order, "
                   "and no id, key, model id, file name or credit figure appears. The report is recorded as final "
                   "in history/reports.json.")
+            if doctor.host_sandbox(doctor.SANDBOX_ROOTS) or doctor.sandbox_root(args.study, doctor.SANDBOX_ROOTS):
+                print(f"This host deletes its files when the conversation ends: run monitor.py pack --study "
+                      f"{args.study} --out <the folder the host offers for download>, copy the report there, and "
+                      "offer the report and the pack for download.")
         elif args.command == "charts":
             print(charts.write(args.study, args.date))
         elif args.command == "doctor":
             lines, ok = doctor.report(args.study, skill_version=_skill_version())
             print("\n".join(lines))
             return 0 if ok else 1
+        elif args.command == "pack":
+            print(pack.pack(args.study, args.out, args.full, skill_version=_skill_version()))
+        elif args.command == "unpack":
+            print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
@@ -153,7 +172,7 @@ def main(argv=None):
     except period.BelowFloor as exc:
         print(str(exc), file=sys.stderr)
         return 4
-    except schema.Mismatch as exc:
+    except (schema.Mismatch, pack.Unknown) as exc:
         print(str(exc), file=sys.stderr)
         return 5
     except KeyboardInterrupt:

@@ -406,7 +406,10 @@ def build(root, date, models_file=None):
     if not reports:
         # The periods before a first report, and the halves of its period, are built again each
         # time it is built, so none is left over. The halves of other dates belong to their own
-        # reports and stay.
+        # reports and stay. The runs of the rebuilt periods must all be here, or they would be
+        # built again from fewer runs.
+        folder.require_runs([load_json(p) for p in periods_dir.glob("*.json")
+                             if p.stem < date and load_json(p).get("rebuilt")], date)
         for path in periods_dir.glob("*.json"):
             if path.stem < date and load_json(path).get("rebuilt"):
                 path.unlink()
@@ -444,6 +447,8 @@ def build(root, date, models_file=None):
     dates |= {p.stem for p in periods_dir.glob("*.json") if p.stem < date and load_json(p).get("rebuilt")}
     prevs = [load_json(periods_dir / f"{d}.json") for d in sorted(dates, reverse=True)[:K]
              if (periods_dir / f"{d}.json").exists()]
+    # The answers of the previous period are read.
+    folder.require_runs(prevs[:1], date)
     cache = {}
 
     def run_of(key, run_id):

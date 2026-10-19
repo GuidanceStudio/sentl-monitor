@@ -390,6 +390,7 @@ def check(root, report_path, date=None):
     comparison = period.get("comparison") or {}
     previous_path = folder.path("history", "periods", f"{comparison.get('previous')}.json")
     previous = load_json(previous_path) if comparison.get("previous") and previous_path.exists() else None
+    folder.require_runs([period] + ([previous] if previous else []), date)
     binding = folder.binding
     lang = study["report_language"]
     text = report_path.read_text(encoding="utf-8")

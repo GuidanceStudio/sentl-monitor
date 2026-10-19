@@ -8,8 +8,8 @@ compatibility: >-
   Python 3.10+ (standard library only) and Sentl's MCP server connected to the assistant
   (https://app.sentl.ai/mcp/setup). Tested in Claude Code, which keeps the study folder on
   disk. opencode and Codex install it; not tested there yet. claude.ai and ChatGPT need code
-  execution, and reports there wait for Sentl's run export. Makes no model calls and stores
-  no token.
+  execution; there a study travels between conversations as a pack file the user keeps, and
+  reports wait for Sentl's run export. Makes no model calls and stores no token.
 metadata:
   version: "0.1.0"
   homepage: https://github.com/GuidanceStudio/sentl-monitor
@@ -62,18 +62,29 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
 - **Never write** a token, an organization name or any account data into the skill's own
   directory. Study folders live where the operator keeps client work.
 - **The script.** `python3 <skill dir>/scripts/monitor.py <command> --study <folder> ...`
-  (`--help` lists the commands, `--version` prints the skill's version). On a host where the
-  skill has not run before, run `monitor.py doctor --study <folder>` first: it reports the
-  Python version, whether the folder is writable, and whether it lies in a web sandbox whose
-  files are deleted when the conversation ends. Exit codes: 0 done; 1 `check` or `doctor` found
+  (`--help` lists the commands, `--version` prints the skill's version). Run
+  `monitor.py doctor --study <folder>` first in every conversation: it reports the Python
+  version, whether the folder is writable, and whether it lies in a web sandbox whose files are
+  deleted when the conversation ends. Exit codes: 0 done; 1 `check` or `doctor` found
   problems; 2 input refused
   (the message says why and what to do); 3 run not final yet; 4 no run left in the period;
   5 a Sentl response does not have the shape the skill reads (the message names the tool and the
   field): Sentl changed what it returns, so stop, do not edit the saved file, and tell the
-  operator the tool and the field, since the skill needs an update; 6 unexpected error: stop, give
+  operator the tool and the field, since the skill needs an update; a pack's manifest written by
+  a later version of the skill is exit 5 too; 6 unexpected error: stop, give
   the operator the one-line message, and run the same command again with `--debug` to show where
   it failed. A file holding another tool's response, or no readable file, is exit 2: save the
   right response to it.
+- **Hosts without a lasting folder.** When `monitor.py doctor` reports a web sandbox (claude.ai,
+  ChatGPT), the study folder is deleted when the conversation ends, so the study travels as a
+  pack, one zip file. Before any other command, run `monitor.py unpack --study <folder> <pack>`
+  on the pack the user attached or the one kept in the Project's files; with several packs,
+  unpack the one with the latest date in its name. When the route ends (after `check` in
+  `report`, after the operator's answers in `adopt`), run `monitor.py pack --study <folder>
+  --out <folder the host offers for download>`, copy the report and its PDF, if one was made, to
+  the same folder, and offer them for download. Tell the user to keep the report and the new
+  pack and, when the host has Projects, to put the pack in the Project's files in place of the
+  previous one: the next conversation reads it from there. The playbooks say where.
 - **Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
   its cause. Call the tool once more. If it fails again, `get-run-results-tool` records the run as
   unavailable and the route goes on without it (the playbooks say how); any other tool stops the

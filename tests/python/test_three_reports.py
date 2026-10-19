@@ -18,32 +18,45 @@ NOVEMBER_CHANGES = (
     f"> {ANSWERS[('prezzo-1', GEM)][0]}\n\n«{PRICE}», Orbit Reason, nel periodo precedente.\n\n"
     f"> {CHEAPER}\n\n«{PRICE}», Orbit Reason, in questo periodo.\n\nSalute è invariata.")
 DECEMBER_CHANGES = "Salute è invariata. Prezzo ha un nuovo punto di partenza."
+CHEAPER_PRICE = {("prezzo-1", GEM): (CHEAPER, 4, "positive", ["https://prezzi.example/avena"])}
+
+
+def first_two_reports(case):
+    """The study adopted, then its October and November reports published."""
+    case.adopt(at=ADOPTED)
+    case.answer_operator()
+    case.ingest_all(runs(OCT, 9101))
+    case.detect(project(), "2026-10-31T12:00:00Z")
+    case.publish("2026-10-31")
+
+    # salute-2 is reworded in Sentl between the second and third November run.
+    case.detect(edited(text=NEW_TEXT), "2026-11-30T12:00:00Z")
+    case.ingest_all(runs(NOV[:2], 9201, overrides=CHEAPER_PRICE)
+                    + runs(NOV[2:], 9203, overrides=CHEAPER_PRICE, texts={"salute-2": NEW_TEXT}))
+    case.publish("2026-11-30", changes=NOVEMBER_CHANGES)
+
+
+def december_runs():
+    """The December runs: Zenith Answer answers from the second one on."""
+    return (runs(DEC[:1], 9301, overrides=CHEAPER_PRICE, texts={"salute-2": NEW_TEXT})
+            + runs(DEC[1:], 9302, overrides=CHEAPER_PRICE, texts={"salute-2": NEW_TEXT}, models=[GPT, GEM, NEW]))
+
+
+def third_report(case):
+    """The December report: prezzo-1's rubric is rewritten and Zenith Answer added after the
+    first December run."""
+    case.detect(edited(text=NEW_TEXT, rubric="Prezzo corretto, con la fonte del listino", add_model=NEW),
+                "2026-12-31T12:00:00Z")
+    case.ingest_all(december_runs())
+    case.publish("2026-12-31", changes=DECEMBER_CHANGES)
 
 
 class ThreeReportsTest(StudyCase, unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.adopt(at=ADOPTED)
-        self.answer_operator()
-        cheaper = {("prezzo-1", GEM): (CHEAPER, 4, "positive", ["https://prezzi.example/avena"])}
-
-        self.ingest_all(runs(OCT, 9101))
-        self.detect(project(), "2026-10-31T12:00:00Z")
-        self.publish("2026-10-31")
-
-        # salute-2 is reworded in Sentl between the second and third November run.
-        self.detect(edited(text=NEW_TEXT), "2026-11-30T12:00:00Z")
-        self.ingest_all(runs(NOV[:2], 9201, overrides=cheaper)
-                        + runs(NOV[2:], 9203, overrides=cheaper, texts={"salute-2": NEW_TEXT}))
-        self.publish("2026-11-30", changes=NOVEMBER_CHANGES)
-
-        # prezzo-1's rubric is rewritten and Zenith Answer added after the first December run.
-        self.detect(edited(text=NEW_TEXT, rubric="Prezzo corretto, con la fonte del listino", add_model=NEW),
-                    "2026-12-31T12:00:00Z")
-        self.ingest_all(runs(DEC[:1], 9301, overrides=cheaper, texts={"salute-2": NEW_TEXT})
-                        + runs(DEC[1:], 9302, overrides=cheaper, texts={"salute-2": NEW_TEXT}, models=[GPT, GEM, NEW]))
-        self.publish("2026-12-31", changes=DECEMBER_CHANGES)
+        first_two_reports(self)
+        third_report(self)
         self.reports = {d: (self.study / f"reports/{d}.md").read_text(encoding="utf-8")
                         for d in ("2026-10-31", "2026-11-30", "2026-12-31")}
 

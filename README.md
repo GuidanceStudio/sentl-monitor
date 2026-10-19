@@ -170,7 +170,9 @@ To update a clone, run `git pull` and then `./install.sh --force`.
 `python3 <skill folder>/scripts/monitor.py doctor --study <folder>` reports the Python version,
 whether the study folder is writable, and whether it lies in a web sandbox whose files are
 deleted when the conversation ends. Then ask your assistant, in the folder where you keep client
-work, for `sentl-monitor adopt <project>` and then `sentl-monitor report`.
+work, for `sentl-monitor adopt <project>` and then `sentl-monitor report`. In a web sandbox,
+download the pack the assistant writes at the end of each route (`monitor.py pack`) and attach
+it to the next conversation: it holds the study's state, and the assistant unpacks it first.
 
 ### Optional: a keyword-data source
 
@@ -319,7 +321,7 @@ skills/sentl-monitor/  the skill payload
   setup/SETUP.md       planned
   snapshot/SNAPSHOT.md planned
   catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor, pack, unpack (more with each route)
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```

@@ -25,8 +25,23 @@ organization; the User role is enough for this route.
 ## 2. Study folder
 
 Ask where the study folder is, or propose `./<subject>-study/` in the current directory. It
-must not be inside this skill's directory. Create `$S/inbox/`. If `$S/study.json` exists, the
-project joins that study; say so.
+must not be inside this skill's directory. Then, in every conversation:
+
+```bash
+python3 <skill>/scripts/monitor.py doctor --study "$S"
+```
+
+Exit 1: the folder cannot be written; choose another. When `doctor` reports a web sandbox, the
+host has no lasting folder (SKILL.md), and a project that joins a study already carried as a
+pack needs that pack: the one the user attached, or the one kept in the Project's files; with
+several packs, the one with the latest date in its name. Unpack it before any other command,
+and stop on a refusal, telling the operator why:
+
+```bash
+python3 <skill>/scripts/monitor.py unpack --study "$S" <pack>
+```
+
+Create `$S/inbox/`. If `$S/study.json` exists, the project joins that study; say so.
 
 ## 3. Find the project
 
@@ -121,3 +136,14 @@ its runs span at least 14 days.
 Runs older than this adoption are read with no recorded configuration: an answer to a
 question worded differently then is left out, and a run with too many of those is left out
 of its period; `report` lists them.
+
+On a host without a lasting folder, unless `report` follows in this conversation, pack the
+study so the operator's answers are not lost when the conversation ends:
+
+```bash
+python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder>
+```
+
+`<folder>` is one the host offers files for download from. Offer the pack for download. Tell the
+user to keep it and, when the host has Projects, to put it in the Project's files: the first
+report reads it from there, or from the pack attached to the new conversation.

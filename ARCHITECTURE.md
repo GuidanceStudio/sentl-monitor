@@ -49,6 +49,9 @@ is a new version inside the same folder, so the history stays in one place.
 A snapshot folder has the same layout without `brief.md`, `seeds.json`, `volumes.json` and
 `search-demand.json`, and holds one run and one report.
 
+On a host that deletes its files when the conversation ends, the folder travels between
+conversations as a pack (§Hosts without a lasting folder).
+
 The skill's repository ignores study and snapshot folders. They hold client data.
 
 ## Where state lives
@@ -1079,6 +1082,89 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 `nothing_new`. Unattended, it asks no question and treats every gate as described in the
 `report` stage.
 
+## Hosts without a lasting folder
+
+On claude.ai and ChatGPT the scripts run in a sandbox whose files are deleted when the
+conversation ends; `monitor.py doctor`, the first command of every conversation, reports it.
+There the study travels between conversations as a pack: one zip the user downloads at the end
+of a route and attaches to the next conversation, or keeps in the Project's files where the
+host has Projects, replacing the previous pack. A conversation unpacks the pack with the latest
+date before its next command and packs the study again once `check` passes (in `adopt`, once
+the operator's answers are written); `check` passing in a sandbox prints a reminder to do so.
+The report, its PDF if one was made, and the pack are copied to the folder the host offers for
+download. Claude Code, opencode and Codex keep the folder on disk and pack only to move or
+archive a study.
+
+### The pack
+
+`monitor.py pack --study S [--full] [--out FILE|FOLDER]` writes
+`<study folder name>-<last final report date>.sentl-pack.zip`, or
+`<study folder name>.sentl-pack.zip` before the first final report, next to the study folder;
+`--out` names the zip or the folder to write it in. It holds `manifest.json` and the state the
+next report reads:
+
+| Held | What the next report reads it for |
+|---|---|
+| `study.json`, `sentl.json` | the operator's answers and the ids |
+| `search-demand.json`, when the study has one | `method` states whether search demand was collected |
+| `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
+| `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
+| the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
+| the runs of the latest report's period, as `reports.json` and its period file list them, those it left out under the judged floor included, and every run started after its last run | the previous period's answers (verdict changes, episodes, presence sources) and the runs of the next period |
+
+Before the first final report the pack holds every run, since the first report rebuilds the
+earlier periods from them. `--full` holds every run and every period file, to move a study to
+a CLI host or archive it. `inbox/`, `history/material/` and `reports/` are never packed: the
+inbox and the material are built again, and each report is downloaded on its own. A pack
+without `--full` serves the next report. Building the latest report's period again from it
+gives the same file when that report was the first one compared on the two halves of its
+period; any other latest report also reads the runs of the period before it, or rebuilds the
+periods before a first report from their runs, which only `--full` holds. `period` and `check`
+refuse such a report (exit 2) when a run they read, or a rebuilt period they would replace
+lists, is missing from `history/runs/`, and say to unpack a pack written with `--full`. A pack of
+a live study of two projects after its first report, 30 runs, is 2.4 MB.
+
+The manifest:
+
+```json
+{
+  "schema": "sentl-monitor/pack@1",
+  "skill_version": "0.1.0",
+  "full": false,
+  "last_report": "2026-11-30",
+  "final_reports": 2,
+  "projects": [{"key": "brand", "project_id": 501}],
+  "files": [{"path": "history/reports.json", "size": 1234, "sha256": "<64 hex digits>"}]
+}
+```
+
+`last_report` is the date of the latest final report, or null. `pack` refuses (exit 2) a state
+`unpack` would refuse, a file over 50 MB or more than 200 MB in all, naming the largest files. The zip follows the rules of
+`tools/build_zip.py`: entries sorted, dated 1980-01-01, 0644 for a file and 0755 for a folder,
+so two packs of one folder are identical byte for byte; the manifest holds no creation time for
+the same reason.
+
+`monitor.py unpack --study S PACK` checks the whole pack and the target before it writes a
+file. It refuses, with exit 2: an entry that is a link, an absolute path (a drive letter
+included), or holds `..`, a backslash or an empty part; an entry held twice; a file the
+manifest does not list, or a listed file the zip lacks; a path a pack never holds (anything but
+the state files, the versions and runs of the manifest's projects, and the period files); a
+file declared over 50 MB, or more than 200 MB declared in all; a file whose size in the zip,
+size read or sha256 differs from the manifest, read in chunks; a target where a part of a path
+is a link, a file stands where a folder goes, or a folder where a file goes; a target that holds
+files and no `sentl.json`; a study folder whose `sentl.json` binds a project the pack does not
+hold; a pack whose last final report is older than the folder's. A manifest schema other than
+`sentl-monitor/pack@1` is exit 5: a later version of the skill wrote the pack. A folder the pack
+writes into, or the nearest existing folder above one it creates, that cannot be written is
+refused with exit 2 too, before any file moves. The files are then written to a hidden staging
+folder inside the target, on the target's file system, each created new without following a
+link, and moved into place one by one; a file they replace is first moved aside into the staging
+folder. On any failure the files moved aside are put back, the new files and folders are removed
+(the target too, when the unpack created it), and the staging folder is removed: the target is as
+it was, and the command exits 6. Unpacking leaves the folder's other files as they are; it prints the last final report's date, the runs
+held per project, and that the next report covers the runs started after the last run of that
+report.
+
 ## Failure and degradation
 
 | Situation | What the skill does |
@@ -1095,6 +1181,12 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 | Run listing whose oldest run started after the window's start | `runs` warns that the listing may be cut (no paging) or the project has no earlier run; the operator is told |
 | Unexpected error in `monitor.py` | exit 6 with a one-line message; `--debug` prints the traceback |
 | Run results returned as a server error | recorded in `history/unavailable.json`, listed to the operator, requested again at every invocation; blocks neither a report nor a write |
+| A pack changed after it was written, holding a link or a path outside the study folder, over the size caps, older than the folder's last report, or of another study's projects; a target that is not an empty folder or a study folder | `unpack` refuses it (exit 2) and writes nothing; the operator is told why |
+| A folder the unpack writes into that cannot be written | `unpack` refuses it (exit 2) before any file moves |
+| A write or a move that fails while unpacking | the files moved aside are put back, the new files and folders and the staging folder are removed, and the study folder is left as it was (exit 6) |
+| A state over the size caps | `pack` refuses it (exit 2), naming the largest files |
+| A report built or checked again in a folder unpacked from a pack without `--full` | `period` or `check` refuses it (exit 2) when a run it reads is missing, and says to unpack a pack written with `--full` |
+| A pack whose manifest schema the skill does not read | `unpack` refuses it (exit 5): a later version wrote it, and the skill needs an update |
 | Run `completed_with_warnings` with enough judged answers | included; unscored answers excluded and counted in coverage |
 | Unscored answer | `score` and `sentiment` set to `null` (Sentl returns `neutral` on it) |
 | Response with no answer | not judged, counted against coverage, left out of presence |

@@ -22,6 +22,26 @@ failed and that `report` can be run again later.
 
 ## 1. Preflight
 
+In every conversation, first:
+
+```bash
+python3 <skill>/scripts/monitor.py doctor --study "$S"
+```
+
+Exit 1: the folder cannot be written; choose another. When `doctor` reports a web sandbox, the
+host has no lasting folder (SKILL.md), and the study arrives as a pack: the one the user
+attached, or the one kept in the Project's files; with several packs, the one with the latest
+date in its name. Unpack it before any other command:
+
+```bash
+python3 <skill>/scripts/monitor.py unpack --study "$S" <pack>
+```
+
+Exit 2: the pack was changed after it was written, is older than the folder's last report, or
+belongs to another study; exit 5: a later version of the skill wrote it. Tell the operator why
+and stop. When the user has no pack, ask for the one written after the last report; without
+it, the study starts again with `adopt`.
+
 `$S/study.json` and `$S/sentl.json` must exist; otherwise run `adopt` first. Call
 `list-organizations` to confirm the connection (see SKILL.md when it fails).
 
@@ -225,6 +245,20 @@ episodes recorded the runs after their close is refused (exit 2) too: run `perio
 date, then `check`. When it passes, the report is recorded in `history/reports.json` as final,
 and the next report compares with it.
 
+On a host without a lasting folder, `check` ends by saying so. Pack the study, then copy the
+report, and its PDF if one was made, to the same folder:
+
+```bash
+python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder>
+cp "$S/reports/D.md" <folder>/
+```
+
+`<folder>` is one the host offers files for download from. The pack holds what the next report
+needs: the versions, the report index, the latest four periods and the runs from this report
+on. Offer the report and the pack for download. Tell the user to keep both and, when the host
+has Projects, to put the pack in the Project's files in place of the previous one: the next
+report reads it from there.
+
 ## 11. Tell the operator, in the chat
 
 The report's path, the runs it covers, and anything the scripts flagged: runs not final yet,
@@ -250,4 +284,5 @@ means as a radar and a bar (the previous period and this one, the two halves, or
 alone) and, with more than one assistant, by assistant; per question, the share stating the
 current fact run by run, the share naming the subject run by run, and the domains behind a fact
 or a score. Give the operator the file's path and the charts the output lists as left out; the
-report itself does not change.
+report itself does not change. On a host without a lasting folder, also offer
+`reports/D.charts.md` for download, copied to the folder of step 10.

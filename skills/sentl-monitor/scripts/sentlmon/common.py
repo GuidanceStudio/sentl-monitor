@@ -154,6 +154,19 @@ class Study:
         path = self.path("history", "reports.json")
         return load_json(path) if path.exists() else []
 
+    def require_runs(self, periods, date):
+        """Refuse when `periods` list runs that history/runs does not hold. A study folder never
+        deletes a run; one unpacked from a pack written without --full holds the runs the next
+        report reads, and not those of the periods before the latest report."""
+        lacking = sorted({(key, run_id) for period in periods for key, ids in (period.get("runs") or {}).items()
+                          for run_id in ids if not self.path("history", "runs", key, f"{run_id}.json.gz").is_file()},
+                         key=str)
+        if lacking:
+            shown = ", ".join(f"run {i} of {k}" for k, i in lacking[:5]) + (", ..." if len(lacking) > 5 else "")
+            raise Refused(f"the report of {date} reads runs this folder does not hold ({shown}): the folder was "
+                          "unpacked from a pack written without --full, which holds what the next report reads. "
+                          f"To build or check the report of {date} again, unpack a pack written with --full")
+
     def record_report(self, entry):
         entries = [e for e in self.reports() if e["date"] != entry["date"]] + [entry]
         write_json(self.path("history", "reports.json"), sorted(entries, key=lambda e: e["date"]))
