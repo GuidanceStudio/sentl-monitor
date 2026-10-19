@@ -1,89 +1,77 @@
 # sentl-monitor
 
-A skill for coding assistants that runs a monitoring study on [Sentl](https://app.sentl.ai):
-it helps a consultant design the study, sets it up in Sentl through Sentl's MCP server, and
-writes a dated report after each period of runs, comparing it with the previous ones. For a
-first look at a subject, the `snapshot` route runs a small study once, reports on it and
-leaves nothing running in Sentl.
+sentl-monitor is a skill for AI assistants such as Claude Code. It reads the runs of a
+[Sentl](https://sentl.ai) project and writes a dated report on what AI assistants tell people
+about a brand, a product category or an organisation, comparing each period with the earlier
+ones. The report quotes the answers verbatim and says which facts they state, which pages they
+cite and what moved since the previous period; it is meant for a consultant or an analyst who
+reports to a client or to management every week or month.
 
-Sentl measures how AI models describe a subject. A Sentl project asks its questions to
-several researcher models, a judge scores each answer from 1 to 5 against a rubric written
-for that question, and each run produces a score. This skill decides what to ask and why,
-puts it in Sentl, and turns the runs into reports. It makes no model calls of its own.
+Sentl measures how AI models describe a subject: a Sentl project asks its questions to several
+AI assistants, and a judge scores each answer from 1 to 5 against a rubric written for that
+question. The skill reads Sentl through Sentl's MCP server and makes no model calls of its own.
 
-**Status:** the `adopt` and `report` routes work: a project that already exists in Sentl is
-taken into a study folder and reported on period by period, each report compared with the
-earlier periods; the first report on a project with earlier runs compares with periods
-rebuilt from them. Each figure comes with what explains it: which facts the answers state
-and the pages behind them, how many independent readings the answers are, episodes inside a
-period, answers that found no evidence, and who wrote the cited pages. For a report presented as a deck,
-`monitor.py charts` writes its figures as md2 chart tables. The other routes are planned; the design is in
-[ARCHITECTURE.md](ARCHITECTURE.md) and the plan in [DEVPLAN.md](DEVPLAN.md).
-
-## Who it is for
-
-A consultant or an in-house analyst who monitors what AI assistants tell people about a
-brand, a product category, a production method or an organisation, and who reports on it
-to a client or to management every week or month.
-
-## Routes
+## What works today
 
 | Route | What it does |
 |---|---|
-| `brief <subject>` | Lists the themes to monitor with their origin (the client's material, the issues the client raised, the client's other analyses, Google searches) and collects search demand → `brief.md`, `search-demand.json` |
-| `design` | Derives the dimensions from the themes, groups them into projects, decides who asks, writes the questions as people type them and a 1–5 rubric for each → `study.json`, `study-review.md` |
-| `setup` | Creates or updates the Sentl projects, shows the credit estimate, and starts a run or activates the schedule only on your explicit go |
-| `adopt <project>` | Takes a project that already exists in Sentl into a study folder, so it can be reported on; the first report rebuilds the previous periods from the project's past runs and compares with them |
-| `report` | Reads the new runs, compares them with the previous period, and writes `reports/<date>.md`; from the second report on, the report opens with what changed; meant to run on a schedule. On request, `reports/<date>.charts.md` holds the report's figures as md2 chart tables for a deck |
-| `snapshot <subject>` | A one-off check: 4–5 dimensions from the catalogue, one question and one rubric each, an ad-hoc Sentl project, one run on your go, a short report, then the project is paused and left for you to archive → `study.json`, `study-review.md`, `reports/<date>.md` |
+| `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
+| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations |
 
-Each route writes files that the next one reads. Nothing is written to Sentl without your
-approval.
+Both routes only read from Sentl: they create and change nothing in your account and spend no
+credits. You invoke them by asking the assistant, for example `sentl-monitor adopt Avenello`
+or `sentl-monitor report`.
 
-## Requirements
-
-**A Sentl account.** Creating projects and starting runs needs the Owner or Admin role in the
-organization; the User role can only run `adopt` and `report`. Organizations and
-subscriptions are managed in the Sentl web panel.
-
-**The Sentl MCP server connected to your assistant.** In Claude Code:
-
-```bash
-claude mcp add --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation
-```
-
-then run `/mcp`, select `sentinel-reputation` and sign in through the browser (OAuth). Codex
-CLI, Gemini CLI, VS Code, Cursor and other clients are covered on the setup page,
-https://app.sentl.ai/mcp/setup. For a client without OAuth, or for scheduled reports run by a
-headless assistant, create a token in Sentl under **Integrations → API Tokens** and pass it as
-an `Authorization: Bearer` header; the setup page shows the configuration. The skill never
-asks for the token and never stores it.
-
-**Python 3.10 or later**, standard library only.
-
-### Systems and languages
-
-Linux and macOS are supported, and Windows through WSL. On native Windows the script runs, but the
-playbooks' commands assume a POSIX shell.
-
-macOS ships Python 3.9: install 3.10 or newer before the first run.
-
-Reports are written in English or Italian. The detection of answers that found no evidence reads
-English and Italian answers only.
-
-## Install
+The routes run `monitor.py`, the skill's command-line script. Besides the steps of the two
+routes, it has `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+runs a report needs) and `pack` and `unpack`, which carry a study between conversations on a
+host that deletes its files when the conversation ends.
 
 | Host | Install with | Status |
 |---|---|---|
 | Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin install is not yet tested. |
 | opencode | `./install.sh --host agents` | Not yet tested: it installs, and `adopt` and `report` have not been run there. |
-| Codex | `./install.sh --host agents` | Not yet tested: it installs; reports wait for Sentl's run export. |
-| claude.ai | the release zip, uploaded as a skill | Not yet tested; reports wait for Sentl's run export, since a run's results do not fit in a conversation. |
-| ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and reports wait for Sentl's run export. |
+| Codex | `./install.sh --host agents` | Not yet tested: it installs; a report needs Sentl's run export, which is not available yet. |
+| claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report needs Sentl's run export, which is not available yet. |
+| ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report needs Sentl's run export. |
+
+A report reads the complete results of every run in its period; one run of 39 answers is about
+250,000 characters. Those results reach the study folder only on a host that saves a large tool
+result to a file, and today that means Claude Code. On claude.ai, ChatGPT and Codex a report
+needs an export file of the runs from Sentl. Sentl does not offer a run export yet: on those hosts
+the skill can be installed, but a report cannot be produced.
+Whether opencode saves a large result to a file has not been measured.
+
+## Prerequisites
+
+- **Python 3.10 or later**, standard library only. `python3 --version` prints it. macOS ships
+  Python 3.9: install 3.10 or newer, from python.org or Homebrew, before the first run.
+- **A Sentl account** in an organization with a project that has completed runs. The User role
+  is enough for `adopt` and `report`, which only read. The project's questions, rubrics and
+  schedule are set in the Sentl web panel; `adopt` reads them.
+- **The Sentl MCP server connected to your assistant.** Sentl's setup page,
+  https://app.sentl.ai/mcp/setup, gives the configuration for each client and names the server
+  `sentinel-reputation`; the steps for each host are under [Install](#install). The skill finds
+  Sentl's tools by their suffix, so it works whatever the server is called. The
+  assistant signs in through the browser (OAuth). For a client without OAuth, create a token in
+  Sentl under **Integrations → API Tokens** and pass it as an `Authorization: Bearer` header, as
+  the setup page shows. The skill never asks for the token and never stores it.
+
+## Install
 
 ### Claude Code
 
-From the plugin marketplace, in a terminal:
+From a clone of this repository, the install that has been tested:
+
+```bash
+git clone https://github.com/GuidanceStudio/sentl-monitor
+cd sentl-monitor
+./install.sh --host claude
+```
+
+The skill's folder is then `~/.claude/skills/sentl-monitor`.
+
+Or as a plugin, not yet tested, in a terminal:
 
 ```bash
 claude plugin install sentl-monitor --marketplace GuidanceStudio/sentl-monitor
@@ -97,18 +85,14 @@ claude plugin marketplace add GuidanceStudio/sentl-monitor
 claude plugin install sentl-monitor@sentl-monitor
 ```
 
-Or from a clone of this repository:
+The skill's folder is then `skills/sentl-monitor` inside the `installPath` that
+`claude plugin list --json` reports for `sentl-monitor@sentl-monitor`.
+
+Connect Sentl for every folder you open Claude Code in (`--scope user`), then run `/mcp`, select
+`sentinel-reputation` and sign in:
 
 ```bash
-git clone https://github.com/GuidanceStudio/sentl-monitor
-cd sentl-monitor
-./install.sh --host claude
-```
-
-Connect Sentl, then run `/mcp`, select `sentinel-reputation` and sign in:
-
-```bash
-claude mcp add --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation
+claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation
 ```
 
 ### opencode
@@ -117,10 +101,9 @@ claude mcp add --transport http sentinel-reputation https://app.sentl.ai/mcp/rep
 ./install.sh --host agents
 ```
 
-opencode reads `~/.agents/skills` and `~/.claude/skills`. `install.sh` no longer writes
-`~/.config/opencode/skills`, and it removes an older copy there after asking. Add Sentl to
-`opencode.json` as a remote MCP server, as Sentl's setup page shows:
-https://app.sentl.ai/mcp/setup.
+The skill's folder is then `~/.agents/skills/sentl-monitor`; opencode reads `~/.agents/skills`
+and `~/.claude/skills`. Add Sentl to `opencode.json` as a remote MCP server, as Sentl's setup page
+shows: https://app.sentl.ai/mcp/setup.
 
 ### Codex
 
@@ -128,180 +111,294 @@ https://app.sentl.ai/mcp/setup.
 ./install.sh --host agents
 ```
 
-Connect Sentl as the server `sentinel-reputation`, then sign in:
+The skill's folder is then `~/.agents/skills/sentl-monitor`. Connect Sentl as the server
+`sentinel-reputation`, then sign in:
 
 ```bash
 codex mcp add sentinel-reputation --url https://app.sentl.ai/mcp/reputation
 codex mcp login sentinel-reputation
 ```
 
+A report cannot be produced in Codex until Sentl offers a run export.
+
 ### claude.ai
 
 1. Download `sentl-monitor.zip` from the latest release,
    https://github.com/GuidanceStudio/sentl-monitor/releases/latest/download/sentl-monitor.zip.
-   Its sha256 is in `sentl-monitor.zip.sha256`, next to it.
+   Its sha256 is in `sentl-monitor.zip.sha256`, next to it. The link works once v0.1.0 is
+   released.
 2. In Settings → Capabilities, turn on code execution.
 3. In Customize → Skills, upload the zip.
 4. In Settings → Connectors, add a custom connector with the URL
    `https://app.sentl.ai/mcp/reputation`, and sign in.
 
-On Team and Enterprise plans, an owner can add the skill for the whole organization.
+On Team and Enterprise plans, an owner can add the skill for the whole organization. A report
+cannot be produced on claude.ai until Sentl offers a run export, since a run's results do not
+fit in a conversation.
 
 ### ChatGPT
 
 OpenAI documents standalone skills in the ChatGPT desktop app, the Codex CLI and the
 IDE extension, and on the web only inside plugins. Whether the release zip uploads as a skill
 on chatgpt.com is not confirmed. Sentl connects as a connector in developer mode, with the URL
-`https://app.sentl.ai/mcp/reputation`.
+`https://app.sentl.ai/mcp/reputation`. A report cannot be produced in ChatGPT until Sentl offers
+a run export.
 
-### Check, update and remove an install
+### Every assistant at once
 
 ```bash
 ./install.sh                # installs for every assistant it finds: ~/.claude, ~/.codex, ~/.config/opencode, codex or opencode on PATH
-./install.sh --check        # lists every install, its version, and whether it matches this repository
 ./install.sh --force        # overwrites without asking; needed without a terminal
+```
+
+### Check the install
+
+`./install.sh --check`, run from the clone, lists every install of the skill with its version
+and says whether it matches the clone. `doctor` reports the Python version, whether a study
+folder can be written, and whether it lies in a web sandbox whose files are deleted when the
+conversation ends; the assistant runs it first in every conversation.
+
+```bash
+./install.sh --check
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py doctor --study ./avenello-study
+```
+
+With `--host agents` or the plugin, put that install's skill folder in place of
+`~/.claude/skills/sentl-monitor`.
+
+On a host that deletes its files when the conversation ends, the study travels as a pack, one zip
+file: at the end of each route the assistant writes it with `monitor.py pack` and offers it for
+download, and in the next conversation you attach it and the assistant unpacks it first.
+
+## A first report, step by step
+
+Avenello is a fictional oat-milk brand. Its marketing team has a Sentl project, *Avenello · US
+market*, that asks three questions every day to two AI assistants, Acme Chat and Orbit Reason,
+three times each:
+
+- Nutrition: «How much sugar is in Avenello oat milk?»
+- Choice: «What is the best oat milk to buy?», which names no brand, so it measures whether
+  Avenello is named at all.
+- Sustainability: «Is Avenello oat milk good for the environment?»
+
+The project has run every day since 1 October 2026. On 14 October you write the first weekly
+report.
+
+### 1. Adopt the project
+
+In the assistant, opened in the folder where you keep client work, type:
+
+```text
+sentl-monitor adopt Avenello
+```
+
+The assistant lists your Sentl projects and picks the one whose name matches, asking you when
+more than one does. It proposes the study folder `./avenello-study/`, checks it with
+`monitor.py doctor`, and saves the project and its latest run into the folder's `inbox/`. Then it asks, in
+one message, for what Sentl does not hold, proposing values from the project's rubrics where it
+can. The answers appear in the report as written, so you write them in the report's language.
+For Avenello:
+
+| The assistant asks for | You answer |
+|---|---|
+| The research question, neutral: what is monitored, never one valence of it | What are people who ask an AI assistant about oat milk told about it and about Avenello? |
+| The purpose: what the client will decide with the reports | Find the facts about Avenello that assistants state wrongly and the pages they take them from, to decide which pages to update. |
+| Who asks the questions, and why | A generic consumer: the questions are the ones any shopper types; no persona changes them. |
+| Who wrote the rubrics, and when | Avenello's marketing team, 15 September 2026 |
+| The subject: its name as answers write it, and its own websites | Avenello; avenello.example |
+| Foils: the competitors, as answers write them, and their websites | Avoria; avoria.example |
+| Facts that carry a figure or a name, with the current and the outdated value as answers write them | On the sugar question: Avenello Original has 3 g of sugar per 100 ml since the March 2026 recipe, and had 5 g before; current «3 g», outdated «5 g»; source avenello.example/nutrition, read on 15 September 2026 |
+| The market: country and language | United States, English |
+| The report's language: English or Italian | English |
+| How often a report is written: weekly or monthly | Weekly |
+| Where each dimension's theme came from | Nutrition: customer-service questions about the new recipe. Choice: Google autocomplete, United States, September 2026. Sustainability: Avenello's 2025 sustainability report |
+
+The assistant writes the answers into `avenello-study/study.json` and tells you the dimensions
+and questions it adopted and how many completed runs the project has: 14, from 1 to 14 October.
+The first report covers the last week, 8 to 14 October, and compares it with the week before,
+rebuilt from the project's earlier runs. A first report compares with up to four earlier weeks
+or months. A first monthly report on a project younger than a month compares the second half of
+the month with the first, once its runs span 14 days. With daily runs a report also gives the day
+a movement started; four weekly runs are too few to date one.
+
+### 2. Write the report
+
+```text
+sentl-monitor report
+```
+
+The assistant saves the project again, to find questions edited in the Sentl web panel since the
+last report; when one was reworded, it asks you whether the question still asks the same thing.
+It saves the results of the 14 runs into `inbox/` and runs the script on them, from the skill's
+folder (here the one `install.sh --host claude` writes); `market` is the short name `adopt` gave
+the project in the study folder:
+
+```bash
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py runs --study avenello-study --project market --saved avenello-study/inbox/runs-701.json --date 2026-10-14
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py ingest --study avenello-study --project market --results avenello-study/inbox/run-9408.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py period --study avenello-study --date 2026-10-14 --models avenello-study/inbox/models.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py method --study avenello-study --date 2026-10-14 --models avenello-study/inbox/models.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.md
+```
+
+`runs` lists the runs to fetch, `ingest` stores each one, `period` computes the figures of the
+week and of the week before, and `method` writes the sections on how the study was built. The
+assistant then writes what the assistants say, dimension by dimension, from the answers and the
+figures `period` prepared, and `check` verifies the report: every quote is verbatim, every figure
+is the period's, the sections are in order, and no internal id appears. The assistant corrects
+the report until `check` passes.
+
+What comes out:
+
+```text
+avenello-study/
+  study.json              your answers, and the project's dimensions, questions and rubrics
+  sentl.json              the Sentl project the study reads
+  inbox/                  Sentl's responses, as the assistant saved them
+  history/                the runs, the periods, the project's versions and the material each report is written from
+  reports/2026-10-14.md   the report
+```
+
+In the chat, and never in the report, the assistant tells you the runs the report covers, the
+week rebuilt from earlier runs, and anything to check: runs not final yet, runs left out, edits
+found in Sentl. Ask for the charts and it writes `reports/2026-10-14.charts.md` with
+`monitor.py charts`.
+
+### 3. The next reports
+
+A week later, `sentl-monitor report` again. It reads the runs started after the last run of the
+previous report, compares the new week with up to four earlier ones, and the report opens with
+what changed.
+
+## A sample report
+
+[examples/avenello-report-2026-10-14.md](examples/avenello-report-2026-10-14.md) is the first
+report of the walk-through above, written on fictional runs by the same steps; a test checks
+that it still passes `check`. Its sections:
+
+1. **What we did and to what end**: the purpose, the questions, the assistants and how many
+   answers were scored.
+2. **Where the themes came from**: the origin of each dimension's theme.
+3. **The dimensions and how we reached them**, and who asks the questions.
+4. **The questions**, as Sentl asks them.
+5. **How the answers are scored**: what 5, 3 and 1 mean for each question, and what counts as a
+   change between periods.
+6. **In short**: three to five sentences with the figures that matter.
+7. **What the assistants say**: for each dimension, verbatim excerpts with their question and
+   assistant, the cited domains, the score, and what explains it: the facts the answers state,
+   current or outdated, the pages behind them, movements inside the week, the subject's presence
+   run by run, and who wrote the cited pages.
+8. **What changed**: the scores and shares that moved since the week before and, since the
+   project runs daily, the day each movement started; the assistants whose verdict changed, with
+   both answers; and the domains newly cited or no longer cited.
+
+From the second report on, "What changed" and "What the assistants say" come first and the
+sections on method close the report.
+[examples/avenello-report-2026-10-14.charts.md](examples/avenello-report-2026-10-14.charts.md)
+holds the same report's figures as chart tables for md2.
+
+## Exit codes
+
+Every `monitor.py` command ends with one of these codes. The assistant reads them and follows
+the playbook; this table is for when you run a command yourself or the assistant stops.
+
+| Code | Meaning | What to do |
+|---|---|---|
+| 0 | Done. | Nothing. |
+| 1 | `check` found problems in the report, listed one per line, or `doctor` found that the study folder cannot be written. | The assistant corrects the report and runs `check` again until it passes. For `doctor`, choose another folder. |
+| 2 | Input refused: a saved response is incomplete or belongs to another tool or project, a field of `study.json` is not filled in, a pack was changed, is older than the folder's last report or belongs to another study, or Python is older than 3.10. The message says why and what to do. | Follow the message: save the Sentl response again, answer the field it names, attach the latest pack, or install a newer Python. |
+| 3 | A run is not final yet. | Nothing: the next report reads it. |
+| 4 | No run of the period has 90% of its answers scored, or the period has no run. | Wait for the runs to complete, or check in the Sentl web panel why answers were not scored. |
+| 5 | A Sentl response does not have the shape the skill reads, or a pack was written by a later version of the skill. The message names the tool and the field. | Do not edit the saved file. Update the skill; if the latest version still exits 5, open an issue naming the tool and the field. |
+| 6 | Unexpected error. | Run the same command again with `--debug` and open an issue with its output. |
+| 130 | Interrupted with Ctrl-C. | Run the command again. |
+
+## Time zone, systems and languages
+
+Periods are counted in UTC: a report dated D covers the runs started up to the end of D in UTC,
+and the report date is today's local date unless one is given.
+
+Linux and macOS are supported, and Windows through WSL. On native Windows the script runs, but
+the playbooks' commands assume a POSIX shell.
+
+Reports are written in English or Italian. The questions can be in any language. Answers in
+which an assistant says it found no source of the kind asked for are detected in English and
+Italian answers only.
+
+## Update and uninstall
+
+Plugin install, in Claude Code:
+
+```bash
+claude plugin update sentl-monitor@sentl-monitor
+claude plugin uninstall sentl-monitor@sentl-monitor
+```
+
+Clone install: `git pull`, then `./install.sh --force`; `./install.sh --check` shows whether
+every install matches the clone.
+
+```bash
 ./install.sh --uninstall    # removes sentl-monitor from ~/.claude/skills, ~/.agents/skills and ~/.config/opencode/skills
 ```
 
-To update a clone, run `git pull` and then `./install.sh --force`.
+`--uninstall` asks before removing each folder, and needs `--force` without a terminal; `--host`
+or `--dest` limits it to one place.
 
-### First run
+claude.ai: remove the skill in Customize → Skills, then upload the zip of the new release;
+removing it there uninstalls it.
 
-`python3 <skill folder>/scripts/monitor.py doctor --study <folder>` reports the Python version,
-whether the study folder is writable, and whether it lies in a web sandbox whose files are
-deleted when the conversation ends. Then ask your assistant, in the folder where you keep client
-work, for `sentl-monitor adopt <project>` and then `sentl-monitor report`. In a web sandbox,
-download the pack the assistant writes at the end of each route (`monitor.py pack`) and attach
-it to the next conversation: it holds the study's state, and the assistant unpacks it first.
+Updating or uninstalling never touches a study folder.
 
-### Optional: a keyword-data source
+## Version and changes
 
-Sentl gives no search data. Without a key, the skill
-collects Google autocomplete suggestions in the market's language and country. When a
-keyword-data MCP server is connected (Mangools is one; any server that returns monthly volume
-and related searches for a location and a language works), or when you supply an export file
-from such a tool, the skill adds monthly volumes and related searches. Without one, the skill
-tells you, and the report says that suggestion counts measure how many ways a theme is
-phrased, not how many people search it.
+The version is `metadata.version` in `skills/sentl-monitor/SKILL.md`; the plugin manifests
+repeat it, and `monitor.py --version` prints it. [CHANGELOG.md](CHANGELOG.md) lists what each release holds,
+and the releases, with their zips, are at
+https://github.com/GuidanceStudio/sentl-monitor/releases.
 
-## What it costs
+## Planned
 
-Sentl credits, and nothing else. A run costs, for each researcher model, its credits per call
-times the questions times the rounds, plus the credits for judging the answers. `setup` shows
-Sentl's estimate (`estimate-run-tool`) and the credits available before any run starts. A
-schedule repeats that cost at every run: a weekly project runs about 52 times a year.
+These routes are designed in [ARCHITECTURE.md](ARCHITECTURE.md) and scheduled in
+[DEVPLAN.md](DEVPLAN.md); none of them is available yet. Until they are, a Sentl project is
+designed and created in the Sentl web panel, then adopted.
 
-A snapshot costs one run: for each researcher model, its credits per call times the 4–5
-questions, plus the credits for judging. The snapshot project never gets a schedule, so the
-cost does not repeat.
+| Route | What it will do |
+|---|---|
+| `brief <subject>` | List the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), and collect search demand from Google autocomplete or a keyword-data source |
+| `design` | Derive the dimensions from the themes, decide who asks, and write the questions as people type them, each with a 1–5 rubric |
+| `setup` | Create or update the Sentl projects through the MCP server, show Sentl's credit estimate, and start a run or a schedule only on your explicit go |
+| `snapshot <subject>` | Run a small study on Sentl once, write a short report, and pause the project |
+| Scheduled reports | Run `report` unattended after each period, with no question asked |
 
-The `report` route only reads and spends no credits. Google autocomplete is free. A
-keyword-data server uses its own quota.
+`setup` and `snapshot` will spend Sentl credits and need the Owner or Admin role in the
+organization; each will show Sentl's estimate before a run starts.
 
-## Walk-through on a fictional subject
+## Contributing and support
 
-Avenello is a fictional Italian brand of oat drink. Its marketing team wants to know what AI
-assistants tell people in Italy who ask about oat drinks and about Avenello, and to follow it
-every month.
+Report a bug or ask a question in the repository's issues,
+https://github.com/GuidanceStudio/sentl-monitor/issues. Give the command, its exit code and its
+message, and for exit 5 the tool and the field it names. Never paste a token, an account name or
+a client's data: describe the shape instead.
 
-1. **`brief Avenello`.** You give the skill the brand's positioning deck, a summary of
-   customer-service questions and a social-listening report. It lists the themes each one
-   raises, with the document it came from: sugar content (customer service), gluten (customer
-   service), environmental footprint (positioning deck), price against cow's milk
-   (social-listening report). It then sends seed queries to Google autocomplete in Italian for
-   Italy, each also followed by question stems (*è, fa, come, perché, quanto, quale*), and
-   finds two themes the client never raised: whether oat drink is bad for your health, and
-   whether it suits children. With a
-   keyword-data server connected it adds monthly volumes, and keeps two sums apart: queries
-   that name Avenello, and queries about oat drink alone (*latte d'avena fa male*). It shows
-   you `brief.md` and stops.
+The tests use the Python standard library and need no Sentl account:
 
-2. **`design`.** From the themes it proposes two projects. *Avenello by name* has six
-   dimensions (Health, Sugar, Gluten, Environment, Price, Children) whose questions name the
-   brand and are read by their mean score. *Oat drinks without a brand* asks about five of the
-   same themes without naming any brand, and is read by how often Avenello appears and
-   where. Who asks: personas, because a parent, a coeliac and a runner ask different
-   questions. The health searches lean one way (*fa male*), so the Health dimension also gets
-   the opposite question (*fa bene*). Each
-   question gets five anchors; on the unbranded questions, 2 means Avenello is not mentioned
-   and 1 means it is advised against. The research question is neutral: what are people who
-   ask an AI assistant about oat drinks told about them and about Avenello. You read
-   `study-review.md`, change two questions, and approve.
+```bash
+bash tests/test_all.sh
+```
 
-3. **`setup`.** The skill creates the two projects in Sentl, paused, saves the dimensions and
-   questions (a dry run first), and shows the estimate for four researcher models, one round,
-   a run every week. A monthly report then pools four runs, so every question has four
-   answers from each assistant. You say go: it activates the weekly schedule and starts the
-   first run.
+It runs the bash suites (layout, skill, install, package) and the Python unit tests. The live
+tier reads a real study folder outside the repository and runs only when asked:
+`RUN_LIVE=1 SENTL_LIVE_STUDY=<folder> SENTL_LIVE_PROJECT=<project id> bash tests/test_all.sh`.
+`python3 tests/python/sample_study.py <empty folder>` builds the fictional study the sample
+report was written from.
 
-4. **`report`, first time.** After the first month of runs, the report opens with what was
-   done and to what end, where the themes came from, the dimensions and how they were
-   reached, the questions, and how the answers are scored. Then, dimension by dimension,
-   what the person asking is told, with verbatim answers (question and assistant) and the
-   sites those answers cite. The last section compares the second half of the month with the
-   first, since there is no earlier month: the dimensions and questions whose score or
-   presence moved and the facts whose current value rose or fell. With daily runs it also
-   gives the date a movement started; four weekly runs are too few to date one. A monitor
-   whose runs span under two weeks gets the line saying this is the first measurement and the
-   next report compares against it.
-
-5. **`report`, every month after.** The report opens with what changed since the previous
-   month: the dimensions whose score moved outside the range of the previous months, the
-   answers that changed verdict, the sites that started or stopped being cited, and any
-   change to the questions, the criteria or the assistants in the period, with how it
-   affects the comparison. The dimension-by-dimension section follows. The method sections
-   (what was done, themes, dimensions, questions, scoring) close the report, complete, so a
-   reader who never saw an earlier report can follow it.
-
-## A one-off snapshot
-
-`snapshot <subject>` runs a small study once on Sentl, for a first look at a subject or for
-a prospect. It works in its own folder and asks for no search data.
-
-1. **Design.** The skill asks what the reader needs to decide, and collects 5–10 facts from
-   primary sources, each with its source and the date it was read; the judge needs them to
-   recognise a wrong or outdated statement. It picks 4–5 dimensions from the catalogue
-   (being found, consideration, trust and reputation, product and service, price, brand
-   perception, employer), at least one of them naming no brand unless you ask for reputation
-   only, and writes one question per dimension with a five-anchor rubric. It shows you `study-review.md` and stops.
-2. **Setup.** On your approval it creates one Sentl project for the snapshot, paused and
-   with no schedule, and saves the questions. It shows Sentl's estimate in credits (per
-   researcher model, for judging, in total) next to the credits available, and stops.
-3. **Run.** On your go it starts one run and follows it until it completes. If the session
-   ends first, running `snapshot` again in the folder picks up the same run.
-4. **Report.** It writes `reports/<date>.md`: what was done and to what end, the dimensions
-   and why each was chosen, the questions, how the answers are scored, what the assistants
-   say per dimension, and what a single run cannot show. Dimensions that name the subject
-   are read by their score, dimensions that name no brand by whether and where the subject
-   appears; the report gives no overall score.
-5. **Archive.** It pauses the project, so no scheduled run can start. The Sentl MCP cannot
-   archive or delete a project yet, so the skill gives you the project's link in the Sentl
-   web panel, where you archive or delete it by hand. The run is already saved in the
-   snapshot folder, so deleting the project loses nothing the report needs.
-
-## How it relates to sentl-snapshot and llm-rep
-
-**sentl-snapshot** is a one-off brand check: 4–5 dimensions from a catalogue, one question
-each, low-cost models called through OpenRouter with an OpenRouter key, and a short PDF. The
-`snapshot` route of this skill runs the same check on Sentl: it needs a Sentl account and
-spends Sentl credits instead of an OpenRouter key, and Sentl's judge scores the answers. The
-dimension catalogue moves into this skill and serves both `snapshot` and `design`.
-sentl-snapshot is retired once the `snapshot` route ships. Its batch mode over a list of
-brands and its PDF rendering are not part of the route, whose report is Markdown.
-
-**llm-rep** runs a full study itself: it calls the models through OpenRouter with replicates,
-judges the answers with its own judge, analyses them and hands off to a deck. sentl-monitor
-reuses its method: the theme inventory with origins, the choice of who asks (generic
-consumer, personas, stakeholders or a mix) with a reason, questions paired in positive and
-negative, rubric anchors, and the order in which a study is presented. Sentl replaces its
-run, judge and analysis stages.
-
-Neither skill is required to use this one.
-
-## Repository layout
+The repository is public: fixtures, examples and docs use fictional subjects, and a change must
+not name a real client, brand or person. Design and plan are in [ARCHITECTURE.md](ARCHITECTURE.md)
+and [DEVPLAN.md](DEVPLAN.md).
 
 ```
 README.md              this file
+CHANGELOG.md           what each release holds
 LICENSE                MIT
 ARCHITECTURE.md        stages, files, schemas, MCP mapping, history model, gaps
 DEVPLAN.md             milestones
@@ -309,26 +406,21 @@ install.sh             installs the skill for Claude Code, Codex and opencode
 .claude-plugin/        the Claude Code plugin and marketplace manifests
 .github/workflows/     the tests on Python 3.10 to 3.13; the release zip on a v* tag
 tools/build_zip.py     builds dist/sentl-monitor.zip, the zip claude.ai and ChatGPT upload
-skills/sentl-monitor/  the skill payload
+examples/              the sample report and its charts
+skills/sentl-monitor/  the skill
   SKILL.md             router
   LICENSE              copy of LICENSE, shipped in the zip
   agents/openai.yaml   Codex's display fields and the Sentl MCP dependency
   adopt/ADOPT.md       route playbooks, one per route
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
-  brief/BRIEF.md       planned
-  design/DESIGN.md     planned
-  setup/SETUP.md       planned
-  snapshot/SNAPSHOT.md planned
-  catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor, pack, unpack (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
-tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
+tests/                 bash suites, Python unit tests, opt-in live tests
 ```
 
-Study and snapshot folders hold client data and live outside this repository.
+Study folders hold client data and live outside this repository.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The repository is public at
-https://github.com/GuidanceStudio/sentl-monitor.
+MIT, see [LICENSE](LICENSE).

@@ -42,7 +42,7 @@ def _as_terms(answer):
 @functools.lru_cache(maxsize=None)
 def _term(term):
     """A fact term matched on word boundaries and never inside a longer number: "10 €" is not
-    stated by "12,10 €", nor "£2" by "£2.50"."""
+    stated by "12,10 €", nor "£2" by "£2.10"."""
     return re.compile(r"(?<!\w)(?<!\d[.,])" + re.escape(tight(folded(term))) + r"(?![.,]?\d)(?!\w)")
 
 

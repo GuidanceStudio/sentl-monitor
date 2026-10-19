@@ -12,7 +12,7 @@ from test_method import sections
 OCT = weekly("2026-10-05", 4)
 OUTDATED = ("Avenello costa 1,90 € al litro.", 2, ["https://prezzi.example/avena"])
 CURRENT = ("Avenello costa 2,10 € al litro.", 5, ["https://avenello.example/prezzi"])
-NO_REVIEWS = "Le informazioni su com'è lavorare da Avenello sono piuttosto limitate; i clienti la apprezzano."
+NO_DATA = "Le informazioni sullo stabilimento di Avenello sono piuttosto limitate; i clienti ne apprezzano le bevande."
 
 
 def rows(price=None, choice=None, work=None):
@@ -106,7 +106,7 @@ class AuthorsTest(InsightCase, unittest.TestCase):
 class MissingEvidenceTest(InsightCase, unittest.TestCase):
 
     def test_a_pair_s_mean_with_and_without_the_answers_that_found_no_source(self):
-        missing = (NO_REVIEWS, 3, [])
+        missing = (NO_DATA, 3, [])
         for n, start in enumerate(OCT):
             work = (missing, ("Si lavora bene da Avenello.", 4, [])) if n in (1, 2) else None
             self.ingest_market(9101 + n, start, rows(work=work))
@@ -195,7 +195,7 @@ class CheckFiguresTest(InsightCase, unittest.TestCase):
         "Prezzo": "In 2 su 4 risposte che citano un prezzo il prezzo è quello vecchio (50%).",
         "Scelta": "Le pagine di Avoria sono citate da 6 su 8 risposte con fonti (75%). "
                   "Avenello è nominato in 0 su 2 risposte nella prima rilevazione e in 2 su 2 risposte nella terza.",
-        "Lavoro": "In 2 su 4 risposte Acme Chat dice di non trovare recensioni dei dipendenti: la sua media è 3,5 "
+        "Lavoro": "In 2 su 4 risposte Acme Chat dice di non trovare informazioni sullo stabilimento: la sua media è 3,5 "
                   "con queste risposte e 4,0 senza.",
     }
 
@@ -205,7 +205,7 @@ class CheckFiguresTest(InsightCase, unittest.TestCase):
                   ("Avoria ha le offerte migliori.", 3, ["https://shop.avoria.example/offerte"]))
         named = (("La migliore è Avenello.", 4, ["https://avoria.example/confronto"]),
                  ("Avenello è buona.", 4, ["https://avenello.example/bevande"]))
-        missing = ((NO_REVIEWS, 3, []), ("Si lavora bene da Avenello.", 4, []))
+        missing = ((NO_DATA, 3, []), ("Si lavora bene da Avenello.", 4, []))
         price_two = (("Costa 1,90 € al litro.", 2, []), ("Costava 1,90 €, ora 2,10 €.", 4, []))
         self.ingest_market(9101, OCT[0], rows(choice=choice))
         self.ingest_market(9102, OCT[1], rows(choice=choice, work=missing, price=price_two))
@@ -307,7 +307,7 @@ class EpisodeComparabilityTest(StudyCase, unittest.TestCase):
             self.ingest_market(9101 + n, start, rows())
         self.publish("2026-10-07")
         changed = market_project()
-        changed["project"]["dimensions"][2]["questions"][0]["grading_rubric"]["5"] = "Cita le recensioni dei dipendenti"
+        changed["project"]["dimensions"][2]["questions"][0]["grading_rubric"]["5"] = "Cita i dati dello stabilimento"
         self.cli("detect", "--study", self.study, "--project", "market", "--saved", self.save("now.json", changed),
                  check=0, at="2026-10-07T12:00:00Z")
         better = (("Avenello è un ottimo datore di lavoro.", 5, []), ("Si lavora molto bene da Avenello.", 5, []))

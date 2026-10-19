@@ -72,6 +72,29 @@ class MethodTest(StudyCase, unittest.TestCase):
         self.assertNotIn("Confezione", self.report())
         self.assertIn("Le domande sono quelle di un consumatore qualsiasi.", dims)
 
+    def test_a_theme_named_as_its_dimension_is_not_repeated(self):
+        """An adopted study's themes carry their dimension's name, so the line gives the origins
+        alone; a theme with a name of its own is still named (R1 review)."""
+        self.ready()
+        study = self.read("study.json")
+        next(t for t in study["themes"] if t["id"] == "prezzo")["label"] = "Prezzo al litro"
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.method()
+        dims = sections(self.report())[IT_ORDER[2]]
+        self.assertIn("- **Salute**, da questioni sollevate dal cliente.", dims)
+        self.assertNotIn("«Salute»", dims)
+        self.assertIn("- **Prezzo**, dal tema «Prezzo al litro» (materiali del cliente).", dims)
+
+    def test_an_english_theme_named_as_its_dimension_is_not_repeated(self):
+        self.ready()
+        study = self.read("study.json")
+        study["report_language"] = "en"
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.method()
+        dims = sections(self.report())[EN_ORDER[2]]
+        self.assertIn("- **Salute**, from issues the client raised.", dims)
+        self.assertNotIn("“Salute”", dims)
+
     def test_questions_are_verbatim(self):
         self.ready()
         self.method()

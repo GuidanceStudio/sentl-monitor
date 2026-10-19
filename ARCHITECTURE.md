@@ -479,7 +479,7 @@ The steps run in the order the report tells them:
    added and the two are paired. The market is named in the question when it matters,
    because Sentl sets no location for the researcher models.
 6. **Rubrics.** Five anchors per question, each an observable property of the answer, adapted
-   from `catalogue.md` (the dimension catalogue ported from sentl-snapshot). On a question that
+   from `catalogue.md` (the dimension catalogue, which arrives with M4). On a question that
    names no brand, 2 is *not mentioned* and 1 is *named negatively or advised against*. The
    axis is chosen before the anchors are written. Judge instructions carry the dated facts
    the judge needs to recognise an outdated or wrong statement.
@@ -856,7 +856,7 @@ describes.
 
 - **Fact currency.** An answer states a term when the term, folded like an alias, appears on
   word boundaries and not inside a longer number ("10 €" is not in "12,10 €", "£2" not in
-  "£2.50"); a space between a number and a currency sign is optional on both sides. Answers are counted as stating a current term only, an outdated term only,
+  "£2.10"); a space between a number and a currency sign is optional on both sides. Answers are counted as stating a current term only, an outdated term only,
   both, or neither; the current share is the answers stating a current term out of those
   stating any.
 - **Sources behind a fact or a score.** Four groups of a question's answers: those stating
@@ -1013,8 +1013,8 @@ project. The rules it applies:
   span or its first, last or close date in the same clause (no `, ; : . ! ?` between them, the
   date within about 40 characters), later runs of the period lie on the episode's side, and the
   sentence does not name all of them. A date is read as the report writes it, day and month with
-  the year optional ("14 October", "October 14"), and a span as "14–16", "dal 2 all'8", "from 4
-  to 11" or "tra il 2 e l'8"; quoted text is not read, and a paragraph's lines are joined first.
+  the year optional ("14 October", "October 14"), and a span as "14–16", "dal 2 all'8", "from 2
+  to 8" or "tra il 2 e l'8"; quoted text is not read, and a paragraph's lines are joined first.
   A finding is read against its own dimension's episodes, the summary and the changes against all
   of them. The later runs' values may be cited. A period whose closed episodes do not record their
   later runs was built before this rule and is refused (exit 2) until `period` builds it again.
@@ -1121,8 +1121,8 @@ gives the same file when that report was the first one compared on the two halve
 period; any other latest report also reads the runs of the period before it, or rebuilds the
 periods before a first report from their runs, which only `--full` holds. `period` and `check`
 refuse such a report (exit 2) when a run they read, or a rebuilt period they would replace
-lists, is missing from `history/runs/`, and say to unpack a pack written with `--full`. A pack of
-a live study of two projects after its first report, 30 runs, is 2.4 MB.
+lists, is missing from `history/runs/`, and say to unpack a pack written with `--full`. A pack
+holding 30 runs is about 2.4 MB.
 
 The manifest:
 
@@ -1235,9 +1235,9 @@ convenience.
 
 | # | Assumption | Status |
 |---|---|---|
-| A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they showed the current text, earlier runs not yet ingested would be matched to the new wording. | Verified 2026-10-16 on read-only data. Sentl allocates question ids in sequence across an account. In a live project, three questions were reworded after its earliest run and kept their ids inside the project's contiguous id range, so they were edited in place, not replaced. Read after the edit, that earliest run returns the earlier texts for those three questions, and every later run returns the current ones. So an earlier run's responses carry the wording asked then: inside a detected version's window they match the earlier text, and in a run older than the first recorded version they are `unmatched` (§Matching). |
+| A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they showed the current text, earlier runs not yet ingested would be matched to the new wording. | Verified 2026-10-16 on read-only data. Sentl allocates question ids in sequence across an account. In a project whose questions were reworded after its earliest run, the reworded questions kept their ids inside the project's contiguous id range, so they were edited in place, not replaced. Read after the edit, that earliest run returns the earlier texts for those questions, and every later run returns the current ones. So an earlier run's responses carry the wording asked then: inside a detected version's window they match the earlier text, and in a run older than the first recorded version they are `unmatched` (§Matching). |
 | A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Only those two seen on 2026-10-16. The skill reads `pending`, `queued` and `running` as not final yet, none seen live; `runs` lists any other status as never seen and does not fetch the run, and `ingest` refuses its results (R2). |
-| A3 | With more than one round, each round appears as a separate response with no round number. | Verified 2026-10-16: a project with 3 rounds, 12 questions and 1 model returned 36 responses, each question–model pair three times, with no round field. |
+| A3 | With more than one round, each round appears as a separate response with no round number. | Verified 2026-10-16: a run of a project with 3 rounds returned each question–model pair three times, with no round field. |
 | A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |
 | A5 | Responses of a model later removed from `list-ai-models` keep its id. | Verified 2026-10-16: older runs carry a model id no longer listed. |
 | A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, pauses it once the run is open, and M7 checks that pausing lets an open run complete. | To verify in M7. |

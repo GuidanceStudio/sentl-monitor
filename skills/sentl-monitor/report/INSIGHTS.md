@@ -93,9 +93,10 @@ of the period on the episode's side of that range, with their values. For a ques
 without a figure the mean episode carries no values.
 
 **How a finding states it.** "From 6 to 8 October the answers giving the current price were
-50% each day, against 0% in the eight runs before; on 12 October they were back inside that
+50% each day, against 0% in the eight runs before; on 9 October they were back inside that
 range." The close is stated as that one date. When the material lists later runs on the
-episode's side, the finding states them as well ("on 11 October the current price was in 50% of the answers again, and on 15 October in all of them") and never says the measure was outside the
+episode's side, the finding states them as well ("on 11 October the current price was in 50% of
+the answers again, and on 15 October in all of them") and never says the measure was outside the
 range only during the episode. `check` refuses a word for "only" (only, solely, exclusively,
 just; solo, soltanto, solamente, unicamente, esclusivamente) that comes before a closed episode's
 span, first, last or close date in the same clause, while later runs lie on its side and the
@@ -125,7 +126,7 @@ in 6 of 6 answers on 13 and 14 October."
 ## Missing evidence
 
 **What it shows.** Answers in which the assistant says it found no source of the kind the
-question asks for (lab tests, a price list), and the assistant's mean with and without
+question asks for (independent test results, a price list), and the assistant's mean with and without
 them, so a drop they account for is reported as missing evidence, not as a change in what is
 said.
 
@@ -133,11 +134,11 @@ said.
 source of the kind asked for was found; mean X with them, Y without". The means are left out
 for a question shown without a figure.
 
-**How a finding states it.** "In 12 of 21 answers Acme Chat says it found no lab tests;
-its mean is 3.4 with these answers and 4.0 without."
+**How a finding states it.** "In 9 of 21 answers Orbit Reason says it found no independent data on
+Avenello's footprint; its mean is 3.1 with these answers and 3.8 without."
 
 **Limit.** A phrase list per market language finds them, anchored on the assistant's own
-search ("I could not find", "in the provided results", "no lab tests were found"); an
+search ("I could not find", "in the provided results", "no independent data was found"); an
 assistant that says so in other words is not counted. A sentence whose subject is a third
 party ("customers say they could not find…") reports that party's experience and is not
 counted. The answer never says why the evidence was missing.

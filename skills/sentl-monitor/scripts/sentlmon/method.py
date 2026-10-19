@@ -101,9 +101,13 @@ def _dimensions(study, projects, lang):
         if proj.get("question") or proj.get("decision"):
             lines.append("")
         for d in dims:
-            sources = [t["from_theme"].format(theme=th["label"], origins=join(
-                dict.fromkeys(ORIGINS[lang][o["kind"]].lower() for o in th["origins"]), lang))
-                for th in themes.get(d["key"], [])]
+            sources = []
+            for th in themes.get(d["key"], []):
+                origins = join(dict.fromkeys(ORIGINS[lang][o["kind"]].lower() for o in th["origins"]), lang)
+                # An adopted study's theme carries its dimension's name: the origins alone, then.
+                same = (th["label"] or "").strip().casefold() == d["name"].strip().casefold()
+                sources.append(t["from_origins"].format(origins=origins) if same
+                               else t["from_theme"].format(theme=th["label"], origins=origins))
             lines.append(f"- **{d['name']}**" + (", " + "; ".join(sources) if sources else "") + ".")
         lines.append("")
     for item in study["narrative"].get("design_rationale") or []:

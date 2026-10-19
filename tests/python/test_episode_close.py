@@ -209,17 +209,17 @@ class SpanTest(unittest.TestCase):
 
     def test_the_spans_and_dates_a_report_writes_are_read(self):
         for sentence in ("Il prezzo era alto solo dal 2 all'8 ottobre.", "Il prezzo era alto solo tra il 2 e l'8.",
-                         "Il prezzo era alto solo fino al 12 ottobre.", "Il prezzo era alto solo il 4 ottobre."):
+                         "Il prezzo era alto solo fino al 9 ottobre.", "Il prezzo era alto solo il 2 ottobre."):
             with self.subTest(sentence=sentence):
                 self.assertTrue(self.problems(sentence))
         for sentence in ("The price was high only from 2 to 8 October.", "The price was high only 2–8 October.",
                          "The price was high only on October 2.", "The price was high only until 9 October.",
-                         "The price was high only until October 12."):
+                         "The price was high only until October 9."):
             with self.subTest(sentence=sentence):
                 self.assertTrue(self.problems(sentence, "en"))
 
     def test_other_dates_and_other_clauses_are_not_read(self):
-        for sentence in ("Il prezzo era alto solo il 4/10.", "Il prezzo era alto solo il 4 ott.",
+        for sentence in ("Il prezzo era alto solo il 2/10.", "Il prezzo era alto solo il 2 ott.",
                          "Solo 3 risposte su 6 lo dicevano, dal 2 all'8 ottobre.",
                          "Orbit Reason scriveva «solo dal 2 all'8 ottobre».",
                          "Il prezzo era alto solo dal 2 all'8 ottobre, poi l'11 ottobre e il 15 ottobre."):

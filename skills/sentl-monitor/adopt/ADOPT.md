@@ -91,8 +91,8 @@ the report as written, so they are written in the report's language:
 - **Research question** (neutral: what is monitored, never one valence of it) and
   **purpose** (what the client will decide with the reports).
 - **Who asks**: `generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason.
-  For a business audience, `stakeholders` with the reason ("finance managers comparing
-  providers") reads better than a generic consumer.
+  For a business audience, `stakeholders` with the reason ("café owners choosing an oat drink
+  for their coffee") reads better than a generic consumer.
 - **Who wrote the rubrics and when** (`narrative.criteria`: `by`, `date`).
 - **The subject**: label, aliases as answers write them (brand name, product names), owned
   domains. **Foils**: competitors or alternatives, each `{"id", "label", "aliases",

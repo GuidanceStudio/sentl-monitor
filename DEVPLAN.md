@@ -1,17 +1,17 @@
 # Devplan — sentl-monitor
 
-**Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a and R3b done; R1 next; R3d waits for Sentl; M3 after the release.
+**Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b and R1 done; R5 next, then the history rewrite and v0.1.0; R3d waits for Sentl; M3 after the release.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
-github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
-`snapshot` route (M7); from the second report on, a report opens with what changed and closes
-with the method sections. After the live read: a project's figure is the mean of its
+github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
+(M7); from the second report on, a report opens with what changed and closes
+with the method sections. After reading Sentl projects with read-only tools: a project's figure is the mean of its
 dimension means, as Sentl computes a run's score (A4); the first report on an adopted project
 rebuilds the K periods before it from the project's history and compares with them (M2).
 Revised later the same day: assumption A1 is settled at the start of M2 on read-only data, a
-live project whose earliest run predates an in-place edit of three of its questions, instead
-of a test run; no credit is spent.
+project whose earliest run predates an in-place edit of its questions, instead of a test run;
+no credit is spent.
 
 ## Objective
 
@@ -73,16 +73,14 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - M6: Report unattended on a schedule — reports arrive without the operator starting them.
 
 ### Phase D — One-off snapshot
-- M7: Run a one-off snapshot on Sentl — the quick check sentl-snapshot runs on OpenRouter, measured on Sentl. Depends on M1, M4 and M5.
+- M7: Run a one-off snapshot on Sentl — a quick check of a subject, with no project left running. Depends on M1, M4 and M5.
 
 ## Out of scope
 
 - Model calls, OpenRouter, any key or token handled by the skill.
 - Rendering: outputs are Markdown; PDF, slides and HTML are the operator's choice of tool.
 - Scripts calling the Sentl endpoint directly.
-- A batch mode that runs a snapshot for each subject of a list, and a PDF of the snapshot report. sentl-snapshot
-  has both; the operator decides whether M7 carries them before sentl-snapshot is retired.
-- Retiring sentl-snapshot once M7 ships: an item of that skill's own repository.
+- A batch mode that runs a snapshot for each subject of a list, and a PDF of the snapshot report.
 
 ---
 
@@ -90,10 +88,10 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Why:** The operator has Sentl projects and no written report on them; a report on one run is useful before any design route exists.
 
-**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers the project's latest completed run, without comparison, so `method` lays out the first-report order of §The report. Fixtures follow the field names read from live Sentl on 2026-10-16 (`judge_score`, `reputation_score`, sources with `url` and `title` only), with fictional content. `check` applies the rules listed under §The report. Report headings in `en` and `it`. `install.sh` follows llm-rep's (`--force`, `--check`, `--dest`), and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/` with `RUN_LIVE=1`) land here, with the deny-list test the repository's CLAUDE.md requires.
+**Approach:** Router `sentl-monitor/SKILL.md`, playbooks `adopt/ADOPT.md` and `report/REPORT.md`, and the `monitor.py` commands `adopt`, `ingest`, `period`, `method` and `check`, as ARCHITECTURE.md §`adopt` and §`report` describe; here `period` covers the project's latest completed run, without comparison, so `method` lays out the first-report order of §The report. Fixtures follow the field names read from Sentl on 2026-10-16 (`judge_score`, `reputation_score`, sources with `url` and `title` only), with fictional content. `check` applies the rules listed under §The report. Report headings in `en` and `it`. `install.sh` takes `--force`, `--check` and `--dest`, and the test tiers (`tests/test_all.sh`, bash contracts, `tests/python/`, opt-in `tests/live/` with `RUN_LIVE=1`) land here, with the deny-list test the repository's CLAUDE.md requires.
 
 **Tasks:**
-- [x] Test: unit — deny-list: tracked files carry no name from a list kept as sha256 digests (llm-rep's pattern), no token-shaped string and no home-directory path
+- [x] Test: unit — deny-list: tracked files carry no name from a list kept as sha256 digests, no token-shaped string and no home-directory path
 - [x] Test: unit — `adopt` maps a fictional `get-project-tool` fixture to `study.json` (with `report_every`) and `sentl.json`; refuses a saved project missing a question text of the latest run; matches across typographic quotes
 - [x] Test: unit — `ingest`: text matching, `unmatched` rows, unscored answer with `neutral` sentiment set to null, `answer: null` counted against coverage and out of presence, a status not seen before treated as not final, a server error recorded in `unavailable.json`, truncated input refused
 - [x] Test: unit — `period`: dimension mean, project mean as the mean of dimension means, coverage, presence, domains, owned split on a fictional run; Sentl's score recorded beside it
@@ -108,7 +106,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Deviations:**
 - `monitor.py` dispatches to a `scripts/sentlmon/` package; run snapshots store their `plan` and no mention or owned flags, which `period` computes from the study as it stands.
-- The live run showed one assistant's sources are grounding redirects (the domain comes from the title) and public model names carry version numbers (`period` records the names for `check`).
+- A run read from Sentl showed one assistant's sources are grounding redirects (the domain comes from the title) and public model names carry version numbers (`period` records the names for `check`).
 - `check` scopes each dimension's figures to that dimension, verifies "N of M" answer counts and the decimal separator, and refuses question keys only: dimension and project keys are ordinary words.
 - A first report covers the latest run only, whatever `report_every` says; pooling arrives with M2.
 - `install.sh` refuses a non-empty destination that is not a sentl-monitor install, since it replaces it with `rm -rf`.
@@ -117,10 +115,10 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 **Why:** A periodic report must say what moved since the last one, and keep comparing when questions, criteria or models change.
 
-**Approach:** Starts by settling assumption A1, because the handling of edits made in the Sentl web panel depends on it, on read-only data: a live project whose earliest run was read after three of its questions were reworded. Question ids are allocated in sequence across the account, so the reworded questions keeping their ids places the edit in place; the earlier run returning the earlier texts settles A1. `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change; on the first report of a project with earlier runs it rebuilds the K periods before it (§Periods). The `changes` section is written from its output; `history/reports.json` indexes the reports and sets the order: the first report in the first-report order, every later one with `changes` and `findings` first and the five method sections after them, complete.
+**Approach:** Starts by settling assumption A1, because the handling of edits made in the Sentl web panel depends on it, on read-only data: a project whose earliest run was read after some of its questions were reworded. Question ids are allocated in sequence across the account, so the reworded questions keeping their ids places the edit in place; the earlier run returning the earlier texts settles A1. `report` saves `get-project-tool` at every invocation and records a `detected` version in `history/versions/` on a difference. `monitor.py period` pools the runs since the previous report and compares them with the previous period by ARCHITECTURE.md §Comparability and §What counts as a change; on the first report of a project with earlier runs it rebuilds the K periods before it (§Periods). The `changes` section is written from its output; `history/reports.json` indexes the reports and sets the order: the first report in the first-report order, every later one with `changes` and `findings` first and the five method sections after them, complete.
 
 **Tasks:**
-- [x] Settle assumption A1 on a live project's run that predates an in-place edit of its questions, read with read-only tools; record the result and the evidence, with no account data, in ARCHITECTURE.md §Assumptions and, if it is false, the new-baseline rule in §Comparability
+- [x] Settle assumption A1 on a project's run that predates an in-place edit of its questions, read with read-only tools; record the result and the evidence, with no account data, in ARCHITECTURE.md §Assumptions and, if it is false, the new-baseline rule in §Comparability
 - [x] Test: unit — pooling four weekly runs into one period; deltas on models present in both periods, including a model absent from `list-ai-models` (A5) and rounds pooled as repeated responses (A3)
 - [x] Test: unit — each §Comparability row: reworded, new intent, criteria, model added, dimension archived
 - [x] Test: unit — range rule with 1, 2 and 4 previous periods; verdict bands with means on their edges (2.45, 2.5, 3.49, 3.5); new and lost domains
@@ -141,11 +139,11 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 ## M2b: Explain each figure with its facts, sources and readings ✅
 
-**Why:** A dimension mean says how favourable the answers are, not why a figure moved or what the client should correct. The points a client acts on lie outside the means: an outdated fact quoted in most answers and the pages that carry it; an episode the period's mean averages away; a score drop caused by missing evidence rather than by negative answers; rounds of one run that cite the same sources; comparison pages written by competitors; the pages that brought the subject into an answer. `period` computes none of these, so a report written from its material cannot state them.
+**Why:** A dimension mean says how favourable the answers are, not why a figure moved or what the client should correct. The points a client acts on lie outside the means: an outdated fact quoted in most answers, and the pages that carry it; a few days in which the current fact prevailed, averaged away by a weekly mean; a score drop caused by an assistant that stopped finding the sources a question asks for, not by negative answers; rounds of one run that cite the same sources and are one reading, not three; comparison pages written by competitors; the pages that brought the subject into an answer it was absent from. `period` computes none of these, so a report written from its material cannot state them.
 
 **Approach:** Each insight is a figure in the period file, so `check` verifies it like any other, and an entry in the period's material, so the findings are written from it. Depends on M2 (periods and comparison).
 - **Fact currency.** A question's `facts` entry gains optional `current` and `outdated` term lists (ARCHITECTURE.md §`study.json`). `period` counts, per question, model and run, the answers stating a current term, an outdated one, or both, folded like aliases.
-- **Sources behind a fact or a score.** Per question, for the answers stating only an outdated term, those stating a current one, those scored 1–2 and those scored 4–5: the five domains cited by most answers of the group, each with its share in that group and in the opposite one. Decided 2026-10-17 after the first live report, replacing a selection by difference between the two shares, which listed twenty or more domains per question and picked up sites cited by one assistant only.
+- **Sources behind a fact or a score.** Per question, for the answers stating only an outdated term, those stating a current one, those scored 1–2 and those scored 4–5: the five domains cited by most answers of the group, each with its share in that group and in the opposite one. It replaces a selection by difference between the two shares, which listed twenty or more domains per question and picked up sites cited by one assistant only.
 - **Readings.** Rounds of a question–model pair in one run that cite the same list of sources are one reading. Each cell records `readings` beside `received`; the report states the readings a presence figure rests on when they are fewer than the answers.
 - **Episodes.** A question's mean or a fact's current share that lies outside the range of the runs before it, in this period and the previous one and at least five of them, for at least three consecutive runs is an episode, with its first and last date; it closes at the first value back inside that range. A first period with no previous one is read against its own earlier runs, so a first monthly report still shows a movement inside the month.
 - **Presence per run.** For each question whose answers do not name the subject in the text, the presence in each run of the period, so a finding can say in which readings the subject was named and in which it was not.
@@ -175,18 +173,18 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - [x] Test: live — the first report on a real adopted project with several weeks of runs states the insights its history contains; the project is named by an environment variable
 - [x] Commit
 
-**Done when:** on a fictional history built to contain each pattern, the period's material lists every insight above with its figures, a report that states them passes `check`, and the live first report passes `check` with them.
+**Done when:** on a fictional history built to contain each pattern, the period's material lists every insight above with its figures, a report that states them passes `check`, and a first report on a live project passes `check` with them.
 
 **Deviations:**
-- Sources behind a fact or a score: the five domains cited by most answers of each group, listed only when both groups of a pair cite a source (operator, 2026-10-17: the selection by difference listed twenty or more domains and picked up one assistant's homonym sites).
+- Sources behind a fact or a score: the five domains cited by most answers of each group, listed only when both groups of a pair cite a source; the selection by difference listed twenty or more domains and picked up one assistant's homonym sites.
 - An episode stays on one side of the range (a jump across ends it as a switch) and uses the assistants every run of its series has; missing-evidence phrases are anchored on the assistant's own search and exclude third-person subjects.
-- The live report added, with the operator's approval: one `purpose` line per project when settings differ, shared origins and shared rubrics stated once, and an `In short` summary section.
+- Added during the milestone: one `purpose` line per project when settings differ, shared origins and shared rubrics stated once, and an `In short` summary section.
 - `check` keys findings by project and dimension, reads a fact term inside «» as text, and verifies a count before a verb of citing.
 - Suite run under Python 3.14 and 3.11; 3.10 is not installed on the development machine.
 
 ## M2c: A first report on a monitor younger than its report interval compares the two halves of its period ✅
 
-**Why:** A monitor started less than one `report_every` interval before its first report has no earlier interval to rebuild, so its `changes` section says this is the first measurement. The client was shown the first readings when the monitor started and reads the first periodic report for what moved since then. A live first monthly report, three and a half weeks of daily and weekly runs, said "first measurement" while its findings held a fact whose current value rose and fell, an assistant whose score on one question dropped a point, and unbranded questions that gained and lost the subject.
+**Why:** A monitor started less than one `report_every` interval before its first report has no earlier interval to rebuild, so its `changes` section says this is the first measurement. A client shown the first readings when the monitor started reads the first periodic report for what moved since then, and a first monthly report on three and a half weeks of runs can hold a fact whose current value rose and fell, an assistant whose score on a question dropped a point, or unbranded questions that gained and lost the subject, while its `changes` section says "first measurement".
 
 **Approach:** Applies only to a first report with no run before the period's interval, the case where `period` now tells the operator there is no earlier period. When the period's runs span at least 14 days, `period` splits them at the midpoint between the first run's start and the report's date and compares the second half with the first by ARCHITECTURE.md §What counts as a change, with the thresholds for a single previous period (0.5 points, 20 percentage points): dimension, project and question means, verdicts, presence per question, fact currency, new and lost domains. A half is a period built like a rebuilt one, `"half": "first"` or `"second"`, written to `history/periods/` and given no report; building the first report again replaces both. The `changes` section names the two halves and their dates, and when a change has an episode (M2b) it states the episode's first date. The episodes, fact currency and presence per run for the findings still read the whole period. Under 14 days the section stays the first measurement. Later reports compare with the whole first period, never with its halves.
 
@@ -199,7 +197,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - [x] Test, then implement: a verdict change is listed only when the pair's mean also moves by the change threshold (0.3 points, 0.5 with a single previous period), in every comparison; `change_rule` (en, it) and ARCHITECTURE.md §What counts as a change updated
 - [x] Test, then implement: the new and lost domains, and the domains of a presence change, ranked by the answers citing them, five per list, ties broken by name; "1 answer" in the material
 - [x] Test, then implement: the line naming the halves states each project's runs and answers in each half, and `check` still requires it; the material's halves header gives dates
-- [x] The project mean and fact currency stay compared in every comparison (operator, after the first dry run)
+- [x] The project mean and fact currency stay compared in every comparison
 - [x] Review fix, test first: an episode stands beside a change only on the side of its move and running in the later side of the comparison
 - [x] Review fix, test first: the halves split the whole period's kept runs by time, so a criteria change drops its old answers from both halves
 - [x] Review fix, test first: a project with runs in one half only is not compared and is stated; with no project in both halves the report is the first measurement
@@ -213,13 +211,13 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - [x] Second review, test first: on a halves report, assistants added or removed come from the recorded versions, and from half against half for runs older than every version
 - [x] Second review, test first: the assistants a halves comparison rests on are said to be present in both halves
 - [x] Second review, test first: the material's halves metric lines name the halves, "1 run" in the counts, episodes timed against the split instant, an episode note printed once under its question
-- [x] Test: live — the live first report's `changes` section compares the two halves and passes `check`
+- [x] Test: live — a live project's first report: its `changes` section compares the two halves and passes `check`
 - [x] Commit
 
-**Done when:** a fictional monitor three and a half weeks old gets a first report whose `changes` section compares the second half with the first and passes `check`; the live first report does the same.
+**Done when:** a fictional monitor three and a half weeks old gets a first report whose `changes` section compares the second half with the first and passes `check`; a live project's first report does the same.
 
 **Deviations:**
-- Operator, after the first dry run: the split is the midpoint to the end of the report's date; a verdict change needs the pair's mean to move by the change step, in every comparison; the new and lost domains and a presence change's domains keep the five cited by most answers per list; the halves line states each project's runs and answers; the project mean and fact currency stay compared in every comparison (`comparison.projects`, a question's `current_share` on presence's thresholds).
+- After the first dry run: the split is the midpoint to the end of the report's date; a verdict change needs the pair's mean to move by the change step, in every comparison; the new and lost domains and a presence change's domains keep the five cited by most answers per list; the halves line states each project's runs and answers; the project mean and fact currency stay compared in every comparison (`comparison.projects`, a question's `current_share` on presence's thresholds).
 - Reviews of the diff: the halves split the period's kept runs by time and compare per project (a project in one half only is stated and not compared; with none in both, the first measurement); they state every design change made inside the period, a dimension archived inside the first half included, assistants from the versions `detect` recorded and half against half for runs older than every version; an episode stands beside a change only on its side and when its last run starts after the split, once, under its question; a dimension whose questions the earlier side dropped for a criteria change is a new baseline, one it never asked is new.
 - The halves are `<date>.first.json` and `<date>.second.json`, replaced only when that date is built; `check` refuses (exit 2) a report whose half file is missing; the comparison keeps `previous` null and gains `halves`; episodes gain `first_at` and `last_at`.
 - The halves get their own changes marker, and `check` requires the line `method` wrote naming them; Italian dated sentences elide before 8 and 11 and write the first of the month as 1° through one helper (`i18n.phrase`); ADOPT.md §1 is the connection step, so its §6 cadence bullet was updated with §7.
@@ -243,8 +241,8 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - [x] Test: unit — the line of a fact's current share has one point per run with the period file's values; the presence columns one per run; the sources bars the five domains with both groups' shares; the assistant bars one series per assistant
 - [x] Test: unit — every value in the file equals the period file's figure as `check` rounds it; a chart with no data is omitted and listed; the output parses as md2 `:::chart` blocks (type line, table, closing `:::`)
 - [x] Implement `monitor.py charts`; `REPORT.md` optional last step; README; ARCHITECTURE.md
-- [x] Test: live — the live study's chart file for its latest report holds the profile radars of both projects and the fact-currency line
-- [x] Review fix: a fact line with a 0% run is drawn on a raised axis by md2 (zeros pushed to the floor); fix md2's line axis to include 0, or emit a column (fixed in md2 M121; `line` kept)
+- [x] Test: live — a live study's chart file for its latest report holds a profile radar per project and the fact-currency line
+- [x] Review fix: a fact line with a 0% run is drawn on a raised axis by md2 (zeros pushed to the floor); fix md2's line axis to include 0, or emit a column (fixed in md2; `line` kept)
 - [x] Review fix: a by-run chart with one run is empty in md2 (N−1 segments); omit and list it, or draw a column
 - [x] Review fix: two runs on the same day get the same label; add the time when a day repeats
 - [x] Review fix: the profile series are comparison means on shared assistants and questions; the heading names them when they differ from the period's figures; unit test for that case
@@ -253,7 +251,7 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - [x] Re-review fix, test first: series labels use the bounds the report prints (halves, previous period, period), a project's own run days only in its heading; the live test expects a line where the fact is stated in two runs or more; a line left out says in how many runs the fact is stated; singular notes for one assistant or one question; same-day times in UTC
 - [x] Commit
 
-**Done when:** `monitor.py charts` on the live study writes a chart file whose figures match its period file, and md2 renders every block in it.
+**Done when:** `monitor.py charts` on a live study writes a chart file whose figures match its period file, and md2 renders every block in it.
 
 **Deviations:**
 - The profile's two series are each compared dimension's comparison `mean` (`previous`, `now`), on the questions and assistants both sides share, so they match the changes section; a dimension not compared is left out and listed; when that basis differs from either side's own (an assistant added or removed, a question not comparable), the heading names the assistants and the questions left out.
@@ -284,9 +282,9 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 ## M2f: An episode's close is one run, not the state after it ✅
 
-**Why:** a report could describe an episode's close as the end of the movement while later runs of the period lay on the episode's side again. The close is the first run back inside the range; the runs after it are not described by it. Approved by the operator on 2026-10-18.
+**Why:** `INSIGHTS.md`'s example wrote an episode's close as a span ("from 9 October they were back inside that range"), so a finding written after it can say that the current fact prevailed "only" during the episode while later runs of the period state it in half or all of the answers. The close is the first run back inside the range; the runs after it are not described by it.
 
-**Approach:** `INSIGHTS.md`'s example states the close as one date ("on 12 October it was back inside that range") and the rule says the runs after the close are read from the by-run figures, and that "only" is not written about an episode when a later run of the period lies on the same side. `period`'s material prints, under each closed episode, the later runs of the period that lie on the episode's side, with their values, so the finding can state them. `check` refuses "only" (and "solo" in Italian) in a sentence that names a closed episode's dates when the material lists such a later run.
+**Approach:** `INSIGHTS.md`'s example states the close as one date ("on 9 October it was back inside that range") and the rule says the runs after the close are read from the by-run figures, and that "only" is not written about an episode when a later run of the period lies on the same side. `period`'s material prints, under each closed episode, the later runs of the period that lie on the episode's side, with their values, so the finding can state them. `check` refuses "only" (and "solo" in Italian) in a sentence that names a closed episode's dates when the material lists such a later run.
 
 **Tasks:**
 - [x] Test: unit — the material lists, under a closed episode, the later runs on its side with their values; none when there is none
@@ -304,9 +302,9 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 ## R0: The deny-list lives outside the repository ✅
 
-**Why:** `tests/python/test_no_real_names.py` keeps the denied names as unsalted sha256 digests of lowercased words. A guess can be tested against them in seconds, so the public history discloses the names it protects. Every commit also carries the author's personal email. Approved by the operator on 2026-10-19, with the history rewritten while the repository stays public and the email replaced by the GitHub noreply address.
+**Why:** `tests/python/test_no_real_names.py` keeps the denied names as unsalted sha256 digests of lowercased words. A guess can be tested against them in seconds, so the public history discloses the names it protects. Every commit also carries the author's personal email. The history is rewritten while the repository stays public, and the email replaced by the GitHub noreply address.
 
-**Approach:** the test reads the digests from a file outside the repository, named by `SKILL_DENYLIST` or, when unset, `~/.config/skill-denylist/digests.txt`; a line is either a 64-character digest or a name, normalised and hashed as before; `#` starts a comment. With no file the name check is skipped and the token and path checks still run. The digests move to that file. `git filter-repo` removes every digest the file ever held from all commits and maps the author email to the noreply address; main is force-pushed. The repository's CLAUDE.md states that the list is never committed, in any form. llm-rep's test, which this one copied, gets the same change under its own devplan.
+**Approach:** the test reads the digests from a file outside the repository, named by `SKILL_DENYLIST` or, when unset, `~/.config/skill-denylist/digests.txt`; a line is either a 64-character digest or a name, normalised and hashed as before; `#` starts a comment. With no file the name check is skipped and the token and path checks still run. The digests move to that file. `git filter-repo` removes every digest the file ever held from all commits and maps the author email to the noreply address; main is force-pushed. The repository's CLAUDE.md states that the list is never committed, in any form.
 
 **Tasks:**
 - [x] Test: unit — the name check reads digests and names from the file `SKILL_DENYLIST` names, reports a hit as `path:line`, and is skipped when the file is missing while the token and path checks still run
@@ -316,18 +314,35 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 **Done when:** a fresh clone of the public repository contains none of the digests and no personal email in any commit, and the test still fails on a planted denied name when the local file exists.
 
-## R1: The README describes what works, for someone who has never seen the skill
+## R1: The README describes what works, for someone who has never seen the skill ✅
 
 **Why:** the README presents the planned routes (`brief`, `design`, `setup`, `snapshot`, scheduled reports) as working, and a newcomer cannot get from it to a first report. DEVPLAN.md, CLAUDE.md and the README point to skills that are not public.
 
 **Approach:** the README opens with what works (`adopt`, `report`, `charts`) and its walk-through goes adopt → report on a fictional study; the planned routes move under "Planned". It adds prerequisites (Python 3.10+, with the macOS note; the Sentl MCP server), the answers `adopt` asks for, a sample report on the fictional subject, what each exit code means and what to do, how to update and uninstall, a version and a CHANGELOG, contribution and support. Notes about live studies, operator approvals and private skills leave the public files.
 
 **Tasks:**
-- [ ] Test: bash — the README's routes table lists only routes whose playbook exists, outside "Planned"; the sample report passes `check`
-- [ ] README, CHANGELOG, sample report; public files cleaned
-- [ ] Commit
+- [x] Test: bash — the README's routes table lists only routes whose playbook exists, outside "Planned"; every `monitor.py` command the README shows is in `monitor.py --help`
+- [x] Test: unit — the sample report passes `check` against a study rebuilt from the test fixtures
+- [x] Sample report in `examples/`, generated by the pipeline on the fictional fixtures (adopt → ingest → period → method, findings and summary written as REPORT.md says, `check` passing)
+- [x] README restructured for a newcomer; CHANGELOG.md with 0.1.0
+- [x] Public files cleaned: no live study, internal approval, other repository's milestone id or private skill in DEVPLAN.md, ARCHITECTURE.md, CLAUDE.md or the README
+- [x] Review fixes, test first: fact terms, an episode's dates and missing-evidence answers in code and tests moved to the fictional oat-drink world; the private-skill grep dropped; README (release link, `claude mcp add --scope user`, skill paths, server name, `install.sh` first, md2 linked, no report on Codex, claude.ai and ChatGPT until Sentl offers a run export); the sample's dimensions section without the repeated theme name; CLAUDE.md, ARCHITECTURE.md, CHANGELOG wording
+- [x] Commit
 
 **Done when:** a reader with a Sentl account and an assistant can go from the README alone to a first report, and no public file names a private skill or a live study.
+
+**Deviations:**
+- The sample is an English report on a fictional project built in `tests/python/sample_study.py` from the fixtures' universe (Avenello, Avoria, `.example` domains, Acme Chat and Orbit Reason), not the Italian fixture projects, so a newcomer can read every excerpt: three dimensions (a fact with a current and an outdated value, a question naming no brand with a competitor, a steady one), 14 daily runs of three rounds, weekly cadence. Its first report compares with a week rebuilt from the earlier runs and shows fact currency, episodes, the sources behind the fact and the score, readings, presence by run, who wrote the sources, two verdict changes and a new domain; it has no missing-evidence insight. `python3 tests/python/sample_study.py <folder>` builds the study to rewrite the sample.
+- The sample's `check` runs in a unit test (`test_sample_report.py`), since the study is rebuilt from the Python fixtures; the test also requires `examples/avenello-report-2026-10-14.charts.md` to equal what `charts` writes. A changed quote in the sample fails it (checked by mutation).
+- The bash checks in `test_structure.sh`: the routes table outside "Planned" lists exactly the routes with a playbook; a `sentl-monitor <route>` in a code span outside "Planned" has a playbook; every `monitor.py` command and option shown in a code span or after `python3` is in `--help` (an unknown command, an unknown option, a planned route in the table and a planned route invoked each fail, checked by mutation); the sample links exist; the new sections, an exit-code row for 0–6 and 130, and a CHANGELOG entry for 0.1.0. After review the check for private skill names was dropped: the deny-list file outside the repository guards them.
+- The R3a support table moved from "Install" to "What works today", and `--uninstall` to "Update and uninstall"; `test_structure.sh` reads them there, with `claude plugin update` and `claude plugin uninstall`, whose forms their `--help` confirms. `test_halves.DocsTest` anchored on the old walk-through; it now requires "daily" in every README sentence that dates a movement.
+- Removed from the README: the costs and keyword-data sections (planned routes only), the relation to other skills, the planned files in the layout. "Who it is for" is in the opening paragraph. The claude.ai row says the zip is built to claude.ai's skill limits, since no install there is recorded.
+- Cleaned: DEVPLAN.md (decisions, phase D, out of scope, M1, M2, M2b, M2c, M2d, M2f, R0, R2, R3, R3b, R3c, R3d, M3, M4, M7), ARCHITECTURE.md (the catalogue's origin, the pack size, A1, A3, and two matching examples replaced by other fictional values that the code handles the same way), CLAUDE.md (related skills removed, forge-flow's repository named) and INSIGHTS.md's missing-evidence example. The status line is unchanged. Left as they are: the live test tier's descriptions and the skill's own rule that writes need the operator's go.
+- Review fixes, test first. Code and tests: the fact terms in `test_insights.py` and `insights.py` are oat-drink prices (£2, £2.10, €1, €1,99); the span tests' episode runs 2–8 October, closed on the 9th, with later runs on the 11th and 15th, as `check.py`'s comments and INSIGHTS.md's example now do (6–8 October, closed on the 9th, later runs on the 11th and 15th); the missing-evidence phrases in English and Italian, the product sentences beside them and the Italian fixture `NO_DATA` speak of oat sourcing, lab tests, cartons and Avenello's plant, each hitting the same patterns as the sentence it replaced; `test_insights_history` moves the current price to 8–10 October and the missing evidence to 12 October, and its dates were checked against the period file; ADOPT.md's business-audience example is café owners. A grep for the reviewer's list of strings finds none.
+- Review fixes, generator: a theme whose label is its dimension's name (every adopted study) is written as its origins alone, "**Nutrition**, from issues the client raised.", in English and Italian (`from_origins`); the sample report was regenerated and passes `check`.
+- Review fixes, docs: README `claude mcp add --scope user`, `install.sh` first for Claude Code, each install's skill folder (the plugin's from `claude plugin list --json`) and the commands written with it, the server name as Sentl's setup page gives it and the tools found by suffix, a sentence per host on no report until Sentl offers a run export, the release link working once v0.1.0 is released, "Every assistant at once" split from "Check the install", md2 linked in README and CHANGELOG; CLAUDE.md states what works and what is planned and the deny-list rule; ARCHITECTURE.md says `catalogue.md` arrives with M4; the status line no longer counts the live projects read. `test_structure.sh` checks each README item.
+- Open: `method` lowercases an origin's label inside a sentence, so a dimension from Google searches reads "(google searches)", as in the sample report.
+- Counts, under Python 3.14 (whole suite) and 3.11 (unit tier): unit 470 → 475, structure 55 → 92, skill 94, install 119, package 85, the package suite on a committed copy of the working tree.
 
 ## R2: Sentl's responses are checked against what the skill expects ✅
 
@@ -357,17 +372,17 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - Fields the skill only copies into the run snapshot (`trigger`, `finished_at`, `error`, `sentiment`) take any value; a source's `title` is optional, and `sources: null` is read as no source.
 - `--debug` is accepted before or after the command; `SENTL_MONITOR_DEBUG=1` does the same. Ctrl-C exits 130 with one line. ARCHITECTURE.md gains §Responses from Sentl and gaps G18 (errors that say what failed) and G19 (run statuses documented); README's command list names `runs`.
 - Suite run under Python 3.14 and 3.11: 326 tests before, 389 after.
-- Dry run on a copy of a live study, deleted afterwards: its 30 saved runs re-ingested, `period` for its report date and `check` give period files, material and check output byte-identical to HEAD's and to the study's own period files; the saved project, listing and models files pass the schema.
+- Dry run on a copy of a live study, deleted afterwards: its saved runs re-ingested, `period` for its report date and `check` give period files, material and check output byte-identical to HEAD's and to the study's own period files; the saved project, listing and models files pass the schema.
 - Open: `get-project-tool` returns `organization` as an object (`id`, `slug`, `name`), which `adopt` copies into `study.json` and `sentl.json` as it is, where ARCHITECTURE.md shows the slug; the schema does not read it.
 
 ## R3: Every host: Claude Code, opencode, Codex, claude.ai and ChatGPT
 
-**Why:** the skill relies on Claude Code saving large tool results to a file; the operator wants it installable and usable in Claude Code, opencode, Codex and above all the claude.ai and ChatGPT web clients, where results are not saved to a file and the sandbox does not keep files between conversations. A run of 39 answers is about 250,000 characters; a monthly report reads 4 to 150 runs, more than a web conversation holds.
+**Why:** the skill relies on Claude Code saving large tool results to a file; it is to be installable and usable in Claude Code, opencode, Codex and above all the claude.ai and ChatGPT web clients, where results are not saved to a file and the sandbox does not keep files between conversations. A run of 39 answers is about 250,000 characters; a monthly report reads 4 to 150 runs, more than a web conversation holds.
 
-**Approach:** designed and approved by the operator on 2026-10-19. Split in parts: R3a distribution and install, R3b the study carried as a pack on web clients, R3d the data paths that need Sentl's changes, R3e host verification. R3c, a read-only fetch from the script with a token, was declined by the operator: the scripts keep calling no Sentl endpoint, and Codex waits for R3d. R3a and R3b need nothing from Sentl; R3d waits for Sentl's read-side changes, requested on 2026-10-19.
+**Approach:** split in parts: R3a distribution and install, R3b the study carried as a pack on web clients, R3d the data paths that need Sentl's changes, R3e host verification. R3c, a read-only fetch from the script with a token, was declined: the scripts keep calling no Sentl endpoint, and Codex waits for R3d. R3a and R3b need nothing from Sentl; R3d waits for Sentl's read-side changes, requested on 2026-10-19.
 
 **Tasks:**
-- [x] Design, approved by the operator
+- [x] Design
 - [ ] R3a, R3b, R3d, R3e done
 
 **Done when:** every host in the README's support table is backed by a recorded run on the released version.
@@ -428,7 +443,7 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 **Deviations:**
 - The default name follows the design: `<study folder name>-<last final report date>.sentl-pack.zip`, or `<study folder name>.sentl-pack.zip` before the first final report, written next to the study folder. `--out` takes a file ending in `.zip` or a folder, since the design gives a folder and the approved scope a file.
 - The manifest holds `schema`, `skill_version`, `full`, `last_report` (the latest final report, or null), `final_reports`, `projects` (key and project id) and `files` (path, size, sha256). It holds no `created_at`, which the design listed: a creation time would make two packs of one folder differ.
-- "The runs of the latest report's period" are those `reports.json` lists, those its period file lists (newer when the period was built again after a late run), and those it left out under the judged floor. The live study had one such run, started before the report's last run; without it, building that period again lost its `excluded` entry. "Any ingested after it" is read as started after the latest report's last run, the window the next report reads; the time a run was ingested decides nothing.
+- "The runs of the latest report's period" are those `reports.json` lists, those its period file lists (newer when the period was built again after a late run), and those it left out under the judged floor. Such a run can start before the report's last run; without it, building that period again loses its `excluded` entry. "Any ingested after it" is read as started after the latest report's last run, the window the next report reads; the time a run was ingested decides nothing.
 - The cut, the runs and the halves follow the latest entry of `reports.json`, as `period` and `runs` read it; `last_report`, the default name and the staleness check use the latest final report. Before any final report the pack holds every run and no period file, since the first report builds them again.
 - "The latest four period files" are those of the K = 4 latest dates among the reports and the rebuilt periods, the ones `period` compares with; a period file with no report (built, never checked) is not packed. "The latest halves" are the halves of the latest report's date; no later report reads them, so after a second report none is packed.
 - `--full` holds every run and every period file. `inbox/`, `history/material/`, `reports/` and any other file are never packed, as the design says; the scope's "everything" is read as every run and period.
@@ -438,13 +453,13 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - Traced the files `method`, `period`, `compare`, `runs`, `check`, `detect`, `ingest` and `charts` open: besides the pack's files, `method` reads whether `search-demand.json` exists, now packed; `runs` reads `inbox/`, rebuilt each conversation; nothing reads `last-report.json`.
 - `compatibility` names the pack file (435 characters). README: the command list names `pack` and `unpack`, and "First run" says to download the pack in a web sandbox and attach it to the next conversation; R1 rewrites the README.
 - `test_three_reports.py`'s setup is split into `first_two_reports`, `december_runs` and `third_report`, which `test_pack.py` shares; its seven tests are unchanged.
-- Dry run on a copy of a live study (two projects, 30 runs, one first report compared on its halves): the pack is 2,417,418 bytes and 38 files, every run included, since all 30 belong to the report's period or were left out of it. `period --date` of that report, run in the copy and in the folder unpacked from the pack, gives identical period, halves and material files and output; measured again after the review fixes, with the same pack, byte for byte, and two packs of the copy identical. The original folder was unchanged (its file list with sizes and times hashed before and after); the copies were deleted.
+- Dry run on a copy of a live study: the pack holds every run, since all belong to the report's period or were left out of it, and is about 2.4 MB. `period --date` of that report, run in the copy and in the folder unpacked from the pack, gives identical period, halves and material files and output; measured again after the review fixes, with the same pack, byte for byte, and two packs of the copy identical. The original folder was unchanged (its file list with sizes and times hashed before and after); the copies were deleted.
 - Tests: the done-when case also runs on a fuller history (a weekly and a daily project, a dimension archived and restored, a run under the floor, an unavailable run, a question reworded in Sentl, a third period with an episode and verdict changes), and its period file, material, report and `period` output are byte-identical. `refused()` compares the contents of the whole temporary folder. Removing `unavailable.json` or `search-demand.json` from the pack, `_check_target`, the halves, the backslash, drive-letter, duplicate, size and empty-folder checks, the period file's or left-out runs, the staging cleanup, the writability check, any step of the rollback (backups put back, new files and folders removed), or the size caps in `pack` each makes a test fail (checked by mutation in a copy).
 - Counts, under 3.14 (whole suite) and 3.11 (unit tier): unit 415 → 470, skill 72 → 94, structure 55, install 119, package 85. The package suite zips the files git tracks, so on a working tree where `sentlmon/pack.py` is not yet committed its three checks of the extracted zip fail on the import; it passed in full on a committed copy.
 
 ## R3c: Read Sentl from the script on a CLI host — declined
 
-Declined by the operator on 2026-10-19: the scripts call no Sentl endpoint and hold no token. Codex is supported once R3d reads Sentl's export.
+Declined: the scripts call no Sentl endpoint and hold no token. Codex is supported once R3d reads Sentl's export.
 
 ## R3d: Read runs through Sentl's export, download link and pages
 
@@ -452,7 +467,7 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Why:** run results cannot pass through a web conversation; on claude.ai and ChatGPT they reach the sandbox only as a file the sandbox downloads or the user attaches.
 
-**Approach:** `monitor.py import` checks an export (sha256, `schema_version` through R2's schema module) and writes the project, the run listing and each run's results to `inbox/` in the tools' shapes; `download` fetches a link without credentials and imports it, exit 7 when unreachable, only if the operator approves a script that downloads from Sentl when R3d starts; otherwise the user downloads the export and attaches it; `ingest` accepts the pages of one run and checks each page's checksum; `adopt` and `ingest` match responses by `question_id` when present, by text otherwise. Playbooks give the order: a file the host saved, an export the user attached, checksummed pages, and for small responses only, a copy written by the assistant; the report on a web host runs from the pack and the export alone.
+**Approach:** `monitor.py import` checks an export (sha256, `schema_version` through R2's schema module) and writes the project, the run listing and each run's results to `inbox/` in the tools' shapes; `download` fetches a link without credentials and imports it, exit 7 when unreachable, if a script that downloads from Sentl is accepted when R3d starts; otherwise the user downloads the export and attaches it; `ingest` accepts the pages of one run and checks each page's checksum; `adopt` and `ingest` match responses by `question_id` when present, by text otherwise. Playbooks give the order: a file the host saved, an export the user attached, checksummed pages, and for small responses only, a copy written by the assistant; the report on a web host runs from the pack and the export alone.
 
 **Tasks:**
 - [ ] Test: unit — `import` writes the inbox files from an export fixture; refuses a changed byte (exit 2) and an unknown `schema_version` (exit 5)
@@ -506,7 +521,7 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Why:** The operator's process starts from themes found in the client's material and in Google searches, and the report's `themes` section needs each theme's origin and its search demand.
 
-**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes, ported from llm-rep's `scripts/search_demand.py` (Google suggest fetching and parsing, keyword classing; standard library): volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
+**Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes (Google suggest fetching and parsing, keyword classing; standard library): volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
 
 **Tasks:**
 - [ ] Test: unit — autocomplete parsing, prefixes with stems, partial failure exit 1 (fixtures, no network)
@@ -522,7 +537,7 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Why:** Steps 3–5 of the operator's process: dimensions and projects from the themes, who asks, questions as people type them, and how each is scored 1–5.
 
-**Approach:** `design/DESIGN.md` in the order of ARCHITECTURE.md §`design`; one study project is one Sentl project. `catalogue.md` ports sentl-snapshot's dimension catalogue (question patterns, rubric anchors, the facts each dimension needs, with catalogue ids) and adds the stance and fidelity axes; the `snapshot` route (M7) picks its dimensions from it. `monitor.py validate` implements every refusal and warning listed in §`design`, including Sentl's field limits and the opposite-framing rule for dimensions with `search_lean`. `review` writes `study-review.md`. Revisions classify each changed question as `reworded`, `new_intent` or `criteria` and append to its `lineage`.
+**Approach:** `design/DESIGN.md` in the order of ARCHITECTURE.md §`design`; one study project is one Sentl project. `catalogue.md` holds the dimension catalogue (question patterns, rubric anchors, the facts each dimension needs, with catalogue ids) and adds the stance and fidelity axes; the `snapshot` route (M7) picks its dimensions from it. `monitor.py validate` implements every refusal and warning listed in §`design`, including Sentl's field limits and the opposite-framing rule for dimensions with `search_lean`. `review` writes `study-review.md`. Revisions classify each changed question as `reworded`, `new_intent` or `criteria` and append to its `lineage`.
 
 **Tasks:**
 - [ ] Test: unit — one fixture per `validate` refusal, one per warning, and a clean fictional study
@@ -566,7 +581,7 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 ## M7: Run a one-off snapshot on Sentl
 
-**Why:** A first look at a subject, for a prospect or before a study, needs a small study run once and a short report, with no project left running in Sentl. The route replaces the check sentl-snapshot runs on OpenRouter.
+**Why:** A first look at a subject, for a prospect or before a study, needs a small study run once and a short report, with no project left running in Sentl.
 
 **Approach:** Depends on M1 (`ingest`, `period`, `method`, `check`), M4 (`catalogue.md`, `validate`, `review`) and M5 (`payload`, `bind`). `snapshot/SNAPSHOT.md` follows ARCHITECTURE.md §`snapshot <subject>`: subject and dated facts, 4–5 dimensions from `catalogue.md`, one question and one rubric each, one Sentl project created paused with no schedule, `estimate-run-tool` shown in credits before the go, one run, a report in the snapshot order of §The report, then the pause, `closed` in `sentl.json` and the panel link for archiving by hand (gap G16). `study.json` carries `"kind": "snapshot"`; `validate`, `review`, `payload`, `method` and `check` gain a snapshot mode. Invoked again in the same folder, the route resumes at the first step whose output is missing.
 

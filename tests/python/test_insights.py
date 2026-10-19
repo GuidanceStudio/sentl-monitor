@@ -19,10 +19,10 @@ class ClassifyTest(unittest.TestCase):
         self.assertIsNone(classify(None, TERMS))
 
     def test_a_term_never_matches_inside_a_longer_number(self):
-        self.assertIsNone(classify("Costa £2.50 al mese.", {"current": ["£2"], "outdated": []}))
+        self.assertIsNone(classify("Costa £2.10 al litro.", {"current": ["£2"], "outdated": []}))
         self.assertIsNone(classify("La confezione costa 12,10 €.", {"current": ["10 €"], "outdated": []}))
-        self.assertIsNone(classify("Costa €9,99.", {"current": ["€9"], "outdated": []}))
-        self.assertEqual(classify("Costa £2 al mese.", {"current": ["£2"], "outdated": []}), "current_only")
+        self.assertIsNone(classify("Costa €1,99.", {"current": ["€1"], "outdated": []}))
+        self.assertEqual(classify("Costa £2 al litro.", {"current": ["£2"], "outdated": []}), "current_only")
 
     def test_the_space_between_a_number_and_a_currency_sign_is_optional_on_both_sides(self):
         self.assertEqual(classify("Avenello costa 2,10€ al litro.", TERMS), "current_only")
@@ -138,38 +138,38 @@ class EpisodesTest(unittest.TestCase):
 class MissingEvidenceTest(unittest.TestCase):
 
     def test_english_phrases(self):
-        for text in ("Public lab-test data on avenello.example was not accessible in the provided results.",
-                     "Public sources on Avenello's oat sourcing are limited in the search results.",
-                     "Information on what it is like to work at Avenello is quite limited.",
-                     "I could not find any reviews from people who work there.",
-                     "No lab tests were found.", "I found no lab tests.",
+        for text in ("Lab-test data on oat drinks from avenello.example was not accessible in the provided results.",
+                     "Independent sources for Avenello's oat drink are limited in the search results.",
+                     "Information on where Avenello buys its oats is quite limited.",
+                     "I could not find any reports on the sugar content of the barista edition.",
+                     "No independent reviews were found.", "I found no recent reviews of the oat drink.",
                      "There is limited information available.",
-                     "Public data on Avenello's workplace is quite limited compared with its customer reviews."):
+                     "Public data on Avenello's oat farms is quite limited compared with its nutrition labels."):
             self.assertTrue(says_missing(text, "en"), text)
 
     def test_english_product_sentences_are_not_missing_evidence(self):
-        for text in ("Avenello offers limited integrations.", "There is a limited free plan.",
-                     "The information about pricing is limited to the free plan.",
+        for text in ("Avenello offers a limited range of flavours.", "There is a limited summer edition.",
+                     "The information about pricing is limited to the one-litre carton.",
                      "Stock is limited in the summer.", "Results are limited to Italy.",
-                     "Some customers said they could not find information about cancellation fees in the app.",
-                     "Users cannot access their data after the update.",
-                     "Customers report that no information was available at the checkout."):
+                     "Some customers said they could not find information about the oats' origin on the carton.",
+                     "Shoppers cannot read the data on the new carton.",
+                     "Customers report that no information was available on the shelf label."):
             self.assertFalse(says_missing(text, "en"), text)
 
     def test_italian_phrases(self):
-        for text in ("Le informazioni su com'è lavorare da Avenello sono piuttosto limitate.",
-                     "I dati sulle recensioni dei dipendenti non sono disponibili nei risultati forniti.",
-                     "Le fonti sui dipendenti sono scarse nei risultati della ricerca.",
-                     "Non ho trovato recensioni pubbliche dei dipendenti.",
-                     "Le recensioni dei dipendenti non sono disponibili nelle fonti consultate.",
-                     "Non sono disponibili recensioni dei dipendenti."):
+        for text in ("Le informazioni sulla provenienza dell'avena di Avenello sono piuttosto limitate.",
+                     "I dati sui test di laboratorio della bevanda non sono disponibili nei risultati forniti.",
+                     "Le fonti sulla filiera dell'avena sono scarse nei risultati della ricerca.",
+                     "Non ho trovato recensioni indipendenti del latte d'avena Avenello.",
+                     "Le prove di assaggio indipendenti non sono disponibili nelle fonti consultate.",
+                     "Non sono disponibili recensioni indipendenti della versione barista."):
             self.assertTrue(says_missing(text, "it"), text)
 
     def test_italian_product_sentences_are_not_missing_evidence(self):
-        for text in ("Avenello ha un piano gratuito limitato.", "Le integrazioni sono limitate.",
+        for text in ("Avenello ha una gamma di gusti limitata.", "Le scorte sono limitate.",
                      "La disponibilità nei negozi è limitata.", "Le informazioni nutrizionali sono chiare.",
-                     "Alcuni clienti dicono di non aver trovato informazioni sulle commissioni nell'app.",
-                     "Gli utenti non riescono ad accedere ai loro dati dopo l'aggiornamento.",
+                     "Alcuni clienti dicono di non aver trovato informazioni sull'origine dell'avena.",
+                     "Gli acquirenti non riescono a leggere i dati sulla nuova confezione.",
                      "I clienti segnalano che non sono disponibili informazioni nelle fonti ufficiali."):
             self.assertFalse(says_missing(text, "it"), text)
 

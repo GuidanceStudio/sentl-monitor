@@ -535,9 +535,14 @@ class ItalianDatesTest(unittest.TestCase):
 class DocsTest(unittest.TestCase):
 
     def test_the_readme_dates_a_movement_only_where_the_runs_allow_it(self):
-        readme = (REPO / "README.md").read_text(encoding="utf-8")
-        self.assertNotIn("the date each movement\n   started", readme)
-        self.assertIn("daily runs", readme.split("4. **`report`, first time.**", 1)[1].split("5. **", 1)[0])
+        """Every README sentence that dates a movement says the runs must be daily (R1 moved the
+        statement from the walk-through's first report to its adopt step)."""
+        readme = " ".join((REPO / "README.md").read_text(encoding="utf-8").split())
+        dating = re.findall(r"[^.;]*\bday (?:a|each) movement started[^.;]*", readme)
+        self.assertTrue(dating)
+        for sentence in dating:
+            self.assertIn("daily", sentence)
+        self.assertIn("four weekly runs are too few to date one", readme)
 
     def test_the_architecture_caps_the_domain_lists_across_dimensions_and_projects(self):
         text = " ".join((REPO / "ARCHITECTURE.md").read_text(encoding="utf-8").split())

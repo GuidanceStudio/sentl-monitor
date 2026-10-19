@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-This repository is the `sentl-monitor` skill: it designs a monitoring study of what AI
-assistants say about a subject, sets it up in Sentl through Sentl's MCP server, and writes a
-report after each period of runs. Start every session by reading, in this order:
+This repository is the `sentl-monitor` skill. Today it takes an existing Sentl project into a
+study folder (`adopt`) and writes a report after each period of runs, compared with the earlier
+periods (`report`); it reads Sentl through Sentl's MCP server. Planned: the routes that design a
+study (`brief`, `design`), create the projects in Sentl (`setup`), run a one-off check
+(`snapshot`) and report on a schedule. Start every session by reading, in this order:
 
 1. `README.md`: what the skill does, its routes, its requirements.
 2. `ARCHITECTURE.md`: the stages, the files each writes, the MCP calls per route, the
@@ -13,11 +15,11 @@ The status of the work lives in `DEVPLAN.md` only. This file does not repeat it.
 
 ## How to work here
 
-- Plan and execute with the `forge-flow` skill, one milestone at a time, test first. While the
-  devplan status says "proposed", ask the operator to approve it before starting M1.
+- Plan and execute with the `forge-flow` skill (github.com/GuidanceStudio/forge-flow), one
+  milestone at a time, test first.
 - Mark a milestone in progress before writing code and done in the same commit as the work.
 - Scripts use the Python standard library only. Tests live under `tests/`. The install script
-  follows the other skills of the same author (`./install.sh --force`, `--check`).
+  takes `--force`, `--check`, `--host` and `--uninstall`.
 
 ## Sentl's MCP server
 
@@ -34,19 +36,11 @@ The status of the work lives in `DEVPLAN.md` only. This file does not repeat it.
 
 - No real client, brand, agency, person or study name anywhere: code, tests, fixtures, examples,
   docs, commit messages. Examples use fictional subjects; the docs use a fictional oat-drink
-  brand. Add a deny-list test with the first code milestone.
+  brand. `tests/python/test_no_real_names.py` fails on a denied name, a token-shaped string or a
+  home-directory path in any file of the repository.
 - The denied names live outside the repository, in the file `SKILL_DENYLIST` names (default
   `~/.config/skill-denylist/digests.txt`), and are never committed, as names or as digests: an
   unsalted digest of a name is disclosed by anyone who guesses the name.
 - No paths from a developer's machine.
 - English, plain declarative sentences, no slogans. A sentence that can be deleted without losing
   information is deleted.
-
-## Related skills
-
-- `llm-rep`: the source of the concepts reused here (theme inventory with origins, search demand
-  with subject and component volumes kept apart, questions paired in positive and negative, the
-  report that tells the method before the results). Its run and judge machinery is replaced here
-  by Sentl.
-- `sentl-snapshot`: the older one-off check on OpenRouter. Its catalogue moves here with M4, and
-  the `snapshot` route (M7) replaces it.

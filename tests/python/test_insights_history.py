@@ -8,14 +8,14 @@ import unittest
 
 from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, WORK_Q, StudyCase, models, results
 from sentlmon.common import fmt_decimal, fmt_percent
-from test_insights_period import NO_REVIEWS
+from test_insights_period import NO_DATA
 
 OUTDATED = ("Un litro di Avenello costa 1,90 €.", 2, ["https://prezzi.example/avena", "https://recensioni.example/avena"])
 CURRENT = ("Un litro di Avenello costa 2,10 €.", 5, ["https://avenello.example/prezzi"])
 UNNAMED = ("La migliore è Avoria, secondo il confronto.", 3, ["https://avoria.example/confronto"])
 NAMED = ("La migliore è Avenello, prima di Avoria.", 4, ["https://classifica.example/2026", "https://avoria.example/confronto"])
 GOOD_JOB = ("Avenello è un buon datore di lavoro, secondo i dipendenti.", 4, ["https://lavoro.example/avenello"])
-NO_JOB = (NO_REVIEWS, 3, ["https://clienti.example/avenello"])
+NO_JOB = (NO_DATA, 3, ["https://clienti.example/avenello"])
 
 
 def day(n):
@@ -23,11 +23,11 @@ def day(n):
 
 
 def rows_of(n):
-    """Day n's answers. From day 8: the current price on days 9-11, Avenello named on days 13-14,
-    and Acme Chat finding no lab tests from day 11."""
-    gem_price = CURRENT if n in (9, 10, 11) else OUTDATED
+    """Day n's answers. From day 8: the current price on days 8-10, Avenello named on days 13-14,
+    and Acme Chat finding no information on Avenello's plant from day 12."""
+    gem_price = CURRENT if n in (8, 9, 10) else OUTDATED
     choice = NAMED if n in (13, 14) else UNNAMED
-    gpt_work = NO_JOB if n >= 11 else GOOD_JOB
+    gpt_work = NO_JOB if n >= 12 else GOOD_JOB
     answers = [(PRICE_Q, GPT, OUTDATED), (PRICE_Q, GEM, gem_price), (CHOICE_Q, GPT, choice), (CHOICE_Q, GEM, choice),
                (WORK_Q, GPT, gpt_work), (WORK_Q, GEM, GOOD_JOB)]
     return [(q, m, *a) for q, m, a in answers] * 3
@@ -78,7 +78,7 @@ class InsightHistoryTest(StudyCase, unittest.TestCase):
 
         findings = {
             "Prezzo": (f"In {facts['outdated_only']} su {facts['stating']} risposte che citano un prezzo, il prezzo è "
-                       f"quello dell'anno scorso ({fmt_percent(facts['outdated_only'] / facts['stating'])}). Dal 9 all'11 "
+                       f"quello dell'anno scorso ({fmt_percent(facts['outdated_only'] / facts['stating'])}). Dall'8 al 10 "
                        f"ottobre le risposte con il prezzo attuale sono salite al {fmt_percent(current_episode['values'][0])}, "
                        f"e il punteggio medio a {it(mean_episode['values'][0])}. Le risposte con il prezzo vecchio citano "
                        f"prezzi.example in {old_source['citing']} su {old_source['answers']} risposte "
@@ -89,9 +89,9 @@ class InsightHistoryTest(StudyCase, unittest.TestCase):
                        f"La presenza si basa su {readings['readings']} letture su {readings['presence']['given']} risposte. "
                        f"Le pagine di Avoria sono citate da {authors['foil']} su {authors['with_sources']} risposte con "
                        f"fonti ({fmt_percent(authors['foil'] / authors['with_sources'])})."),
-            "Lavoro": (f"In {missing['answers']} su {missing['given']} risposte Acme Chat dice di non trovare recensioni "
-                       f"dei dipendenti; la sua media è {it(missing['mean'])} con queste risposte e "
-                       f"{it(missing['mean_without'])} senza. Dall'11 ottobre il punteggio medio è "
+            "Lavoro": (f"In {missing['answers']} su {missing['given']} risposte Acme Chat dice di non trovare informazioni "
+                       f"sullo stabilimento; la sua media è {it(missing['mean'])} con queste risposte e "
+                       f"{it(missing['mean_without'])} senza. Dal 12 ottobre il punteggio medio è "
                        f"{it(work_episode['values'][0])}."),
         }
         changes = (f"Avenello è nominato nel {fmt_percent(presence['now'])} delle risposte alla domanda sulla scelta, "

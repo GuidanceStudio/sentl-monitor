@@ -67,8 +67,9 @@ assert_file "skills/sentl-monitor/scripts/sentlmon/__init__.py"
 
 echo ""
 echo "=== README: an install section per host and a support table ==="
-# Until a host's run is recorded in the devplan (R3e), its row says "Not yet tested".
-README_ROWS=$(awk '/^## Install$/ {on=1; next} on && /^## / {exit} on && /^\| / {print}' "$REPO_ROOT/README.md")
+# Until a host's run is recorded in the devplan (R3e), its row says "Not yet tested". The support
+# table opens the README, under "What works today".
+README_ROWS=$(awk '/^## What works today$/ {on=1; next} on && /^## / {exit} on && /^\| / {print}' "$REPO_ROOT/README.md")
 for host in "Claude Code" opencode Codex claude.ai ChatGPT; do
     row=$(grep -F "| $host |" <<<"$README_ROWS")
     if [ -z "$row" ]; then
@@ -85,11 +86,20 @@ done
 # Captured before grepping: grep -q exits at the first match, and the SIGPIPE awk then gets
 # would fail the pipeline under pipefail.
 INSTALL_SECTION=$(awk '/^## Install$/ {on=1; next} on && /^## / {exit} on' "$REPO_ROOT/README.md")
-for cmd in "--host claude" "--host agents" "--check" "--uninstall" "monitor.py doctor"; do
+for cmd in "--host claude" "--host agents" "--check" "monitor.py doctor"; do
     if grep -qF -- "$cmd" <<<"$INSTALL_SECTION"; then
         ok "the install section names $cmd"
     else
         bad "the install section names $cmd"
+    fi
+done
+UPDATE_SECTION=$(awk '/^## Update and uninstall$/ {on=1; next} on && /^## / {exit} on' "$REPO_ROOT/README.md")
+for cmd in "./install.sh --uninstall" "./install.sh --force" "claude plugin update sentl-monitor@sentl-monitor" \
+           "claude plugin uninstall sentl-monitor@sentl-monitor"; do
+    if grep -qF -- "$cmd" <<<"$UPDATE_SECTION"; then
+        ok "the update and uninstall section gives '$cmd'"
+    else
+        bad "the update and uninstall section gives '$cmd'"
     fi
 done
 # Install commands in the shell forms each CLI's --help confirms; Codex's step names the server.
@@ -119,6 +129,173 @@ if grep -q "releases/latest/download/sentl-monitor.zip" "$REPO_ROOT/README.md"; 
     ok "README links the latest release's zip"
 else
     bad "README links the latest release's zip"
+fi
+
+echo ""
+echo "=== README: what works, what is planned, and the commands it shows (R1) ==="
+README="$REPO_ROOT/README.md"
+MONITOR="$PAYLOAD/scripts/monitor.py"
+# A routes table is a table whose first header cell is "Route". Outside the section "## Planned",
+# every route such a table lists has its playbook (<route>/<ROUTE>.md in the payload), every
+# route with a playbook is listed, and every `sentl-monitor <route>` the README tells the reader
+# to invoke, in a code span, has its playbook. The routes under "## Planned" have none yet.
+ROUTE_PROBLEMS=$(python3 - "$README" "$PAYLOAD" <<'PY'
+import pathlib, re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+payload = pathlib.Path(sys.argv[2])
+playbooks = {p.parent.name for p in payload.glob("*/*.md") if p.stem == p.parent.name.upper()}
+sections = re.split(r"(?m)^(?=## )", text)
+planned = [s for s in sections if s.splitlines()[0].strip() == "## Planned"]
+if len(planned) != 1:
+    print("the README has one section '## Planned'")
+listed, in_table = set(), False
+for section in sections:
+    if section in planned:
+        continue
+    for line in section.splitlines():
+        if re.match(r"^\|\s*Route\s*\|", line):
+            in_table = True
+            continue
+        if in_table and (not line.startswith("|")):
+            in_table = False
+        if not in_table or re.fullmatch(r"\|[\s:|-]+\|", line):
+            continue
+        m = re.match(r"^\|\s*`([a-z-]+)", line)
+        if not m:
+            print(f"a routes table row names no route: {line}")
+            continue
+        listed.add(m.group(1))
+    for route in re.findall(r"`sentl-monitor ([a-z][a-z-]*)", section):
+        if route not in playbooks:
+            print(f"the README invokes 'sentl-monitor {route}' outside 'Planned', and {route} has no playbook")
+if not listed:
+    print("the README has a routes table outside 'Planned'")
+for route in sorted(listed - playbooks):
+    print(f"the routes table lists '{route}' outside 'Planned', and it has no playbook")
+for route in sorted(playbooks - listed):
+    print(f"the routes table does not list '{route}', which has a playbook")
+for section in planned:
+    for route in ("brief", "design", "setup", "snapshot"):
+        if f"`{route}" not in section:
+            print(f"'## Planned' names the {route} route")
+    for route in sorted(playbooks):
+        if re.search(rf"^\|\s*`{route}\b", section, re.M):
+            print(f"'## Planned' lists '{route}', which has a playbook")
+PY
+)
+if [ -z "$ROUTE_PROBLEMS" ]; then
+    ok "the README's routes table lists exactly the routes with a playbook, the others under 'Planned'"
+else
+    bad "the README's routes:"
+    echo "$ROUTE_PROBLEMS" | sed 's/^/        /'
+fi
+# Every `monitor.py <command>` the README shows, in a code span or after python3, is a command of
+# monitor.py --help, and every option shown after it is in that command's --help; a global option
+# shown (`monitor.py --version`) is in monitor.py --help.
+COMMAND_PROBLEMS=$(python3 - "$README" "$MONITOR" <<'PY'
+import re, subprocess, sys
+text = open(sys.argv[1], encoding="utf-8").read().replace("\\\n", " ")
+monitor = sys.argv[2]
+def help_of(*args):
+    proc = subprocess.run([sys.executable, monitor, *args, "--help"], capture_output=True, text=True)
+    return proc.stdout if proc.returncode == 0 else ""
+top = help_of()
+commands = set(re.findall(r"^    ([a-z]+)\s", top, re.M))
+seen = 0
+for m in re.finditer(r"(?:`|python3 [^`\n]*?)monitor\.py((?:[ \t]+[^`\n|]*)?)", text):
+    words = m.group(1).split()
+    if not words or words[0].startswith("<"):
+        continue
+    seen += 1
+    first = words[0]
+    if first.startswith("--"):
+        if first not in top:
+            print(f"'monitor.py {first}' is not an option of monitor.py --help")
+        continue
+    if first not in commands:
+        print(f"'monitor.py {first}' is not a command of monitor.py --help")
+        continue
+    sub = help_of(first)
+    for option in re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", " ".join(words[1:])):
+        if not re.search(rf"(?<![\w-]){re.escape(option)}(?![\w-])", sub):
+            print(f"'monitor.py {first} {option}': {option} is not in monitor.py {first} --help")
+if not seen:
+    print("the README shows at least one monitor.py command")
+PY
+)
+if [ -z "$COMMAND_PROBLEMS" ]; then
+    ok "every monitor.py command and option the README shows is in monitor.py --help"
+else
+    bad "monitor.py commands in the README:"
+    echo "$COMMAND_PROBLEMS" | sed 's/^/        /'
+fi
+# The sample report the README links exists; the unit test test_sample_report.py runs check on it.
+SAMPLE_LINKS=$(grep -oE '\(examples/[^)]+\.md\)' "$README" | tr -d '()' | sort -u)
+if [ -z "$SAMPLE_LINKS" ]; then
+    bad "the README links the sample report in examples/"
+else
+    for link in $SAMPLE_LINKS; do
+        if [ -f "$REPO_ROOT/$link" ]; then ok "the README's link $link exists"; else bad "the README's link $link exists"; fi
+    done
+fi
+for section in "## Prerequisites" "## Exit codes" "## Update and uninstall" "## Version and changes" "## Planned" "## Contributing and support"; do
+    if grep -qxF "$section" "$README"; then ok "README has '$section'"; else bad "README has '$section'"; fi
+done
+# Each exit code monitor.py ends with gets a line saying what to do.
+EXIT_SECTION=$(awk '/^## Exit codes$/ {on=1; next} on && /^## / {exit} on' "$README")
+for code in 0 1 2 3 4 5 6 130; do
+    if grep -qE "^\| $code \|" <<<"$EXIT_SECTION"; then ok "the exit codes table has $code"; else bad "the exit codes table has $code"; fi
+done
+# R1 review: Sentl's tools in every folder, the tested install route first, the hosts where a report
+# cannot be produced, the release link, the skill's folder, and md2 named with its link.
+CLAUDE_SECTION=$(awk '/^### Claude Code$/ {on=1; next} on && /^##/ {exit} on' "$README")
+MCP_ADD="claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation"
+if grep -qxF -- "$MCP_ADD" <<<"$CLAUDE_SECTION"; then ok "the Claude Code subsection gives '$MCP_ADD'"; else bad "the Claude Code subsection gives '$MCP_ADD'"; fi
+if grep -F "claude mcp add" "$README" | grep -vqF -- "--scope user"; then
+    bad "every 'claude mcp add' in the README has --scope user"
+else
+    ok "every 'claude mcp add' in the README has --scope user"
+fi
+FIRST_INSTALL=$(grep -nE '^\./install\.sh --host claude$|^claude plugin install ' <<<"$CLAUDE_SECTION" | head -1)
+if grep -q "install.sh" <<<"$FIRST_INSTALL"; then
+    ok "the Claude Code subsection leads with install.sh, the tested route"
+else
+    bad "the Claude Code subsection leads with install.sh, the tested route"
+fi
+for host in Codex claude.ai ChatGPT; do
+    SUB=$(awk -v h="### $host" '$0 == h {on=1; next} on && /^##/ {exit} on' "$README")
+    if grep -qF "until Sentl offers a run export" <<<"$(tr -s '\n ' ' ' <<<"$SUB")"; then
+        ok "the $host subsection says no report until Sentl offers a run export"
+    else
+        bad "the $host subsection says no report until Sentl offers a run export"
+    fi
+done
+if grep -qF "once v0.1.0 is released" <<<"$(tr -s '\n ' ' ' <<<"$(awk '/^### claude.ai$/ {on=1; next} on && /^##/ {exit} on' "$README")")"; then
+    ok "the claude.ai subsection says the download link works once v0.1.0 is released"
+else
+    bad "the claude.ai subsection says the download link works once v0.1.0 is released"
+fi
+if grep -qF "<skill folder>" "$README"; then bad "the README resolves <skill folder> to the install paths"; else ok "the README resolves <skill folder> to the install paths"; fi
+for path in "~/.claude/skills/sentl-monitor" "~/.agents/skills/sentl-monitor" "claude plugin list --json"; do
+    if grep -qF -- "$path" "$README"; then ok "the README names $path"; else bad "the README names $path"; fi
+done
+for f in README.md CHANGELOG.md; do
+    if grep -q "md2" "$REPO_ROOT/$f" && ! grep -qF "github.com/GuidanceStudio/md2" "$REPO_ROOT/$f"; then
+        bad "$f links md2 where it names it"
+    else
+        ok "$f links md2 where it names it"
+    fi
+done
+if grep -qF "by their suffix" <<<"$(tr -s '\n ' ' ' <<<"$(awk '/^## Prerequisites$/ {on=1; next} on && /^## / {exit} on' "$README")")"; then
+    ok "the prerequisites say the skill finds Sentl's tools by their suffix"
+else
+    bad "the prerequisites say the skill finds Sentl's tools by their suffix"
+fi
+assert_nonempty "CHANGELOG.md"
+if grep -qE "^## 0\.1\.0 " "$REPO_ROOT/CHANGELOG.md" 2>/dev/null; then
+    ok "CHANGELOG.md has an entry for 0.1.0"
+else
+    bad "CHANGELOG.md has an entry for 0.1.0"
 fi
 
 echo ""
