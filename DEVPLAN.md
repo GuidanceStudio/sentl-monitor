@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 done, R2 implemented and not committed; M3 after R4.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 and R2 done; R4 next; M3 after R4.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -329,7 +329,7 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 **Done when:** a reader with a Sentl account and an assistant can go from the README alone to a first report, and no public file names a private skill or a live study.
 
-## R2: Sentl's responses are checked against what the skill expects 🔄
+## R2: Sentl's responses are checked against what the skill expects ✅
 
 **Why:** read-only probes showed that a change on Sentl's side gives wrong figures with exit 0 (scores on another scale, renamed sources or rubric fields) or a Python traceback with exit 1, the code that means `check` found problems. The run listing has no paging and no script reads it.
 
@@ -341,7 +341,7 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - [x] Implement; playbooks and SKILL.md exit codes
 - [x] Review fixes, test first: a partial or missing rubric accepted; a timestamp without a zone read as UTC; another tool's file and a missing file exit 2; `runs` lists only the window's open and unseen runs; the adopt fallback list without the latest run; copied fields not type-checked; Ctrl-C exits 130 and `--debug` works before the command; never-seen statuses worded as listed apart
 - [x] Dry run on a copy of a live study: re-ingested runs give period files and a check result identical to HEAD's
-- [ ] Commit
+- [x] Commit
 
 **Done when:** none of the probed changes produces a report or a traceback.
 
