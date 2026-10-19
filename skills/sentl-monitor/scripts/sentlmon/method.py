@@ -4,7 +4,7 @@ in the order the report takes, with an entry per dimension left for the findings
 from .adopt import missing_answers
 from . import schema
 from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, require_language, write_text
-from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join, phrase
+from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, ORIGINS_INLINE, SECTIONS, TEXT, join, phrase
 
 
 def report_order(folder, date):
@@ -103,7 +103,7 @@ def _dimensions(study, projects, lang):
         for d in dims:
             sources = []
             for th in themes.get(d["key"], []):
-                origins = join(dict.fromkeys(ORIGINS[lang][o["kind"]].lower() for o in th["origins"]), lang)
+                origins = join(dict.fromkeys(ORIGINS_INLINE[lang][o["kind"]] for o in th["origins"]), lang)
                 # An adopted study's theme carries its dimension's name: the origins alone, then.
                 same = (th["label"] or "").strip().casefold() == d["name"].strip().casefold()
                 sources.append(t["from_origins"].format(origins=origins) if same

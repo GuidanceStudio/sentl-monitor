@@ -39,6 +39,16 @@ ORIGINS = {
            "probe": "Pilot questions"},
 }
 
+# The same origins inside a sentence: lower case except proper nouns.
+ORIGINS_INLINE = {
+    "it": {"client_material": "materiali del cliente", "client_issue": "questioni sollevate dal cliente",
+           "client_analysis": "altre analisi del cliente", "search": "ricerche su Google",
+           "probe": "domande di prova"},
+    "en": {"client_material": "the client's material", "client_issue": "issues the client raised",
+           "client_analysis": "the client's other analyses", "search": "Google searches",
+           "probe": "pilot questions"},
+}
+
 AUDIENCE = {
     "it": {"generic_consumer": "un consumatore qualsiasi", "personas": "persone con profili diversi",
            "stakeholders": "i portatori di interesse del cliente", "mixed": "un insieme di profili"},

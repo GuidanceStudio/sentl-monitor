@@ -30,7 +30,7 @@ No search data was collected for this study: the themes come from the sources li
 **Avenello · US market**
 
 - **Nutrition**, from issues the client raised.
-- **Choice**, from google searches.
+- **Choice**, from Google searches.
 - **Sustainability**, from the client's material.
 
 Who asks: a generic consumer. The questions are the ones any shopper types; no persona changes them.

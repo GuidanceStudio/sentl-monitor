@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b and R1 done; R5 next, then the history rewrite and v0.1.0; R3d waits for Sentl; M3 after the release.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R1 and R5 done; v0.1.0 next; R3d waits for Sentl; M3 after the release.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -343,6 +343,19 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - Review fixes, docs: README `claude mcp add --scope user`, `install.sh` first for Claude Code, each install's skill folder (the plugin's from `claude plugin list --json`) and the commands written with it, the server name as Sentl's setup page gives it and the tools found by suffix, a sentence per host on no report until Sentl offers a run export, the release link working once v0.1.0 is released, "Every assistant at once" split from "Check the install", md2 linked in README and CHANGELOG; CLAUDE.md states what works and what is planned and the deny-list rule; ARCHITECTURE.md says `catalogue.md` arrives with M4; the status line no longer counts the live projects read. `test_structure.sh` checks each README item.
 - Open: `method` lowercases an origin's label inside a sentence, so a dimension from Google searches reads "(google searches)", as in the sample report.
 - Counts, under Python 3.14 (whole suite) and 3.11 (unit tier): unit 470 → 475, structure 55 → 92, skill 94, install 119, package 85, the package suite on a committed copy of the working tree.
+
+## R5: A theme's origins keep their capitals mid-sentence ✅
+
+**Why:** the dimensions section names each theme's origins inside a sentence, and `method` lowercases the whole label, so a report reads "from google searches" or "da ricerche su google".
+
+**Approach:** `i18n.ORIGINS_INLINE` holds the mid-sentence form of each origin in each report language, with proper nouns kept ("Google searches", "ricerche su Google"); `method` uses it instead of lowercasing the heading form. The sample report's line is corrected to match.
+
+**Tasks:**
+- [x] Test: unit — a theme found through Google searches reads "Google searches" in English and "ricerche su Google" in Italian in the dimensions section; every origin kind has an inline form in every language
+- [x] Implement in `i18n.py` and `method.py`; sample report
+- [x] Commit
+
+**Done when:** no report writes a proper noun of an origin in lower case.
 
 ## R2: Sentl's responses are checked against what the skill expects ✅
 

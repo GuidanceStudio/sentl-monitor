@@ -95,6 +95,22 @@ class MethodTest(StudyCase, unittest.TestCase):
         self.assertIn("- **Salute**, from issues the client raised.", dims)
         self.assertNotIn("“Salute”", dims)
 
+    def test_an_origin_keeps_its_proper_noun_mid_sentence(self):
+        self.ready()
+        study = self.read("study.json")
+        next(t for t in study["themes"] if t["id"] == "salute")["origins"] = [{"kind": "search", "detail": "x"}]
+        for lang, order, expected in (("it", IT_ORDER, "- **Salute**, da ricerche su Google."),
+                                      ("en", EN_ORDER, "- **Salute**, from Google searches.")):
+            study["report_language"] = lang
+            (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+            self.method(0, None, "--force")
+            self.assertIn(expected, sections(self.report())[order[2]])
+
+    def test_every_origin_has_an_inline_form_in_every_language(self):
+        from sentlmon.i18n import ORIGINS, ORIGINS_INLINE
+        for lang in ORIGINS:
+            self.assertEqual(set(ORIGINS_INLINE[lang]), set(ORIGINS[lang]), lang)
+
     def test_questions_are_verbatim(self):
         self.ready()
         self.method()
