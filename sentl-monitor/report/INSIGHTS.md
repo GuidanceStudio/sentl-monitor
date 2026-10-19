@@ -82,15 +82,26 @@ before it for three runs or more in a row, on the same side. The range is that o
 runs of this period and of the previous one, at least five of them, on the assistants every
 one of those runs has and leaving out the runs judged under other criteria for the question; a
 first report reads its own earlier runs. The episode closes at the first value back inside the
-range; a value that jumps to the other side ends it as a switch.
+range; a value that jumps to the other side ends it as a switch. The close date is the first run
+back inside the range; it says nothing about the runs after it. What those runs show is read from
+the by-run figures, and a later run may lie outside the range again without making a new episode.
 
 **Figures.** Material heading "Episodes": the measure, how many runs, the first and last date,
 each value, the range and the number of runs it rests on, and the date it closed or switched.
-For a question shown without a figure the mean episode carries no values.
+Under a closed episode, "still above (or below) that range after the close" lists the later runs
+of the period on the episode's side of that range, with their values. For a question shown
+without a figure the mean episode carries no values.
 
 **How a finding states it.** "From 6 to 8 October the answers giving the current price were
-50% each day, against 0% in the eight runs before; from 12 October they were back inside that
-range." In the changes section, an episode that explains a change called is given beside it
+50% each day, against 0% in the eight runs before; on 12 October they were back inside that
+range." The close is stated as that one date. When the material lists later runs on the
+episode's side, the finding states them as well ("on 11 October the current price was in 50% of the answers again, and on 15 October in all of them") and never says the measure was outside the
+range only during the episode. `check` refuses a word for "only" (only, solely, exclusively,
+just; solo, soltanto, solamente, unicamente, esclusivamente) that comes before a closed episode's
+span, first, last or close date in the same clause, while later runs lie on its side and the
+sentence does not name all of them.
+
+In the changes section, an episode that explains a change called is given beside it
 with its first date, when it lies on the side the change moves to and runs in the later period
 or half: "The current price is given in 42% of the answers that quote a price,
 against 0% in the first half of the month; the rise starts on 21 October."

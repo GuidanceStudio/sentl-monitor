@@ -8,8 +8,8 @@ from collections import Counter, defaultdict
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
                      is_owned, load_json, load_mcp, mean, parse_time, public_name, write_json, write_text)
 from .compare import K, compare, dimension_entries
-from .insights import (TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset, says_missing,
-                       top_sources)
+from .insights import (EPS, TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset,
+                       says_missing, top_sources)
 
 
 HALVES_DAYS = 14
@@ -550,8 +550,20 @@ def _add_episodes(study, period, earlier, now, versions):
                 past, current = values(before), values(now[key])
                 found = [_dated({"measure": measure, **e}) for i, measure in enumerate(("mean", "current_share"))
                          for e in episodes([v[i] for _, v in past], [(d, v[i]) for d, v in current])]
+                for e in (e for e in found if e["closed"]):
+                    e["later"] = _later(e, [(d, v[0 if e["measure"] == "mean" else 1]) for d, v in current])
                 if found:
                     scope["episodes"] = found
+
+
+def _later(episode, series):
+    """The runs after a closed episode whose value lies on its side of the range it was measured
+    against: the close date is the first run back inside the range and says nothing about the runs
+    after it."""
+    lo, hi = episode["range"]
+    end = parse_time(episode["last_at"])
+    return [{"date": at[:10], "value": v} for at, v in series if v is not None and parse_time(at) > end
+            and (v > hi + EPS if episode["side"] == "above" else v < lo - EPS)]
 
 
 def _dated(episode):
@@ -659,13 +671,20 @@ def _question_lines(scope, name, lang):
             ending = (f"back inside on {e['closed']}" if e["closed"] else
                       f"jumped to the other side of the range on {e['switched']}" if e.get("switched") else
                       "still outside when the period ends")
-            if mean_score and not figure:
+            valued = not (mean_score and not figure)
+            if valued:
+                out.append(f"- {label}, {e['runs']} runs {e['side']} the range {shown(e['range'][0])} to "
+                           f"{shown(e['range'][1])} of the {e['earlier']} runs before, from {e['first']} to "
+                           f"{e['last']}: " + "; ".join(shown(v) for v in e["values"]) + f"; {ending}")
+            else:
                 out.append(f"- {label}, {e['runs']} runs {e['side']} the range of the {e['earlier']} runs before, "
                            f"from {e['first']} to {e['last']}; {ending}")
-                continue
-            out.append(f"- {label}, {e['runs']} runs {e['side']} the range {shown(e['range'][0])} to "
-                       f"{shown(e['range'][1])} of the {e['earlier']} runs before, from {e['first']} to {e['last']}: "
-                       + "; ".join(shown(v) for v in e["values"]) + f"; {ending}")
+            if e.get("later"):
+                out.append(f"  - still {e['side']} that range after the close: "
+                           + "; ".join(x["date"] + (f" ({shown(x['value'])})" if valued else "") for x in e["later"])
+                           + f"; the close date is the first run back inside the range; it says nothing about the "
+                             f"runs after it, so do not write that the {label} was {e['side']} the range only during "
+                             "the episode")
     if scope.get("missing"):
         out += ["", "##### Missing evidence", ""]
         out += [f"- {name(m)}: {_share(x['answers'], x['given'], True)} say no source of the kind asked for was "

@@ -132,7 +132,12 @@ findings with:
 - **The insights the material prints for the dimension** (fact currency, sources behind a fact
   or a score, readings, episodes, presence by run, missing evidence, who wrote the sources),
   each in one plain sentence with its figure, as `report/INSIGHTS.md` describes. State every
-  one the material holds; a fact term named in the sentence is quoted in «» as listed.
+  one the material holds; a fact term named in the sentence is quoted in «» as listed. For an
+  episode, the close date is the first run back inside the range; it says nothing about the runs
+  after it. Write the close as that date, state the later runs the material lists under it as
+  still on its side, and never write that the measure was outside the range "only" during the
+  episode (`check` refuses a word for "only" before the episode's dates in the same clause unless
+  the sentence names every later run).
 - **One line on what it means for the client**, last.
 
 ## 8. Write the changes in the answers
@@ -187,8 +192,10 @@ fails was not copied exactly; a figure that fails is not in the period's metrics
 comparison, or belongs to a dimension shown without a figure; a section out of order means
 the report was rearranged; a summary that quotes an answer fails; a first report on the two
 halves of its period fails when the line naming the halves was changed or removed, and is
-refused (exit 2) when a half's file is missing: run `period` again. When it passes, the report is recorded in
-`history/reports.json` as final, and the next report compares with it.
+refused (exit 2) when a half's file is missing: run `period` again. A period built before
+episodes recorded the runs after their close is refused (exit 2) too: run `period` again for that
+date, then `check`. When it passes, the report is recorded in `history/reports.json` as final,
+and the next report compares with it.
 
 ## 11. Tell the operator, in the chat
 

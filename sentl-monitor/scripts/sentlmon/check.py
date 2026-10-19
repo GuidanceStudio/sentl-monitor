@@ -1,10 +1,11 @@
 """`check`: refuse a report whose quotes, figures, sections or wording break the rules
 of ARCHITECTURE.md §The report."""
 
+import datetime as dt
 import re
 from pathlib import Path
 
-from .common import Refused, Study, fmt_percent, load_json, match_key, norm, round_half_up
+from .common import MONTHS, Refused, Study, fmt_date, fmt_percent, load_json, match_key, norm, round_half_up
 from .compare import dimension_entries
 from .insights import fact_terms, tight
 from .i18n import SECTIONS
@@ -24,6 +25,14 @@ ID_WORDS = r"(?:run|id|project|progetto|question|domanda|dimension|dimensione)"
 ELLIPSIS = re.compile(r"\s*(?:\[…\]|\[\.\.\.\]|\(…\)|\(\.\.\.\))\s*")
 CITATION = re.compile(r"\[\d+(?:\s*[,-]\s*\d+)*\]")
 MARKUP = str.maketrans("", "", "*_`")
+ONLY = {"it": ("solo", "soltanto", "solamente", "unicamente", "esclusivamente"),
+        "en": ("only", "solely", "exclusively", "just")}
+CLAUSE_REACH = 40
+CLAUSE_END = re.compile(r"[,;:.!?]")
+LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+# Between the two days of a span: «14–16», «dal 2 all'8», «from 2 to 8», «tra il 2 e l'8».
+SPAN_JOIN = r"\s*(?:[–—-]|all['’]|e\s+l['’]|(?:al|ai|a|e|ed|to|and|until|till|through)\b)\s*(?:il\s+|l['’])?"
 
 
 def _plain(text):
@@ -181,7 +190,7 @@ def _insights(scope, decimals, percents, pairs):
     for r in scope.get("presence_runs") or []:
         _ratio(r["named"], r["given"], percents, pairs)
     for e in scope.get("episodes") or []:
-        values = e["values"] + e["range"]
+        values = e["values"] + e["range"] + [x["value"] for x in e.get("later") or []]
         if e["measure"] != "mean":
             percents |= {int(fmt_percent(v)[:-1]) for v in values}
         elif figure:
@@ -231,6 +240,87 @@ def _figures(text, lang, allowed):
         if (a, b) not in pairs:
             problems.append(f"count {a} {m.group(3)} {b} is not in the period's figures for this part")
     return problems
+
+
+def _day_number(day):
+    return "1°?" if day.day == 1 else str(day.day)
+
+
+def _date(day, lang):
+    """A date as a report writes it, the year optional: «14 ottobre», «14 October», «October 14»;
+    the first of the month also as «1°». A numeric date or an abbreviated month is not read: the
+    report's own date formatter writes neither."""
+    d = dt.date.fromisoformat(day)
+    month = MONTHS[lang][d.month - 1]
+    forms = [r"(?<!\d)" + _day_number(d) + r"\s+" + month + r"\b"]
+    if lang == "en":
+        forms.append(r"\b" + month + r"\s+" + str(d.day) + r"(?!\d)")
+    return re.compile("|".join(forms), re.I)
+
+
+def _span(episode):
+    """An episode's days written as a span, the month optional: «14–16», «dal 2 all'8»,
+    «from 2 to 8», «tra il 2 e l'8»."""
+    first, last = (dt.date.fromisoformat(episode[k]) for k in ("first", "last"))
+    return re.compile(r"(?<!\d)" + _day_number(first) + SPAN_JOIN + _day_number(last) + r"(?!\d)", re.I)
+
+
+def _sentences(text):
+    """The sentences of a section's prose: the lines of a paragraph joined, then split at blank
+    lines, list items, headings, blockquotes and sentence ends."""
+    paragraphs, lines = [], []
+    for line in text.splitlines() + [""]:
+        bare, item = line.strip(), LIST_ITEM.match(line)
+        if not bare or bare.startswith(("#", ">")) or item:
+            if lines:
+                paragraphs.append(" ".join(lines))
+            lines = [LIST_ITEM.sub("", line).strip()] if item else []
+        else:
+            lines.append(bare)
+    return [s for paragraph in paragraphs for s in SENTENCE_END.split(paragraph) if s]
+
+
+def _closed_episodes(scopes):
+    """The closed episodes of the questions under `scopes` (projects, dimensions or questions), once each."""
+    found = {}
+
+    def walk(scope):
+        found.update({id(e): e for e in scope.get("episodes") or [] if e.get("closed")})
+        for child in (*(scope.get("dimensions") or {}).values(), *(scope.get("questions") or {}).values()):
+            walk(child)
+    for scope in scopes:
+        walk(scope)
+    return list(found.values())
+
+
+def _only_beside_episodes(text, episodes, lang):
+    """An episode's close date is the first run back inside its range; it says nothing about the
+    runs after it. A sentence is refused when a word for «only» comes before an episode's span,
+    first, last or close date in the same clause (no , ; : . ! ? between them, the date starting
+    within CLAUSE_REACH characters), later runs of the period lie on the episode's side, and the
+    sentence does not name every one of them. `episodes`: the closed episodes the text may speak of.
+    Quoted spans are not read."""
+    words = re.compile(r"\b(?:" + "|".join(ONLY[lang]) + r")\b", re.I)
+    problems = []
+    for sentence in _sentences(text):
+        plain = QUOTED.sub(" ", sentence)
+        found = next(((word, e) for word in words.finditer(plain) for e in episodes if e.get("later")
+                      and _before_episode(CLAUSE_END.split(plain[word.end():], maxsplit=1)[0], e, lang)
+                      and not all(_date(x["date"], lang).search(plain) for x in e["later"])), None)
+        if found:
+            word, e = found
+            later = ", ".join(fmt_date(x["date"], lang) for x in e["later"])
+            problems.append(f"«{word.group(0)}» beside the episode from {e['first']} to {e['last']}, but later "
+                            f"runs of the period lie on its side ({later}): {sentence.strip()[:80]!r}; state those "
+                            f"runs instead of «{word.group(0)}»")
+    return problems
+
+
+def _before_episode(clause, episode, lang):
+    """Whether the clause after the word opens, within CLAUSE_REACH characters, on the episode's span
+    or on its first, last or close date."""
+    refs = [_span(episode)] + [_date(episode[k], lang) for k in ("first", "last", "closed")]
+    return any(m and m.start() <= CLAUSE_REACH for m in (ref.search(clause) for ref in refs))
 
 
 def _prose(body):
@@ -294,6 +384,9 @@ def check(root, report_path, date=None):
     if not period_path.exists():
         raise Refused(f"no period for {date}: pass --date with the report's period")
     period = load_json(period_path)
+    if any("later" not in e for e in _closed_episodes(period["projects"].values())):
+        raise Refused(f"the period of {date} was built before episodes recorded the runs after their close: run "
+                      f"period --date {date} again, then check the report")
     comparison = period.get("comparison") or {}
     previous_path = folder.path("history", "periods", f"{comparison.get('previous')}.json")
     previous = load_json(previous_path) if comparison.get("previous") and previous_path.exists() else None
@@ -369,6 +462,11 @@ def check(root, report_path, date=None):
                          _allowed(every_scope + half_blocks, compared))
     period_scopes = [s for s in every_scope if s not in list((previous or {}).get("projects", {}).values())]
     problems += _figures(_unquote(_prose(summary), questions, answers, names), lang, _allowed(period_scopes, compared))
+    every_episode = _closed_episodes(period["projects"].values())
+    for _, _, part, scopes, _ in parts:
+        problems += _only_beside_episodes(part, _closed_episodes(scopes), lang)
+    for key in ("summary", "changes"):
+        problems += _only_beside_episodes(body.get(key, ""), every_episode, lang)
 
     question_keys = {q["key"] for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
     for key in sorted(question_keys):

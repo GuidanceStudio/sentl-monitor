@@ -333,8 +333,11 @@ assistants, `by_model` and per run in `runs`), `group_sources` (per group, `outd
 the same under `other` for the opposite group), `presence_runs` (per run `named` of
 `given`, for a question naming no brand), `episodes` (`measure`, `first`, `last`, `first_at`, `last_at` (the start
 times of the episode's first and last run), `runs`,
-`values`, `range`, `earlier`, `side`, `closed`) and `missing` (per model `answers`, `given`,
-`judged`, `mean`, `mean_without`); each is present only when it has content. The comparison
+`values`, `range`, `earlier`, `side`, `closed`, and on a closed episode `later`: the runs of the
+period after it whose value lies on its side of `range`, each `date` and `value`) and `missing`
+(per model `answers`, `given`,
+`judged`, `mean`, `mean_without`); each is present only when it has content, except `later`,
+  present on every closed episode, empty when no later run lies on its side. The comparison
 carries `presence_sources`: per question whose presence changed, the domains `new` and `lost`
 in the answers naming the subject. §Insights gives the rules.
 
@@ -834,7 +837,10 @@ describes.
   the question (§Comparability) is left out. The range is the one before the first of those
   runs; the episode closes at the first value back inside it, or ends as a switch when the
   value jumps to the other side. A first period with no previous one reads its own earlier
-  runs.
+  runs. The close date is the first run back inside the range; it says nothing about the
+  runs after it: the later runs of the period that lie on a closed episode's side of its
+  range are listed with it, so a report does not describe the measure as outside the range
+  only during the episode.
 - **Presence by run.** For a question whose text does not name the subject, the answers naming
   it in each run.
 - **Missing evidence.** A phrase list per market language (`i18n.MISSING_EVIDENCE`) finds the
@@ -962,6 +968,16 @@ project. The rules it applies:
   or an answer, and the assistants' public names (which can carry a version number), are not
   read as figures.
 - **Findings headings** carry no figure.
+- **An episode's close.** A sentence fails when a word for "only" (only, solely, exclusively,
+  just; solo, soltanto, solamente, unicamente, esclusivamente) comes before a closed episode's
+  span or its first, last or close date in the same clause (no `, ; : . ! ?` between them, the
+  date within about 40 characters), later runs of the period lie on the episode's side, and the
+  sentence does not name all of them. A date is read as the report writes it, day and month with
+  the year optional ("14 October", "October 14"), and a span as "14–16", "dal 2 all'8", "from 4
+  to 11" or "tra il 2 e l'8"; quoted text is not read, and a paragraph's lines are joined first.
+  A finding is read against its own dimension's episodes, the summary and the changes against all
+  of them. The later runs' values may be cited. A period whose closed episodes do not record their
+  later runs was built before this rule and is refused (exit 2) until `period` builds it again.
 - **The halves.** A report whose period compares its two halves must keep, in `changes`, the
   line `method` wrote naming them, their dates and each project's runs and answers. `check`
   refuses the report when a half's file is missing, since the figures it allows come from it.

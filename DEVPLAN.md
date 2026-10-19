@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d and M2e done; M2f in progress (approved 2026-10-18); M3 next.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; M3 next.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -282,19 +282,25 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 - Open: in the collision case themes stay keyed by dimension key across the study (`method`, `adopt`, `detect`), so the restored dimension shows the other project's theme; a collision implies names with the same slug, so the impact is small.
 - Tests reading the comparison's raw shape now read it per project (9 files), and `test_period` expects `period@2`.
 
-## M2f: An episode's close is one run, not the state after it 🔄
+## M2f: An episode's close is one run, not the state after it ✅
 
 **Why:** a report could describe an episode's close as the end of the movement while later runs of the period lay on the episode's side again. The close is the first run back inside the range; the runs after it are not described by it. Approved by the operator on 2026-10-18.
 
 **Approach:** `INSIGHTS.md`'s example states the close as one date ("on 12 October it was back inside that range") and the rule says the runs after the close are read from the by-run figures, and that "only" is not written about an episode when a later run of the period lies on the same side. `period`'s material prints, under each closed episode, the later runs of the period that lie on the episode's side, with their values, so the finding can state them. `check` refuses "only" (and "solo" in Italian) in a sentence that names a closed episode's dates when the material lists such a later run.
 
 **Tasks:**
-- [ ] Test: unit — the material lists, under a closed episode, the later runs on its side with their values; none when there is none
-- [ ] Test: unit — `check` refuses "only"/"solo" beside a closed episode's dates when a later run lies on its side, and accepts it when none does
-- [ ] Implement in `period.py` and `check.py`; `INSIGHTS.md` example and rule; `REPORT.md` step 7
-- [ ] Commit
+- [x] Test: unit — the material lists, under a closed episode, the later runs on its side with their values; none when there is none
+- [x] Test: unit — `check` refuses "only"/"solo" beside a closed episode's dates when a later run lies on its side, and accepts it when none does
+- [x] Implement in `period.py` and `check.py`; `INSIGHTS.md` example and rule; `REPORT.md` step 7
+- [x] Commit
 
 **Done when:** on a fictional history with an episode and a later run on its side, the material lists that run and `check` refuses a finding that says the measure was high only during the episode.
+
+**Deviations:**
+- A closed episode always carries `later` (the runs after its last run on its side of `range`, each `date` and `value`; `[]` when none); a switch-ended one carries none. The later values are citable figures, and `check` refuses (exit 2) a period whose closed episodes lack the key, built before this milestone.
+- The rule reads a clause rather than a sentence: a word for "only" (only, solely, exclusively, just; solo, soltanto, solamente, unicamente, esclusivamente) before the episode's span or its first, last or close date, with no `, ; : . ! ?` between them and the date within about 40 characters; quoted text is not read and a paragraph's lines are joined first.
+- "Only" is accepted when the sentence names every later run of the episode; a finding is read against its own dimension's episodes, the summary and the changes against all of them.
+- Left for a later item, from the review: "just" or "solo" followed by a number ("just 3 of 12") is refused although it makes no claim about the episode; a decimal comma or point ends the clause, so "only to 4.5 from 14 to 16 October" passes; the 40-character reach misses longer clauses; a «» quote holding a full stop is split before it is stripped; later runs named as "21 and 24 October" are not all read; a span in another month is refused.
 
 ## M3: Build the theme inventory and collect search demand
 
