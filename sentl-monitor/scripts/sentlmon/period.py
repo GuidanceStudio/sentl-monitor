@@ -6,7 +6,8 @@ import datetime as dt
 from collections import Counter, defaultdict
 
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
-                     is_owned, load_json, load_mcp, mean, parse_time, public_name, write_json, write_text)
+                     is_owned, load_json, mean, parse_time, public_name, write_json, write_text)
+from . import schema
 from .compare import K, compare, dimension_entries
 from .insights import (EPS, TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset,
                        says_missing, top_sources)
@@ -36,6 +37,22 @@ def intervals(date, every, count=K):
         out.append(tuple(dt.datetime.combine(d, dt.time(), dt.timezone.utc) for d in (start, end)))
         end = start
     return out
+
+
+def cadence(study):
+    """`report_every`, which every period needs."""
+    every = study.get("report_every")
+    if every not in ("weekly", "monthly"):
+        raise Refused("report_every is not set in study.json: ask the operator whether a report covers a week or a "
+                      "month, write it, and run the command again")
+    return every
+
+
+def previous_cut(last, key, started):
+    """The start of the last run of project `key` in the report `last`: a later report's runs
+    start after it. `started` maps the project's ingested run ids to their start times."""
+    return max((started[i] for i in last["runs"].get(key, []) if i in started),
+               default=parse_time(last["period"]["to"]))
 
 
 def select_runs(runs, start=None, end=None, after=None):
@@ -350,12 +367,9 @@ def build(root, date, models_file=None):
     reset()
     folder = Study(root)
     study = folder.study
-    every = study.get("report_every")
-    if every not in ("weekly", "monthly"):
-        raise Refused("report_every is not set in study.json: ask the operator whether a report covers a week or a "
-                      "month, write it, and run period again")
+    every = cadence(study)
     reader = Reader(study)
-    names = load_mcp(models_file, "researcher_models") if models_file else {}
+    names = schema.models(models_file) if models_file else {}
     keys = [p["key"] for p in study["projects"]]
     runs = {k: folder.runs(k) for k in keys}
     versions = {k: folder.versions(k) for k in keys}
@@ -373,9 +387,7 @@ def build(root, date, models_file=None):
 
     if reports:
         last = reports[-1]
-        started = {k: {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]} for k in keys}
-        cut = {k: max((started[k][i] for i in last["runs"].get(k, []) if i in started[k]),
-                      default=parse_time(last["period"]["to"])) for k in keys}
+        cut = {k: previous_cut(last, k, {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]}) for k in keys}
         chosen = pick(lambda k: {"end": bounds[0][1], "after": cut[k]})
         lines = [f"The period covers the runs started after the last run of the report of {last['date']}."]
     else:

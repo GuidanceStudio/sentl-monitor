@@ -7,6 +7,19 @@ credit spent.
 `<skill>` is this skill's directory, `$S` the study folder, `D` today's date (`YYYY-MM-DD`).
 Run every command with `--study "$S"`.
 
+Every `monitor.py` command below can also end with exit 5 or 6. Exit 5: a saved response does
+not have the shape the skill reads, and the message names the tool and the field. Sentl changed
+what it returns, so no figure computed from it can be trusted: do not edit the file; stop and
+tell the operator the tool and the field, since the skill needs an update before the next report.
+Exit 6: an unexpected error; stop, give the operator the message, and run the same command with
+`--debug` to show where it failed.
+
+**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
+its cause. Call the tool once more. If it fails again on `get-run-results-tool`, record the run
+as unavailable (step 3) and go on. If it fails again on `get-project-tool`, `list-runs-tool` or
+`list-ai-models`, stop: the report cannot be written without it. Tell the operator which tool
+failed and that `report` can be run again later.
+
 ## 1. Preflight
 
 `$S/study.json` and `$S/sentl.json` must exist; otherwise run `adopt` first. Call
@@ -38,31 +51,43 @@ report, not in this one.
 
 ## 3. Read the runs of the period
 
-`list-runs-tool` with `P`; order the runs by `started_at`, never by their place in the
-listing. The runs to read:
+For each project, `list-runs-tool` with `P`, saved to `$S/inbox/runs-P.json`, then:
 
-- **First report** (`$S/history/reports.json` missing, or no report in it dated before
-  `D`): the completed runs started in the last five `report_every` intervals before `D`
-  (35 days for `weekly`, five months for `monthly`). The last interval is the period; the
-  four before it are rebuilt from their runs, so the report can compare with them.
-- **Later reports:** the completed runs started after `period.to` of the latest report in
-  `history/reports.json`.
+```bash
+python3 <skill>/scripts/monitor.py runs --study "$S" --project K --saved "$S/inbox/runs-P.json" --date D
+```
 
-Completed means `completed` or `completed_with_warnings`; any other status is not final:
-skip the run and mention it to the operator. Runs listed in `history/unavailable.json` are
-requested again.
+It prints the runs to fetch, ordered by start time (the listing is newest first with
+exceptions), and ends with a `Fetch:` line holding their ids:
 
-For each of those runs not yet in `$S/history/runs/K/`: if `$S/inbox/run-<run>.json` exists
-(`adopt` saved it), use it; else call `get-run-results-tool` and save it there (copy the
-host's file when the response was large). Then:
+- **First report** (no report in `history/reports.json` dated before `D`): the completed runs
+  started in the report's `report_every` interval and the four before it (five weeks or five
+  months). The last interval is the period; the four before it are rebuilt from their runs,
+  so the report can compare with them.
+- **Later reports:** the completed runs started after the last run of the previous report and
+  up to the end of `D`.
+
+Completed means `completed` or `completed_with_warnings`. Runs already ingested are left out;
+runs recorded as unavailable are listed again. The output also lists the runs not final yet,
+which the next invocation reads, and any status the skill has never seen; neither is fetched.
+A line starting `Warning` says the oldest run in the listing started after the start of the
+window: Sentl's listing has no paging, so either the project has no earlier run or the listing
+stops there. Keep these for step 11.
+
+For each run on the `Fetch:` line: when its line says it is already saved in `inbox/` (`adopt`
+saved it), use that file; else call `get-run-results-tool` and save it to
+`$S/inbox/run-<run>.json` (copy the host's file when the response was large). Then:
 
 ```bash
 python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<run>.json"
 ```
 
 - Exit 2, not complete JSON: save the response again from the host's file and rerun.
-- Sentl returned an error instead of results:
-  `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
+- Sentl returned an error instead of results ("An internal server error occurred."): call
+  `get-run-results-tool` once more; if the error repeats, record the run as unavailable and
+  go on: `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
+  The next report requests it again.
+- Exit 3: the run is not final yet; it is read at the next invocation.
 - The output lists unmatched responses or a run score that differs: keep it for step 11.
 
 ## 4. Models
@@ -199,7 +224,8 @@ and the next report compares with it.
 
 ## 11. Tell the operator, in the chat
 
-The report's path, the runs it covers, and anything the scripts flagged: edits detected in
+The report's path, the runs it covers, and anything the scripts flagged: runs not final yet,
+statuses never seen and a run listing that may be cut (step 3), edits detected in
 Sentl and how each affects the comparison, the periods rebuilt from earlier runs, the two
 halves compared on a first report and any project with runs in one half only, or that no
 earlier period exists, runs left out or

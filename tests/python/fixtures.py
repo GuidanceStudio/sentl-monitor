@@ -173,6 +173,16 @@ def results(run_id, started, rows, project_id=601, score=None):
                     "finished_at": started, "responses": responses}}
 
 
+def listing(rows, project_id=501):
+    """A list-runs-tool response from rows of (run id, status, started_at); a run that is not
+    final has no finish time. The rows keep the order given, as Sentl's listing does."""
+    return {"organization": {"id": 1, "slug": "example-org", "name": "Example"}, "project_id": project_id,
+            "runs": [{"id": run_id, "status": status, "trigger": "scheduled", "reputation_score": None, "error": None,
+                      "started_at": started,
+                      "finished_at": started if status in ("completed", "completed_with_warnings") else None}
+                     for run_id, status, started in rows]}
+
+
 def models():
     return {"researcher_models": {
         GPT: {"name": "Acme Chat", "credits": 2},

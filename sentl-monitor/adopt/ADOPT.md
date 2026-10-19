@@ -5,6 +5,17 @@ it. Reads only: no Sentl write, no credit spent.
 
 `<skill>` below is this skill's directory; `$S` is the study folder.
 
+Every `monitor.py` command below can also end with exit 5 or 6. Exit 5: a saved response does
+not have the shape the skill reads, and the message names the tool and the field. Sentl changed
+what it returns: do not edit the file; stop and tell the operator the tool and the field, since
+the skill needs an update before it can adopt the project. Exit 6: an unexpected error; stop, give
+the operator the message, and run the same command with `--debug` to show where it failed.
+
+**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
+its cause. Call the tool once more. If it fails again on `get-run-results-tool`, go to the next
+completed run (step 4); on `list-projects-tool`, `get-project-tool` or `list-runs-tool`, stop and
+tell the operator which tool failed and that `adopt` can be run again later.
+
 ## 1. Connection
 
 Call `list-organizations`. No tool, or an authentication error: stop and give the operator
@@ -25,12 +36,20 @@ or none: show the candidates with their organization and ask. Note the project i
 ## 4. Save the project and its latest run
 
 1. `get-project-tool` with `P`; save the response to `$S/inbox/project-P.json`.
-2. `list-runs-tool` with `P`; save it to `$S/inbox/runs-P.json`. Order the runs by
-   `started_at`, newest first (the listing is not always in that order). The latest
-   completed run is the newest with status `completed` or `completed_with_warnings`.
-3. `get-run-results-tool` on that run; save it to `$S/inbox/run-R.json`, copying the file the
-   host wrote when the response was large. If Sentl returns an error for that run, try the
-   next completed run; if none can be read, go on without a run.
+2. `list-runs-tool` with `P`; save it to `$S/inbox/runs-P.json`, then:
+
+   ```bash
+   python3 <skill>/scripts/monitor.py runs --saved "$S/inbox/runs-P.json"
+   ```
+
+   It orders the runs by start time, since the listing is not always in that order, and
+   names the latest completed run `R` (status `completed` or `completed_with_warnings`), the
+   completed runs to try after it, newest first, how many completed runs the project has and
+   the dates of the earliest and the latest. It also lists runs not final yet and any status
+   the skill has never seen: tell the operator.
+3. `get-run-results-tool` on `R`; save it to `$S/inbox/run-R.json`, copying the file the host
+   wrote when the response was large. If Sentl returns an error for that run twice, try the
+   next completed run `runs` listed; if none can be read, go on without a run.
 
 ## 5. Adopt
 
@@ -95,7 +114,7 @@ strings.
 
 Tell the operator: the study folder's path, the dimensions and questions adopted (archived
 dimensions are kept and not reported), how many completed runs the project has, the dates of
-the earliest and the latest, and that `report` writes the first report: it covers the last
+the earliest and the latest (from `runs` in step 4), and that `report` writes the first report: it covers the last
 `report_every` interval and compares with the earlier intervals that have runs, up to four,
 or, when no run precedes that interval, the second half of the interval with the first once
 its runs span at least 14 days.

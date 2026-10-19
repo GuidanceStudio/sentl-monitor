@@ -3,32 +3,46 @@
 assistant saved into a study folder and never calls Sentl.
 
 Exit codes: 0 done; 1 check found problems; 2 input refused; 3 run not final;
-4 no run left in the period.
+4 no run left in the period; 5 a Sentl response does not have the shape the skill
+reads; 6 unexpected error.
 """
 
 import argparse
 import datetime as dt
+import os
 import sys
+import traceback
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sentlmon import adopt, charts, check, detect, ingest, method, period  # noqa: E402
+from sentlmon import adopt, charts, check, detect, ingest, method, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
+
+DEBUG_ENV = "SENTL_MONITOR_DEBUG"
 
 
 def _parser():
     today = dt.date.today().isoformat()
     p = argparse.ArgumentParser(prog="monitor.py", description=__doc__.split("\n\n")[0])
+    debug = f"on an unexpected error, print the traceback (or set {DEBUG_ENV}=1)"
+    p.add_argument("--debug", action="store_true", help=debug)
+    # Accepted after the command too; SUPPRESS keeps the command's default from overwriting a
+    # --debug given before it.
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--debug", action="store_true", default=argparse.SUPPRESS, help=debug)
     sub = p.add_subparsers(dest="command", required=True, metavar="command")
 
-    a = sub.add_parser("adopt", help="take an existing Sentl project into the study folder")
+    def command(name, help):
+        return sub.add_parser(name, help=help, parents=[common])
+
+    a = command("adopt", "take an existing Sentl project into the study folder")
     a.add_argument("--study", default=".", help="study folder (default: current directory)")
     a.add_argument("--project", required=True, help="saved get-project-tool response")
     a.add_argument("--run", help="saved get-run-results-tool response of the latest completed run")
     a.add_argument("--key", help="local key of the project (default: a slug of its name)")
 
-    d = sub.add_parser("detect", help="record a detected version when the project in Sentl differs from the latest one")
+    d = command("detect", "record a detected version when the project in Sentl differs from the latest one")
     d.add_argument("--study", default=".")
     d.add_argument("--project", required=True, help="local key of the project")
     d.add_argument("--saved", required=True, help="saved get-project-tool response, read now")
@@ -36,7 +50,14 @@ def _parser():
                    help="a reworded question that now asks something else: it gets a new key (repeatable)")
     d.add_argument("--dry-run", action="store_true", help="list the changes and write nothing")
 
-    i = sub.add_parser("ingest", help="store a run's results as a normalized snapshot")
+    n = command("runs", "read a saved run listing: the runs to fetch for a report, or the latest "
+                        "completed run when adopting")
+    n.add_argument("--study", default=".")
+    n.add_argument("--saved", required=True, help="saved list-runs-tool response")
+    n.add_argument("--project", help="local key of the project; without it, the latest completed run for adopt")
+    n.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
+
+    i = command("ingest", "store a run's results as a normalized snapshot")
     i.add_argument("--study", default=".")
     i.add_argument("--project", required=True, help="local key of the project")
     src = i.add_mutually_exclusive_group(required=True)
@@ -44,23 +65,23 @@ def _parser():
     src.add_argument("--unavailable", type=int, metavar="RUN_ID", help="record a run Sentl could not return")
     i.add_argument("--reason", default="server error", help="with --unavailable: the error Sentl returned")
 
-    r = sub.add_parser("period", help="compute the metrics of a report period")
+    r = command("period", "compute the metrics of a report period")
     r.add_argument("--study", default=".")
     r.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
     r.add_argument("--models", help="saved list-ai-models response, for public names in the material")
 
-    m = sub.add_parser("method", help="write the report's method sections and its outline")
+    m = command("method", "write the report's method sections and its outline")
     m.add_argument("--study", default=".")
     m.add_argument("--date", default=today)
     m.add_argument("--models", required=True, help="saved list-ai-models response")
     m.add_argument("--force", action="store_true", help="overwrite an existing report")
 
-    c = sub.add_parser("check", help="verify a report before it is final")
+    c = command("check", "verify a report before it is final")
     c.add_argument("--study", default=".")
     c.add_argument("--date", help="period date (default: from the report's file name)")
     c.add_argument("report", help="the report file")
 
-    g = sub.add_parser("charts", help="write a report's figures as md2 chart tables for a deck")
+    g = command("charts", "write a report's figures as md2 chart tables for a deck")
     g.add_argument("--study", default=".")
     g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
     return p
@@ -73,6 +94,8 @@ def main(argv=None):
             print(adopt.adopt(args.study, args.project, args.run, args.key))
         elif args.command == "detect":
             print(detect.detect(args.study, args.project, args.saved, args.new_intent, args.dry_run))
+        elif args.command == "runs":
+            print(runs.runs(args.study, args.saved, args.project, args.date))
         elif args.command == "ingest":
             if args.unavailable is not None:
                 print(ingest.record_unavailable(args.study, args.project, args.unavailable, args.reason))
@@ -103,6 +126,19 @@ def main(argv=None):
     except period.BelowFloor as exc:
         print(str(exc), file=sys.stderr)
         return 4
+    except schema.Mismatch as exc:
+        print(str(exc), file=sys.stderr)
+        return 5
+    except KeyboardInterrupt:
+        print(f"interrupted: {args.command} stopped before it finished; run it again.", file=sys.stderr)
+        return 130
+    except Exception as exc:  # noqa: BLE001 - the last resort: one line, never a traceback unless asked
+        if args.debug or os.environ.get(DEBUG_ENV, "") not in ("", "0"):
+            traceback.print_exc()
+        detail = " ".join(str(exc).split())
+        print(f"error: unexpected {type(exc).__name__} in {args.command}" + (f": {detail}" if detail else "")
+              + f". Rerun with --debug (or {DEBUG_ENV}=1) to see where it happened, and report it.", file=sys.stderr)
+        return 6
     return 0
 
 

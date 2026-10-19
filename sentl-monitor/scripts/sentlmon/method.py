@@ -2,7 +2,8 @@
 in the order the report takes, with an entry per dimension left for the findings."""
 
 from .adopt import missing_answers
-from .common import Refused, Study, fmt_date, load_json, load_mcp, match_key, norm, public_name, write_text
+from . import schema
+from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, write_text
 from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, SECTIONS, TEXT, join, phrase
 
 
@@ -143,7 +144,7 @@ def _scoring(study, projects, lang):
 
     def anchors(q):
         r = q.get("rubric") or {}
-        return tuple(norm(r.get(k, "")) for k in "12345") if r else None
+        return tuple(norm(r.get(k)) for k in "12345") if r else None
     # A rubric is shared when at least two distinct question texts use it; the same question
     # asked in two projects is one text.
     groups = {}
@@ -159,7 +160,7 @@ def _scoring(study, projects, lang):
             r = qs[0]["rubric"]
             quoted = ["«" + q["text"] + "»" for q in qs]
             lines.append(f"- {join(quoted, lang)}: "
-                         + t["anchors_all"].format(**{f"a{k}": r.get(k, "") for k in "12345"}))
+                         + t["anchors_all"].format(**{f"a{k}": r.get(k) or "" for k in "12345"}))
         lines.append("")
     for _, dims in projects:
         for d in dims:
@@ -169,8 +170,8 @@ def _scoring(study, projects, lang):
             lines += [f"**{d['name']}**", ""]
             for q in own:
                 r = q.get("rubric") or {}
-                lines.append(f"- «{q['text']}»" + (" " + t["anchors"].format(a5=r.get("5", ""), a3=r.get("3", ""),
-                                                                            a1=r.get("1", "")) if r else ""))
+                lines.append(f"- «{q['text']}»" + (" " + t["anchors"].format(a5=r.get("5") or "", a3=r.get("3") or "",
+                                                                            a1=r.get("1") or "") if r else ""))
             lines.append("")
     axis = study["narrative"].get("score_axis")
     lines += [t["figures"], "", t["change_rule"], "",
@@ -266,7 +267,7 @@ def write(root, date, models_file, force=False):
     if target.exists() and not force:
         raise Refused(f"{target} exists; pass --force to write the method sections again over it")
     period = load_json(period_path)
-    names = load_mcp(models_file, "researcher_models") if models_file else {}
+    names = schema.models(models_file) if models_file else {}
     lang = study["report_language"]
 
     start, end = (fmt_date(period[k], lang) for k in ("from", "to"))

@@ -2,7 +2,8 @@
 and record a `detected` version when the project in Sentl differs from it."""
 
 from .adopt import _unique, criteria_hash
-from .common import Refused, Study, load_mcp, norm, now_iso, slug, write_json
+from . import schema
+from .common import Refused, Study, norm, now_iso, slug, write_json
 
 
 def _settings(proj):
@@ -12,12 +13,20 @@ def _settings(proj):
 
 def _compare(proj, latest, versions, bound, taken_dims, new_intent):
     """The version Sentl's project amounts to, and its changes from `latest`. A question or
-    a dimension keeps its key through its Sentl id; a new one gets the next free key."""
+    a dimension keeps its key through its Sentl id; a new one gets the next free key. One with
+    a new id and the text, or the name, of one whose id is gone is that one renumbered: it
+    keeps its key, so its comparison goes on."""
     dim_of = {v: k for k, v in bound["dimensions"].items()}
     q_of = {v: k for k, v in bound["questions"].items()}
     before_d = {d["key"]: d for d in latest["dimensions"]}
     before_q = {q["key"]: q for d in latest["dimensions"] for q in d["questions"]}
     taken_q = {q["key"] for v in versions for d in v["dimensions"] for q in d["questions"]}
+    present_q = {q["id"] for d in proj["dimensions"] for q in d["questions"]}
+    present_d = {d["id"] for d in proj["dimensions"]}
+    gone_d = {norm(d["name"]): d["key"] for d in latest["dimensions"] if d["id"] not in present_d}
+    gone_q = {(d["key"], norm(q["text"])): q["key"]
+              for d in latest["dimensions"] for q in d["questions"] if q["id"] not in present_q}
+    linked = set()
 
     def new_key(dkey):
         n = 1
@@ -28,7 +37,13 @@ def _compare(proj, latest, versions, bound, taken_dims, new_intent):
 
     changes, dims = [], []
     for d in proj["dimensions"]:
-        dkey = dim_of.get(d["id"]) or _unique(slug(d["name"]), taken_dims)
+        dkey = dim_of.get(d["id"])
+        if dkey is None and norm(d["name"]) in gone_d:
+            dkey = gone_d.pop(norm(d["name"]))
+            linked.add(dkey)
+            changes.append({"dimension": dkey, "change": "dimension_renumbered",
+                            "from": before_d[dkey]["id"], "to": d["id"]})
+        dkey = dkey or _unique(slug(d["name"]), taken_dims)
         archived, old = bool(d.get("archived")), before_d.get(dkey)
         if old is None or (old["archived"] and not archived):
             changes.append({"dimension": dkey, "change": "dimension_added"})
@@ -39,6 +54,10 @@ def _compare(proj, latest, versions, bound, taken_dims, new_intent):
         questions = []
         for q in d["questions"]:
             qkey, h = q_of.get(q["id"]), criteria_hash(q.get("grading_rubric"), q.get("additional_instructions"))
+            if qkey is None and (dkey, norm(q["question"])) in gone_q:
+                qkey = gone_q.pop((dkey, norm(q["question"])))
+                linked.add(qkey)
+                changes.append({"question": qkey, "change": "renumbered", "from": before_q[qkey]["id"], "to": q["id"]})
             was = before_q.get(qkey)
             # A difference of quotes or spacing is a transcription, not an edit.
             text = was["text"] if was and norm(was["text"]) == norm(q["question"]) else q["question"]
@@ -57,11 +76,10 @@ def _compare(proj, latest, versions, bound, taken_dims, new_intent):
             questions.append({"key": qkey, "id": q["id"], "text": text, "criteria_hash": h, "sentl": q})
         dims.append({"key": dkey, "id": d["id"], "name": d["name"], "archived": archived, "questions": questions})
 
-    present_q = {q["id"] for d in proj["dimensions"] for q in d["questions"]}
-    present_d = {d["id"] for d in proj["dimensions"]}
-    changes += [{"question": k, "change": "retired"} for k, q in before_q.items() if q["id"] not in present_q]
+    changes += [{"question": k, "change": "retired"} for k, q in before_q.items()
+                if q["id"] not in present_q and k not in linked]
     changes += [{"dimension": k, "change": "dimension_archived"} for k, d in before_d.items()
-                if d["id"] not in present_d and not d["archived"]]
+                if d["id"] not in present_d and not d["archived"] and k not in linked]
     settings = _settings(proj)
     was_models, models = latest["settings"]["models"], settings["models"]
     if set(was_models) != set(models):
@@ -78,7 +96,7 @@ def _mirror(study, entry, dims, settings, changes, number):
     old_dims = {d["key"]: d for d in entry["dimensions"]}
     lineage = {}
     for c in changes:
-        if "question" in c and c["change"] != "retired":
+        if "question" in c and c["change"] not in ("retired", "renumbered"):
             lineage.setdefault(c["question"], []).append(
                 {"version": number, **{k: v for k, v in c.items() if k != "question"}})
     themes = {t["id"] for t in study["themes"]}
@@ -88,7 +106,7 @@ def _mirror(study, entry, dims, settings, changes, number):
         for q in d["questions"]:
             sentl = q["sentl"]
             item = dict(old_questions.get(q["key"]) or {"key": q["key"]})
-            item.update(label=sentl.get("label", ""), text=q["text"], rubric=sentl.get("grading_rubric") or {},
+            item.update(label=sentl.get("label") or "", text=q["text"], rubric=sentl.get("grading_rubric") or {},
                         instructions=sentl.get("additional_instructions") or "")
             item["lineage"] = list(item.get("lineage") or []) + lineage.get(q["key"], [])
             questions.append(item)
@@ -112,6 +130,12 @@ def _describe(changes, latest, dims):
             lines.append(f"  {q} replaces {c['replaces']} as a new question: «{texts[q]}»")
         elif kind == "criteria":
             lines.append(f"  {q}: rubric or judge instructions changed («{texts[q]}»)")
+        elif kind == "renumbered":
+            lines.append(f"  {q}: Sentl gave it a new id ({c['from']} → {c['to']}); its text is the same, so it keeps "
+                         "its key and its comparison")
+        elif kind == "dimension_renumbered":
+            lines.append(f"  dimension {d}: Sentl gave it a new id ({c['from']} → {c['to']}); its name is the same, so "
+                         "it keeps its key")
         elif kind in ("created", "retired"):
             lines.append(f"  {q} {kind}: «{texts[q]}»")
         elif kind == "models":
@@ -129,9 +153,7 @@ def detect(root, key, saved_file, new_intent=(), dry_run=False):
     folder.project(key)
     entry = next(p for p in study["projects"] if p["key"] == key)
     bound = binding["projects"][key]
-    proj = load_mcp(saved_file, "project")
-    if "dimensions" not in proj or "id" not in proj:
-        raise Refused(f"{saved_file} is not a get-project-tool response")
+    proj = schema.project(saved_file)
     if proj["id"] != bound["project_id"]:
         raise Refused(f"the saved project is {proj['id']}, but {key} is bound to project {bound['project_id']}: "
                       "save get-project-tool's response for the right project")

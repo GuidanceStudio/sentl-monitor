@@ -55,7 +55,17 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
   directory. Study folders live where the operator keeps client work.
 - **The script.** `python3 <skill dir>/scripts/monitor.py <command> --study <folder> ...`
   (`--help` lists the commands). Exit codes: 0 done; 1 `check` found problems; 2 input refused
-  (the message says why and what to do); 3 run not final yet; 4 no run left in the period.
+  (the message says why and what to do); 3 run not final yet; 4 no run left in the period;
+  5 a Sentl response does not have the shape the skill reads (the message names the tool and the
+  field): Sentl changed what it returns, so stop, do not edit the saved file, and tell the
+  operator the tool and the field, since the skill needs an update; 6 unexpected error: stop, give
+  the operator the one-line message, and run the same command again with `--debug` to show where
+  it failed. A file holding another tool's response, or no readable file, is exit 2: save the
+  right response to it.
+- **Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
+  its cause. Call the tool once more. If it fails again, `get-run-results-tool` records the run as
+  unavailable and the route goes on without it (the playbooks say how); any other tool stops the
+  route: tell the operator which tool failed and that the route can be run again later.
 - **What the operator is told goes in the chat, never in the report:** runs covered and left
   out, unmatched responses, unavailable runs, a run score that differs from the one computed,
   dimensions shown without a figure, edits detected in Sentl, the periods rebuilt from a

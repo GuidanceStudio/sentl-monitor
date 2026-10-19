@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of three
-live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 done; M3 after R4.
+live Sentl projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0 done, R2 implemented and not committed; M3 after R4.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; the one-off check of sentl-snapshot becomes the
@@ -329,28 +329,120 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 **Done when:** a reader with a Sentl account and an assistant can go from the README alone to a first report, and no public file names a private skill or a live study.
 
-## R2: Sentl's responses are checked against what the skill expects
+## R2: Sentl's responses are checked against what the skill expects 🔄
 
 **Why:** read-only probes showed that a change on Sentl's side gives wrong figures with exit 0 (scores on another scale, renamed sources or rubric fields) or a Python traceback with exit 1, the code that means `check` found problems. The run listing has no paging and no script reads it.
 
 **Approach:** one module states the fields, types and ranges the skill reads from each Sentl tool (scores 1–5 or null, the known statuses, sources as url and title); `adopt`, `detect` and `ingest` refuse a response that does not match, naming the field, with exit 5. Any other unexpected error exits 6 with a one-line message. A new `monitor.py runs` reads the saved run listing, prints the runs to fetch for the report, and warns when the oldest listed run is newer than the window's start. An unknown status is reported as such, apart from runs not final yet. A question or dimension whose id changed but whose text is identical to a retired one is linked to it. The playbooks say what to do when Sentl answers with an internal error.
 
 **Tasks:**
-- [ ] Test: unit — each probed change (score scale, renamed field, wrong type, missing timestamp, unknown status) exits 5 naming the field; an unexpected error exits 6
-- [ ] Test: unit — `runs` lists the runs of the window and warns on a listing that does not reach its start; a renumbered question with identical text keeps its comparison
-- [ ] Implement; playbooks and SKILL.md exit codes
+- [x] Test: unit — each probed change (score scale, renamed field, wrong type, missing timestamp, unknown status) exits 5 naming the field; an unexpected error exits 6
+- [x] Test: unit — `runs` lists the runs of the window and warns on a listing that does not reach its start; a renumbered question with identical text keeps its comparison
+- [x] Implement; playbooks and SKILL.md exit codes
+- [x] Review fixes, test first: a partial or missing rubric accepted; a timestamp without a zone read as UTC; another tool's file and a missing file exit 2; `runs` lists only the window's open and unseen runs; the adopt fallback list without the latest run; copied fields not type-checked; Ctrl-C exits 130 and `--debug` works before the command; never-seen statuses worded as listed apart
+- [x] Dry run on a copy of a live study: re-ingested runs give period files and a check result identical to HEAD's
 - [ ] Commit
 
 **Done when:** none of the probed changes produces a report or a traceback.
 
+**Deviations:**
+- `runs` without `--project` names the latest completed run by start time, and the ones to try after it, for `adopt`; it needs no study folder. ADOPT.md step 4 uses it.
+- The schema reads `pending`, `queued` and `running` as not final yet; none was seen live (A2). `ingest` refuses any other status with exit 5, where it exited 3; `runs` lists it as never seen and does not fetch the run. The results of a run not final yet are read for `id` and `status` only.
+- `period` and `method` also check the saved `list-ai-models` response (exit 5).
+- A file holding another tool's response (that tool's top-level key) exits 2 naming the tool, and so does a missing or unreadable file, where both exited 6 or 5 before review; exit 5 is for the right tool's response in a shape the skill does not read.
+- `runs` requests again every unavailable run the listing shows as completed, inside the window or not, as ARCHITECTURE.md §Where state lives says, and points to a run already saved in `inbox/`. Its warning cannot tell a cut listing from a project with no earlier run, so it names both; a first report on a project younger than five intervals always gets it. Runs not final yet and statuses never seen are listed only inside the report's window, or with no start time; the adopt view's fallback list starts after the latest run.
+- Renumbering is read against the latest version only: a dimension is linked by its name to one whose id is gone, then a question by its normalized text to one of the same dimension whose id is gone. `renumbered` and `dimension_renumbered` are recorded in the version, so the binding takes the new ids, and not in the lineage. A question moved to another dimension under a new id stays created and retired.
+- A rubric may be null, empty or partial, each anchor a text or null, since Sentl does not require the anchors; a list or a key outside 1–5 is refused. `method` prints a null anchor as empty, and a null `label` is stored as empty. `label` may be null and `additional_instructions` absent.
+- `parse_time` reads a time without a time zone as UTC, so `runs` and `ingest` no longer exit 6 on one. This takes over R4's item on naive timestamps; R4's text is left as it is.
+- Fields the skill only copies into the run snapshot (`trigger`, `finished_at`, `error`, `sentiment`) take any value; a source's `title` is optional, and `sources: null` is read as no source.
+- `--debug` is accepted before or after the command; `SENTL_MONITOR_DEBUG=1` does the same. Ctrl-C exits 130 with one line. ARCHITECTURE.md gains §Responses from Sentl and gaps G18 (errors that say what failed) and G19 (run statuses documented); README's command list names `runs`.
+- Suite run under Python 3.14 and 3.11: 326 tests before, 389 after.
+- Dry run on a copy of a live study, deleted afterwards: its 30 saved runs re-ingested, `period` for its report date and `check` give period files, material and check output byte-identical to HEAD's and to the study's own period files; the saved project, listing and models files pass the schema.
+- Open: `get-project-tool` returns `organization` as an object (`id`, `slug`, `name`), which `adopt` copies into `study.json` and `sentl.json` as it is, where ARCHITECTURE.md shows the slug; the schema does not read it.
+
 ## R3: Every host: Claude Code, opencode, Codex, claude.ai and ChatGPT
 
-**Why:** the skill relies on Claude Code saving large tool results to a file; the operator wants it installable and usable in Claude Code, opencode, Codex and above all the claude.ai and ChatGPT web clients, where results are not saved to a file and the sandbox does not keep files between conversations.
+**Why:** the skill relies on Claude Code saving large tool results to a file; the operator wants it installable and usable in Claude Code, opencode, Codex and above all the claude.ai and ChatGPT web clients, where results are not saved to a file and the sandbox does not keep files between conversations. A run of 39 answers is about 250,000 characters; a monthly report reads 4 to 150 runs, more than a web conversation holds.
 
-**Approach:** to be designed after a survey of how each host installs a skill, runs its scripts, connects a remote MCP server and handles large results; the design is shown to the operator before any code.
+**Approach:** designed and approved by the operator on 2026-10-19. Split in parts: R3a distribution and install, R3b the study carried as a pack on web clients, R3d the data paths that need Sentl's changes, R3e host verification. R3c, a read-only fetch from the script with a token, was declined by the operator: the scripts keep calling no Sentl endpoint, and Codex waits for R3d. R3a and R3b need nothing from Sentl; R3d waits for Sentl's read-side changes, requested on 2026-10-19.
 
 **Tasks:**
-- [ ] Design, approved by the operator
+- [x] Design, approved by the operator
+- [ ] R3a, R3b, R3d, R3e done
+
+**Done when:** every host in the README's support table is backed by a recorded run on the released version.
+
+## R3a: Install on every host from one repository and one zip
+
+**Why:** claude.ai refuses a description over 200 characters, the Claude Code plugin format expects skills under `skills/`, Codex and opencode read `~/.agents/skills`, and web users install from a zip.
+
+**Approach:** the payload moves to `skills/sentl-monitor/` (after R2 lands). SKILL.md gets a 165-character description, the routes and trigger phrases in a `## When to use` section, `license`, `compatibility` naming the hosts, `metadata.version` as the one version source. `tools/build_zip.py` builds `dist/sentl-monitor.zip` from the tracked payload files, deterministic, with the skill folder at its root and LICENSE inside; `release.yml` attaches it and its sha256 to each GitHub release under fixed names. `.claude-plugin/marketplace.json` and `plugin.json` (skill only); `agents/openai.yaml` with the display fields and the Sentl MCP dependency. `install.sh --host claude|agents`, detection of installed hosts, `--uninstall`, no more `~/.config/opencode/skills`. `monitor.py doctor` and `--version`. README install section per host and a support table that names a host only after a recorded run (R3e).
+
+**Tasks:**
+- [ ] Test: bash — frontmatter: name equals the folder and matches the spec, description ≤ 200 with no `<` or `>`, compatibility ≤ 500, version present; LICENSE in the payload equals the root one
+- [ ] Test: bash — `build_zip.py`: one root folder `sentl-monitor/`, no `__pycache__`, `.pyc` or test file, two builds byte-identical, a frontmatter over a limit refused; the extracted copy runs `monitor.py --help` and `doctor`
+- [ ] Test: bash — `install.sh --host claude`, `--host agents`, detection with fake hosts in a temporary HOME, refusal with none detected, `--check` listing every install and its version, `--uninstall`, an old `~/.config/opencode/skills` install removed after the prompt
+- [ ] Test: bash — marketplace and plugin JSON parse, name and version equal SKILL.md's; `claude plugin validate .` when `claude` is on PATH
+- [ ] Test: unit — `doctor` reports Python version, a writable study folder, a sandbox path as not lasting; `--version` prints SKILL.md's version
+- [ ] Implement the move, SKILL.md, `build_zip.py`, the workflows, the manifests, `agents/openai.yaml`, `install.sh`, `doctor`; README install section and support table
+- [ ] Commit
+
+**Done when:** a tag produces a release whose zip uploads to claude.ai as a skill, `/plugin install` and `install.sh --host agents` install it, and the suite passes on Python 3.10 to 3.13.
+
+## R3b: A study carried between web conversations as one pack
+
+**Why:** on claude.ai and ChatGPT the sandbox keeps nothing after the conversation, while the next report needs the versions, the report index, the latest four period files and the previous period's runs.
+
+**Approach:** `monitor.py pack` writes a zip with a manifest (schema, skill version, last report, files with sha256) and the state the next report needs: `study.json`, `sentl.json`, versions, `reports.json`, `unavailable.json`, `last-report.json`, the latest four period files and the latest halves, the runs of the latest report's period and any ingested after it; every run before the first final report; everything with `--full`. `unpack` verifies and refuses a changed file, an unsafe path, an unknown schema (exit 5), a stale pack, another project's study. SKILL.md gains "Hosts without a lasting folder": unpack first, pack last, both files offered for download; ADOPT.md and REPORT.md say where.
+
+**Tasks:**
+- [ ] Test: unit — on the fictional three-report study, the third report's period file built after pack and unpack equals the one built in the unpruned folder
+- [ ] Test: unit — the slim pack holds only the files listed; before a first final report it holds every run; `--full` holds every run and period
+- [ ] Test: unit — `unpack` refuses a file whose sha256 differs, an absolute path, `..`, a link, an unknown manifest schema (exit 5), a pack older than the folder's last report, a folder bound to other projects
+- [ ] Test: bash — SKILL.md, ADOPT.md and REPORT.md name `unpack` before the first command and `pack` after `check` for hosts without a lasting folder
+- [ ] Implement `pack`, `unpack`; playbooks
+- [ ] Commit
+
+**Done when:** a study packed after its second report and unpacked in an empty folder produces the same third report as the original folder.
+
+## R3c: Read Sentl from the script on a CLI host — declined
+
+Declined by the operator on 2026-10-19: the scripts call no Sentl endpoint and hold no token. Codex is supported once R3d reads Sentl's export.
+
+## R3d: Read runs through Sentl's export, download link and pages
+
+Depends on Sentl: the export of several runs in one file with a download link and a panel download, pages of `get-run-results-tool` with RFC 8785 checksums, `schema_version`, ids on each response.
+
+**Why:** run results cannot pass through a web conversation; on claude.ai and ChatGPT they reach the sandbox only as a file the sandbox downloads or the user attaches.
+
+**Approach:** `monitor.py import` checks an export (sha256, `schema_version` through R2's schema module) and writes the project, the run listing and each run's results to `inbox/` in the tools' shapes; `download` fetches a link without credentials and imports it, exit 7 when unreachable, only if the operator approves a script that downloads from Sentl when R3d starts; otherwise the user downloads the export and attaches it; `ingest` accepts the pages of one run and checks each page's checksum; `adopt` and `ingest` match responses by `question_id` when present, by text otherwise. Playbooks give the order: a file the host saved, an export the user attached, checksummed pages, and for small responses only, a copy written by the assistant; the report on a web host runs from the pack and the export alone.
+
+**Tasks:**
+- [ ] Test: unit — `import` writes the inbox files from an export fixture; refuses a changed byte (exit 2) and an unknown `schema_version` (exit 5)
+- [ ] Test: unit — `download` against a local server: sha256 checked, size cap, expired link exit 7
+- [ ] Test: unit — page assembly: a missing page, a duplicate response, a different run header and a checksum mismatch each refused naming the page; the RFC 8785 test vector matches
+- [ ] Test: unit — responses with `question_id` match after a one-character change in the saved text
+- [ ] Implement `import`, `download`, pages in `ingest`, id matching; playbooks
+- [ ] Commit
+
+**Done when:** a report written from a pack and an export file, without any MCP result written out by the assistant, equals the report Claude Code writes from the same runs.
+
+## R3e: Each host tested before the README says it is supported
+
+**Why:** the hosts document little about tool-result sizes, sandbox paths and Python versions; support is claimed only after a run on the host.
+
+**Approach:** tests on the operator's machine for the CLI hosts and checklists run by hand on the operator's own claude.ai (Pro or Max) and ChatGPT (Plus or Pro) accounts, each recorded here with date, plan, version and outcome; the README's support table changes only on a recorded pass.
+
+**Tasks:**
+- [ ] Claude Code: live tests from the plugin install and from `install.sh`
+- [ ] opencode: install, MCP spill measured, adopt and report
+- [ ] Codex: install, truncation measured, report from an export file once R3d ships
+- [ ] claude.ai: upload, `doctor`, connector, result size measured, adopt, report, pack, new conversation, report again; the export path on Pro or Max once R3d ships
+- [ ] ChatGPT: skills, developer mode and the Sentl connector checked on Plus or Pro, then the same as claude.ai where they work; no Business workspace is available, so Business, Enterprise and Edu are not claimed until a recorded run
+- [ ] README support table updated from the recorded results
+- [ ] Commit
+
+**Done when:** every host in the README's table is backed by a recorded run on the released version.
 
 ## R4: Portable across systems, time zones and languages
 

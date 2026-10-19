@@ -212,7 +212,7 @@ sentl-monitor/         the skill payload
   setup/SETUP.md       planned
   snapshot/SNAPSHOT.md planned
   catalogue.md         planned: dimension catalogue with question patterns, rubric anchors, facts the judge needs
-  scripts/monitor.py   the command line: adopt, detect, ingest, period, method, check, charts (more with each route)
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts (more with each route)
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash contract tests, Python unit tests, opt-in live tests (bash tests/test_all.sh)
 ```

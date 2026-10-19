@@ -2,8 +2,9 @@
 
 from collections import Counter, defaultdict
 
-from .common import (FINAL, Refused, Study, domain_of, load_json, load_mcp, match_key, mean, now_iso,
-                     parse_time, write_gz, write_json)
+from . import schema
+from .common import (FINAL, Refused, Study, domain_of, load_json, match_key, mean, now_iso, parse_time,
+                     write_gz, write_json)
 
 
 class NotFinal(Exception):
@@ -101,10 +102,8 @@ def run_score(responses):
 def ingest(root, key, results_file):
     folder = Study(root)
     folder.project(key)
-    run = load_mcp(results_file, "run")
-    if "responses" not in run or "id" not in run:
-        raise Refused(f"{results_file} is not a get-run-results-tool response")
-    run_id, status = run["id"], run.get("status")
+    run = schema.run_results(results_file)
+    run_id, status = run["id"], run["status"]
     if status not in FINAL:
         raise NotFinal(f"run {run_id} has status {status!r}, not final: it is read again at the next invocation")
 

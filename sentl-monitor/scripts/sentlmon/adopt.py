@@ -3,7 +3,8 @@
 import hashlib
 import json
 
-from .common import Refused, Study, load_json, load_mcp, match_key, norm, now_iso, slug, write_json
+from . import schema
+from .common import Refused, Study, load_json, match_key, norm, now_iso, slug, write_json
 
 ORIGIN_KINDS = ("client_material", "client_issue", "client_analysis", "search", "probe")
 AUDIENCES = ("generic_consumer", "personas", "stakeholders", "mixed")
@@ -105,10 +106,8 @@ def _check_against_run(proj, run):
 
 def adopt(root, project_file, run_file=None, key=None):
     folder = Study(root)
-    proj = load_mcp(project_file, "project")
-    if "dimensions" not in proj or "id" not in proj:
-        raise Refused(f"{project_file} is not a get-project-tool response")
-    run = load_mcp(run_file, "run") if run_file else None
+    proj = schema.project(project_file)
+    run = schema.run_results(run_file) if run_file else None
     if run is not None:
         _check_against_run(proj, run)
 
@@ -129,7 +128,7 @@ def adopt(root, project_file, run_file=None, key=None):
         for n, q in enumerate(d["questions"], 1):
             qkey = f"{dkey}-{n}"
             ids_questions[qkey] = q["id"]
-            questions.append({"key": qkey, "label": q.get("label", ""), "text": q["question"],
+            questions.append({"key": qkey, "label": q.get("label") or "", "text": q["question"],
                               "rubric": q.get("grading_rubric") or {}, "instructions": q.get("additional_instructions") or "",
                               "lineage": [{"version": 1, "change": "adopted"}]})
             ver_questions.append({"key": qkey, "id": q["id"], "text": q["question"],

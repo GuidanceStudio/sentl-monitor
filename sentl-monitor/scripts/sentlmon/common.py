@@ -42,14 +42,20 @@ def write_text(path, text):
     os.replace(tmp, path)
 
 
-def load_mcp(path, key):
-    """Read a saved MCP response and return the object under `key`.
+def read_mcp(path):
+    """Read a saved MCP response, as the tool returned it.
 
     A host saves either the tool's JSON text or the MCP content list around it
-    ([{"type": "text", "text": ...}]); both are accepted. A response that does
-    not parse is refused, because a host that truncates output cuts it mid-string.
+    ([{"type": "text", "text": ...}]); both are accepted. A file that cannot be read,
+    or a response that does not parse, is refused, because a host that truncates
+    output cuts it mid-string.
     """
-    raw = Path(path).read_text(encoding="utf-8")
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise Refused(f"{path} cannot be read ({exc.strerror or exc}): save the tool's response to it again") from None
+    except UnicodeDecodeError:
+        raise Refused(f"{path} is not UTF-8 text: save the tool's response to it again") from None
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -65,6 +71,12 @@ def load_mcp(path, key):
                 raise Refused(f"{path} holds text that is not complete JSON ({exc.msg})") from None
             continue
         break
+    return data
+
+
+def load_mcp(path, key, data=None):
+    """The object under `key` of a saved MCP response (`data`, when it was read already)."""
+    data = read_mcp(path) if data is None else data
     if isinstance(data, dict) and key in data and isinstance(data[key], dict):
         return data[key]
     if isinstance(data, dict):
@@ -247,7 +259,9 @@ MONTHS = {
 
 
 def parse_time(text):
-    return dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    """An ISO 8601 time; one written without a time zone is read as UTC."""
+    at = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return at if at.tzinfo else at.replace(tzinfo=dt.timezone.utc)
 
 
 def fmt_date(value, lang):

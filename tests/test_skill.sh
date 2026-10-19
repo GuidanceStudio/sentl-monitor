@@ -141,7 +141,24 @@ else
     bad "monitor.py --help exits 0"
     echo "$HELP_TEXT" | sed 's/^/        /'
 fi
-for cmd in adopt detect ingest period method check charts; do
+echo ""
+echo "=== Sentl's responses and errors (R2) ==="
+has "5 a Sentl response" "$SKILL" "SKILL.md names exit 5: a Sentl response the skill cannot read"
+has "6 unexpected error" "$SKILL" "SKILL.md names exit 6: an unexpected error"
+for f in "$PAYLOAD/adopt/ADOPT.md" "$PAYLOAD/report/REPORT.md"; do
+    has "monitor.py runs" "$f" "$(basename "$f") picks the runs with monitor.py runs"
+    has "An internal server error occurred" "$f" "$(basename "$f") says what to do on Sentl's internal error"
+    has "[Ee]xit 5" "$f" "$(basename "$f") says what to do on exit 5"
+done
+if grep -q "order the runs by \`started_at\`" "$PAYLOAD/report/REPORT.md"; then
+    bad "REPORT.md still has the assistant order the runs by hand"
+else
+    ok "REPORT.md leaves the run selection to monitor.py runs"
+fi
+
+echo ""
+echo "=== monitor.py --help, commands ==="
+for cmd in adopt detect runs ingest period method check charts; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else
