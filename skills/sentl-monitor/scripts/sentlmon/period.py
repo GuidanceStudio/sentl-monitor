@@ -42,6 +42,8 @@ def intervals(date, every, count=K):
 
 def cadence(study):
     """`report_every`, which every period needs."""
+    if study.get("kind") == "snapshot":
+        raise Refused("a snapshot has no report cadence: `resume` names its next step")
     every = study.get("report_every")
     if every not in ("weekly", "monthly"):
         raise Refused("report_every is not set in study.json: ask the operator whether a report covers a week or a "
@@ -56,7 +58,7 @@ def previous_cut(last, key, started):
                default=parse_time(last["period"]["to"]))
 
 
-def select_runs(runs, start=None, end=None, after=None):
+def select_runs(runs, start=None, end=None, after=None, floor=RUN_FLOOR):
     """The runs started in [start, end) and after `after`, by start time, and those left out
     under the judged floor, with the reason."""
     chosen, excluded = [], []
@@ -65,7 +67,7 @@ def select_runs(runs, start=None, end=None, after=None):
         if (start and at < start) or (end and at >= end) or (after and at <= after):
             continue
         share = r["judged"] / r["expected"] if r["expected"] else 0.0
-        if share < RUN_FLOOR:
+        if share < floor:
             excluded.append({"run_id": r["run_id"],
                              "reason": f"{fmt_percent(share)} of expected answers judged "
                                        f"({r['judged']} of {r['expected']}), under the 90% floor"})
@@ -369,25 +371,33 @@ def build(root, date, models_file=None):
     folder = Study(root)
     study = folder.study
     require_language(study)
-    every = cadence(study)
+    snapshot = study.get("kind") == "snapshot"
+    every = None if snapshot else cadence(study)
     reader = Reader(study)
     names = schema.models(models_file) if models_file else {}
     keys = [p["key"] for p in study["projects"]]
     runs = {k: folder.runs(k) for k in keys}
     versions = {k: folder.versions(k) for k in keys}
-    reports = [e for e in folder.reports() if e["date"] < date]
-    bounds = intervals(date, every)
+    reports = [] if snapshot else [e for e in folder.reports() if e["date"] < date]
+    bounds = None if snapshot else intervals(date, every)
     periods_dir = folder.path("history", "periods")
 
     def pick(window):
         out = {}
         for k in keys:
-            chosen, excluded = select_runs(runs[k], **window(k))
+            chosen, excluded = select_runs(runs[k], floor=0.0 if snapshot else RUN_FLOOR, **window(k))
             kept, dropped = latest_criteria(chosen, versions[k])
             out[k] = (kept, excluded, dropped)
         return out
 
-    if reports:
+    if snapshot:
+        held = sum(len(r) for r in runs.values())
+        if held > 1:
+            raise Refused(f"a snapshot holds one run, and this folder holds {held}: the run to report is the "
+                          "operator's choice, and the others are removed from history/runs first")
+        chosen = pick(lambda k: {})
+        lines = ["Snapshot: the period is the project's one run, compared with nothing."]
+    elif reports:
         last = reports[-1]
         cut = {k: previous_cut(last, k, {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]}) for k in keys}
         chosen = pick(lambda k: {"end": bounds[0][1], "after": cut[k]})
@@ -403,7 +413,7 @@ def build(root, date, models_file=None):
     lines += _left_out(current, "")
 
     halves, split, both = None, None, []
-    if not reports:
+    if not reports and not snapshot:
         # The periods before a first report, and the halves of its period, are built again each
         # time it is built, so none is left over. The halves of other dates belong to their own
         # reports and stay. The runs of the rebuilt periods must all be here, or they would be

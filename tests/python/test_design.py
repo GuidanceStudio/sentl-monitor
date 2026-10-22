@@ -165,10 +165,10 @@ class ValidateTest(DesignCase, unittest.TestCase):
         proc = self.validate(mutated(lambda s: q(s, "health-1").update(text=LONG[:500])))
         self.assertEqual(proc.returncode, 0, proc.stdout)
 
-    def test_a_snapshot_is_not_validated_here(self):
-        proc = self.validate(mutated(lambda s: s.update(kind="snapshot")))
+    def test_a_kind_that_is_neither_study_nor_snapshot_is_refused(self):
+        proc = self.validate(mutated(lambda s: s.update(kind="survey")))
         self.assertEqual(proc.returncode, 2)
-        self.assertIn("snapshot", proc.stderr)
+        self.assertIn("survey", proc.stderr)
 
     def test_a_missing_study_is_refused_with_exit_2(self):
         self.models = self.save("models.json", models())

@@ -193,7 +193,10 @@ and the first and last collection dates, or `null` when no keyword-data source w
 
 - `kind` at the top is `study` or `snapshot`. A snapshot has one project, 4–5 dimensions
   with one question each, `rounds` 1 and no `schedule`; `themes` is empty, and each
-  dimension carries `catalogue`, the id of the catalogue entry it was taken from.
+  dimension carries `catalogue`, the id of the catalogue entry it was taken from, and
+  `measures`, one sentence on what it measures for the subject. A snapshot needs no `audience`
+  and no `report_every`; `design_rationale` holds one entry per dimension, whose `choice` is the
+  dimension's name.
 - `report_every` is `weekly` or `monthly`: how often a report is written. With each
   project's `schedule` it sets how many runs a period pools. A snapshot has none.
 - `kind` of a theme origin is `client_material`, `client_issue`, `client_analysis`, `search`
@@ -536,8 +539,8 @@ the list above it refuses a pair with other than two questions or whose framings
 positive and one negative, a missing `persona` when the audience is `personas` or
 `stakeholders`, and a dimension with no question. A question's judge instructions are counted
 as Sentl receives them: the instructions followed by the dated facts with their `current` and
-`outdated` terms (`compose_instructions`). A snapshot `study.json` is refused with exit 2;
-its mode is part of the `snapshot` route. Answers per question and model per report period is
+`outdated` terms (`compose_instructions`). A snapshot `study.json` is checked by the snapshot
+mode of `validate` and `review` (§`snapshot <subject>`); any other `kind` is refused with exit 2. Answers per question and model per report period is
 `rounds` times the runs in a period: daily 7 (weekly report) or 30 (monthly), weekly 1 or 4,
 monthly 0.25 or 1.
 
@@ -670,9 +673,13 @@ them (see Periods).
 A one-off check in its own folder: a small study, one Sentl project, one run, one report,
 and nothing left running in Sentl. `study.json` carries `"kind": "snapshot"`. Invoked again
 in the same folder, the route resumes at the first step whose output is missing: no
-`study.json` → design; no binding in `sentl.json` → project; no run → cost and go; a run
-open → follow it; a completed run not in `history/runs/` → report; no `closed` in
-`sentl.json` → archive.
+`study.json` → design; no binding in `sentl.json`, or a binding with no question → project; no
+run → cost and go; a run open → follow it; a completed run not in `history/runs/`, or an ingested
+run with no final report → report; no `closed` in `sentl.json` → archive.
+`monitor.py resume [--runs <list-runs-tool, read now>]` reads the folder and prints
+`Next step: design`, `project`, `cost`, `run`, `report`, `archive` or `done`, with the step of the
+playbook; it needs `--runs` once the project holds questions, and refuses a listing of another
+project.
 
 1. **Preflight.** `list-organizations` (connection, and the Owner or Admin role in the
    organization the operator picks), `get-organization-tool` (credits, subscription),
@@ -699,6 +706,8 @@ open → follow it; a completed run not in `history/runs/` → report; no `close
    neither `is_active` nor `schedule_frequency`, so the project is created paused with no
    schedule. `save-project-questions-tool` with `dry_run: true`, then for real.
    `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
+   `monitor.py payload` builds both calls in snapshot mode: `create-project-tool` carries the
+   name, models and rounds only, and the questions call is the one `setup` builds.
 7. **Cost.** `estimate-run-tool`: credits per researcher model, credits for judging, the
    total, the credits available in the organization, and whether the run can start. Shown
    to the operator in Sentl credits. Stops for the go.
@@ -710,8 +719,11 @@ open → follow it; a completed run not in `history/runs/` → report; no `close
    `monitor.py check` verifies the report in the snapshot order of §The report. Written to
    `reports/<date>.md`.
 10. **Archive.** The Sentl MCP has no tool that archives or deletes a project (gap G16).
-    The route calls `update-project-settings-tool` with `is_active: false`, so no scheduled
-    run can start and no further credits are spent, and writes `closed` to `sentl.json`.
+    When the saved project is active, `payload` prints `update-project-settings-tool` with
+    `is_active: false` and the route calls it, so no scheduled run can start and no further
+    credits are spent. `monitor.py close --saved <get-project-tool, read after the pause>` refuses
+    a project still active and writes `closed` to `sentl.json`; closing a closed project changes
+    nothing.
     `project-edit-link-tool` gives the operator the project's page in the Sentl web panel,
     where the operator archives or deletes it by hand. Deleting loses nothing the report
     needs, because the run is saved in the snapshot folder. Once the MCP can archive a
@@ -721,8 +733,9 @@ open → follow it; a completed run not in `history/runs/` → report; no `close
 dimension with more or fewer than one question; a dimension without a catalogue id or with
 an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a question marked
 as naming no brand; a model id absent from `list-ai-models`; rounds other than 1; a
-schedule; a narrative without research question and purpose. It warns when every dimension
-names the subject. The study rules on themes, origins, pairs, search lean and answers per
+schedule; a narrative without research question and purpose; a study with other than one
+project; a dimension without `measures` or without an entry in `design_rationale`; duplicate
+keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
 period do not apply.
 
 **Reading a snapshot.** Its one project mixes questions that name the subject with questions
@@ -730,7 +743,9 @@ that name no brand, so Sentl's run score mixes two readings. The report reads ea
 on its own: by its score when the question names the subject, by whether and where the
 subject appears when it names no brand. It gives no figure for the whole project. The run
 floor of §Coverage does not apply to a snapshot's single run; a dimension under 80% judged is
-shown without a figure, and the operator is told.
+shown without a figure, and the operator is told. `period` takes the project's one run with no
+window, no floor and no comparison, and needs no `report_every`; it refuses a folder holding more
+than one run.
 
 ## MCP mapping
 
@@ -1057,8 +1072,8 @@ file names; model ids (the public name is used); the skill's own steps or checks
 of an answer in the period's runs; a figure is not in the period metrics; a dimension of the
 study has no `findings` entry; an id, a key, a model id, a file name or a credit figure
 appears; a section is missing, or the sections are not in the order the table above sets for
-the report (first, later or snapshot); a snapshot report carries a figure for the whole
-project. The rules it applies:
+the report (first, later or snapshot); a snapshot report carries a section outside its order, a
+changes section included, or a figure for the whole project. The rules it applies:
 
 - **Excerpts** are Markdown blockquote lines in `findings` and `changes`. An excerpt may
   skip text with `[…]`; each piece, after the normalization of §Matching (dashes folded to a
@@ -1317,4 +1332,4 @@ convenience.
 | A3 | With more than one round, each round appears as a separate response with no round number. | Verified 2026-10-16: a run of a project with 3 rounds returned each question–model pair three times, with no round field. |
 | A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |
 | A5 | Responses of a model later removed from `list-ai-models` keep its id. | Verified 2026-10-16: older runs carry a model id no longer listed. |
-| A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, pauses it once the run is open, and M7 checks that pausing lets an open run complete. | To verify in M7. |
+| A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, on a new go of the operator, and pauses it once the run is open; whether pausing lets an open run complete is not known either. | Unverified: it needs a live write. `tests/live/test_snapshot_live.py` checks, on the folder a live snapshot leaves, that a run was ingested for a project that was never active. |

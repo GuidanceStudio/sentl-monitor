@@ -43,8 +43,9 @@ def missing_answers(study):
     for field in ("research_question", "purpose"):
         if not (narrative.get(field) or "").strip():
             missing.append(f"narrative.{field}")
+    snapshot = study.get("kind") == "snapshot"
     audience = narrative.get("audience") or {}
-    if audience.get("choice") not in AUDIENCES or not (audience.get("reason") or "").strip():
+    if not snapshot and (audience.get("choice") not in AUDIENCES or not (audience.get("reason") or "").strip()):
         missing.append("narrative.audience")
     criteria = narrative.get("criteria") or {}
     if not (criteria.get("by") or "").strip() or not criteria.get("date"):
@@ -59,7 +60,7 @@ def missing_answers(study):
         missing.append("market")
     if study.get("report_language") not in SECTIONS:
         missing.append("report_language")
-    if study.get("report_every") not in ("weekly", "monthly"):
+    if not snapshot and study.get("report_every") not in ("weekly", "monthly"):
         missing.append("report_every")
     for n, foil in enumerate(study.get("foils") or []):
         if "domains" in foil and not _terms(foil["domains"]):

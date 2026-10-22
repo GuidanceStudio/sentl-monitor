@@ -339,7 +339,7 @@ has "pack's manifest" "$SKILL" "SKILL.md names exit 5 for a pack's manifest it c
 
 echo ""
 echo "=== monitor.py --help, commands ==="
-for cmd in adopt detect runs ingest period method check charts doctor pack unpack; do
+for cmd in adopt detect runs ingest period method check charts doctor pack unpack resume close; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else
@@ -361,6 +361,40 @@ if [ -n "$ESTIMATE_LINE" ] && [ -n "$TRIGGER_LINE" ] && [ "$ESTIMATE_LINE" -lt "
 else
     bad "SETUP.md shows estimate-run-tool before it calls trigger-run-tool"
 fi
+
+echo ""
+echo "=== The snapshot playbook guards its run ==="
+SNAPSHOT_MD="$PAYLOAD/snapshot/SNAPSHOT.md"
+has "snapshot/SNAPSHOT\\.md" "$SKILL" "SKILL.md dispatches to snapshot/SNAPSHOT.md"
+has "dry_run: true" "$SNAPSHOT_MD" "SNAPSHOT.md saves with dry_run first"
+has "explicit go" "$SNAPSHOT_MD" "SNAPSHOT.md asks for the operator's explicit go"
+SNAPSHOT_ORDER=$(python3 - "$SNAPSHOT_MD" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+calls = [(m.start(), m.group(1)) for m in re.finditer(r"`(estimate-run-tool|trigger-run-tool)`", text)]
+names = [name for _, name in calls]
+if "trigger-run-tool" not in names or "estimate-run-tool" not in names:
+    print("missing")
+elif names.index("estimate-run-tool") > len(names) - 1 - names[::-1].index("trigger-run-tool"):
+    print("trigger first")
+else:
+    # Each mention of trigger-run-tool sits in a paragraph that names the operator's go, or says nothing is started.
+    bad = []
+    for m in re.finditer(r"trigger-run-tool", text):
+        para = text[text.rfind("\n\n", 0, m.start()) + 2:text.find("\n\n", m.end())]
+        if not re.search(r"\bgo\b|starts nothing|start nothing|do not call", para):
+            bad.append(para[:60])
+    print("ungated: " + "; ".join(bad) if bad else "ok")
+PY
+)
+if [ "$SNAPSHOT_ORDER" = "ok" ]; then
+    ok "SNAPSHOT.md shows estimate-run-tool before it calls trigger-run-tool, and calls it only on the operator's go"
+else
+    bad "SNAPSHOT.md shows estimate-run-tool before trigger-run-tool and gates trigger-run-tool on the go ($SNAPSHOT_ORDER)"
+fi
+has "update-project-settings-tool" "$SNAPSHOT_MD" "SNAPSHOT.md pauses the project"
+has "monitor\\.py close" "$SNAPSHOT_MD" "SNAPSHOT.md records the closing with monitor.py close"
+has "monitor\\.py resume" "$SNAPSHOT_MD" "SNAPSHOT.md resumes with monitor.py resume"
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

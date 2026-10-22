@@ -23,7 +23,8 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema, setup  # noqa: E402
+from sentlmon import (adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack,  # noqa: E402
+                      period, runs, schema, setup, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -186,6 +187,14 @@ def _parser():
     b.add_argument("--saved", required=True, help="saved get-project-tool response, read now")
     b.add_argument("--run", help="saved get-run-results-tool response of the latest completed run")
 
+    z = command("resume", "say which step of the snapshot route a folder is at, from its files and the run listing read now")
+    z.add_argument("--study", default=".")
+    z.add_argument("--runs", help="saved list-runs-tool response, read now (required once the project is bound)")
+
+    l = command("close", "record that a snapshot's project is paused and left for the operator to archive")
+    l.add_argument("--study", default=".")
+    l.add_argument("--saved", required=True, help="saved get-project-tool response, read after the pause")
+
     u = command("unpack", "check a pack and write its files into the study folder")
     u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
     u.add_argument("pack", help="the pack written by pack")
@@ -259,17 +268,21 @@ def main(argv=None):
             else:
                 print(demand.summary(study))
         elif args.command == "validate":
-            text, ok = design.validate(args.study, args.models)
+            text, ok = (snapshot if snapshot.is_snapshot(args.study) else design).validate(args.study, args.models)
             print(text)
             return 0 if ok else 1
         elif args.command == "review":
-            print(design.review(args.study, args.models))
+            print((snapshot if snapshot.is_snapshot(args.study) else design).review(args.study, args.models))
         elif args.command == "revise":
             print(design.revise_files(args.study, args.previous, args.new_intent, args.dry_run))
         elif args.command == "payload":
             print(setup.payload(args.study, args.project, args.models, args.saved, args.runs))
         elif args.command == "bind":
             print(setup.bind(args.study, args.project, args.saved, args.run))
+        elif args.command == "resume":
+            print(snapshot.resume(args.study, args.runs))
+        elif args.command == "close":
+            print(snapshot.close(args.study, args.saved))
         elif args.command == "unpack":
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except demand.Incomplete as exc:

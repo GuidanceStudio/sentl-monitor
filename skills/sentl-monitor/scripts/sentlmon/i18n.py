@@ -28,6 +28,7 @@ SECTIONS = {
 }
 
 FIRST_ORDER = ["purpose", "themes", "dimensions", "questions", "scoring", "summary", "findings", "changes"]
+SNAPSHOT_ORDER = ["purpose", "dimensions", "questions", "scoring", "findings", "limits"]
 LATER_ORDER = ["summary", "changes", "findings", "purpose", "themes", "dimensions", "questions", "scoring"]
 
 ORIGINS = {
@@ -102,6 +103,16 @@ TEXT = {
                          "non dice che sono favorevoli a {subject}.",
         "axis_none": "Un punteggio alto dice che le risposte soddisfano i criteri; non misura quanto spesso "
                      "{subject} viene nominato, che è riportato a parte come presenza.",
+        "snapshot_why": "Perché è stata scelta",
+        "figures_snapshot": "Il punteggio di una dimensione è la media delle sue risposte valutate. Non c'è un "
+                            "punteggio complessivo: ogni dimensione si legge da sola. Una dimensione con meno "
+                            "dell'80% delle risposte valutate è descritta senza punteggio.",
+        "snapshot_reading": "Una dimensione la cui domanda nomina {subject} si legge dal punteggio; una la cui "
+                            "domanda non nomina nessun marchio si legge da se e dove {subject} compare nelle risposte.",
+        "limits_body": ("Ogni dimensione poggia su una sola domanda e su una sola risposta di ciascun assistente, "
+                        "date il {date}.",
+                        "Uno studio di monitoraggio aggiunge più domande per dimensione, domande in versione "
+                        "positiva e negativa e rilevazioni ripetute, confrontate periodo per periodo."),
         "finding_title": "[[titolo: cosa viene detto a chi chiede]]",
         "finding_body": "[[da scrivere: {dimension}]]",
         "first": "Questa è la prima misurazione: il prossimo rapporto si confronterà con questa.",
@@ -194,6 +205,16 @@ TEXT = {
                          "it does not mean they are favourable to {subject}.",
         "axis_none": "A high score means the answers meet the criteria; it does not measure how often {subject} "
                      "is named, which is reported separately as presence.",
+        "snapshot_why": "Why it was chosen",
+        "figures_snapshot": "A dimension's score is the mean of its scored answers. There is no overall score: each "
+                            "dimension is read on its own. A dimension with fewer than 80% of its answers scored is "
+                            "described without a score.",
+        "snapshot_reading": "A dimension whose question names {subject} is read by its score; one whose question "
+                            "names no brand is read by whether and where {subject} appears in the answers.",
+        "limits_body": ("Each dimension rests on one question and on one answer from each assistant, given on "
+                        "{date}.",
+                        "A monitoring study adds several questions per dimension, questions asked in a positive and "
+                        "a negative version, and repeated runs compared period by period."),
         "finding_title": "[[title: what the person asking is told]]",
         "finding_body": "[[to write: {dimension}]]",
         "first": "This is the first measurement: the next report compares against it.",

@@ -4,7 +4,7 @@ to pass to the tools, and `bind` reads a saved get-project-tool response."""
 
 import json
 
-from . import design, schema
+from . import design, schema, snapshot
 from .adopt import criteria_hash
 from .common import FINAL, Refused, Study, load_json, match_key, norm, now_iso, slug, write_json
 from .detect import _compare, _describe
@@ -72,22 +72,31 @@ def _create(project, binding, study):
     if not organization:
         raise Refused("study.json and sentl.json name no organization: set `organization` in study.json to the "
                       "slug list-organizations gives")
-    return {"organization": organization, "name": project["name"], "researcher_model_ids": list(project["models"]),
-            "rounds": project["rounds"], "schedule_frequency": project["schedule"]}
+    out = {"organization": organization, "name": project["name"], "researcher_model_ids": list(project["models"]),
+           "rounds": project["rounds"]}
+    if project.get("schedule"):
+        out["schedule_frequency"] = project["schedule"]
+    return out
 
 
-def _settings_update(project, bound, saved):
-    """The update call when the study's name, models, rounds or schedule differ from the project in Sentl.
-    Activation is never part of it: the route sets it only on the operator's go."""
+def _settings_update(project, bound, saved, is_snapshot=False):
+    """The update call when the study's name, models, rounds or schedule differ from the project in Sentl,
+    and, for a snapshot, when the project is active. Activation is never part of it: the study route sets
+    it only on the operator's go, and a snapshot's call can only pause."""
     differs = (norm(saved["name"]) != norm(project["name"])
                or set(saved.get("researcher_model_ids") or []) != set(project["models"])
                or saved["rounds"] != project["rounds"]
-               or saved.get("schedule_frequency") != project["schedule"])
-    if not differs:
+               or (not is_snapshot and saved.get("schedule_frequency") != project["schedule"]))
+    pause = is_snapshot and bool(saved.get("is_active"))
+    if not (differs or pause):
         return None
-    return {"project_id": bound["project_id"], "name": project["name"],
-            "researcher_model_ids": list(project["models"]), "rounds": project["rounds"],
-            "schedule_frequency": project["schedule"]}
+    out = {"project_id": bound["project_id"], "name": project["name"],
+           "researcher_model_ids": list(project["models"]), "rounds": project["rounds"]}
+    if not is_snapshot:
+        out["schedule_frequency"] = project["schedule"]
+    if pause:
+        out["is_active"] = False
+    return out
 
 
 def _questions(project, bound, saved):
@@ -131,7 +140,8 @@ def payload(root, key, models_file, saved_file=None, runs_file=None):
     folder = Study(root)
     study = folder.study
     project = _project_of(study, key)
-    problems, _ = design.problems_of(study, set(schema.models(models_file)))
+    is_snapshot = study.get("kind") == "snapshot"
+    problems, _ = (snapshot if is_snapshot else design).problems_of(study, set(schema.models(models_file)))
     if problems:
         raise Refused("study.json fails validate, so it is not set up in Sentl:\n  - " + "\n  - ".join(problems))
     binding = _binding(folder, study)
@@ -154,12 +164,15 @@ def payload(root, key, models_file, saved_file=None, runs_file=None):
                       + ". Fetch each with get-run-results-tool and ingest it, or record it as unavailable "
                         "with ingest --unavailable, before any save")
     _unrecorded_edits(folder, key, study, bound, saved)
-    update = _settings_update(project, bound, saved)
+    update = _settings_update(project, bound, saved, is_snapshot)
     if update:
         out["update-project-settings-tool"] = update
     arguments, left_out = _questions(project, bound, saved)
     out["save-project-questions-tool"] = arguments
     out["notes"] = notes + left_out
+    if is_snapshot and saved.get("schedule_frequency"):
+        out["notes"].append(f"the project has the schedule {saved['schedule_frequency']} in Sentl and a snapshot has "
+                            "none: tell the operator")
     return json.dumps(out, ensure_ascii=False, indent=2)
 
 
@@ -343,7 +356,7 @@ def bind(root, key, saved_file, run_file=None):
     changes = _changes(project, latest, layout, settings)
     now = now_iso()
     notes = []
-    wanted = {"models": project["models"], "rounds": project["rounds"], "schedule": project["schedule"]}
+    wanted = {"models": project["models"], "rounds": project["rounds"], "schedule": project.get("schedule")}
     notes += [f"settings: {k} is {settings[k]!r} in Sentl and {v!r} in study.json (recorded as Sentl has it)"
               for k, v in wanted.items() if (set(settings[k]) != set(v) if k == "models" else settings[k] != v)]
     kept = {d["key"] for d in project["dimensions"]}

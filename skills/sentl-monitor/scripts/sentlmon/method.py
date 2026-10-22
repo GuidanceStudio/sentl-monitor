@@ -4,11 +4,15 @@ in the order the report takes, with an entry per dimension left for the findings
 from .adopt import missing_answers
 from . import demand, schema
 from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, require_language, write_text
-from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, ORIGINS_INLINE, SECTIONS, TEXT, join, phrase
+from .i18n import (AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, ORIGINS_INLINE, SECTIONS, SNAPSHOT_ORDER, TEXT, join,
+                   phrase)
 
 
 def report_order(folder, date):
-    """The later-report order once a final report precedes this one in history/reports.json."""
+    """A snapshot's order; otherwise the later-report order once a final report precedes this one in
+    history/reports.json."""
+    if folder.study.get("kind") == "snapshot":
+        return SNAPSHOT_ORDER
     later = any(e["status"] == "final" and e["date"] < date for e in folder.reports())
     return LATER_ORDER if later else FIRST_ORDER
 
@@ -120,6 +124,29 @@ def _dimensions(study, projects, lang):
     return lines
 
 
+def _snapshot_dimensions(study, projects, lang):
+    """Each dimension, what it measures and why it was chosen for the subject."""
+    t = TEXT[lang]
+    reasons = {match_key(c["choice"]): c["reason"] for c in study["narrative"].get("design_rationale") or []}
+    lines = []
+    for proj, dims in projects:
+        if proj.get("question"):
+            lines.append(t["project_question"].format(question=proj["question"]))
+        if proj.get("decision"):
+            lines.append(t["project_decision"].format(decision=proj["decision"]))
+        lines.append("")
+        for d in dims:
+            line = f"- **{d['name']}**: {d['measures'].rstrip('.')}."
+            reason = reasons.get(match_key(d["name"]))
+            lines.append(line + (f" {t['snapshot_why']}: {reason.rstrip('.')}." if reason else ""))
+    return lines
+
+
+def _limits(period, lang):
+    first, second = TEXT[lang]["limits_body"]
+    return [first.format(date=fmt_date(period["from"], lang)), "", second]
+
+
 def _questions(projects, lang):
     lines = []
     for _, dims in projects:
@@ -178,6 +205,10 @@ def _scoring(study, projects, lang):
                 lines.append(f"- «{q['text']}»" + (" " + t["anchors"].format(a5=r.get("5") or "", a3=r.get("3") or "",
                                                                             a1=r.get("1") or "") if r else ""))
             lines.append("")
+    if study.get("kind") == "snapshot":
+        axes = dict.fromkeys(d.get("axis", "stance") for _, dims in projects for d in dims)
+        lines += [t["figures_snapshot"], "", t["snapshot_reading"].format(subject=subject)]
+        return lines + [line for axis in axes for line in ("", t[f"axis_{axis}"].format(subject=subject))]
     axis = study["narrative"].get("score_axis")
     lines += [t["figures"], "", t["change_rule"], "",
               t[f"axis_{axis}" if axis in ("stance", "fidelity") else "axis_none"].format(subject=subject)]
@@ -284,12 +315,14 @@ def write(root, date, models_file, force=False):
     builders = {
         "purpose": lambda: _purpose(study, projects, period, names, lang),
         "themes": lambda: _themes(study, projects, folder, lang),
-        "dimensions": lambda: _dimensions(study, projects, lang),
+        "dimensions": lambda: (_snapshot_dimensions if study.get("kind") == "snapshot" else _dimensions)(
+            study, projects, lang),
         "questions": lambda: _questions(projects, lang),
         "scoring": lambda: _scoring(study, projects, lang),
         "findings": lambda: _findings(projects, lang),
         "changes": lambda: _changes(period, lang, study["projects"]),
         "summary": lambda: ["[[summary]]"],
+        "limits": lambda: _limits(period, lang),
     }
     out = [f"# {study['narrative']['research_question']}", "", subtitle, ""]
     for n, key in enumerate(report_order(folder, date), 1):

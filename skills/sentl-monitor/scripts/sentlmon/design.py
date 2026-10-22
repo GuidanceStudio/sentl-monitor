@@ -62,8 +62,7 @@ def _load(root):
     study = json.loads(path.read_text(encoding="utf-8"))
     if study.get("kind") != "study":
         if study.get("kind") == "snapshot":
-            raise Refused("study.json is a snapshot: validate and review check a study; a snapshot is checked "
-                          "by the snapshot route")
+            raise Refused("study.json is a snapshot: the snapshot checks apply to it, not the study's")
         raise Refused(f"study.json has kind {study.get('kind')!r}; a designed study has kind 'study'")
     return study
 
@@ -291,7 +290,7 @@ def _credits(study, models_file):
         per_call = sum(tariffs[m]["credits"] for m in p["models"])
         count = len(_questions(p))
         run = count * p["rounds"] * per_call
-        runs = runs_per_period(p, study["report_every"])
+        runs = runs_per_period(p, study.get("report_every"))
         line = (f"- project {p['key']}: {run:g} credits per run ({_count(count, 'question', 'questions')} x "
                 f"{_count(p['rounds'], 'round', 'rounds')} x {per_call:g} credits across {len(p['models'])} models)")
         if runs is not None:
@@ -305,6 +304,24 @@ def _credits(study, models_file):
                                                                   if period_known else ""))
     lines += ["", "Judging is not in this figure: estimate-run-tool gives the total before a run starts.", ""]
     return lines
+
+
+def question_lines(study):
+    """The review's Questions section: every question with its persona, framing, rubric and the
+    judge instructions as Sentl receives them."""
+    out = ["## Questions", ""]
+    for p in study["projects"]:
+        for d in p["dimensions"]:
+            out += [f"### {p['name']}: {d['name']}", ""]
+            for q in d["questions"]:
+                out += [f"**{q['key']}** {q['text']}", "",
+                        f"- persona: {q.get('persona') or 'none'}; framing: {q['framing']}; names the brand: "
+                        f"{'yes' if q['branded'] else 'no'}" + (f"; pair: {q['pair']}" if q.get("pair") else ""),
+                        "- rubric:"]
+                out += [f"  {a}. {q['rubric'][a]}" for a in "12345"]
+                text = compose_instructions(q.get("instructions"), q.get("facts"))
+                out += [f"- judge instructions as Sentl receives them: {text or 'none'}", ""]
+    return out
 
 
 def review_text(study, root, models_file):
@@ -330,18 +347,7 @@ def review_text(study, root, models_file):
             out.append(f"  - {d['name']}: {_count(len(d['questions']), 'question', 'questions')} "
                        f"(search leans {d.get('search_lean', 'none')}; axis {d.get('axis', 'stance')})")
         out.append("")
-    out += ["## Questions", ""]
-    for p in study["projects"]:
-        for d in p["dimensions"]:
-            out += [f"### {p['name']}: {d['name']}", ""]
-            for q in d["questions"]:
-                out += [f"**{q['key']}** {q['text']}", "",
-                        f"- persona: {q.get('persona') or 'none'}; framing: {q['framing']}; names the brand: "
-                        f"{'yes' if q['branded'] else 'no'}" + (f"; pair: {q['pair']}" if q.get("pair") else ""),
-                        "- rubric:"]
-                out += [f"  {a}. {q['rubric'][a]}" for a in "12345"]
-                text = compose_instructions(q.get("instructions"), q.get("facts"))
-                out += [f"- judge instructions as Sentl receives them: {text or 'none'}", ""]
+    out += question_lines(study)
     out += _credits(study, models_file)
     return "\n".join(out).rstrip() + "\n"
 

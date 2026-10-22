@@ -5,6 +5,18 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `snapshot <subject>` runs a small study of a subject on Sentl once, in a folder of its own, and
+  leaves no project running. The playbook designs four or five dimensions from the catalogue
+  with one question each, creates one project paused with no schedule, shows `estimate-run-tool`
+  in credits, starts one run only on the operator's go, writes a report in its own order (what
+  was done, the dimensions, the questions, the scoring, the findings, and what a single run
+  cannot show), then pauses the project and gives the operator the panel link to archive it,
+  since Sentl's MCP cannot archive a project. `validate`, `review`, `payload`, `bind`, `period`,
+  `method` and `check` have a snapshot mode: `validate` refuses other than four or five
+  dimensions, a dimension with other than one question, an unknown catalogue id, rounds above
+  one and a schedule; `check` refuses a changes section and a figure for the whole project.
+  `monitor.py resume` names the step a folder is at, from its files and the run listing, and
+  `monitor.py close` records `closed` with `archive: operator` in `sentl.json`.
 - `report` runs unattended when a scheduler starts it. `monitor.py pending` reads the run
   listings the assistant saved and records `nothing_new` when no completed run is new, so two
   invocations on the same runs write one report. `period` records `below_floor` when no run

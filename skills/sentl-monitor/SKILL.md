@@ -34,6 +34,7 @@ the route by the state of the study:
   unattended, which follows the last section of `report/REPORT.md`.
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
+- Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own.
 
 ## Routes
 
@@ -44,9 +45,9 @@ the route by the state of the study:
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
+| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once: 4 or 5 dimensions from the catalogue, one project created paused, one run on the operator's go after the credit estimate, a short report, then the project is paused and left for the operator to archive; invoked again in the same folder, it resumes |
 
-Read the playbook of the route invoked and follow it step by step. `snapshot` is planned and
-not available yet: say so if it is invoked.
+Read the playbook of the route invoked and follow it step by step.
 
 ## Rules for every route
 
@@ -63,10 +64,10 @@ not available yet: say so if it is invoked.
 - **Writes to Sentl need the operator's approval, each time.** `create-project-tool`,
   `save-project-questions-tool`, `update-project-settings-tool` and `trigger-run-tool` change
   the account or spend credits, and need the Owner or Admin role in the organization; `adopt`
-  and `report` never call them. Only `setup` calls them, each call after its own explicit go
-  (a dry run included), and `trigger-run-tool` and the activation of a schedule only after
-  `estimate-run-tool` has been shown. `monitor.py payload` builds a write's arguments and calls
-  nothing.
+  and `report` never call them. Only `setup` and `snapshot` call them, each call after its own
+  explicit go (a dry run included), and `trigger-run-tool` and the activation of a schedule only
+  after `estimate-run-tool` has been shown. `monitor.py payload` builds a write's arguments and
+  calls nothing.
 - **Saving a response into `inbox/`.** The script reads Sentl's responses from files and never
   calls Sentl. When the host saved a large response to a file and says where, copy that file
   with `cp`; a host may word this as an error ("result exceeds maximum allowed tokens. Output
@@ -97,7 +98,7 @@ not available yet: say so if it is invoked.
   pack, one zip file. Before any other command, run `monitor.py unpack --study <folder> <pack>`
   on the pack the user attached or the one kept in the Project's files; with several packs,
   unpack the one with the latest date in its name. When the route ends (after `check` in
-  `report`, after the operator's answers in `adopt`), run `monitor.py pack --study <folder>
+  `report`, after the operator's answers in `adopt`, after `close` in `snapshot`), run `monitor.py pack --study <folder>
   --out <folder the host offers for download>`, copy the report and its PDF, if one was made, to
   the same folder, and offer them for download. Tell the user to keep the report and the new
   pack and, when the host has Projects, to put the pack in the Project's files in place of the

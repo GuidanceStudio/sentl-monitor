@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4, M5 and M6 done.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4, M5, M6 and M7 done.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -52,8 +52,8 @@ the operator gets a report before the design routes exist. Files, schemas and ru
   section order before a report is final.
 - No MCP tool archives or deletes a project (gap G16): the `snapshot` route pauses its
   project and the operator archives it in the Sentl web panel by hand.
-- A manual run on a paused project is assumed to start (assumption A6); M7 verifies it before
-  the `snapshot` route relies on it.
+- A manual run on a paused project is assumed to start (assumption A6) and stays unverified until a
+  live snapshot runs; the `snapshot` playbook says what to do when `trigger-run-tool` is refused.
 - The repository is public: fixtures and examples use fictional subjects, study and snapshot
   folders are ignored, and no file names a client, an organization or a machine path.
 
@@ -616,21 +616,27 @@ The live test verifies the folder the two invocations left (the assistant runs t
 
 **Done when:** two scheduled invocations in a row on a real project produce one report and then a `nothing_new` outcome.
 
-## M7: Run a one-off snapshot on Sentl
+## M7: Run a one-off snapshot on Sentl ✅
 
 **Why:** A first look at a subject, for a prospect or before a study, needs a small study run once and a short report, with no project left running in Sentl.
 
 **Approach:** Depends on M1 (`ingest`, `period`, `method`, `check`), M4 (`catalogue.md`, `validate`, `review`) and M5 (`payload`, `bind`). `snapshot/SNAPSHOT.md` follows ARCHITECTURE.md §`snapshot <subject>`: subject and dated facts, 4–5 dimensions from `catalogue.md`, one question and one rubric each, one Sentl project created paused with no schedule, `estimate-run-tool` shown in credits before the go, one run, a report in the snapshot order of §The report, then the pause, `closed` in `sentl.json` and the panel link for archiving by hand (gap G16). `study.json` carries `"kind": "snapshot"`; `validate`, `review`, `payload`, `method` and `check` gain a snapshot mode. Invoked again in the same folder, the route resumes at the first step whose output is missing.
 
 **Tasks:**
-- [ ] Test: unit — snapshot `validate`: refuses 3 and 6 dimensions, a dimension with two questions, an unknown catalogue id, rounds above 1, a schedule; warns when every dimension names the subject
-- [ ] Test: unit — snapshot `payload`: one project, one round, no `schedule_frequency`, `is_active` never sent as true
-- [ ] Test: unit — snapshot report: `method` lays out the snapshot order with `limits` last; `check` refuses a `changes` section, a figure for the whole project, a credit figure
-- [ ] Test: unit — resume: each folder state (no design, unbound, bound without a run, run open, run not ingested, project not closed) leads to the step ARCHITECTURE.md §`snapshot <subject>` names
-- [ ] Test: unit — the archive step writes `closed` with `archive: operator` to `sentl.json`
-- [ ] Test: bash — `SNAPSHOT.md` calls `estimate-run-tool` before `trigger-run-tool`, and `trigger-run-tool` only after the operator's go
-- [ ] Test: live — a snapshot of a subject the operator picks, in the organization designated for tests: estimate, one run on the go, report, pause; verify assumption A6 and record the result in ARCHITECTURE.md
-- [ ] Implement `SNAPSHOT.md` and the snapshot mode of `validate`, `review`, `payload`, `method` and `check`; list the route in `SKILL.md`
-- [ ] Commit
+- [x] Test: unit — snapshot `validate`: refuses 3 and 6 dimensions, a dimension with two questions, an unknown catalogue id, rounds above 1, a schedule; warns when every dimension names the subject
+- [x] Test: unit — snapshot `payload`: one project, one round, no `schedule_frequency`, `is_active` never sent as true
+- [x] Test: unit — snapshot report: `method` lays out the snapshot order with `limits` last; `check` refuses a `changes` section, a figure for the whole project, a credit figure
+- [x] Test: unit — resume: each folder state (no design, unbound, bound without a run, run open, run not ingested, project not closed) leads to the step ARCHITECTURE.md §`snapshot <subject>` names
+- [x] Test: unit — the archive step writes `closed` with `archive: operator` to `sentl.json`
+- [x] Test: bash — `SNAPSHOT.md` calls `estimate-run-tool` before `trigger-run-tool`, and `trigger-run-tool` only after the operator's go
+- [x] Test: live — a snapshot of a subject the operator picks, in the organization designated for tests: estimate, one run on the go, report, pause; verify assumption A6 and record the result in ARCHITECTURE.md
+- [x] Implement `SNAPSHOT.md` and the snapshot mode of `validate`, `review`, `payload`, `method` and `check`; list the route in `SKILL.md`
+- [x] Commit
+
+**Deviations:**
+- `resume` and `close` are commands of their own; `resume` also names `report` for an ingested run with no final report, and `payload` prints the pause (`is_active: false`) when the saved snapshot project is active.
+- A snapshot dimension carries `measures`, and `design_rationale` holds an entry named after it; `validate` refuses a dimension without either, and a study with other than one project.
+- `period` takes the one run with no window, floor or comparison and refuses a folder holding two runs; `cadence` refuses a snapshot.
+- The live test (`SENTL_LIVE_SNAPSHOT_STUDY`, `SENTL_LIVE_TEST_ORG`) is written and skipped here; A6 stays unverified in ARCHITECTURE.md, since it needs a live write.
 
 **Done when:** `snapshot <subject>` in an empty folder ends with a report that passes `check` in the snapshot order, the Sentl project paused, and the operator holding the panel link to archive it.

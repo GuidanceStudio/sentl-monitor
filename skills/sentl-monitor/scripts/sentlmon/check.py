@@ -57,8 +57,11 @@ def _sections(text, lang):
     return found, problems
 
 
-def _order(keys, expected, lang):
+def _order(keys, expected, lang, snapshot=False):
     problems = [f"section missing: {SECTIONS[lang][k]}" for k in expected if k not in keys]
+    if snapshot:
+        problems += [f"a snapshot report has no section {SECTIONS[lang][k]}" for k in dict.fromkeys(keys)
+                     if k not in expected]
     present = [k for k in keys if k in expected]
     if present != [k for k in expected if k in present]:
         problems.append("sections out of order: expected " + ", ".join(SECTIONS[lang][k] for k in expected))
@@ -330,7 +333,14 @@ def _prose(body):
                       if not ln.lstrip().startswith(">") and not ln.lstrip().startswith("#"))
 
 
-def _findings_parts(findings, projects, period, extras):
+def _hide_figures(block):
+    """A project's block with its figures withheld and its counts kept: a snapshot reads each
+    dimension on its own and states no figure for the whole project."""
+    return {**block, "total": {**block["total"], "figure": False},
+            "by_model": {m: {**c, "figure": False} for m, c in block["by_model"].items()}}
+
+
+def _findings_parts(findings, projects, period, extras, snapshot=False):
     """Split the findings into (owner, heading, text, scopes, extra) parts, one per entry.
     With several projects, a `### <project>` heading opens each project's chapter. An entry's
     owner is its (project, dimension); it may cite figures of that dimension and its
@@ -340,13 +350,13 @@ def _findings_parts(findings, projects, period, extras):
     owners = {}
     for proj, dims in projects:
         block = period["projects"][proj["key"]]
-        overall = {"total": block["total"], "by_model": {}}
+        overall = {"total": (_hide_figures(block) if snapshot else block)["total"], "by_model": {}}
         for d in dims:
             dim = block["dimensions"][d["key"]]
             owners[(proj["name"], d["name"])] = ([overall, dim, *dim["questions"].values()],
                                                  extras.get((proj["key"], d["key"]), (set(), set())))
     titles = {proj["name"] for proj, _ in projects} if len(projects) > 1 else set()
-    fallback = (list(period["projects"].values()), (set(), set()))
+    fallback = ([_hide_figures(b) if snapshot else b for b in period["projects"].values()], (set(), set()))
     project = projects[0][0]["name"] if len(projects) == 1 else None
     parts, owner, heading, lines = [], None, None, []
 
@@ -397,7 +407,8 @@ def check(root, report_path, date=None, unattended=False):
     text = report_path.read_text(encoding="utf-8")
 
     found, problems = _sections(text, lang)
-    problems += _order([k for k, _ in found], report_order(folder, date), lang)
+    snapshot = study.get("kind") == "snapshot"
+    problems += _order([k for k, _ in found], report_order(folder, date), lang, snapshot)
     if "[[" in text:
         problems.append("an entry is left to write: replace every [[...]] marker")
 
@@ -408,7 +419,7 @@ def check(root, report_path, date=None, unattended=False):
     verdicts = comparison.get("verdict_changes", [])
     extras = {at: _compared(es, [v for v in verdicts if (v["project"], v["dimension"]) == at])
               for at, es in entries.items()}
-    parts = _findings_parts(findings, projects, period, extras)
+    parts = _findings_parts(findings, projects, period, extras, snapshot)
     written = {owner for owner, *_ in parts}
     for proj, dims in projects:
         problems += [f"dimension {d['name']} has no findings entry" + (f" under {proj['name']}" if len(projects) > 1 else "")
