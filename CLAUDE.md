@@ -2,9 +2,9 @@
 
 This repository is the `sentl-monitor` skill. Today it takes an existing Sentl project into a
 study folder (`adopt`) and writes a report after each period of runs, compared with the earlier
-periods (`report`); it reads Sentl through Sentl's MCP server. Planned: the routes that design a
-study (`brief`, `design`), create the projects in Sentl (`setup`), run a one-off check
-(`snapshot`) and report on a schedule. Start every session by reading, in this order:
+periods (`report`), lists the themes to monitor (`brief`) and designs a study from them
+(`design`); it reads Sentl through Sentl's MCP server. Planned: the routes that create the
+projects in Sentl (`setup`), run a one-off check (`snapshot`) and report on a schedule. Start every session by reading, in this order:
 
 1. `README.md`: what the skill does, its routes, its requirements.
 2. `ARCHITECTURE.md`: the stages, the files each writes, the MCP calls per route, the

@@ -5,6 +5,16 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `design` turns the approved themes into a study: dimensions taken from a catalogue
+  (`design/catalogue.md`, with question patterns, rubric anchors, the facts each dimension needs
+  and the stance and fidelity axes), projects, who asks, questions with 1-5 rubrics and a
+  narrative. `monitor.py validate` refuses a study that breaks Sentl's field limits or the design
+  rules (a dimension fed by no theme, an alias in a question marked as naming no brand, a
+  dimension leaning one way in search without a question of the opposite framing, a malformed
+  pair, duplicate keys or texts, a model Sentl no longer offers) and warns about the rest.
+  `review` writes `study-review.md` with the narrative, the theme inventory, every question and
+  rubric and a credit estimate from the models' tariffs. `revise` records each changed
+  question as reworded (same key), new intent (new key, old key retired) or criteria.
 - `brief <subject>` lists the themes to monitor with the origin of each, collects how people
   search for them and writes `brief.md`. `monitor.py demand` sends each seed query, as typed and
   with each question stem, to Google's suggestions (the skill's only network call; exit 1 lists

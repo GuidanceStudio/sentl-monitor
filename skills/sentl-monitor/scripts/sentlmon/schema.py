@@ -169,7 +169,9 @@ LISTING = _Object({
 })
 
 # list-ai-models, under "researcher_models": each model id with its public name.
-MODELS = _Map(_Object({"name": (TEXT, True)}), "an object of model ids")
+# `credits` is the tariff per call; only `review` reads it.
+CREDITS = _Leaf("a number of 0 or more", lambda v: _number(v) and v >= 0)
+MODELS = _Map(_Object({"name": (TEXT, True), "credits": (CREDITS, False)}), "an object of model ids")
 
 
 def _found(value):

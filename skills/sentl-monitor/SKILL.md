@@ -30,7 +30,7 @@ the route by the state of the study:
 
 - No study folder holds the Sentl project yet: `sentl-monitor adopt <project>`.
 - The study folder exists and runs have completed after its last report: `sentl-monitor report`.
-- The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`.
+- The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 
 ## Routes
 
@@ -39,8 +39,9 @@ the route by the state of the study:
 | `adopt <project>` | `adopt/ADOPT.md` | takes an existing Sentl project into a study folder and asks the operator what Sentl does not hold |
 | `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md` |
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
+| `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 
-Read the playbook of the route invoked and follow it step by step. `design`, `setup` and
+Read the playbook of the route invoked and follow it step by step. `setup` and
 `snapshot` are planned and not available yet: say so if one is invoked.
 
 ## Rules for every route
@@ -48,7 +49,7 @@ Read the playbook of the route invoked and follow it step by step. `design`, `se
 - **Sentl's tools.** Their names depend on the name the server was given in the host (for
   example `mcp__sentinel-reputation__get-project-tool`). Find them by their suffix:
   `list-organizations`, `list-projects-tool`, `get-project-tool`, `list-runs-tool`,
-  `get-run-results-tool`, `export-runs-tool`, `list-ai-models`. When none is available, stop and give the
+  `get-run-results-tool`, `export-runs-tool`, `list-ai-models` (`design` reads it for the models and their credits). When none is available, stop and give the
   operator the connection steps from https://app.sentl.ai/mcp/setup.
 - **A keyword-data server's tools.** `brief` looks in the connected servers for a tool that returns
   monthly search volume and related searches. Read the tool's name and parameters from the server
@@ -71,7 +72,7 @@ Read the playbook of the route invoked and follow it step by step. `design`, `se
   (`--help` lists the commands, `--version` prints the skill's version). Run
   `monitor.py doctor --study <folder>` first in every conversation: it reports the Python
   version, whether the folder is writable, and whether it lies in a web sandbox whose files are
-  deleted when the conversation ends. Exit codes: 0 done; 1 `check` or `doctor` found
+  deleted when the conversation ends. Exit codes: 0 done; 1 `check`, `validate` or `doctor` found
   problems, or `demand autocomplete` could not fetch every prefix (run it again); 2 input refused
   (the message says why and what to do); 3 run not final yet; 4 no run left in the period;
   5 a Sentl response or an export does not have the shape the skill reads (the message names the tool and the

@@ -198,7 +198,9 @@ and the first and last collection dates, or `null` when no keyword-data source w
   project's `schedule` it sets how many runs a period pools. A snapshot has none.
 - `kind` of a theme origin is `client_material`, `client_issue`, `client_analysis`, `search`
   or `probe` (a pilot run of questions).
-- `search_lean` is `positive`, `negative` or `none`, set from the theme's searches.
+- `search_lean` is `positive`, `negative` or `none`, set from the theme's searches. A theme's
+  `dimension` is the key of the dimension it feeds, or a list of keys. A dimension may carry
+  `retired`: `[{"key", "text", "version"}]`, the questions withdrawn from it.
 - `framing` is `positive`, `negative` or `neutral`; two questions with the same `pair` ask the
   same thing with opposite leans.
 - `axis` is `stance` (1 against the subject, 5 for it with grounds) or `fidelity` (1 wrong as
@@ -506,7 +508,7 @@ The steps run in the order the report tells them:
    added and the two are paired. The market is named in the question when it matters,
    because Sentl sets no location for the researcher models.
 6. **Rubrics.** Five anchors per question, each an observable property of the answer, adapted
-   from `catalogue.md` (the dimension catalogue, which arrives with M4). On a question that
+   from `catalogue.md` (the dimension catalogue). On a question that
    names no brand, 2 is *not mentioned* and 1 is *named negatively or advised against*. The
    axis is chosen before the anchors are written. Judge instructions carry the dated facts
    the judge needs to recognise an outdated or wrong statement.
@@ -528,15 +530,40 @@ question and decision. It warns on: dimensions per project outside 5–7, fewer 
 questions in a dimension, a project mixing branded and unbranded questions, fewer than three
 answers per question and model per report period.
 
+`validate --models <saved list-ai-models>` prints `validate failed: N problem(s)` and one line
+per problem, exit 1, or `validate passed` and one `warning:` line per warning, exit 0. Beyond
+the list above it refuses a pair with other than two questions or whose framings are not one
+positive and one negative, a missing `persona` when the audience is `personas` or
+`stakeholders`, and a dimension with no question. A question's judge instructions are counted
+as Sentl receives them: the instructions followed by the dated facts with their `current` and
+`outdated` terms (`compose_instructions`). A snapshot `study.json` is refused with exit 2;
+its mode is part of the `snapshot` route. Answers per question and model per report period is
+`rounds` times the runs in a period: daily 7 (weekly report) or 30 (monthly), weekly 1 or 4,
+monthly 0.25 or 1.
+
 `monitor.py review` writes `study-review.md`: the narrative, the theme inventory with
 origins and search demand, projects and dimensions with question counts, every question with
-its persona, framing and rubric, and the credit estimate from the models' tariffs.
+its persona, framing and rubric, and the credit estimate from the models' tariffs. The
+estimate for a project is its questions times `rounds` times the sum of its models' `credits`
+(the tariff per call in `list-ai-models`), for one run and for a report period; judging credits
+are not in it, and `estimate-run-tool` gives the total before a run starts. `review` refuses a
+study that fails `validate` and a model whose `credits` the response does not give (exit 2).
 
 **Revising a study.** A question keeps its `key` when it is reworded with the same intent
 (lineage `reworded`), and gets a new key when the intent changes (`new_intent`; the old key
 is retired). A change to the rubric, the judge instructions or the facts is `criteria`.
 The operator confirms each classification at the gate. Comparison across versions follows
 these labels (see Comparability).
+
+`monitor.py revise --previous <the earlier study.json> [--new-intent KEY] [--dry-run]` compares
+the edited `study.json` with the earlier one and writes the lineage: the next version number is
+one more than the highest in any lineage; a question whose text changed gets `reworded` and
+keeps its key, or, if named in `--new-intent`, takes the next free `<dimension>-<n>` key with
+`{"change": "new_intent", "replaces": <old key>}` while the old key and text go to the
+dimension's `retired` list with the version; a changed rubric, instruction or fact is
+`criteria`; a question absent from the edit is retired; a new one gets `created`. A retired key
+is never given again, and `validate` refuses a key that appears twice among questions and
+retired entries.
 
 ### `setup`
 
@@ -764,7 +791,7 @@ is refused with exit 2: it is to be saved again.
 | `get-project-tool` | under `project`: `id`, `name`, `schedule_frequency` (text or null), `rounds` (1 or more), `is_active` (optional), `researcher_model_ids`; `dimensions` with `id`, `name`, `archived` (optional) and `questions`, each `id`, `question`, `label` (optional, text or null), `grading_rubric` (null, or an object whose keys are anchors from `1` to `5`, each a text or null: Sentl does not require every anchor), `additional_instructions` (optional, text or null) |
 | `list-runs-tool` | `project_id`; `runs`, each `id`, `status` (any text), `started_at` (null only on a run that is not completed) |
 | `get-run-results-tool` | under `run`: `id`, `project_id`, `status` (a known status), `started_at`, `reputation_score` (1 to 5, or null); `responses`, each `id`, `model_id`, `dimension`, `question`, `answer` (text or null), `judge_score` (an integer from 1 to 5, or null), `sources` (a list, or null for none), each `url` and `title` (optional, text or null). The results of a run not final yet are read for `id` and `status` only |
-| `list-ai-models` | under `researcher_models`: each model id with its public `name` |
+| `list-ai-models` | under `researcher_models`: each model id with its public `name`, and `credits` (the tariff per call; optional here, required by `review`) |
 
 Times are ISO 8601; a time written without a time zone is read as UTC. The known statuses are `completed` and `completed_with_warnings`, final,
 and `pending`, `queued` and `running`, not final yet (A2). `runs` lists a status outside them

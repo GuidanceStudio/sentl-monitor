@@ -2,7 +2,7 @@
 """sentl-monitor's deterministic steps. It reads the Sentl MCP responses the
 assistant saved into a study folder and never calls Sentl.
 
-Exit codes: 0 done; 1 check or doctor found problems, or demand autocomplete could not fetch every prefix; 2 input refused; 3 run not
+Exit codes: 0 done; 1 check, validate or doctor found problems, or demand autocomplete could not fetch every prefix; 2 input refused; 3 run not
 final; 4 no run left in the period; 5 a Sentl response, an export, or a pack's manifest, does not
 have the shape the skill reads; 6 unexpected error; 7 a download link that does not answer.
 """
@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, demand, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
+from sentlmon import adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -149,6 +149,21 @@ def _parser():
     di.add_argument("file", help="the export file")
     action("summary", "print each theme's suggestions, volume per class and top queries")
 
+    v = command("validate", "check a designed study.json against Sentl's limits and the design rules")
+    v.add_argument("--study", default=".")
+    v.add_argument("--models", required=True, help="saved list-ai-models response")
+
+    e = command("review", "write study-review.md: the narrative, themes, questions, rubrics and the credit estimate")
+    e.add_argument("--study", default=".")
+    e.add_argument("--models", required=True, help="saved list-ai-models response, with each model's credits")
+
+    f = command("revise", "record the lineage of a revised study.json against the previous design")
+    f.add_argument("--study", default=".")
+    f.add_argument("--previous", required=True, help="the study.json before the revision")
+    f.add_argument("--new-intent", action="append", default=[], metavar="KEY",
+                   help="a reworded question that now asks something else: it gets a new key (repeatable)")
+    f.add_argument("--dry-run", action="store_true", help="list the changes and write nothing")
+
     u = command("unpack", "check a pack and write its files into the study folder")
     u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
     u.add_argument("pack", help="the pack written by pack")
@@ -215,6 +230,14 @@ def main(argv=None):
                 print(demand.import_export(study, args.file, seeds, args.provider, args.tool, args.theme, args.date))
             else:
                 print(demand.summary(study))
+        elif args.command == "validate":
+            text, ok = design.validate(args.study, args.models)
+            print(text)
+            return 0 if ok else 1
+        elif args.command == "review":
+            print(design.review(args.study, args.models))
+        elif args.command == "revise":
+            print(design.revise_files(args.study, args.previous, args.new_intent, args.dry_run))
         elif args.command == "unpack":
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except demand.Incomplete as exc:

@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 done.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 and M4 done.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -555,21 +555,27 @@ Depends on Sentl: the export of several runs in one file with a download link an
 - `seeds.json` carries the subject's aliases, the foils' aliases and the components' terms, because no `study.json` exists at `brief` time; ARCHITECTURE.md gives its schema.
 - `volume_source` is `{providers, from, to}` instead of a single provider and period, since volumes from several sources can be merged.
 
-## M4: Design dimensions, questions and rubrics from the themes
+## M4: Design dimensions, questions and rubrics from the themes ✅
 
 **Why:** Steps 3–5 of the operator's process: dimensions and projects from the themes, who asks, questions as people type them, and how each is scored 1–5.
 
 **Approach:** `design/DESIGN.md` in the order of ARCHITECTURE.md §`design`; one study project is one Sentl project. `catalogue.md` holds the dimension catalogue (question patterns, rubric anchors, the facts each dimension needs, with catalogue ids) and adds the stance and fidelity axes; the `snapshot` route (M7) picks its dimensions from it. `monitor.py validate` implements every refusal and warning listed in §`design`, including Sentl's field limits and the opposite-framing rule for dimensions with `search_lean`. `review` writes `study-review.md`. Revisions classify each changed question as `reworded`, `new_intent` or `criteria` and append to its `lineage`.
 
 **Tasks:**
-- [ ] Test: unit — one fixture per `validate` refusal, one per warning, and a clean fictional study
-- [ ] Test: unit — additional instructions composed from instructions and dated facts within 500 characters
-- [ ] Test: unit — `review` prints narrative, inventory, questions, rubrics, credit estimate from tariffs
-- [ ] Test: unit — revision lineage: reworded keeps the key, new intent retires it
-- [ ] Implement `DESIGN.md`, `catalogue.md`, `validate`, `review`
-- [ ] Commit
+- [x] Test: unit — one fixture per `validate` refusal, one per warning, and a clean fictional study
+- [x] Test: unit — additional instructions composed from instructions and dated facts within 500 characters
+- [x] Test: unit — `review` prints narrative, inventory, questions, rubrics, credit estimate from tariffs
+- [x] Test: unit — revision lineage: reworded keeps the key, new intent retires it
+- [x] Implement `DESIGN.md`, `catalogue.md`, `validate`, `review`
+- [x] Commit
 
 **Done when:** the fictional study validates, a dimension leaning one way without its opposite question is refused, and `study-review.md` shows every section.
+
+**Deviations:**
+- `revise` is a command of its own (`--previous`, `--new-intent`, `--dry-run`) that writes the lineage; `validate` and `review` take `--models`, a saved `list-ai-models` response.
+- `validate` exits 1 with the problems listed one per line (like `check`); `review` refuses an invalid study with exit 2.
+- Snapshot mode of `validate` and `review` is left to M7; a snapshot `study.json` is refused with exit 2.
+- `list-ai-models` carries `credits` per call (read live); the estimate covers researcher calls, not judging.
 
 ## M5: Create and update the Sentl projects through the MCP
 
