@@ -16,6 +16,7 @@ from .i18n import SECTIONS
 FINAL = ("completed", "completed_with_warnings")
 RUN_FLOOR = 0.90
 FIGURE_FLOOR = 0.80
+OUTCOMES = ("written", "draft", "nothing_new", "below_floor")
 
 
 class Refused(Exception):
@@ -170,6 +171,13 @@ class Study:
     def record_report(self, entry):
         entries = [e for e in self.reports() if e["date"] != entry["date"]] + [entry]
         write_json(self.path("history", "reports.json"), sorted(entries, key=lambda e: e["date"]))
+
+    def record_outcome(self, outcome, detail):
+        """history/last-report.json: how the latest report invocation ended."""
+        if outcome not in OUTCOMES:
+            raise ValueError(f"unknown outcome {outcome!r}")
+        write_json(self.path("history", "last-report.json"),
+                   {"at": now_iso(), "outcome": outcome, "detail": " ".join(detail.split())})
 
 
 # --- text -------------------------------------------------------------------

@@ -24,7 +24,7 @@ if doctor.python_problem():
     sys.exit(2)
 
 from sentlmon import adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema, setup  # noqa: E402
-from sentlmon.common import Refused  # noqa: E402
+from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
 
@@ -99,6 +99,11 @@ def _parser():
     r.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
     r.add_argument("--models", help="saved list-ai-models response, for public names in the material")
 
+    j = command("pending", "unattended report: say whether a completed run is new, from the run listings saved as "
+                           "inbox/runs-<project id>.json, and record nothing_new when none is")
+    j.add_argument("--study", default=".")
+    j.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
+
     m = command("method", "write the report's method sections and its outline")
     m.add_argument("--study", default=".")
     m.add_argument("--date", default=today)
@@ -108,6 +113,9 @@ def _parser():
     c = command("check", "verify a report before it is final")
     c.add_argument("--study", default=".")
     c.add_argument("--date", help="period date (default: from the report's file name)")
+    c.add_argument("--unattended", action="store_true",
+                   help="no operator to fix the report: when check fails, keep it as reports/<date>.draft.md "
+                        "and record it as a draft")
     c.add_argument("report", help="the report file")
 
     g = command("charts", "write a report's figures as md2 chart tables for a deck")
@@ -196,6 +204,8 @@ def main(argv=None):
             print(detect.detect(args.study, args.project, args.saved, args.new_intent, args.dry_run))
         elif args.command == "runs":
             print(runs.runs(args.study, args.saved, args.project, args.date))
+        elif args.command == "pending":
+            print(runs.pending(args.study, args.date))
         elif args.command == "ingest":
             if args.unavailable is not None:
                 print(ingest.record_unavailable(args.study, args.project, args.unavailable, args.reason))
@@ -211,11 +221,15 @@ def main(argv=None):
         elif args.command == "method":
             print(method.write(args.study, args.date, args.models, args.force))
         elif args.command == "check":
-            problems = check.check(args.study, args.report, args.date)
+            problems = check.check(args.study, args.report, args.date, args.unattended)
             if problems:
                 print(f"check failed: {len(problems)} problem(s)")
                 for problem in problems:
                     print(f"  - {problem}")
+                if args.unattended:
+                    day = args.date or Path(args.report).stem.split(".")[0]
+                    print(f"Saved as {Path(args.report).with_name(f'{day}.draft.md')}, recorded as a draft; the next "
+                          "invocation does not write it again.")
                 return 1
             print("check passed: quotes are verbatim, figures and counts are the period's, sections are in order, "
                   "and no id, key, model id, file name or credit figure appears. The report is recorded as final "
@@ -271,6 +285,7 @@ def main(argv=None):
         print(str(exc), file=sys.stderr)
         return 7
     except period.BelowFloor as exc:
+        Study(args.study).record_outcome("below_floor", str(exc))
         print(str(exc), file=sys.stderr)
         return 4
     except (schema.Mismatch, pack.Unknown) as exc:

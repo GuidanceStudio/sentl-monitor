@@ -149,7 +149,8 @@ class PackContentsTest(PackCase, unittest.TestCase):
 
     def state(self):
         """The files every pack holds: the design, the binding, the versions and the indexes."""
-        names = ["study.json", "sentl.json", "history/reports.json", "history/unavailable.json"]
+        names = ["study.json", "sentl.json", "history/reports.json", "history/unavailable.json",
+                 "history/last-report.json"]
         names += [f"history/versions/{p.name}" for p in (self.study / "history/versions").glob("*.json")]
         return names
 

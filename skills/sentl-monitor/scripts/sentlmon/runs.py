@@ -47,9 +47,11 @@ def _for_adopt(rows):
     return lines
 
 
-def _for_report(folder, key, rows, date):
+def _for_report(folder, key, rows, date, through=False):
+    """The lines of the report on `key`, the runs to fetch and the count of runs already
+    ingested inside the window. With `through`, a report dated `date` is the previous one."""
     every = cadence(folder.study)
-    reports = [e for e in folder.reports() if e["date"] < date]
+    reports = [e for e in folder.reports() if e["date"] < date or (through and e["date"] == date)]
     bounds = intervals(date, every)
     end = bounds[0][1]
     ingested = {int(p.name.split(".")[0]) for p in folder.path("history", "runs", key).glob("*.json.gz")}
@@ -100,15 +102,11 @@ def _for_report(folder, key, rows, date):
                      f"{start.date()}. Either the project has no run before {first}, or Sentl's listing, which has no "
                      f"paging, stops there and runs before {first} cannot be read: tell the operator.")
     lines.append("Fetch: " + (" ".join(str(r["id"]) for r in fetch) or "none"))
-    return lines
+    return lines, fetch, already
 
 
-def runs(root, saved, key=None, date=None):
+def _bound_listing(folder, key, saved):
     listing = schema.run_listing(saved)
-    rows = listing["runs"]
-    if key is None:
-        return "\n".join(_for_adopt(rows) + _state(rows))
-    folder = Study(root)
     folder.project(key)
     bound = folder.binding["projects"].get(key)
     if bound is None:
@@ -116,4 +114,37 @@ def runs(root, saved, key=None, date=None):
     if listing["project_id"] != bound["project_id"]:
         raise Refused(f"the saved listing is of project {listing['project_id']}, but {key} is bound to project "
                       f"{bound['project_id']}: save list-runs-tool's response for the right project")
-    return "\n".join(_for_report(folder, key, rows, date))
+    return listing["runs"]
+
+
+def runs(root, saved, key=None, date=None):
+    if key is None:
+        rows = schema.run_listing(saved)["runs"]
+        return "\n".join(_for_adopt(rows) + _state(rows))
+    folder = Study(root)
+    return "\n".join(_for_report(folder, key, _bound_listing(folder, key, saved), date)[0])
+
+
+def pending(root, date):
+    """Whether an unattended report has a completed run to report on, from the listings saved as
+    inbox/runs-<project id>.json. With none, `nothing_new` is recorded and the report stops."""
+    folder = Study(root)
+    fetch, already, waiting = 0, 0, 0
+    for key, bound in folder.binding["projects"].items():
+        saved = folder.path("inbox", f"runs-{bound['project_id']}.json")
+        if not saved.is_file():
+            raise Refused(f"inbox/{saved.name} not found: save list-runs-tool's response for project "
+                          f"{bound['project_id']} there first")
+        rows = _bound_listing(folder, key, saved)
+        _, to_fetch, ingested = _for_report(folder, key, rows, date, through=True)
+        fetch, already = fetch + len(to_fetch), already + ingested
+        waiting += sum(1 for r in rows if r["status"] in schema.OPEN)
+    if fetch or already:
+        return (f"{fetch} run{'s' if fetch != 1 else ''} to fetch, {already} already ingested and not yet reported: "
+                f"write the report of {date}.")
+    earlier = [e for e in folder.reports() if e["date"] <= date]
+    detail = (f"no completed run is new since the report of {earlier[-1]['date']}" if earlier
+              else "no completed run in the window of the first report")
+    detail += f"; {waiting} not final yet" if waiting else ""
+    folder.record_outcome("nothing_new", detail)
+    return f"nothing_new: {detail}. Stop: write nothing."

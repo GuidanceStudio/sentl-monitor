@@ -2,6 +2,7 @@
 of ARCHITECTURE.md §The report."""
 
 import datetime as dt
+import os
 import re
 from pathlib import Path
 
@@ -375,7 +376,7 @@ def _answers(folder, period):
 
 # --- the check --------------------------------------------------------------
 
-def check(root, report_path, date=None):
+def check(root, report_path, date=None, unattended=False):
     folder = Study(root)
     study = folder.study
     report_path = Path(report_path)
@@ -488,12 +489,27 @@ def check(root, report_path, date=None):
     problems += [f"a file name appears: {m.group(0)}" for m in FILE_NAME.finditer(text)]
     problems += [f"a credit figure appears: {m.group(0)}" for m in CREDIT.finditer(text)]
 
+    entry = {"date": date, "status": "final",
+             "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
+             "previous": comparison.get("previous")}
     if not problems:
-        try:
-            shown = report_path.resolve().relative_to(folder.root.resolve()).as_posix()
-        except ValueError:
-            shown = str(report_path)
-        folder.record_report({"date": date, "file": shown, "status": "final",
-                              "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
-                              "previous": comparison.get("previous")})
+        entry["file"] = _shown(folder, report_path)
+        folder.record_report(entry)
+        folder.record_outcome("written", f"report of {date} passed check")
+    elif unattended:
+        # An unattended report that fails check is kept beside the final ones and counts as the
+        # previous report, so the next invocation finds no run it has not seen.
+        draft = report_path.with_name(f"{date}.draft.md")
+        if draft != report_path:
+            os.replace(report_path, draft)
+        folder.record_report({**entry, "file": _shown(folder, draft), "status": "draft"})
+        shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
+        folder.record_outcome("draft", f"check found {len(problems)} problem(s): {shown}")
     return problems
+
+
+def _shown(folder, path):
+    try:
+        return path.resolve().relative_to(folder.root.resolve()).as_posix()
+    except ValueError:
+        return str(path)

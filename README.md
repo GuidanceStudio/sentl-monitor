@@ -16,7 +16,7 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | Route | What it does |
 |---|---|
 | `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
-| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations |
+| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations; started by a scheduler it runs [unattended](#scheduled-reports) |
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), collects how people search for them and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
@@ -31,7 +31,7 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
 `review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
-runs a report needs) and `pack` and `unpack`, which carry a study between conversations on a
+runs a report needs), `pending` (says whether an unattended report has a run to report on) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
 | Host | Install with | Status |
@@ -306,6 +306,82 @@ sections on method close the report.
 [examples/avenello-report-2026-10-14.charts.md](examples/avenello-report-2026-10-14.charts.md)
 holds the same report's figures as chart tables for md2.
 
+## Scheduled reports
+
+Two clocks run independently. Sentl runs the measurement, on the project's schedule (daily,
+weekly or monthly) once `setup` has activated it. A scheduler on your side starts the assistant
+that writes the report. Started that way, `report` is unattended: it asks no question and
+Sentl is only read.
+
+- It lists each project's runs, and stops with `nothing_new` when no completed run is new since
+  the previous report. A run still open is read at the next invocation.
+- A run with under 90% of its answers judged is left out of the period; when no run is left it
+  stops with `below_floor`. A dimension with under 80% of its answers judged is shown without a
+  figure.
+- A report that fails `check` is kept as `reports/<date>.draft.md`, not corrected, and the next
+  invocation does not write it again. Fix it, rename it to `reports/<date>.md` and run `check`
+  on it to make it final.
+- `history/last-report.json` holds the time, the outcome (`written`, `draft`, `nothing_new` or
+  `below_floor`) and a one-line detail of the latest invocation. Two invocations on the same
+  runs write one report, and the second records `nothing_new`.
+
+Start it after the project's scheduled run has completed. The study folder must have been set
+up by `adopt` or `setup`, with its `study.json` answered in full, because nobody can answer
+a question at 07:00.
+
+### A local scheduler
+
+cron, launchd or a systemd timer starts a headless assistant in the study folder. The Sentl
+connection uses an API token, because signing in through the browser needs a person, and a
+sign-in unused for 30 days must be repeated. A token with the User role is enough, since the
+report only reads. Create it in Sentl under **Integrations → API Tokens**, then add the server to
+Claude Code; the token is read from the terminal, stored in the assistant's own configuration and
+never in the study folder:
+
+```bash
+read -rs SENTL_TOKEN
+claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation --header "Authorization: Bearer $SENTL_TOKEN"
+unset SENTL_TOKEN
+```
+
+The crontab line below starts the report every Monday at 07:00. It allows the script, file edits
+and the five Sentl tools the report reads, so the unattended assistant cannot create a project,
+change a setting or start a run:
+
+```text
+0 7 * * 1  cd <study folder> && claude -p "Run the sentl-monitor skill: report, unattended, for the study in this folder." --allowedTools "Bash(python3 *)" Read Write Edit mcp__sentinel-reputation__list-organizations mcp__sentinel-reputation__get-project-tool mcp__sentinel-reputation__list-runs-tool mcp__sentinel-reputation__get-run-results-tool mcp__sentinel-reputation__list-ai-models >> <log file> 2>&1
+```
+
+The log file holds the assistant's closing message, which names the outcome. Read
+`history/last-report.json` to see the outcome without the log. This recipe has not been run
+on a schedule yet. Other assistants take the same prompt in their own headless mode; the skill needs the study folder as the working directory,
+its Python and the Sentl tools.
+
+### A cloud scheduled agent
+
+An assistant's own scheduler, such as a scheduled cloud agent, starts every run in a fresh
+environment, so the study folder must live somewhere that lasts: a **private** repository
+holding the study folder. The reports and the saved answers are client data, so the repository
+must not be public. Keep `inbox/` out of it, since the agent saves Sentl's responses there again
+at each invocation:
+
+```text
+inbox/
+```
+
+Give the agent the repository, the skill (installed as under [Install](#install)) and the Sentl
+server as a connector with an API token, then schedule this prompt, weekly at a time after the
+project's scheduled run:
+
+```text
+In the repository's root, run the sentl-monitor skill: report, unattended. Then, if any file
+changed, commit reports/ and history/ with the message "report <date>: <outcome>", where
+<outcome> is the outcome in history/last-report.json, and push to <branch>.
+```
+
+The commit holds `history/last-report.json` too, so the repository shows the outcome of every
+invocation.
+
 ## Exit codes
 
 Every `monitor.py` command ends with one of these codes. The assistant reads them and follows
@@ -367,13 +443,12 @@ https://github.com/GuidanceStudio/sentl-monitor/releases.
 
 ## Planned
 
-These routes are designed in [ARCHITECTURE.md](ARCHITECTURE.md) and scheduled in
-[DEVPLAN.md](DEVPLAN.md); none of them is available yet.
+This route is designed in [ARCHITECTURE.md](ARCHITECTURE.md) and scheduled in
+[DEVPLAN.md](DEVPLAN.md); it is not available yet.
 
 | Route | What it will do |
 |---|---|
 | `snapshot <subject>` | Run a small study on Sentl once, write a short report, and pause the project |
-| Scheduled reports | Run `report` unattended after each period, with no question asked |
 
 `snapshot` will spend Sentl credits and need the Owner or Admin role in the organization; it
 will show Sentl's estimate before a run starts.
@@ -427,7 +502,7 @@ skills/sentl-monitor/  the skill
   setup/SETUP.md       how the study's projects are created and saved in Sentl
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, demand, validate, review, revise, payload, bind, doctor, pack, unpack
+  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, method, check, charts, demand, validate, review, revise, payload, bind, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

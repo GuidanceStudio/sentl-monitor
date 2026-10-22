@@ -5,7 +5,8 @@ period with the earlier ones and writes `reports/<date>.md`. Reads only: no Sent
 credit spent.
 
 `<skill>` is this skill's directory, `$S` the study folder, `D` today's date (`YYYY-MM-DD`).
-Run every command with `--study "$S"`.
+Run every command with `--study "$S"`. When the invocation is unattended, a scheduler started it
+and no operator can answer: read "Unattended mode", at the end, before step 1.
 
 Every `monitor.py` command below can also end with exit 5 or 6. Exit 5: a saved response does
 not have the shape the skill reads, and the message names the tool and the field. Sentl changed
@@ -295,3 +296,53 @@ current fact run by run, the share naming the subject run by run, and the domain
 or a score. Give the operator the file's path and the charts the output lists as left out; the
 report itself does not change. On a host without a lasting folder, also offer
 `reports/D.charts.md` for download, copied to the folder of step 10.
+
+## Unattended mode
+
+A scheduler starts the route with no operator to answer (README, "Scheduled reports"). Read this
+section before step 1 when the invocation says it is unattended. Every step above holds except where
+this section changes it. Ask nothing: where a step says to ask the operator, take the
+choice written here or stop.
+
+1. Run step 1, then for each project call `list-runs-tool` and save it to
+   `$S/inbox/runs-P.json` (`P` is the project's Sentl id), before anything else is read from
+   Sentl. Then:
+
+   ```bash
+   python3 <skill>/scripts/monitor.py pending --study "$S" --date D
+   ```
+
+   When its output starts with `nothing_new`, no completed run is new: the script has recorded
+   the outcome, so stop here, call no other tool and write nothing. A run not final yet is not new;
+   the next invocation reads it. Otherwise go on with step 2.
+2. Step 2 without `--new-intent`: a reworded question keeps its key.
+3. Step 5: exit 4 means no run of the period has 90% of its answers judged, or the period has
+   no run. `period` has recorded `below_floor`; stop and write nothing. A run under 90% judged
+   is left out of the period, and a dimension under 80% judged shows its answers without a
+   figure; steps 7 to 9 write what the material prints.
+4. Steps 5 and 6, exit 2 for a missing answer of the operator (`report_every`, or a field
+   `method` lists): stop. No outcome is recorded, since no invocation can answer it; the output
+   names the field.
+5. Step 10 with `--unattended` added to the `check` command. Run it once and do not correct the
+   report after a failure. Exit 1 saves the report as
+   `reports/D.draft.md`, records it in `history/reports.json` as `draft` and in
+   `last-report.json` with the problems found, and counts as the previous report, so the next
+   invocation does not write it again. The operator fixes the draft, renames it to
+   `reports/D.md` and runs `check` with the date, which makes it final.
+6. Step 11 is the invocation's last output, short and plain: the outcome, the report's path, and
+   the items step 11 lists. Sentl's errors that stop a route (exit 5, exit 6, a tool that fails
+   twice) end the invocation with the message; no outcome is recorded.
+7. Never call a Sentl tool that writes. The invocation needs only `list-organizations`,
+   `get-project-tool`, `list-runs-tool`, `get-run-results-tool` and `list-ai-models`.
+
+`history/last-report.json` holds `{at, outcome, detail}` for the latest invocation:
+
+| Outcome | Recorded by | Meaning |
+|---|---|---|
+| `written` | `check` | the report passed `check` and is final |
+| `draft` | `check --unattended` | the report failed `check` and was saved as a draft |
+| `nothing_new` | `pending` | no completed run is new since the previous report |
+| `below_floor` | `period` | no run of the period has 90% of its answers judged |
+
+Two invocations on the same runs write one report: the second one ends at `pending` with
+`nothing_new`.

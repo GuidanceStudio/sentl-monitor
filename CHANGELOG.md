@@ -5,6 +5,14 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `report` runs unattended when a scheduler starts it. `monitor.py pending` reads the run
+  listings the assistant saved and records `nothing_new` when no completed run is new, so two
+  invocations on the same runs write one report. `period` records `below_floor` when no run
+  has 90% of its answers judged. `check --unattended` keeps a report that fails as
+  `reports/<date>.draft.md`, counted as the previous report. `history/last-report.json` holds
+  the outcome of the latest invocation: `written`, `draft`, `nothing_new` or `below_floor`. The
+  README gives two recipes: a local scheduler starting a headless assistant with an API token,
+  and a cloud scheduled agent whose study folder is a private repository.
 - `setup` creates the study's projects in Sentl, paused, and saves their questions without
   cutting the link between a question and its past results. `monitor.py payload` prints the
   arguments of `create-project-tool`, `update-project-settings-tool` and

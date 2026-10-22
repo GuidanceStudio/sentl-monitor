@@ -423,8 +423,8 @@ computes a run's score (A4). A period rebuilt from a project's history carries
 ### `history/reports.json`
 
 A list of `{date, file, status, period: {from, to}, runs, previous}`, in date order.
-`monitor.py check` adds the report as `final` when it passes; `draft` is written by the
-unattended mode (M6). `previous` is the date of the period the report compared with, a
+`monitor.py check` adds the report as `final` when it passes; `check --unattended` adds a
+report that fails as `draft`, and a draft counts as the previous report. `previous` is the date of the period the report compared with, a
 rebuilt one included; it is null on a first report, including one that compares the two
 halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
@@ -628,7 +628,11 @@ them (see Periods).
    `history/unavailable.json` are requested again. Runs not final yet and statuses never seen
    are listed apart and not fetched (§Responses from Sentl). The listing has no paging (gap
    G8): when its oldest run started after the start of the window, `runs` warns that it may
-   be cut. None: write `nothing_new` to `last-report.json` and stop.
+   be cut. Unattended, the listings are saved as `inbox/runs-<project id>.json` and
+   `monitor.py pending` reads them: when no project has a run to fetch and none holds a run
+   ingested but not yet reported, it writes `nothing_new` to `last-report.json` and the route
+   stops. A report dated the day of the invocation counts as the previous report, so a second
+   invocation on the same day finds nothing new.
 2. `get-project-tool` for each project, saved; `monitor.py detect` compares it with the latest
    version and records a `detected` version on a difference. With the operator present it
    runs with `--dry-run` first: a reworded question keeps its key unless the operator says it
@@ -652,9 +656,10 @@ them (see Periods).
 6. The agent reads the material and the answers and writes `findings` and `changes`, then
    the `summary` from them.
 7. `monitor.py check reports/<date>.md` (below). Pass: the report is added to
-   `history/reports.json` with status `final`. Fail, when unattended:
-   the file is saved as `reports/<date>.draft.md`, status `draft`, and `last-report.json`
-   says which check failed.
+   `history/reports.json` with status `final` and `last-report.json` says `written`. Fail,
+   when unattended (`check --unattended`, run once): the file is saved as
+   `reports/<date>.draft.md`, status `draft`, and `last-report.json` says `draft` and which
+   checks failed. `period` records `below_floor` in `last-report.json` when it ends with exit 4.
 8. In the chat, never in the report: the runs covered, runs left out, unmatched responses,
    versions detected, facts older than 90 days.
 9. Optional, when the report is presented as a deck: `monitor.py charts` writes the report's
@@ -1150,7 +1155,9 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 
 `report` is idempotent: run twice on the same runs, it writes one report and then
 `nothing_new`. Unattended, it asks no question and treats every gate as described in the
-`report` stage.
+`report` stage. `pending` ends an invocation with no new run before anything else is read from
+Sentl; the report's playbook (`report/REPORT.md`, "Unattended mode") lists the Sentl tools it
+may call, all of them read-only.
 
 ## Hosts without a lasting folder
 

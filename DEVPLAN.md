@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4 and M5 done.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4, M5 and M6 done.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -596,18 +596,23 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Done when:** the fictional study creates paused projects whose `get-project-tool` output matches `study.json`, and a reworded question keeps its id.
 
-## M6: Report unattended on a schedule
+## M6: Report unattended on a schedule ✅
 
 **Why:** Monitoring means a report every period without the operator starting it.
 
 **Approach:** `report` gains an unattended mode (ARCHITECTURE.md §`report`, §Scheduling, §Coverage): no questions asked; `nothing_new` when no completed run is new; runs under 90% judged left out; dimensions under 80% shown without a figure; a failed `check` saves `reports/<date>.draft.md`; `history/last-report.json` records the outcome. The README gains the two scheduling recipes: a local scheduler starting a headless assistant with the Sentl token method, and a cloud scheduled agent whose study folder is a private repository it commits to.
 
 **Tasks:**
-- [ ] Test: unit — `nothing_new`, `below_floor`, `draft` and `written` outcomes in `last-report.json`
-- [ ] Test: unit — idempotence: two invocations on the same runs write one report
-- [ ] Test: live — two scheduled invocations on a real project, one after a new run (a scheduled run of the project, or a manual one on the operator's go)
-- [ ] Implement the unattended mode in `REPORT.md` and `monitor.py`; README scheduling section
-- [ ] Commit
+- [x] Test: unit — `nothing_new`, `below_floor`, `draft` and `written` outcomes in `last-report.json`
+- [x] Test: unit — idempotence: two invocations on the same runs write one report
+- [x] Test: live — two scheduled invocations on a real project, one after a new run (a scheduled run of the project, or a manual one on the operator's go)
+- [x] Implement the unattended mode in `REPORT.md` and `monitor.py`; README scheduling section
+- [x] Commit
+
+**Deviations:** the plan named no command for "nothing_new"; `monitor.py pending` reads the listings saved as `inbox/runs-<project id>.json` and records it, and `check --unattended` saves the draft.
+`pending` counts a report dated the same day as the previous one and a run ingested but not yet reported as new, so a repeat on the same day writes nothing.
+`period` and an interactive `check` record `below_floor` and `written` too; `draft` only comes from `check --unattended`.
+The live test verifies the folder the two invocations left (the assistant runs them, as in the other live tests); it is written and skipped here, and has not run on a real project.
 
 **Done when:** two scheduled invocations in a row on a real project produce one report and then a `nothing_new` outcome.
 

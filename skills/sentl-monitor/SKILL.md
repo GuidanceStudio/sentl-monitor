@@ -30,6 +30,8 @@ the route by the state of the study:
 
 - No study folder holds the Sentl project yet: `sentl-monitor adopt <project>`.
 - The study folder exists and runs have completed after its last report: `sentl-monitor report`.
+- A scheduler starts the assistant and nobody can answer a question: `sentl-monitor report`
+  unattended, which follows the last section of `report/REPORT.md`.
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
 
@@ -38,7 +40,7 @@ the route by the state of the study:
 | Invocation | Playbook | What it does |
 |---|---|---|
 | `adopt <project>` | `adopt/ADOPT.md` | takes an existing Sentl project into a study folder and asks the operator what Sentl does not hold |
-| `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md` |
+| `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md`; started by a scheduler, it records its outcome in `history/last-report.json` |
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
