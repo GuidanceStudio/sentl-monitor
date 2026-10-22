@@ -19,15 +19,18 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations |
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), collects how people search for them and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
+| `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
 
 `adopt` and `report` only read from Sentl: they create and change nothing in your account and
 spend no credits. `brief` does not call Sentl at all, and `design` reads only the list of models
-and their tariffs. You invoke a route by asking the
+and their tariffs. `setup` writes to your account, and each write (creating a project, a dry
+run and a save of its questions, a change of settings, a run, a schedule) waits for your go;
+it needs the Owner or Admin role, and only a run spends credits. You invoke a route by asking the
 assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a report needs) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
@@ -53,7 +56,7 @@ Whether opencode saves a large result to a file has not been measured.
 - **Python 3.10 or later**, standard library only. `python3 --version` prints it. macOS ships
   Python 3.9: install 3.10 or newer, from python.org or Homebrew, before the first run.
 - **A Sentl account** in an organization with a project that has completed runs. The User role
-  is enough for `adopt` and `report`, which only read. The project's questions, rubrics and
+  is enough for `adopt` and `report`, which only read; `setup` needs Owner or Admin. The project's questions, rubrics and
   schedule are set in the Sentl web panel; `adopt` reads them.
 - **The Sentl MCP server connected to your assistant.** Sentl's setup page,
   https://app.sentl.ai/mcp/setup, gives the configuration for each client and names the server
@@ -365,17 +368,15 @@ https://github.com/GuidanceStudio/sentl-monitor/releases.
 ## Planned
 
 These routes are designed in [ARCHITECTURE.md](ARCHITECTURE.md) and scheduled in
-[DEVPLAN.md](DEVPLAN.md); none of them is available yet. Until they are, the project of a designed
-study is created in the Sentl web panel, then adopted.
+[DEVPLAN.md](DEVPLAN.md); none of them is available yet.
 
 | Route | What it will do |
 |---|---|
-| `setup` | Create or update the Sentl projects through the MCP server, show Sentl's credit estimate, and start a run or a schedule only on your explicit go |
 | `snapshot <subject>` | Run a small study on Sentl once, write a short report, and pause the project |
 | Scheduled reports | Run `report` unattended after each period, with no question asked |
 
-`setup` and `snapshot` will spend Sentl credits and need the Owner or Admin role in the
-organization; each will show Sentl's estimate before a run starts.
+`snapshot` will spend Sentl credits and need the Owner or Admin role in the organization; it
+will show Sentl's estimate before a run starts.
 
 ## Contributing and support
 
@@ -393,6 +394,9 @@ bash tests/test_all.sh
 It runs the bash suites (layout, skill, install, package) and the Python unit tests. The live
 tier reads a real study folder outside the repository and runs only when asked:
 `RUN_LIVE=1 SENTL_LIVE_STUDY=<folder> SENTL_LIVE_PROJECT=<project id> bash tests/test_all.sh`.
+The `setup` live test checks a study folder that the route set up in an organization you
+designate for tests, with no run started: `RUN_LIVE=1 SENTL_LIVE_SETUP_STUDY=<folder>
+SENTL_LIVE_TEST_ORG=<organization slug> bash tests/test_all.sh`.
 The search-demand live test needs only `RUN_LIVE=1`: it sends one request to Google's suggestion
 endpoint.
 `python3 tests/python/sample_study.py <empty folder>` builds the fictional study the sample
@@ -420,9 +424,10 @@ skills/sentl-monitor/  the skill
   adopt/ADOPT.md       route playbooks, one per route
   brief/BRIEF.md
   design/DESIGN.md     how a study is designed; design/catalogue.md is the dimension catalogue
+  setup/SETUP.md       how the study's projects are created and saved in Sentl
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, demand, validate, review, revise, doctor, pack, unpack
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, demand, validate, review, revise, payload, bind, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

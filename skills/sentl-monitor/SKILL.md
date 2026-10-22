@@ -31,6 +31,7 @@ the route by the state of the study:
 - No study folder holds the Sentl project yet: `sentl-monitor adopt <project>`.
 - The study folder exists and runs have completed after its last report: `sentl-monitor report`.
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
+- The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
 
 ## Routes
 
@@ -40,16 +41,18 @@ the route by the state of the study:
 | `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md` |
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
+| `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
 
-Read the playbook of the route invoked and follow it step by step. `setup` and
-`snapshot` are planned and not available yet: say so if one is invoked.
+Read the playbook of the route invoked and follow it step by step. `snapshot` is planned and
+not available yet: say so if it is invoked.
 
 ## Rules for every route
 
 - **Sentl's tools.** Their names depend on the name the server was given in the host (for
   example `mcp__sentinel-reputation__get-project-tool`). Find them by their suffix:
   `list-organizations`, `list-projects-tool`, `get-project-tool`, `list-runs-tool`,
-  `get-run-results-tool`, `export-runs-tool`, `list-ai-models` (`design` reads it for the models and their credits). When none is available, stop and give the
+  `get-run-results-tool`, `export-runs-tool`, `list-ai-models` (`design` reads it for the models and their credits), and for `setup` `list-organizations`,
+  `get-organization-tool`, `estimate-run-tool` and `project-edit-link-tool`. When none is available, stop and give the
   operator the connection steps from https://app.sentl.ai/mcp/setup.
 - **A keyword-data server's tools.** `brief` looks in the connected servers for a tool that returns
   monthly search volume and related searches. Read the tool's name and parameters from the server
@@ -58,7 +61,10 @@ Read the playbook of the route invoked and follow it step by step. `setup` and
 - **Writes to Sentl need the operator's approval, each time.** `create-project-tool`,
   `save-project-questions-tool`, `update-project-settings-tool` and `trigger-run-tool` change
   the account or spend credits, and need the Owner or Admin role in the organization; `adopt`
-  and `report` never call them.
+  and `report` never call them. Only `setup` calls them, each call after its own explicit go
+  (a dry run included), and `trigger-run-tool` and the activation of a schedule only after
+  `estimate-run-tool` has been shown. `monitor.py payload` builds a write's arguments and calls
+  nothing.
 - **Saving a response into `inbox/`.** The script reads Sentl's responses from files and never
   calls Sentl. When the host saved a large response to a file and says where, copy that file
   with `cp`; a host may word this as an error ("result exceeds maximum allowed tokens. Output

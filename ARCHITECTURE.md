@@ -571,14 +571,29 @@ retired entries.
    subscription).
 2. Ingest every completed run not yet in `history/runs/` for projects that already exist;
    runs Sentl cannot return go to `history/unavailable.json` and do not block the save.
-3. New project: `create-project-tool` (it is created paused), then
-   `update-project-settings-tool` for any setting the create call did not take.
+   `payload` enforces it: given the saved `list-runs-tool` response, it refuses (exit 2) while
+   a completed run is neither ingested nor unavailable, and names the runs. A run still open is
+   named in its notes. It also refuses a saved project that differs from the latest recorded
+   version, since a save would overwrite an edit made in the panel; `detect` records it first.
+3. New project: `payload` prints the `create-project-tool` arguments (the project is created
+   paused); after the call, `get-project-tool` is saved and `monitor.py bind` records the
+   project, which holds no question yet. `update-project-settings-tool` is called when the
+   saved project's name, models, rounds or schedule differ from `study.json`; `payload` prints
+   it and never sets `is_active`.
 4. Questions: `monitor.py payload` builds the `save-project-questions-tool` arguments, keeping
-   every id from `sentl.json`. The tool is called with `dry_run: true` first and the changes
-   are shown to the operator; then for real. `delete_missing` is never sent unless the
-   operator approves the listed deletions. A dimension to drop is archived.
+   every id from `sentl.json`; a new question or dimension has none. Every write tool call,
+   a dry run included, has the operator's explicit go. The tool is called with `dry_run: true`
+   first and the changes are shown to the operator; then for real. `payload` never sets
+   `delete_missing`: the playbook adds it to the real call only when the operator approves the
+   listed deletions, and `payload`'s notes name the questions that would be deleted. A
+   dimension to drop is sent archived with its id.
 5. Bind: `get-project-tool`, saved; `monitor.py bind` records the ids in `sentl.json` and a
-   `setup` version in `history/versions/`.
+   `setup` version in `history/versions/`, with the changes between the versions (`created`,
+   `reworded`, `new_intent`, `criteria`, `retired`, the dimension changes, `models`,
+   `rounds`). It refuses a saved project that does not hold `study.json`: a dimension or
+   question missing, a text, rubric or judge instructions that are not the study's (the save
+   did not apply). A project with no dimension and none bound is just created and is bound
+   without that check.
 6. `estimate-run-tool`: credits per model, judging credits, available credits, whether the
    run can start. Shown to the operator.
 7. Only on the operator's explicit go: `trigger-run-tool` for a first run, and
@@ -769,7 +784,8 @@ which can alter a character. Three rules contain it:
 - matching uses the normalization above;
 - `adopt` and `bind` refuse a saved project in which a question text or a dimension name of
   the project's latest completed run is not found, and the assistant saves it again; with
-  no completed run the check is skipped and the operator is told;
+  no completed run the check is skipped and the operator is told. `bind` excepts a text that
+  the latest recorded version holds and `study.json` rewords or drops on purpose;
 - `payload` never sends a text that differs from the one in the latest saved
   `get-project-tool` response only by that normalization, so a transcription never rewords
   a question in Sentl.

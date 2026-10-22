@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 and M4 done.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4 and M5 done.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -577,18 +577,22 @@ Depends on Sentl: the export of several runs in one file with a download link an
 - Snapshot mode of `validate` and `review` is left to M7; a snapshot `study.json` is refused with exit 2.
 - `list-ai-models` carries `credits` per call (read live); the estimate covers researcher calls, not judging.
 
-## M5: Create and update the Sentl projects through the MCP
+## M5: Create and update the Sentl projects through the MCP ✅
 
 **Why:** The approved design must reach Sentl without retyping, and later edits must keep past results linked to their questions.
 
 **Approach:** `setup/SETUP.md` follows ARCHITECTURE.md §`setup`. `monitor.py payload` builds the arguments of `create-project-tool`, `update-project-settings-tool` and `save-project-questions-tool` from `study.json`, with every id from `sentl.json`; `bind` records ids and a `setup` version from a saved `get-project-tool` response. The playbook ingests pending runs before any save, saves with `dry_run` first, sends `delete_missing` only after the operator approves the listed deletions, and triggers a run or activates the schedule only on an explicit go after `estimate-run-tool`.
 
 **Tasks:**
-- [ ] Test: unit — payload keeps ids, adds new items without ids, archives a dropped dimension, never sets `delete_missing`; a text that differs from Sentl's only by quotes or whitespace is sent as Sentl has it
-- [ ] Test: unit — `bind` writes ids and a version; refuses a saved project missing a text of the latest run; the pending-run guard blocks a save, an unavailable run does not
-- [ ] Test: live — in an organization the operator designates for tests: create, dry run, save, bind; no run triggered
-- [ ] Implement `SETUP.md`, `payload`, `bind`
-- [ ] Commit
+- [x] Test: unit — payload keeps ids, adds new items without ids, archives a dropped dimension, never sets `delete_missing`; a text that differs from Sentl's only by quotes or whitespace is sent as Sentl has it
+- [x] Test: unit — `bind` writes ids and a version; refuses a saved project missing a text of the latest run; the pending-run guard blocks a save, an unavailable run does not
+- [x] Test: live — in an organization the operator designates for tests: create, dry run, save, bind; no run triggered
+- [x] Implement `SETUP.md`, `payload`, `bind`
+- [x] Commit
+
+**Deviations:** the live test checks a study folder that the route left in the test organization (`SENTL_LIVE_SETUP_STUDY`, `SENTL_LIVE_TEST_ORG`), as the other live tests do, because the script never calls Sentl.
+`payload` also needs `--models`, and for a bound project `--saved` and `--runs`; it refuses a project that differs from its latest version, so `detect` runs first.
+`bind` accepts a just-created project with no dimension without matching `study.json`.
 
 **Done when:** the fictional study creates paused projects whose `get-project-tool` output matches `study.json`, and a reworded question keeps its id.
 

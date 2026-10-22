@@ -5,6 +5,18 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `setup` creates the study's projects in Sentl, paused, and saves their questions without
+  cutting the link between a question and its past results. `monitor.py payload` prints the
+  arguments of `create-project-tool`, `update-project-settings-tool` and
+  `save-project-questions-tool` from `study.json`, every id taken from `sentl.json`; a new
+  question or dimension is sent without an id, a dropped dimension is sent archived, a text that
+  differs from Sentl's only by quotes or spacing is sent as Sentl has it, and `delete_missing`
+  is never set. It refuses while a completed run has not been ingested (a run recorded as
+  unavailable does not block) and when the project in Sentl differs from its latest recorded
+  version. `bind` records the ids and a `setup` version from a saved `get-project-tool`
+  response, and refuses a saved project that lacks a text of the latest run or does not hold
+  `study.json`. The playbook asks for the operator's go before every write, dry run included,
+  and starts a run or a schedule only after `estimate-run-tool`.
 - `design` turns the approved themes into a study: dimensions taken from a catalogue
   (`design/catalogue.md`, with question patterns, rubric anchors, the facts each dimension needs
   and the stance and fidelity axes), projects, who asks, questions with 1-5 rubrics and a

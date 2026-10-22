@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
+from sentlmon import adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema, setup  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -164,6 +164,20 @@ def _parser():
                    help="a reworded question that now asks something else: it gets a new key (repeatable)")
     f.add_argument("--dry-run", action="store_true", help="list the changes and write nothing")
 
+    o = command("payload", "print the arguments of the Sentl tools that create a project, change its settings and "
+                           "save its questions, from study.json and sentl.json; calls nothing")
+    o.add_argument("--study", default=".")
+    o.add_argument("--project", required=True, help="local key of the project")
+    o.add_argument("--models", required=True, help="saved list-ai-models response")
+    o.add_argument("--saved", help="saved get-project-tool response, read now (required once the project exists)")
+    o.add_argument("--runs", help="saved list-runs-tool response, read now (required once the project exists)")
+
+    b = command("bind", "record the ids of a saved get-project-tool response in sentl.json and a setup version")
+    b.add_argument("--study", default=".")
+    b.add_argument("--project", required=True, help="local key of the project")
+    b.add_argument("--saved", required=True, help="saved get-project-tool response, read now")
+    b.add_argument("--run", help="saved get-run-results-tool response of the latest completed run")
+
     u = command("unpack", "check a pack and write its files into the study folder")
     u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
     u.add_argument("pack", help="the pack written by pack")
@@ -238,6 +252,10 @@ def main(argv=None):
             print(design.review(args.study, args.models))
         elif args.command == "revise":
             print(design.revise_files(args.study, args.previous, args.new_intent, args.dry_run))
+        elif args.command == "payload":
+            print(setup.payload(args.study, args.project, args.models, args.saved, args.runs))
+        elif args.command == "bind":
+            print(setup.bind(args.study, args.project, args.saved, args.run))
         elif args.command == "unpack":
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except demand.Incomplete as exc:

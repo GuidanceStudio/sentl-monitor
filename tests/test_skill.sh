@@ -348,5 +348,20 @@ for cmd in adopt detect runs ingest period method check charts doctor pack unpac
 done
 
 echo ""
+echo "=== The setup playbook guards its writes ==="
+SETUP_MD="$PAYLOAD/setup/SETUP.md"
+has "setup/SETUP\\.md" "$SKILL" "SKILL.md dispatches to setup/SETUP.md"
+has "dry_run: true" "$SETUP_MD" "SETUP.md saves with dry_run first"
+has "delete_missing: true.*only|Only when they approve those deletions" "$SETUP_MD" "SETUP.md sends delete_missing only on the operator's approval"
+has "explicit go" "$SETUP_MD" "SETUP.md asks for the operator's explicit go"
+ESTIMATE_LINE=$(grep -n "estimate-run-tool" "$SETUP_MD" | head -1 | cut -d: -f1)
+TRIGGER_LINE=$(grep -n "trigger-run-tool" "$SETUP_MD" | tail -1 | cut -d: -f1)
+if [ -n "$ESTIMATE_LINE" ] && [ -n "$TRIGGER_LINE" ] && [ "$ESTIMATE_LINE" -lt "$TRIGGER_LINE" ]; then
+    ok "SETUP.md shows estimate-run-tool before it calls trigger-run-tool"
+else
+    bad "SETUP.md shows estimate-run-tool before it calls trigger-run-tool"
+fi
+
+echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]
