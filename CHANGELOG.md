@@ -5,6 +5,14 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `brief <subject>` lists the themes to monitor with the origin of each, collects how people
+  search for them and writes `brief.md`. `monitor.py demand` sends each seed query, as typed and
+  with each question stem, to Google's suggestions (the skill's only network call; exit 1 lists
+  the prefixes that failed), merges search volumes that a keyword-data server returned or that an
+  export file holds, classes every keyword as subject, foil, component or generic, and prints
+  each theme's summary. Volumes are stated for each class and never added across classes.
+- The report's themes section gives each theme's distinct Google suggestions and, when a volume
+  source was used, its monthly searches for each class; without one it says what the counts measure.
 - `import` writes the project, the run listing and the runs of Sentl's run export into the
   study folder; `download` fetches the export's link first. The link is fetched with no
   credential, only over https from Sentl's own hosts, and a file over 64 MB is refused. Exit 7

@@ -2,7 +2,7 @@
 """sentl-monitor's deterministic steps. It reads the Sentl MCP responses the
 assistant saved into a study folder and never calls Sentl.
 
-Exit codes: 0 done; 1 check or doctor found problems; 2 input refused; 3 run not
+Exit codes: 0 done; 1 check or doctor found problems, or demand autocomplete could not fetch every prefix; 2 input refused; 3 run not
 final; 4 no run left in the period; 5 a Sentl response, an export, or a pack's manifest, does not
 have the shape the skill reads; 6 unexpected error; 7 a download link that does not answer.
 """
@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
+from sentlmon import adopt, charts, check, demand, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -124,6 +124,31 @@ def _parser():
     k.add_argument("--out", help="the zip to write, or a folder for it (default: next to the study folder, "
                                  "named <study folder>-<last report date>.sentl-pack.zip)")
 
+    q = command("demand", "collect search demand: Google suggestions, volumes from a keyword-data source, a summary")
+    dsub = q.add_subparsers(dest="demand_command", required=True, metavar="action")
+
+    def action(name, help):
+        sp = dsub.add_parser(name, help=help, parents=[common])
+        sp.add_argument("--study", default=".")
+        return sp
+
+    da = action("autocomplete", "send each seed, as typed and with each question stem, to Google's suggestions")
+    da.add_argument("--seeds", help="seeds.json (default: seeds.json in the study folder)")
+    da.add_argument("--hl", required=True, help="the market's language, such as it or en")
+    da.add_argument("--gl", required=True, help="the market's country, such as IT or US")
+    da.add_argument("--stems", help="question words, separated by commas, for a language with no built-in stems")
+    dv = action("volumes", "merge the volumes a keyword-data tool returned, saved as a file")
+    dv.add_argument("--seeds")
+    dv.add_argument("file", help="volumes.json: provider, tool, collected and the keywords")
+    di = action("import", "merge an export file of a keyword tool (CSV, or JSON in the volumes shape)")
+    di.add_argument("--seeds")
+    di.add_argument("--provider", help="the keyword-data source (CSV)")
+    di.add_argument("--tool", help="the tool or export that produced the file (CSV)")
+    di.add_argument("--theme", help="the theme of the file's keywords (CSV)")
+    di.add_argument("--date", help="when the volumes were collected, YYYY-MM-DD (default: today)")
+    di.add_argument("file", help="the export file")
+    action("summary", "print each theme's suggestions, volume per class and top queries")
+
     u = command("unpack", "check a pack and write its files into the study folder")
     u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
     u.add_argument("pack", help="the pack written by pack")
@@ -178,8 +203,23 @@ def main(argv=None):
             return 0 if ok else 1
         elif args.command == "pack":
             print(pack.pack(args.study, args.out, args.full, skill_version=_skill_version()))
+        elif args.command == "demand":
+            study = args.study
+            seeds = getattr(args, "seeds", None) or str(Path(study) / "seeds.json")
+            if args.demand_command == "autocomplete":
+                stems = [w.strip() for w in args.stems.split(",") if w.strip()] if args.stems else None
+                print(demand.autocomplete(study, seeds, args.hl, args.gl, stems))
+            elif args.demand_command == "volumes":
+                print(demand.merge_volumes(study, args.file, seeds))
+            elif args.demand_command == "import":
+                print(demand.import_export(study, args.file, seeds, args.provider, args.tool, args.theme, args.date))
+            else:
+                print(demand.summary(study))
         elif args.command == "unpack":
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
+    except demand.Incomplete as exc:
+        print(str(exc))
+        return 1
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

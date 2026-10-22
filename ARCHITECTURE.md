@@ -110,13 +110,31 @@ All JSON files carry `"schema": "sentl-monitor/<name>@<n>"`. Dates are ISO 8601.
                    "related_dropped": 14}]
     }
   },
-  "volume_source": null
+  "volume_source": {"providers": ["<server or file>"], "from": "2026-10-16", "to": "2026-10-16"}
 }
 ```
 
 `class` is `subject` (the keyword contains an alias of the subject), `foil`, `component` (it
-contains a component term and no subject alias) or `generic`. `volume_source` is the provider
-and period, or `null` when no keyword-data source was used.
+contains a component term and no subject alias) or `generic`; a keyword that fits several is
+given the first in that order, with `foil` before `component`. `volume_source` is the providers
+and the first and last collection dates, or `null` when no keyword-data source was used.
+
+`seeds.json` holds what the commands need to class and filter keywords:
+
+```json
+{
+  "schema": "sentl-monitor/seeds@1",
+  "market": {"country": "IT", "language": "it"},
+  "subject": {"aliases": ["Avenello"]},
+  "foils": [{"aliases": ["Avoria"]}],
+  "components": [{"terms": ["latte d'avena", "bevanda all'avena"]}],
+  "themes": {"health": ["latte d'avena fa male", "avenello zuccheri"]}
+}
+```
+
+`volumes.json` is what the assistant saves from a keyword-data server: `provider`, `tool` and
+`collected` (a date) for the whole file, and `keywords`, each with its `theme`, `keyword`,
+`monthly_volume` (a whole number) and optional `related` searches with the same two fields.
 
 ### `study.json`
 
@@ -455,8 +473,17 @@ same shape. `monitor.py demand volumes volumes.json` merges it and then:
 carries the line, and the report's themes section says: *the counts are Google suggestions:
 they measure how many ways a theme is phrased, not how many people search it.*
 
+`monitor.py demand import --provider P --tool T --theme X file.csv` reads an export of a
+keyword tool (a keyword column, a volume column and, optionally, a `related to` column that
+makes a row a related search of the keyword it names), writes `volumes.json` and merges it as
+`volumes` does. A JSON file in the `volumes.json` shape is merged as it is. A volume that is
+not a whole number refuses the file (exit 2), and so does a theme absent from `seeds.json`; a
+refused file changes nothing.
+
 `monitor.py demand summary` prints, per theme, the distinct suggestions, the volume per
-class or none, and the top queries. `design` copies it into each theme's `search` block.
+class or none, and the top queries (by volume when there is one, else the first suggestions).
+A keyword that appears twice in a theme counts once. `design` copies it into each theme's
+`search` block.
 
 ### `design`
 

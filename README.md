@@ -17,13 +17,14 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 |---|---|
 | `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
 | `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations |
+| `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), collects how people search for them and writes `brief.md` for your review |
 
-Both routes only read from Sentl: they create and change nothing in your account and spend no
-credits. You invoke them by asking the assistant, for example `sentl-monitor adopt Avenello`
-or `sentl-monitor report`.
+`adopt` and `report` only read from Sentl: they create and change nothing in your account and
+spend no credits. `brief` does not call Sentl at all. You invoke a route by asking the
+assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
-The routes run `monitor.py`, the skill's command-line script. Besides the steps of the two
-routes, it has `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
+routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a report needs) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
@@ -307,7 +308,7 @@ the playbook; this table is for when you run a command yourself or the assistant
 | Code | Meaning | What to do |
 |---|---|---|
 | 0 | Done. | Nothing. |
-| 1 | `check` found problems in the report, listed one per line, or `doctor` found that the study folder cannot be written. | The assistant corrects the report and runs `check` again until it passes. For `doctor`, choose another folder. |
+| 1 | `check` found problems in the report, listed one per line, `doctor` found that the study folder cannot be written, or `demand autocomplete` could not fetch some of Google's suggestions and lists the prefixes. | The assistant corrects the report and runs `check` again until it passes. For `doctor`, choose another folder. For `demand autocomplete`, run it again: it fetches only the missing prefixes. |
 | 2 | Input refused: a saved response is incomplete or belongs to another tool or project, a field of `study.json` is not filled in, a pack was changed, is older than the folder's last report or belongs to another study, or Python is older than 3.10. The message says why and what to do. | Follow the message: save the Sentl response again, answer the field it names, attach the latest pack, or install a newer Python. |
 | 3 | A run is not final yet. | Nothing: the next report reads it. |
 | 4 | No run of the period has 90% of its answers scored, or the period has no run. | Wait for the runs to complete, or check in the Sentl web panel why answers were not scored. |
@@ -366,7 +367,6 @@ designed and created in the Sentl web panel, then adopted.
 
 | Route | What it will do |
 |---|---|
-| `brief <subject>` | List the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), and collect search demand from Google autocomplete or a keyword-data source |
 | `design` | Derive the dimensions from the themes, decide who asks, and write the questions as people type them, each with a 1–5 rubric |
 | `setup` | Create or update the Sentl projects through the MCP server, show Sentl's credit estimate, and start a run or a schedule only on your explicit go |
 | `snapshot <subject>` | Run a small study on Sentl once, write a short report, and pause the project |
@@ -391,6 +391,8 @@ bash tests/test_all.sh
 It runs the bash suites (layout, skill, install, package) and the Python unit tests. The live
 tier reads a real study folder outside the repository and runs only when asked:
 `RUN_LIVE=1 SENTL_LIVE_STUDY=<folder> SENTL_LIVE_PROJECT=<project id> bash tests/test_all.sh`.
+The search-demand live test needs only `RUN_LIVE=1`: it sends one request to Google's suggestion
+endpoint.
 `python3 tests/python/sample_study.py <empty folder>` builds the fictional study the sample
 report was written from.
 
@@ -414,9 +416,10 @@ skills/sentl-monitor/  the skill
   LICENSE              copy of LICENSE, shipped in the zip
   agents/openai.yaml   Codex's display fields and the Sentl MCP dependency
   adopt/ADOPT.md       route playbooks, one per route
+  brief/BRIEF.md
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
-  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, doctor, pack, unpack
+  scripts/monitor.py   the command line: adopt, detect, runs, ingest, period, method, check, charts, demand, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

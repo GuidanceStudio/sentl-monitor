@@ -175,7 +175,7 @@ for route in sorted(listed - playbooks):
 for route in sorted(playbooks - listed):
     print(f"the routes table does not list '{route}', which has a playbook")
 for section in planned:
-    for route in ("brief", "design", "setup", "snapshot"):
+    for route in sorted({"brief", "design", "setup", "snapshot"} - playbooks):
         if f"`{route}" not in section:
             print(f"'## Planned' names the {route} route")
     for route in sorted(playbooks):

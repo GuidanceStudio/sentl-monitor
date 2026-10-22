@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 after the release.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 done.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -534,21 +534,26 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 **Done when:** the tests pass and the README states systems, time zone and languages.
 
-## M3: Build the theme inventory and collect search demand
+## M3: Build the theme inventory and collect search demand ✅
 
 **Why:** The operator's process starts from themes found in the client's material and in Google searches, and the report's `themes` section needs each theme's origin and its search demand.
 
 **Approach:** `brief/BRIEF.md` follows ARCHITECTURE.md §`brief`. `monitor.py demand` gains `autocomplete`, `volumes`, `import` and `summary` as §Search demand describes (Google suggest fetching and parsing, keyword classing; standard library): volumes come from a keyword-data MCP server whose tool names are read at run time, or from an export file; related searches are filtered for relevance; keywords are classed and never summed across classes. Without a volume source the brief carries the no-volume statement and `method` prints it in the `themes` section.
 
 **Tasks:**
-- [ ] Test: unit — autocomplete parsing, prefixes with stems, partial failure exit 1 (fixtures, no network)
-- [ ] Test: unit — volume merge with provider, tool and date; related-search filter and dropped count
-- [ ] Test: unit — keyword classes; per-class volumes; `summary` per theme; no-volume statement
-- [ ] Test: live — one autocomplete request with `RUN_LIVE=1`
-- [ ] Implement `BRIEF.md`, `demand` commands, the `themes` section from `search-demand.json`
-- [ ] Commit
+- [x] Test: unit — autocomplete parsing, prefixes with stems, partial failure exit 1 (fixtures, no network)
+- [x] Test: unit — volume merge with provider, tool and date; related-search filter and dropped count
+- [x] Test: unit — keyword classes; per-class volumes; `summary` per theme; no-volume statement
+- [x] Test: live — one autocomplete request with `RUN_LIVE=1`
+- [x] Implement `BRIEF.md`, `demand` commands, the `themes` section from `search-demand.json`
+- [x] Commit
 
 **Done when:** a fictional brief produces `search-demand.json` whose subject and component volumes stay apart, and `brief.md` with the no-volume line when no source is given.
+
+**Deviations:**
+- `demand import` merges a keyword tool's export file (CSV with a keyword and a volume column, or JSON in the `volumes` shape); it is not the top-level `import` of Sentl's run export.
+- `seeds.json` carries the subject's aliases, the foils' aliases and the components' terms, because no `study.json` exists at `brief` time; ARCHITECTURE.md gives its schema.
+- `volume_source` is `{providers, from, to}` instead of a single provider and period, since volumes from several sources can be merged.
 
 ## M4: Design dimensions, questions and rubrics from the themes
 

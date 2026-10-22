@@ -2,7 +2,7 @@
 in the order the report takes, with an entry per dimension left for the findings."""
 
 from .adopt import missing_answers
-from . import schema
+from . import demand, schema
 from .common import Refused, Study, fmt_date, load_json, match_key, norm, public_name, require_language, write_text
 from .i18n import AUDIENCE, FIRST_ORDER, LATER_ORDER, ORIGINS, ORIGINS_INLINE, SECTIONS, TEXT, join, phrase
 
@@ -81,9 +81,10 @@ def _themes(study, projects, root, lang):
         if kind in by_kind:
             lines += [f"**{label}**", ""] + [f"- {join(labels, lang)}: {detail}"
                                              for detail, labels in by_kind[kind].items()] + [""]
-    if not root.path("search-demand.json").exists():
-        lines.append(TEXT[lang]["no_search"])
-    return lines
+    path = root.path("search-demand.json")
+    shown = [(t["id"], t["label"]) for t in study["themes"] if t.get("dimension") in asked or not t.get("dimension")]
+    found = demand.report_lines(load_json(path), shown, lang) if path.exists() else []
+    return lines + found if found else lines + [TEXT[lang]["no_search"]]
 
 
 def _dimensions(study, projects, lang):
