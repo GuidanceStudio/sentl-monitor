@@ -3,8 +3,8 @@
 assistant saved into a study folder and never calls Sentl.
 
 Exit codes: 0 done; 1 check or doctor found problems; 2 input refused; 3 run not
-final; 4 no run left in the period; 5 a Sentl response, or a pack's manifest, does not
-have the shape the skill reads; 6 unexpected error.
+final; 4 no run left in the period; 5 a Sentl response, an export, or a pack's manifest, does not
+have the shape the skill reads; 6 unexpected error; 7 a download link that does not answer.
 """
 
 import argparse
@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import adopt, charts, check, detect, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
+from sentlmon import adopt, charts, check, detect, exportfile, frontmatter, ingest, method, pack, period, runs, schema  # noqa: E402
 from sentlmon.common import Refused  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -79,8 +79,20 @@ def _parser():
     i.add_argument("--project", required=True, help="local key of the project")
     src = i.add_mutually_exclusive_group(required=True)
     src.add_argument("--results", help="saved get-run-results-tool response")
+    src.add_argument("--pages", nargs="+", metavar="PAGE", help="saved get-run-results-tool pages of one run, "
+                     "each checked by its content_sha256")
     src.add_argument("--unavailable", type=int, metavar="RUN_ID", help="record a run Sentl could not return")
     i.add_argument("--reason", default="server error", help="with --unavailable: the error Sentl returned")
+
+    x = command("import", "write the project, the run listing and the runs of a Sentl export into inbox/")
+    x.add_argument("--study", default=".")
+    x.add_argument("--sha256", help="the digest export-runs-tool returned for the file")
+    x.add_argument("file", help="the gzip file export-runs-tool's link served")
+
+    w = command("download", "fetch an export link from Sentl (no credential is sent) and import it")
+    w.add_argument("--study", default=".")
+    w.add_argument("--url", required=True, help="download.url of export-runs-tool")
+    w.add_argument("--sha256", required=True, help="download.sha256 of export-runs-tool")
 
     r = command("period", "compute the metrics of a report period")
     r.add_argument("--study", default=".")
@@ -134,7 +146,12 @@ def main(argv=None):
             if args.unavailable is not None:
                 print(ingest.record_unavailable(args.study, args.project, args.unavailable, args.reason))
             else:
-                print(ingest.ingest(args.study, args.project, args.results))
+                results = (exportfile.assemble_pages(args.study, args.pages) if args.pages else args.results)
+                print(ingest.ingest(args.study, args.project, results))
+        elif args.command == "import":
+            print(exportfile.import_export(args.study, args.file, args.sha256))
+        elif args.command == "download":
+            print(exportfile.download(args.study, args.url, args.sha256))
         elif args.command == "period":
             print(period.build(args.study, args.date, args.models))
         elif args.command == "method":
@@ -169,6 +186,9 @@ def main(argv=None):
     except ingest.NotFinal as exc:
         print(str(exc), file=sys.stderr)
         return 3
+    except exportfile.Unreachable as exc:
+        print(str(exc), file=sys.stderr)
+        return 7
     except period.BelowFloor as exc:
         print(str(exc), file=sys.stderr)
         return 4

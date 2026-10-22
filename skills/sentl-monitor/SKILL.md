@@ -9,7 +9,7 @@ compatibility: >-
   (https://app.sentl.ai/mcp/setup). Tested in Claude Code, which keeps the study folder on
   disk. opencode and Codex install it; not tested there yet. claude.ai and ChatGPT need code
   execution; there a study travels between conversations as a pack file the user keeps, and
-  reports wait for Sentl's run export. Makes no model calls and stores no token.
+  reports on those hosts read Sentl's run export. Makes no model calls and stores no token.
 metadata:
   version: "0.1.0"
   homepage: https://github.com/GuidanceStudio/sentl-monitor
@@ -46,7 +46,7 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
 - **Sentl's tools.** Their names depend on the name the server was given in the host (for
   example `mcp__sentinel-reputation__get-project-tool`). Find them by their suffix:
   `list-organizations`, `list-projects-tool`, `get-project-tool`, `list-runs-tool`,
-  `get-run-results-tool`, `list-ai-models`. When none is available, stop and give the
+  `get-run-results-tool`, `export-runs-tool`, `list-ai-models`. When none is available, stop and give the
   operator the connection steps from https://app.sentl.ai/mcp/setup.
 - **Writes need the operator's approval, each time.** `create-project-tool`,
   `save-project-questions-tool`, `update-project-settings-tool` and `trigger-run-tool` change
@@ -68,10 +68,12 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
   deleted when the conversation ends. Exit codes: 0 done; 1 `check` or `doctor` found
   problems; 2 input refused
   (the message says why and what to do); 3 run not final yet; 4 no run left in the period;
-  5 a Sentl response does not have the shape the skill reads (the message names the tool and the
+  5 a Sentl response or an export does not have the shape the skill reads (the message names the tool and the
   field): Sentl changed what it returns, so stop, do not edit the saved file, and tell the
   operator the tool and the field, since the skill needs an update; a pack's manifest written by
-  a later version of the skill is exit 5 too; 6 unexpected error: stop, give
+  a later version of the skill is exit 5 too; 7 a download link that does not answer or has
+  expired (export again for a new link, or ask the user to download the file and attach it);
+  6 unexpected error: stop, give
   the operator the one-line message, and run the same command again with `--debug` to show where
   it failed. A file holding another tool's response, or no readable file, is exit 2: save the
   right response to it.
@@ -85,6 +87,13 @@ and `snapshot` are planned and not available yet: say so if one is invoked.
   the same folder, and offer them for download. Tell the user to keep the report and the new
   pack and, when the host has Projects, to put the pack in the Project's files in place of the
   previous one: the next conversation reads it from there. The playbooks say where.
+- **Runs too large for the conversation.** When the host does not save a large tool result to a
+  file, read the runs through Sentl's export: `export-runs-tool` for the project and the runs to
+  fetch, then `monitor.py download --url <download.url> --sha256 <download.sha256>` when the
+  host can reach the link, or ask the user to download the link in the browser and attach the
+  file, then `monitor.py import --sha256 <download.sha256> <file>`. `import` writes the project,
+  the run listing and every run into `inbox/`; `ingest` then reads them as usual. The link lasts
+  60 minutes and `download` sends no credential and fetches only from Sentl's own hosts.
 - **Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
   its cause. Call the tool once more. If it fails again, `get-run-results-tool` records the run as
   unavailable and the route goes on without it (the playbooks say how); any other tool stops the

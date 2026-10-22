@@ -1,7 +1,7 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R1 and R5 done; v0.1.0 released 2026-10-19; R3d waits for Sentl; M3 after the release.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3 after the release.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -474,7 +474,7 @@ A chart with no data is left out and listed on stdout. The file is for the opera
 
 Declined: the scripts call no Sentl endpoint and hold no token. Codex is supported once R3d reads Sentl's export.
 
-## R3d: Read runs through Sentl's export, download link and pages
+## R3d: Read runs through Sentl's export, download link and pages ✅
 
 Depends on Sentl: the export of several runs in one file with a download link and a panel download, pages of `get-run-results-tool` with RFC 8785 checksums, `schema_version`, ids on each response.
 
@@ -483,14 +483,18 @@ Depends on Sentl: the export of several runs in one file with a download link an
 **Approach:** `monitor.py import` checks an export (sha256, `schema_version` through R2's schema module) and writes the project, the run listing and each run's results to `inbox/` in the tools' shapes; `download` fetches a link without credentials and imports it, exit 7 when unreachable, if a script that downloads from Sentl is accepted when R3d starts; otherwise the user downloads the export and attaches it; `ingest` accepts the pages of one run and checks each page's checksum; `adopt` and `ingest` match responses by `question_id` when present, by text otherwise. Playbooks give the order: a file the host saved, an export the user attached, checksummed pages, and for small responses only, a copy written by the assistant; the report on a web host runs from the pack and the export alone.
 
 **Tasks:**
-- [ ] Test: unit — `import` writes the inbox files from an export fixture; refuses a changed byte (exit 2) and an unknown `schema_version` (exit 5)
-- [ ] Test: unit — `download` against a local server: sha256 checked, size cap, expired link exit 7
-- [ ] Test: unit — page assembly: a missing page, a duplicate response, a different run header and a checksum mismatch each refused naming the page; the RFC 8785 test vector matches
-- [ ] Test: unit — responses with `question_id` match after a one-character change in the saved text
-- [ ] Implement `import`, `download`, pages in `ingest`, id matching; playbooks
-- [ ] Commit
+- [x] Test: unit — `import` writes the inbox files from an export fixture; refuses a changed byte (exit 2) and an unknown `schema_version` (exit 5)
+- [x] Test: unit — `download` against a local server: sha256 checked, size cap, expired link exit 7
+- [x] Test: unit — page assembly: a missing page, a duplicate response, a different run header and a checksum mismatch each refused naming the page; the RFC 8785 test vector matches
+- [x] Test: unit — responses with `question_id` match after a one-character change in the saved text
+- [x] Implement `import`, `download`, pages in `ingest`, id matching; playbooks
+- [x] Commit
+
+**Basis (2026-10-22):** Sentl's export, its pages and `question_id` are live (tool descriptions read; the staging connector was unreachable, so no live page was fetched). A page is read as an envelope with `run` (the run header and that page's `responses`), `page`, `next_page` and `content_sha256`; the first live read corrects the fixture if the envelope differs. `download` sends no credential, accepts only `https` on a host the script lists (`sentl.ai` and its subdomains) and caps the size; it exits 7 when the link is unreachable or expired.
 
 **Done when:** a report written from a pack and an export file, without any MCP result written out by the assistant, equals the report Claude Code writes from the same runs.
+
+**Deviations:** pages are read as an envelope `{run, page, next_page, content_sha256}` taken from the tool's description; no live page was fetched, so the first live read may change the fixture. The report-equality check of Done-when ran as far as `ingest`: the run snapshot from pages equals the one from the whole response. A full report from an export on a web host is R3e's run.
 
 ## R3e: Each host tested before the README says it is supported
 

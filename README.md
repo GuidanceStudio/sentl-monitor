@@ -31,15 +31,17 @@ host that deletes its files when the conversation ends.
 |---|---|---|
 | Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin install is not yet tested. |
 | opencode | `./install.sh --host agents` | Not yet tested: it installs, and `adopt` and `report` have not been run there. |
-| Codex | `./install.sh --host agents` | Not yet tested: it installs; a report needs Sentl's run export, which is not available yet. |
-| claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report needs Sentl's run export, which is not available yet. |
-| ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report needs Sentl's run export. |
+| Codex | `./install.sh --host agents` | Not yet tested: it installs; a report reads Sentl's run export (`import`), which has not been run there. |
+| claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report reads Sentl's run export, which has not been run there. |
+| ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report reads Sentl's run export, which has not been run there. |
 
 A report reads the complete results of every run in its period; one run of 39 answers is about
 250,000 characters. Those results reach the study folder only on a host that saves a large tool
 result to a file, and today that means Claude Code. On claude.ai, ChatGPT and Codex a report
-needs an export file of the runs from Sentl. Sentl does not offer a run export yet: on those hosts
-the skill can be installed, but a report cannot be produced.
+reads an export file of the runs from Sentl: the assistant calls Sentl's `export-runs-tool`, and
+the skill's `download` or `import` command writes the runs into the study folder. These commands
+are written and tested against the export's documented shape; they have not been run on those
+hosts yet.
 Whether opencode saves a large result to a file has not been measured.
 
 ## Prerequisites
@@ -119,7 +121,7 @@ codex mcp add sentinel-reputation --url https://app.sentl.ai/mcp/reputation
 codex mcp login sentinel-reputation
 ```
 
-A report cannot be produced in Codex until Sentl offers a run export.
+A report in Codex reads Sentl's run export; this has not been tested in Codex yet.
 
 ### claude.ai
 
@@ -132,17 +134,17 @@ A report cannot be produced in Codex until Sentl offers a run export.
 4. In Settings → Connectors, add a custom connector with the URL
    `https://app.sentl.ai/mcp/reputation`, and sign in.
 
-On Team and Enterprise plans, an owner can add the skill for the whole organization. A report
-cannot be produced on claude.ai until Sentl offers a run export, since a run's results do not
-fit in a conversation.
+On Team and Enterprise plans, an owner can add the skill for the whole organization. A report on
+claude.ai reads Sentl's run export, since a run's results do not fit in a conversation; this has
+not been tested on claude.ai yet.
 
 ### ChatGPT
 
 OpenAI documents standalone skills in the ChatGPT desktop app, the Codex CLI and the
 IDE extension, and on the web only inside plugins. Whether the release zip uploads as a skill
 on chatgpt.com is not confirmed. Sentl connects as a connector in developer mode, with the URL
-`https://app.sentl.ai/mcp/reputation`. A report cannot be produced in ChatGPT until Sentl offers
-a run export.
+`https://app.sentl.ai/mcp/reputation`. A report in ChatGPT reads Sentl's run export; this has not been tested
+in ChatGPT yet.
 
 ### Every assistant at once
 

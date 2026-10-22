@@ -3,6 +3,15 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- `import` writes the project, the run listing and the runs of Sentl's run export into the
+  study folder; `download` fetches the export's link first. The link is fetched with no
+  credential, only over https from Sentl's own hosts, and a file over 64 MB is refused. Exit 7
+  means the link does not answer.
+- `ingest --pages` joins the pages of one run, each checked by its `content_sha256` (RFC 8785).
+- A response that carries `question_id` is matched to its question by id; one without it, by text.
+
 ## 0.1.0 (2026-10-19)
 
 The first release. It reports on Sentl projects that already exist; the routes that design a

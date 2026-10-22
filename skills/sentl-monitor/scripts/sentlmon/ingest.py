@@ -34,6 +34,10 @@ def _question_map(version):
     return out
 
 
+def _id_map(version):
+    return {q["id"]: (d["key"], q["key"]) for d in version["dimensions"] for q in d["questions"]}
+
+
 def _asked(r):
     return match_key(r.get("dimension")), match_key(r.get("question"))
 
@@ -127,12 +131,14 @@ def ingest(root, key, results_file):
         elif earlier > later:
             tried.reverse()
     version = tried[0] if tried else None
-    maps = [(_question_map(v), "version" if version is not None and v is not version else "exact")
+    maps = [(_question_map(v), "version" if version is not None and v is not version else "exact", _id_map(v))
             for v in (tried or versions[:1])]
 
     responses, unmatched = [], []
     for r in run["responses"]:
-        found, how = next(((qmap[_asked(r)], how) for qmap, how in maps if _asked(r) in qmap), (None, "unmatched"))
+        # Sentl's question_id names the question whatever its text says now; the text is the fallback.
+        found, how = next(((ids[r["question_id"]], "id") for _, _, ids in maps if r.get("question_id") in ids),
+                          next(((qmap[_asked(r)], how) for qmap, how, _ in maps if _asked(r) in qmap), (None, "unmatched")))
         score = r.get("judge_score")
         entry = {
             "response_id": r.get("id"), "question": found[1] if found else None,

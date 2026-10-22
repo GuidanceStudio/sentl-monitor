@@ -264,10 +264,11 @@ else
 fi
 for host in Codex claude.ai ChatGPT; do
     SUB=$(awk -v h="### $host" '$0 == h {on=1; next} on && /^##/ {exit} on' "$README")
-    if grep -qF "until Sentl offers a run export" <<<"$(tr -s '\n ' ' ' <<<"$SUB")"; then
-        ok "the $host subsection says no report until Sentl offers a run export"
+    TEXT=$(tr -s '\n ' ' ' <<<"$SUB")
+    if grep -qF "reads Sentl's run export" <<<"$TEXT" && grep -qF "not been tested" <<<"$TEXT"; then
+        ok "the $host subsection says a report reads Sentl's run export and that it is not tested yet"
     else
-        bad "the $host subsection says no report until Sentl offers a run export"
+        bad "the $host subsection says a report reads Sentl's run export and that it is not tested yet"
     fi
 done
 if grep -qF "once v0.1.0 is released" <<<"$(tr -s '\n ' ' ' <<<"$(awk '/^### claude.ai$/ {on=1; next} on && /^##/ {exit} on' "$README")")"; then

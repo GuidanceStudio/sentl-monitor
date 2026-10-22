@@ -259,3 +259,14 @@ def run_listing(path):
 
 def models(path):
     return _load(path, "list-ai-models", "researcher_models", MODELS)
+
+
+def check_project(data, where):
+    """A project object already read, as an export holds it."""
+    return _load(where, "get-project-tool", "project", PROJECT, data=data)
+
+
+def check_run(data, where):
+    """A run object already read, as an export holds it; a run not final yet is read for its id and status only."""
+    spec = RUN_OPEN if isinstance(data, dict) and data.get("status") in OPEN else RUN
+    return _load(where, "get-run-results-tool", "run", spec, data=data)

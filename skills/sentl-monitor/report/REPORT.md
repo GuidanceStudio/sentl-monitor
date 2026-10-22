@@ -94,9 +94,18 @@ A line starting `Warning` says the oldest run in the listing started after the s
 window: Sentl's listing has no paging, so either the project has no earlier run or the listing
 stops there. Keep these for step 11.
 
-For each run on the `Fetch:` line: when its line says it is already saved in `inbox/` (`adopt`
-saved it), use that file; else call `get-run-results-tool` and save it to
-`$S/inbox/run-<run>.json` (copy the host's file when the response was large). Then:
+When the host saves a large tool result to a file, take each run on the `Fetch:` line one at a
+time: when its line says it is already saved in `inbox/` (`adopt` saved it), use that file; else
+call `get-run-results-tool` and save it to `$S/inbox/run-<run>.json` (copy the host's file when
+the response was large). When it does not (a web conversation), fetch all the runs of the line
+at once: `export-runs-tool` with the project and those run ids, then
+`monitor.py download --study "$S" --url <download.url> --sha256 <download.sha256>`, or, when the
+host cannot reach the link, the user downloads it and attaches the file, and
+`monitor.py import --study "$S" --sha256 <download.sha256> <file>` writes `inbox/run-<run>.json`
+for each run. Exit 7 on `download`: ask for a new export. A single run too large for one
+response can be read in pages with `get-run-results-tool` (`page`, `max_chars`), each page
+saved to its own file, and `monitor.py ingest --pages <page files>` joins them. Then, for each
+run:
 
 ```bash
 python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<run>.json"
