@@ -1,6 +1,7 @@
 """`snapshot`: validate and review a one-off snapshot, say where an interrupted route resumes, and
 record that its project is closed. Nothing here calls Sentl."""
 
+import copy
 import re
 from pathlib import Path
 
@@ -198,8 +199,9 @@ def resume(root, runs_file=None):
     if not reported:
         return _step("report", "The run is ingested and no report has passed check: write the report (step 9).")
     if "closed" not in bound:
-        return _step("archive", "The report is final and the project is not closed: pause it and give the operator "
-                                "the panel link to archive it (step 10).")
+        return _step("archive", "The report is final and the project is not closed: ask the operator whether to follow "
+                                "the subject over time (promote) or pause the project and give the panel link to "
+                                "archive it (step 10).")
     return _step("done", "The snapshot is finished: the report is final and the project is closed.")
 
 
@@ -228,3 +230,66 @@ def close(root, saved_file):
     return (f"Project {key} is paused and recorded as closed in sentl.json. The Sentl MCP cannot archive or delete a "
             "project: give the operator the link from project-edit-link-tool, to archive or delete it in the Sentl "
             "web panel. Deleting loses nothing the report needs, since the run is saved in this folder.")
+
+
+# --- promote ------------------------------------------------------------------
+
+def _promote_gaps(answers):
+    """What the operator's answers still lack for a monitored study."""
+    gaps = []
+    if answers.get("schedule") not in design.SCHEDULES:
+        gaps.append(f"schedule: one of {', '.join(design.SCHEDULES)}")
+    if answers.get("report_every") not in ("weekly", "monthly"):
+        gaps.append("report_every: weekly or monthly")
+    audience = answers.get("audience") or {}
+    if audience.get("choice") not in design.AUDIENCES or not design._text(audience.get("reason")):
+        gaps.append(f"audience: {{choice: one of {', '.join(design.AUDIENCES)}, reason}}")
+    project = answers.get("project") or {}
+    for field in ("question", "decision"):
+        if not design._text(project.get(field)):
+            gaps.append(f"project.{field}: a non-empty text")
+    return gaps
+
+
+def promote(root, answers_file, models_file):
+    """Turn a finished snapshot whose project is still open into a monitored study: the questions, the
+    rounds and the run stay, so the run is the baseline of the first report. Writes study.json only."""
+    folder = Study(root)
+    study = _load(root)
+    project = study["projects"][0]
+    key = project["key"]
+    binding = load_json(folder.path("sentl.json")) if folder.path("sentl.json").exists() else {"projects": {}}
+    bound = binding["projects"].get(key)
+    if bound is None or not bound.get("questions"):
+        raise Refused(f"project {key} is not created in Sentl: a snapshot is promoted after its run")
+    if "closed" in bound:
+        raise Refused("the snapshot's project is closed: nothing is left to follow. Design a study for the "
+                      "subject (`brief`, `design`) and keep this report as the first look")
+    if not any(folder.path("history", "runs", key).glob("*.json.gz")):
+        raise Refused("the snapshot has no run in history/runs: its run is the baseline, so it is ingested first")
+    if not any(e["status"] == "final" for e in folder.reports()):
+        raise Refused("the snapshot has no report that passed check: write the report (SNAPSHOT.md step 9) before "
+                      "promoting it")
+    answers = load_json(answers_file)
+    gaps = _promote_gaps(answers)
+    if gaps:
+        raise Refused("answers missing for a monitored study:\n  - " + "\n  - ".join(gaps))
+    promoted = copy.deepcopy(study)
+    promoted["kind"] = "study"
+    promoted["report_every"] = answers["report_every"]
+    promoted.setdefault("narrative", {})["audience"] = answers["audience"]
+    promoted["projects"][0].update(schedule=answers["schedule"], question=answers["project"]["question"],
+                                   decision=answers["project"]["decision"])
+    when = min(e["date"] for e in folder.reports() if e["status"] == "final")
+    promoted["themes"] = [{"id": d["key"], "label": d["name"], "dimension": d["key"],
+                           "origins": [{"kind": "probe", "detail": f"the snapshot of {when} asked this dimension "
+                                                                   f"({d['catalogue']} in the catalogue)"}]}
+                          for d in promoted["projects"][0]["dimensions"]]
+    problems, _ = design.problems_of(promoted, set(schema.models(models_file)))
+    if problems:
+        raise Refused("the promoted study fails validate:\n  - " + "\n  - ".join(problems))
+    write_json(folder.path("study.json"), promoted)
+    return (f"Promoted: study.json is a study with project {key} on a {answers['schedule']} schedule and reports "
+            f"{answers['report_every']}; the snapshot's run and report stay as the baseline. Nothing was sent to "
+            "Sentl and the project is still paused. Next: `payload` (saves the schedule), then, on the operator's "
+            f"go, activation; `report` compares each period with the snapshot of {when}.")

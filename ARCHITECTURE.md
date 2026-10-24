@@ -681,6 +681,15 @@ run with no final report → report; no `closed` in `sentl.json` → archive.
 playbook; it needs `--runs` once the project holds questions, and refuses a listing of another
 project.
 
+The last step offers a choice. `monitor.py promote --answers <json> --models <list-ai-models>` turns a
+finished snapshot whose project is not closed into a monitored study: `kind` becomes `study`; the
+schedule, `report_every`, the audience and the project's question and decision come from the
+operator's answers; each dimension gets a theme whose origin is `probe` (the snapshot of that date);
+questions, rubrics and rounds are untouched; `sentl.json` is untouched and `closed` is never written.
+It validates the study as `design` does and writes nothing when that fails. It sends nothing to
+Sentl: `setup` saves the schedule and activates on the operator's go. The snapshot's run and report
+stay in `history/`, so the first `report` of the study compares its period with the snapshot's.
+
 1. **Preflight.** `list-organizations` (connection, and the Owner or Admin role in the
    organization the operator picks), `get-organization-tool` (credits, subscription),
    `list-projects-tool` (the operator is told of any project already named after the

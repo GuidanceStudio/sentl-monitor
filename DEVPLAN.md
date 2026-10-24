@@ -640,3 +640,32 @@ The live test verifies the folder the two invocations left (the assistant runs t
 - The live test (`SENTL_LIVE_SNAPSHOT_STUDY`, `SENTL_LIVE_TEST_ORG`) is written and skipped here; A6 stays unverified in ARCHITECTURE.md, since it needs a live write.
 
 **Done when:** `snapshot <subject>` in an empty folder ends with a report that passes `check` in the snapshot order, the Sentl project paused, and the operator holding the panel link to archive it.
+
+## M8: One Sentl skill: set up, snapshot, status zero, compare 🔄
+
+**Why:** a separate standalone snapshot skill (it calls a model provider directly) and the `snapshot` route here answer the same request. The operator wants one skill that does everything through the Sentl MCP and no direct model calls: set up and manage projects, take a snapshot, read a first measurement ("status zero"), and compare moments.
+
+**Approach:** `sentl-monitor` stays the only skill and gains no model-call code. Its routes are grouped by what the operator wants, and `SKILL.md` routes by that:
+
+| The operator wants | Route | State left behind |
+|---|---|---|
+| a first look at a subject, nothing to keep | `snapshot <subject>` | one project, one run, project closed, one report |
+| to follow a subject over time | `brief`, `design`, `setup`, then `report` at each period | a study folder that grows |
+| to start following a subject already looked at (status zero) | `promote`, a step (not a route) reached from the last question of `snapshot` ("follow it over time?") and from `setup` run on a snapshot folder: the project is kept, scheduled on the operator's go, and its run is the baseline | the study folder, the project scheduled, baseline = that run |
+| what changed between two moments | `report` compares periods of one study; between two snapshots of the same subject, `report` compares the two folders (new: `compare <folder> <folder>`, same questions required) | `reports/<date>.md` |
+| to manage a project that exists in Sentl | `adopt`, `setup` | study folder bound to the project |
+
+The standalone skill is archived with a README pointing here. Its direct model calls, PDF and Drive upload, and batch mode are not ported: no other skill uses them (checked 2026-10-24), and a batch over Sentl would need one project per brand. The Sentl-side feature that makes snapshots clean (a project that runs once and closes itself, and can be converted into a monitored project) is reputation-sentinel issue #8. Until it ships, `promote` uses `update-project-settings-tool` on the project the snapshot created; questions and rounds stay as they were so the baseline remains comparable.
+
+**Tasks:**
+- [x] Test: unit — the routing table in `SKILL.md` names one route for each request shape above
+- [x] Test: unit — `snapshot` ends in `close` or `promote`; `promote` keeps the project, adds the schedule only on the operator's go, and records the run as the baseline period
+- [ ] Test (last, when a second snapshot of a subject exists): unit — `compare` refuses two folders whose questions differ, and matches answers by question id across them
+- [x] Test: unit — no script or playbook names a model-provider endpoint or key
+- [~] Implement `promote` (done) in `monitor.py` and the playbooks, then `compare` last (open); rewrite the "When to use" section of `SKILL.md`; update ARCHITECTURE.md
+- [x] Archive the standalone snapshot skill (README pointer, devplan closed)
+- [~] Commit and push to `main` (promote, routing and archive pushed; `compare` open)
+
+**Decided 2026-10-24:** `promote` is a step, not a route. `compare` between two snapshot folders stays in the plan as the last task and is built when a second snapshot of a subject exists.
+
+**Done when:** the same installed skill takes a snapshot, turns it into a study, and compares it with a later period; the standalone skill is no longer installed; the suites pass.

@@ -215,9 +215,35 @@ python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
 Exit 1 lists each problem: fix the report and run it again until it passes. A passing report is
 recorded in `history/reports.json` as final.
 
-## 10. Archive
+## 10. Follow it, or archive it
 
-The Sentl MCP has no tool that archives or deletes a project. Pause it so that no scheduled run
+Ask the operator: **follow this subject over time?** The run and its report are the baseline of
+a study when the answer is yes, and then the project is kept, not archived. A no goes to the
+archive below.
+
+**Yes: promote.** Ask for what a monitored study needs and the snapshot did not: how often the
+project runs (`daily`, `weekly` or `monthly`), how often a report covers (`weekly` or `monthly`),
+the audience (`generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason), and
+the question and the decision of the project. Save them as `$S/inbox/promote.json`:
+
+```json
+{"schedule": "weekly", "report_every": "monthly",
+ "audience": {"choice": "generic_consumer", "reason": "..."},
+ "project": {"question": "...", "decision": "..."}}
+```
+
+```bash
+python3 <skill>/scripts/monitor.py promote --study "$S" --answers "$S/inbox/promote.json" --models "$S/inbox/models.json"
+```
+
+It writes `study.json` as a study (questions, rubrics and rounds unchanged, one theme per
+dimension with the snapshot as its origin) and sends nothing. Then follow `setup/SETUP.md` from
+the `payload` step: it saves the schedule, and activates the project only on the operator's go
+after `estimate-run-tool`. The snapshot's report becomes the baseline: the next `report` compares
+the first period with it. `promote` on a snapshot folder is also the answer when the operator
+comes back later and asks to follow the subject, as long as the project is not closed.
+
+**No: archive.** The Sentl MCP has no tool that archives or deletes a project. Pause it so that no scheduled run
 can start and no further credits are spent. Call `get-project-tool`, saved to
 `$S/inbox/project.json`. When it shows `is_active: true`, run the payload of step 6 with `--saved` and `--runs` and, on the
 operator's go, call `update-project-settings-tool` with exactly the arguments it prints under

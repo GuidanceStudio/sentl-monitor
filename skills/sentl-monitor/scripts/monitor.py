@@ -195,6 +195,11 @@ def _parser():
     l.add_argument("--study", default=".")
     l.add_argument("--saved", required=True, help="saved get-project-tool response, read after the pause")
 
+    r = command("promote", "turn a finished snapshot whose project is still open into a monitored study")
+    r.add_argument("--study", default=".")
+    r.add_argument("--answers", required=True, help="JSON file: schedule, report_every, audience, project question and decision")
+    r.add_argument("--models", required=True, help="saved list-ai-models response")
+
     u = command("unpack", "check a pack and write its files into the study folder")
     u.add_argument("--study", default=".", help="study folder: empty, or the folder of the pack's own study")
     u.add_argument("pack", help="the pack written by pack")
@@ -283,6 +288,8 @@ def main(argv=None):
             print(snapshot.resume(args.study, args.runs))
         elif args.command == "close":
             print(snapshot.close(args.study, args.saved))
+        elif args.command == "promote":
+            print(snapshot.promote(args.study, args.answers, args.models))
         elif args.command == "unpack":
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except demand.Incomplete as exc:

@@ -35,6 +35,8 @@ the route by the state of the study:
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
 - Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own.
+- Someone wants to follow a subject they already looked at with a snapshot: `sentl-monitor snapshot` in that folder, which ends by offering `promote` (step 10) while the project is not closed; afterwards `setup` saves the schedule and `report` compares each period with the snapshot. A closed snapshot is followed by `brief` and `design`, keeping its report as the first look.
+- Someone asks what changed between two moments: `sentl-monitor report` in the study's folder; it compares each period with the one before, and with the snapshot when the study began as one.
 
 ## Routes
 
@@ -45,7 +47,7 @@ the route by the state of the study:
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
-| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once: 4 or 5 dimensions from the catalogue, one project created paused, one run on the operator's go after the credit estimate, a short report, then the project is paused and left for the operator to archive; invoked again in the same folder, it resumes |
+| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once: 4 or 5 dimensions from the catalogue, one project created paused, one run on the operator's go after the credit estimate, a short report, then the operator chooses: `promote` keeps the project and turns the snapshot into a monitored study whose baseline is this run, or the project is paused and left for the operator to archive; invoked again in the same folder, it resumes |
 
 Read the playbook of the route invoked and follow it step by step.
 

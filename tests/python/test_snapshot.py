@@ -539,3 +539,101 @@ class CloseTest(SnapshotCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+ANSWERS = {"schedule": "weekly", "report_every": "monthly",
+           "audience": {"choice": "generic_consumer", "reason": "the snapshot asked as a consumer would"},
+           "project": {"question": "What do assistants tell a buyer of Avenello oat milk?",
+                       "decision": "Which dimension to work on first"}}
+
+
+class PromoteTest(SnapshotCase):
+    """`promote`: a snapshot whose project is kept becomes a monitored study; its run is the baseline."""
+
+    def promote(self, answers=None, check=0):
+        return self.cli("promote", "--study", self.study, "--answers",
+                        self.save("promote.json", ANSWERS if answers is None else answers),
+                        "--models", self.models, check=check)
+
+    def changed(self, **edit):
+        answers = json.loads(json.dumps(ANSWERS))
+        answers.update(edit)
+        return answers
+
+    def test_a_finished_snapshot_becomes_a_study_with_the_schedule_and_the_cadence(self):
+        self.final_report()
+        self.promote()
+        study = self.read("study.json")
+        self.assertEqual(study["kind"], "study")
+        self.assertEqual(study["report_every"], "monthly")
+        project = study["projects"][0]
+        self.assertEqual((project["schedule"], project["rounds"]), ("weekly", 1))
+        self.assertEqual(project["question"], ANSWERS["project"]["question"])
+        self.assertEqual(study["narrative"]["audience"]["choice"], "generic_consumer")
+
+    def test_each_dimension_gets_a_theme_whose_origin_is_the_snapshot_probe(self):
+        self.final_report()
+        self.promote()
+        study = self.read("study.json")
+        keys = {d["key"] for d in study["projects"][0]["dimensions"]}
+        self.assertEqual({t["dimension"] for t in study["themes"]}, keys)
+        self.assertTrue(all(t["origins"][0]["kind"] == "probe" and DATE in t["origins"][0]["detail"]
+                            for t in study["themes"]))
+
+    def test_the_questions_and_rubrics_are_left_as_they_were(self):
+        self.final_report()
+        before = [q for d in self.read("study.json")["projects"][0]["dimensions"] for q in d["questions"]]
+        self.promote()
+        after = [q for d in self.read("study.json")["projects"][0]["dimensions"] for q in d["questions"]]
+        self.assertEqual(before, after)
+
+    def test_the_project_stays_bound_and_is_not_closed(self):
+        self.final_report()
+        self.promote()
+        bound = self.read("sentl.json")["projects"][KEY]
+        self.assertEqual(bound["project_id"], PROJECT_ID)
+        self.assertNotIn("closed", bound)
+
+    def test_it_sends_nothing_and_activates_nothing(self):
+        self.final_report()
+        out = self.promote().stdout
+        self.assertIn("payload", out)
+        self.assertIn("go", out)
+        self.assertNotIn('"is_active": true', out)
+
+    def test_a_project_that_ran_nothing_is_refused(self):
+        self.bind_full()
+        self.assertIn("run", self.promote(check=2).stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+
+    def test_a_snapshot_without_a_final_report_is_refused(self):
+        self.bind_full()
+        self.ingest_run()
+        self.assertIn("report", self.promote(check=2).stderr)
+
+    def test_a_project_already_closed_is_refused(self):
+        self.final_report()
+        self.close(self.saved_paused())
+        self.assertIn("closed", self.promote(check=2).stderr)
+
+    def test_a_study_that_is_not_a_snapshot_is_refused(self):
+        self.final_report()
+        self.promote()
+        self.assertIn("snapshot", self.promote(check=2).stderr)
+
+    def test_missing_answers_are_named_and_nothing_is_written(self):
+        self.final_report()
+        answers = self.changed(schedule="hourly", report_every="yearly")
+        del answers["audience"]
+        stderr = self.promote(answers, check=2).stderr
+        for word in ("schedule", "report_every", "audience"):
+            self.assertIn(word, stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+
+    def test_the_first_report_after_promotion_compares_with_the_snapshot(self):
+        self.final_report()
+        self.promote()
+        self.ingest_run(run_id=RUN_ID + 1, started="2026-11-22T09:00:00Z",
+                        scores={k: 5 for k in SCORES})
+        proc = self.cli("period", "--study", self.study, "--date", "2026-11-22", "--models", self.models, check=0)
+        self.assertIn(f"Compared with the period of {DATE}", proc.stdout)
