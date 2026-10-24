@@ -1,7 +1,11 @@
 # Devplan — sentl-monitor
 
 **Status:** approved 2026-10-16, after a revision the same day that followed a read of Sentl
-projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4, M5, M6 and M7 done.
+projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 (release to every Sentl user) approved 2026-10-19, R0, R2 and R4 done; R3a, R3b, R3d, R1 and R5 done; v0.1.0 released 2026-10-19; M3, M4, M5, M6, M7 and M8 done.
+Revised 2026-10-24 against Sentl's MCP as its tool descriptions read that day, on the operator's
+instruction: M9 (the statuses, ids, filters and error codes Sentl documents today), M10 (a live
+snapshot, promoted), R6 (release 0.2.0), R3e re-ordered with claude.ai first, M11 (`compare`, moved
+out of M8). Order: M9, M10, R6, R3e, M11 when a second snapshot of one subject exists. Next: M9.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -12,6 +16,15 @@ rebuilds the K periods before it from the project's history and compares with th
 Revised later the same day: assumption A1 is settled at the start of M2 on read-only data, a
 project whose earliest run predates an in-place edit of its questions, instead of a test run;
 no credit is spent.
+
+**Decisions of 2026-10-24:** sentl-monitor is the one Sentl skill and makes no model call; the
+standalone snapshot skill is archived (M8). `promote` is a step at the end of `snapshot`, not a
+route. The skill reads Sentl as the MCP documents it on the day a milestone is designed, and a gap
+the MCP has closed leaves the plan's risks in the milestone that reads the new field (M9). No
+route is released before it has run live on the test organization (M10 before R6). The hosts are
+tested in the order Sentl's users have them: claude.ai, ChatGPT, Codex, opencode, then the Claude
+Code plugin install (R3e). `compare` between two snapshot folders is built when a second snapshot
+of one subject exists (M11).
 
 ## Objective
 
@@ -33,12 +46,30 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 
 ## Risks
 
-- Run results identify questions by text only (gap G1): responses are matched by dimension
-  name and text to local keys, duplicate texts are refused, and every pending run is
-  ingested before any write to Sentl.
-- Large run results can exceed a host's tool-output limit (gap G3): `ingest` refuses
-  truncated data; the skill relies on hosts that save oversize output to a file. Claude Code
-  does: a run of 39 answers, about 250,000 characters, was saved as complete JSON.
+- Each response carries `question_id`, `dimension_id` and `round` since Sentl closed gap G1 (tool
+  descriptions read 2026-10-24); the skill matches by `question_id` when present and by dimension
+  name and text otherwise (runs saved before the ids existed), refuses duplicate texts, and
+  ingests every pending run before any write to Sentl. M9 reads `dimension_id` and `round` too.
+- Large run results can exceed a host's tool-output limit: `ingest` refuses truncated data.
+  Claude Code saves oversize output to a file (a run of 39 answers, about 250,000 characters,
+  arrived as complete JSON); every other host reads Sentl's export (R3d) or the checksummed pages
+  of `get-run-results-tool`, which closed gap G3.
+- The skill's run statuses lag Sentl's: it reads `completed` and `completed_with_warnings` as
+  final and `pending`, `queued` and `running` as open, while Sentl documents `researching` and
+  `judging` as open and `failed` and `stalled` as final (read 2026-10-24). A run followed through
+  `researching` is listed as a status never seen and its results are refused (exit 5), so no live
+  snapshot runs before M9.
+- An organization's project limit (reputation-sentinel issue #2; three active projects observed
+  behind "An internal server error occurred." on `create-project-tool`, unverified): every
+  snapshot creates a project, so the preflight counts the organization's projects, and closed
+  snapshots are archived in the panel by hand until issue #3 (archive and restore through the
+  MCP) or #8 (a snapshot project that closes itself) ships.
+- `snapshot`, `resume`, `close`, `promote` and the pages of `get-run-results-tool` have run only
+  on fixtures, and assumption A6 is unverified: M10 runs them live before 0.2.0.
+- The connectors to Sentl's MCP configured in the claude.ai account (production and staging)
+  answered 404, no MCP endpoint at the URL, on 2026-10-24, while a direct HTTP connection to
+  https://app.sentl.ai/mcp worked from this machine; R3e's claude.ai run starts by checking the
+  connector's URL against the setup page.
 - Small MCP responses arrive inline and reach `inbox/` only through the assistant writing them
   out, which can alter a character: matching normalizes quotes and whitespace, `adopt` and
   `bind` cross-check the saved project against the latest run, and `payload` never sends a
@@ -75,12 +106,26 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 ### Phase D — One-off snapshot
 - M7: Run a one-off snapshot on Sentl — a quick check of a subject, with no project left running. Depends on M1, M4 and M5.
 
+### Phase E — One Sentl skill
+- M8: One Sentl skill: set up, snapshot, status zero — `promote` turns a snapshot into a monitored study.
+- M9: Read Sentl as its MCP documents it today — the nine run statuses, the ids on each response, the run-list filters, the error codes.
+- M10: A live snapshot, promoted — the routes of Phases D and E run on Sentl before they are released.
+- M11: `compare` two snapshots of one subject — built when a second snapshot of one subject exists.
+
+### Phase F — Release to every Sentl user
+- R0, R1, R2, R4, R5, R3a, R3b, R3d: done; 0.1.0 released 2026-10-19 with `adopt` and `report`.
+- R6: Release 0.2.0 — the routes of Phases B to E in the zip Sentl users download.
+- R3e: Each host tested before the README says it is supported — claude.ai first; the announcement to Sentl users waits for it.
+
 ## Out of scope
 
 - Model calls, OpenRouter, any key or token handled by the skill.
 - Rendering: outputs are Markdown; PDF, slides and HTML are the operator's choice of tool.
 - Scripts calling the Sentl endpoint directly.
 - A batch mode that runs a snapshot for each subject of a list, and a PDF of the snapshot report.
+- Sentl-side work: reputation-sentinel issues #2 (the limits the MCP does not state), #3 (archive
+  and restore a project), #7 (no score from a truncated verdict) and #8 (a snapshot project that
+  closes itself). The skill reads what ships, in a milestone opened then.
 
 ---
 
@@ -498,18 +543,20 @@ Depends on Sentl: the export of several runs in one file with a download link an
 
 ## R3e: Each host tested before the README says it is supported
 
-**Why:** the hosts document little about tool-result sizes, sandbox paths and Python versions; support is claimed only after a run on the host.
+**Why:** the hosts document little about tool-result sizes, sandbox paths and Python versions; support is claimed only after a run on the host. The release is announced to Sentl users only once claude.ai and ChatGPT, the hosts most of them have, are recorded here with a pass.
 
-**Approach:** tests on the operator's machine for the CLI hosts and checklists run by hand on the operator's own claude.ai (Pro or Max) and ChatGPT (Plus or Pro) accounts, each recorded here with date, plan, version and outcome; the README's support table changes only on a recorded pass.
+**Approach:** after R6, on 0.2.0. Order: claude.ai, ChatGPT, Codex, opencode, then the Claude Code plugin install. Each run is a checklist by hand on the operator's own accounts, recorded under "Recorded runs" below with the date, the plan, the host's version, the skill's version and the outcome; the README's support table changes only on a recorded pass, in the same commit as the record. A host that fails gets a devplan item for the fix, never a smaller claim in the table. Precondition for claude.ai: the connectors to Sentl's MCP configured in the claude.ai account (production and staging) answered 404, no MCP endpoint at the URL, on 2026-10-24, while a direct HTTP connection to https://app.sentl.ai/mcp worked from this machine; the connector's URL is checked against https://app.sentl.ai/mcp/setup and corrected before the run.
 
 **Tasks:**
-- [ ] Claude Code: live tests from the plugin install and from `install.sh`
-- [ ] opencode: install, MCP spill measured, adopt and report
-- [ ] Codex: install, truncation measured, report from an export file once R3d ships
-- [ ] claude.ai: upload, `doctor`, connector, result size measured, adopt, report, pack, new conversation, report again; the export path on Pro or Max once R3d ships
-- [ ] ChatGPT: skills, developer mode and the Sentl connector checked on Plus or Pro, then the same as claude.ai where they work; no Business workspace is available, so Business, Enterprise and Edu are not claimed until a recorded run
-- [ ] README support table updated from the recorded results
+- [ ] claude.ai (Pro or Max): connector answering; the release zip uploaded as a skill; `doctor` reports the sandbox; `adopt` on a project with runs; the size of a `list-runs-tool` response and of a paged `get-run-results-tool` response measured against the host's limit; `report` from `export-runs-tool` and `download`, or the attached file and `import`; `pack`; a new conversation with the pack in the Project's files; `report` again; `snapshot` end to end
+- [ ] ChatGPT (Plus or Pro): whether skills, developer mode and the Sentl connector are available on the plan; where they are, the list of the claude.ai run; where they are not, the README says which plan is needed; Business, Enterprise and Edu are not claimed
+- [ ] Codex: `install.sh --host agents`, `codex mcp add`, the truncation limit measured, `report` from the export
+- [ ] opencode: install, the MCP spill measured, `adopt` and `report`
+- [ ] Claude Code: the plugin install from the marketplace, `adopt` and `report`
+- [ ] README support table updated from the recorded results, each in the commit of its run
 - [ ] Commit
+
+**Recorded runs:** none yet.
 
 **Done when:** every host in the README's table is backed by a recorded run on the released version.
 
@@ -641,7 +688,7 @@ The live test verifies the folder the two invocations left (the assistant runs t
 
 **Done when:** `snapshot <subject>` in an empty folder ends with a report that passes `check` in the snapshot order, the Sentl project paused, and the operator holding the panel link to archive it.
 
-## M8: One Sentl skill: set up, snapshot, status zero, compare 🔄
+## M8: One Sentl skill: set up, snapshot, status zero ✅
 
 **Why:** a separate standalone snapshot skill (it calls a model provider directly) and the `snapshot` route here answer the same request. The operator wants one skill that does everything through the Sentl MCP and no direct model calls: set up and manage projects, take a snapshot, read a first measurement ("status zero"), and compare moments.
 
@@ -660,12 +707,84 @@ The standalone skill is archived with a README pointing here. Its direct model c
 **Tasks:**
 - [x] Test: unit — the routing table in `SKILL.md` names one route for each request shape above
 - [x] Test: unit — `snapshot` ends in `close` or `promote`; `promote` keeps the project, adds the schedule only on the operator's go, and records the run as the baseline period
-- [ ] Test (last, when a second snapshot of a subject exists): unit — `compare` refuses two folders whose questions differ, and matches answers by question id across them
+- [x] `compare` and its test moved to M11 (2026-10-24), built when a second snapshot of one subject exists
 - [x] Test: unit — no script or playbook names a model-provider endpoint or key
-- [~] Implement `promote` (done) in `monitor.py` and the playbooks, then `compare` last (open); rewrite the "When to use" section of `SKILL.md`; update ARCHITECTURE.md
+- [x] Implement `promote` in `monitor.py` and the playbooks; rewrite the "When to use" section of `SKILL.md`; update ARCHITECTURE.md
 - [x] Archive the standalone snapshot skill (README pointer, devplan closed)
-- [~] Commit and push to `main` (promote, routing and archive pushed; `compare` open)
+- [x] Commit and push to `main`
 
-**Decided 2026-10-24:** `promote` is a step, not a route. `compare` between two snapshot folders stays in the plan as the last task and is built when a second snapshot of a subject exists.
+**Decided 2026-10-24:** `promote` is a step, not a route. `compare` between two snapshot folders is M11, built when a second snapshot of one subject exists; M8 closes without it, so no milestone waits in progress on an event outside the repository.
 
 **Done when:** the same installed skill takes a snapshot, turns it into a study, and compares it with a later period; the standalone skill is no longer installed; the suites pass.
+
+**Deviations:**
+- `snapshot`, `promote` and the first `report` on a promoted study ran on fixtures only; M10 runs them live before 0.2.0.
+- `compare` between two snapshot folders is M11.
+- The suites passed on 2026-10-24 at the M8 commit, under Python 3.14: structure, skill, install and
+  package suites (85 checks in package), 721 unit tests with one skipped (the `/mnt/data` case); the
+  live tier skipped.
+
+## M9: Read Sentl as its MCP documents it today
+
+**Why:** Sentl's tool descriptions, read 2026-10-24, document what this plan lists as gaps G1, G3, G7, G8, G14, G19 and, for the read tools, G18, and as assumptions A2 and A4: each response carries `question_id`, `dimension_id` and `round` (null ids when the question or dimension was deleted); `get-run-results-tool` reads a run in pages (`page`, `page_size`, `max_chars` up to 100,000) with `content_sha256` and filters by `question_id`; `list-runs-tool` filters by `started_after`, `started_before` and `status`, pages, counts `total`, and gives `expected`, `received` and `judged` for each run; the run statuses are `queued`, `pending`, `researching`, `running`, `judging` (open) and `completed`, `completed_with_warnings`, `failed`, `stalled` (final); `reputation_score` is the mean of the dimension averages, one decimal, null when nothing was judged; `sentiment` is null when the answer was not judged; the read tools' errors carry `error.code` (`not_found`, `invalid_argument`, `internal`) and never `forbidden` or `rate_limited`; every read response carries `schema_version`. The skill reads three open and two final statuses, no round number (A3), the whole run listing at every report, and every error as the same server error. A live run passes through `researching` and `judging`, which `runs` lists as never seen and `ingest` refuses with exit 5.
+
+**Approach:** `schema.py` and `common.py` take the nine statuses; `runs`, `resume`, `pending` and the playbooks read `researching` and `judging` as open, and `failed` and `stalled` as final runs with no results to fetch, listed to the operator with their status and left out of the period; `ingest` takes `round` from the response and matches by `dimension_id` and `question_id` before text, and lists a response with null ids as unmatched for a deleted question or dimension; `runs` prints the arguments of `list-runs-tool` for the report's window (`started_after` at the previous report's last run minus the margin of §Periods, no `status`, paged) and reads `total` and `next_page`, which replaces the warning on a listing whose oldest run starts after the window (G8); the floor of §Coverage is decided from `expected` and `judged` in the listing before any results are fetched, so a run under the floor costs no read, with the results as the fallback when the listing lacks the fields; a saved response that holds `error.code` is refused naming the code and the message, and the playbooks' error rule becomes: `internal`, the tool is called once more, as today; `not_found`, stop and name the id; `invalid_argument`, stop, the skill needs an update; the write tools keep today's rule until their errors are documented. The read paths per host do not change: Claude Code keeps the whole response saved to a file, the other hosts the export or the pages (R3d). ARCHITECTURE: §Responses from Sentl, §Failure and degradation, §MCP gaps (G1, G3, G7, G8, G14 and G19 closed with the date, G18 closed for the read tools), §Assumptions (A2 and A4 verified from the documentation, confirmed live in M10); the preflight of M10 reads whether a judgment carries the judge's report (G5).
+
+**Tasks:**
+- [ ] Test: unit — a listing with every documented status: the five open ones are followed, `failed` and `stalled` are listed as final with no results and left out of the period with their status, no documented status is reported as never seen, an undocumented one still is
+- [ ] Test: unit — `ingest` reads `round` from the response (three rounds in any order give the same run snapshot), matches by `dimension_id` and `question_id` before text, and lists a response with null ids as unmatched for a deleted question or dimension; the fixtures without ids give a byte-identical run snapshot
+- [ ] Test: unit — `runs` prints the `list-runs-tool` arguments for the window and reads a paged listing (`total`, `next_page`); a listing whose `total` exceeds the runs read is refused (exit 2) naming the pages missing
+- [ ] Test: unit — a run under the 90% floor by `expected` and `judged` in the listing is left out before its results are read and listed to the operator; a listing without those fields falls back to the results
+- [ ] Test: unit — a saved response holding `error.code` is refused (exit 2) naming the code and the message, not as another tool's response
+- [ ] Test: bash — SKILL.md and the playbooks name the nine statuses and the three error codes, and no sentence says every error reads the same; `resume` follows a run in `researching` and `judging`
+- [ ] Implement; ARCHITECTURE §Responses from Sentl, §Failure and degradation, §MCP gaps, §Assumptions; CHANGELOG
+- [ ] Commit
+
+**Done when:** `report` on the fictional study with the fixtures without ids is byte-identical to today's, a listing with the nine statuses is read without a never-seen line, and a live run listing read in M10's preflight passes the schema.
+
+## M10: A live snapshot, promoted, on the test organization
+
+**Why:** `snapshot`, `resume`, `close`, `promote` and the pages of `get-run-results-tool` have run only on fixtures; assumption A6 (a run starts on a project that was never active) is unverified; the live tier under `tests/live/` is skipped. 0.2.0 (R6) claims these routes.
+
+**Approach:** after M9. In the organization the operator designates for tests, with the credits `get-organization-tool` shows, on a subject the operator picks, in a folder outside the repository and never named in it. The preflight counts the organization's projects against the limit of issue #2. `snapshot <subject>`: estimate shown, one run on the go; the session is ended after the go and a new one resumes and follows the run through its statuses, recorded as A2's live observation; the results are read once in pages and compared with the whole response, and R3d's page fixture is corrected if the envelope differs; the report passes `check`. Then `promote` with the operator's answers, `setup` dry run and the questions and schedule saved on the go with the project left paused, `trigger-run-tool` once on the go, and `report`, which compares the period with the snapshot's baseline and passes `check`; then the pause, `close`, and the operator archives the project in the panel. Two runs of four or five questions; the credits spent are read from `get-organization-tool` before and after and recorded against the two estimates. Each outcome goes into ARCHITECTURE with the date and the skill version.
+
+**Tasks:**
+- [ ] Preflight, read-only: `list-organizations`, `get-organization-tool` (credits), `list-projects-tool` (count against the limit), `list-runs-tool` of an existing project read through M9's schema, and whether a judgment in `get-run-results-tool` carries the judge's report (G5); recorded
+- [ ] `snapshot <subject>` to the go; the session ended; a new session resumes and follows the run; the statuses seen recorded (A2 live)
+- [ ] The results read once in pages, compared with the whole response; the page fixture corrected if the envelope differs (R3d)
+- [ ] The snapshot report passes `check`; A6 recorded (the run started on a project never active, or what it took)
+- [ ] `promote` with the operator's answers; `setup` dry run, questions and schedule saved on the go, project left paused; `trigger-run-tool` once on the go; `report` compares the period with the snapshot's baseline and passes `check`
+- [ ] Pause, `close`; the project archived in the panel by the operator; the credits spent recorded against the two estimates
+- [ ] `RUN_LIVE=1`: `test_snapshot_live.py` and `test_setup_live.py` pass on the folder; a live test that fails is fixed, or its expectation corrected, test first
+- [ ] ARCHITECTURE §Assumptions (A2, A6) and §`snapshot <subject>`; README's `snapshot` row says it has run; CHANGELOG
+- [ ] Commit
+
+**Done when:** a folder outside the repository holds a snapshot report and a study report that compares with the snapshot's baseline, both passing `check`, A6 is recorded as verified, and the live tier passes on that folder.
+
+## M11: `compare` two snapshots of one subject
+
+**Why:** moved out of M8 on 2026-10-24. Two snapshots of one subject taken at two moments, with no study between them, are compared today by reading both reports. `report` already compares a promoted study with its snapshot, so `compare` serves only snapshots that were not promoted. Built when a second snapshot of one subject exists, after M10.
+
+**Approach:** `monitor.py compare <folder> <folder>` writes `reports/<date>.compare.md` in the second folder: the same questions required, matched by `question_id` when both folders bind the same project and by text otherwise; each dimension's figure and presence on both sides; a change called by the rule of §What counts as a change with one run on each side, and `limits` says that a difference between two single runs is not a trend; `check` in a compare order. `SKILL.md` routes "what changed between two snapshots" to it.
+
+**Tasks:**
+- [ ] Test: unit — `compare` refuses two folders whose questions differ (exit 2) naming the questions; matches answers by question id across two folders of one project and by text across two projects
+- [ ] Test: unit — the compare report's order and `check`; `limits` states one run on each side
+- [ ] Implement `compare`; `SKILL.md` "When to use" and Routes; ARCHITECTURE; CHANGELOG
+- [ ] Commit
+
+**Done when:** two snapshot folders of one fictional subject produce a compare report that passes `check`.
+
+## R6: Release 0.2.0
+
+**Why:** 0.1.0 (2026-10-19) holds `adopt` and `report`; `brief`, `design`, `setup`, `snapshot`, `promote`, the unattended report, the export and the pack are in CHANGELOG's Unreleased, so the zip Sentl users download lacks them, and `install.sh --check` on this machine shows 0.1.0.
+
+**Approach:** after M9 and M10. CHANGELOG's Unreleased becomes 0.2.0 with its date, with `promote`, `resume` and `close` and M9's changes listed; `metadata.version` becomes 0.2.0 (the one source: `plugin.json`, the marketplace entry and `--version` follow it); README "What works today" names `promote` and the `snapshot` row records M10's run; the support table does not change (R3e changes it); tag `v0.2.0`, and `release.yml` attaches the zip and its sha256; `install.sh --force` and `--check` on this machine show 0.2.0. The announcement to Sentl users, a link from the Sentl panel or the MCP setup page to the repository and the zip, waits for R3e's claude.ai and ChatGPT runs.
+
+**Tasks:**
+- [ ] Test: bash — the version in SKILL.md, `plugin.json`, the marketplace entry and CHANGELOG's latest release agree; `build_zip.py` passes on the tagged tree
+- [ ] CHANGELOG, README, the version; commit; tag `v0.2.0`; the release checked: zip, sha256, workflow green on Python 3.10 to 3.13
+- [ ] `install.sh --force` and `--check` on this machine show 0.2.0
+- [ ] Commit
+
+**Done when:** the latest release at github.com/GuidanceStudio/sentl-monitor serves `sentl-monitor.zip` and its sha256 for 0.2.0, and the suite passes on the tag.
