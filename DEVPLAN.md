@@ -775,6 +775,25 @@ The standalone skill is archived with a README pointing here. Its direct model c
 
 **Done when:** two snapshot folders of one fictional subject produce a compare report that passes `check`.
 
+## M12: Recap table at the end of `setup` ✅
+
+**Why:** asked by the operator on 2026-10-25 after setting up three projects by hand: the credit
+estimate and the study's shape should reach the operator as one table, in a fixed form, instead of
+a different layout each time.
+
+**Approach:** `setup/SETUP.md` step 6 ends with a recap table: one row per project and a total
+row, with the dimensions and their question counts, the rounds with their frequency, and the
+credits per month as a median month with the worst month in parentheses. The assistant shows it
+again in step 8. Written in English; the assistant translates the headers to the operator's
+language.
+
+**Tasks:**
+- [x] Test: `tests/test_skill.sh` — SETUP.md holds the recap table, its columns and the runs per month of each frequency
+- [x] Implement in `setup/SETUP.md`; CHANGELOG
+- [x] Commit
+
+**Done when:** the suite passes and `setup/SETUP.md` shows the template with a fictional example.
+
 ## R6: Release 0.2.0
 
 **Why:** 0.1.0 (2026-10-19) holds `adopt` and `report`; `brief`, `design`, `setup`, `snapshot`, `promote`, the unattended report, the export and the pack are in CHANGELOG's Unreleased, so the zip Sentl users download lacks them, and `install.sh --check` on this machine shows 0.1.0.

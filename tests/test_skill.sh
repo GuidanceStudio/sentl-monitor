@@ -354,6 +354,11 @@ has "setup/SETUP\\.md" "$SKILL" "SKILL.md dispatches to setup/SETUP.md"
 has "dry_run: true" "$SETUP_MD" "SETUP.md saves with dry_run first"
 has "delete_missing: true.*only|Only when they approve those deletions" "$SETUP_MD" "SETUP.md sends delete_missing only on the operator's approval"
 has "explicit go" "$SETUP_MD" "SETUP.md asks for the operator's explicit go"
+has "Recap table" "$SETUP_MD" "SETUP.md defines the recap table"
+has "Models \\(credits\\)" "$SETUP_MD" "SETUP.md recap table has the models column with their credits"
+has "Credits per month" "$SETUP_MD" "SETUP.md recap table has the credits per month column"
+has "daily.*30.*31" "$SETUP_MD" "SETUP.md gives the median and maximum runs per month of a daily schedule"
+has "weekly.*4.*5" "$SETUP_MD" "SETUP.md gives the median and maximum runs per month of a weekly schedule"
 ESTIMATE_LINE=$(grep -n "estimate-run-tool" "$SETUP_MD" | head -1 | cut -d: -f1)
 TRIGGER_LINE=$(grep -n "trigger-run-tool" "$SETUP_MD" | tail -1 | cut -d: -f1)
 if [ -n "$ESTIMATE_LINE" ] && [ -n "$TRIGGER_LINE" ] && [ "$ESTIMATE_LINE" -lt "$TRIGGER_LINE" ]; then

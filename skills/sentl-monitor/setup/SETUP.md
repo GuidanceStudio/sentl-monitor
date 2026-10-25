@@ -163,6 +163,32 @@ When every project is set up, call `estimate-run-tool` for each: credits per mod
 credits, credits available, and whether the run can start. Show them in credits. This tool
 reads only and starts nothing.
 
+**Recap table.** After the estimates, show one table with a row per project and a total row. It
+is written here in English; show it in the operator's language, translating the headers.
+
+| Project | Dimensions (questions) | Questions | Models (credits) | Rounds | Credits per month |
+|---|---|---|---|---|---|
+| Oat drink · Brand | Identity (4) · Taste (3) · Price (3) | 10 | GPT-5 Mini (2) · Sonar (1) · Gemini 3.5 Flash Lite (4) | 3/week | 1,200 (max 1,500: 5 × 300) |
+| Oat drink · Discovery | Occasions (4) · Alternatives (4) | 8 | Sonar (1) | 1/day | 480 (max 496: 31 × 16) |
+| **Total** | | **18** | | | **1,680 (max 1,996)** |
+
+- **Project:** the project's name in Sentl.
+- **Dimensions (questions):** every dimension of the project, active ones only, each with its
+  number of questions in parentheses, separated by ` · `.
+- **Questions:** the project's total; the total row sums them.
+- **Models (credits):** the project's researcher models, each with its credits per answer from
+  `list-ai-models` in parentheses, separated by ` · `. Judging adds one credit per answer and is
+  not shown here.
+- **Rounds:** the number of rounds, then the frequency of the schedule as `/day`, `/week` or
+  `/month`: `3/week`, `1/day`, `2/month`. A project with no schedule shows the rounds and
+  `no schedule`.
+- **Credits per month:** the median month, then in parentheses the worst month and how it is
+  made. A run costs what `estimate-run-tool` returns as `total`, rounds and judging included.
+  Runs in a month, median and worst: daily 30 and 31, weekly 4 and 5, monthly 1 and 1. The
+  median figure is the cost of a run times the median runs; the worst is the cost of a run times
+  the worst runs, written `max 1,950: 5 × 390`. A project with no schedule shows the cost of one
+  run. The total row sums each of the two figures.
+
 ## 7. First run and schedule, only on a go
 
 Ask separately, for each project, whether to start a first run and whether to activate its
@@ -183,7 +209,7 @@ A run takes some time to complete. `report` reads it once it has.
 Call `project-edit-link-tool` for each project and give the operator the links. Tell them, in
 the chat: the projects created and changed, the dimensions and questions saved, the questions
 deleted (if any), the runs ingested before the save and the ones recorded as unavailable, the
-estimate, whether a run was started or a schedule activated, and that the next step is `report`
+estimate with the recap table, whether a run was started or a schedule activated, and that the next step is `report`
 once a run has completed.
 
 On a host without a lasting folder, pack the study before the conversation ends: `monitor.py

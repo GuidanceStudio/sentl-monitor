@@ -5,6 +5,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `setup` ends its estimate step with a recap table: a row per project with its dimensions and
+  question counts, the models with their credits per answer, the rounds with their frequency, and the credits per month as a median month
+  with the worst month in parentheses (daily 30 and 31 runs, weekly 4 and 5, monthly 1 and 1).
 - `snapshot <subject>` runs a small study of a subject on Sentl once, in a folder of its own, and
   leaves no project running. The playbook designs four or five dimensions from the catalogue
   with one question each, creates one project paused with no schedule, shows `estimate-run-tool`
