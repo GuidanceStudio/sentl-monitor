@@ -32,7 +32,7 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record that its project is paused), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record that its project is paused), `pdf` (the report as a page and a PDF, and the copy to send), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a report needs), `pending` (says whether an unattended report has a run to report on) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
@@ -136,8 +136,8 @@ A report in Codex reads Sentl's run export; this has not been tested in Codex ye
 
 1. Download `sentl-monitor.zip` from the latest release,
    https://github.com/GuidanceStudio/sentl-monitor/releases/latest/download/sentl-monitor.zip.
-   Its sha256 is in `sentl-monitor.zip.sha256`, next to it. The link works once v0.1.0 is
-   released.
+   Its sha256 is in `sentl-monitor.zip.sha256`, next to it. The link serves the latest
+   release.
 2. In Settings → Capabilities, turn on code execution.
 3. In Customize → Skills, upload the zip.
 4. In Settings → Connectors, add a custom connector with the URL

@@ -11,7 +11,7 @@
       "name": "sentl-monitor",
       "source": "./",
       "description": "Reports what AI assistants say about a brand or topic from a Sentl project's runs, compared with earlier periods. Use for AI visibility, GEO/AEO monitoring and LLM reputation reports.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "MIT",
       "homepage": "https://github.com/GuidanceStudio/sentl-monitor"
     }

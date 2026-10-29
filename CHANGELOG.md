@@ -5,6 +5,8 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+## 0.2.0 (2026-10-29)
+
 - `monitor.py pdf` writes the report in Sentl's look by default (white page, orange #FF850D and #B85C00, text
   #2C2C31, Sentl's mark embedded, no network). A theme replaces it: `--theme <file>`, the `theme` key of
   `study.json`, `theme.json` or `theme.css` in the study folder or in `~/.config/sentl-monitor/`; a JSON

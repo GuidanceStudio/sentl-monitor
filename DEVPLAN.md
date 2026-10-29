@@ -860,8 +860,8 @@ language.
 **Approach:** after M9 and M10. CHANGELOG's Unreleased becomes 0.2.0 with its date, with `promote`, `resume` and `close` and M9's changes listed; `metadata.version` becomes 0.2.0 (the one source: `plugin.json`, the marketplace entry and `--version` follow it); README "What works today" names `promote` and the `snapshot` row records M10's run; the support table does not change (R3e changes it); tag `v0.2.0`, and `release.yml` attaches the zip and its sha256; `install.sh --force` and `--check` on this machine show 0.2.0. The announcement to Sentl users, a link from the Sentl panel or the MCP setup page to the repository and the zip, waits for R3e's claude.ai and ChatGPT runs.
 
 **Tasks:**
-- [ ] Test: bash — the version in SKILL.md, `plugin.json`, the marketplace entry and CHANGELOG's latest release agree; `build_zip.py` passes on the tagged tree
-- [ ] CHANGELOG, README, the version; commit; tag `v0.2.0`; the release checked: zip, sha256, workflow green on Python 3.10 to 3.13
+- [x] Test: bash — the version in SKILL.md, `plugin.json`, the marketplace entry and CHANGELOG's latest release agree; `build_zip.py` passes on the tagged tree
+- [x] CHANGELOG, README, the version; commit; tag `v0.2.0`; the release checked: zip, sha256, workflow green on Python 3.10 to 3.13
 - [ ] `install.sh --force` and `--check` on this machine show 0.2.0
 - [ ] Commit
 

@@ -1,6 +1,6 @@
 {
   "name": "sentl-monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reports what AI assistants say about a brand or topic from a Sentl project's runs, compared with earlier periods. Use for AI visibility, GEO/AEO monitoring and LLM reputation reports.",
   "author": {
     "name": "Guidance Studio"

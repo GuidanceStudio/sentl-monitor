@@ -271,10 +271,10 @@ for host in Codex claude.ai ChatGPT; do
         bad "the $host subsection says a report reads Sentl's run export and that it is not tested yet"
     fi
 done
-if grep -qF "once v0.1.0 is released" <<<"$(tr -s '\n ' ' ' <<<"$(awk '/^### claude.ai$/ {on=1; next} on && /^##/ {exit} on' "$README")")"; then
-    ok "the claude.ai subsection says the download link works once v0.1.0 is released"
+if grep -qF "serves the latest release" <<<"$(tr -s '\n ' ' ' <<<"$(awk '/^### claude.ai$/ {on=1; next} on && /^##/ {exit} on' "$README")")"; then
+    ok "the claude.ai subsection says the download link serves the latest release"
 else
-    bad "the claude.ai subsection says the download link works once v0.1.0 is released"
+    bad "the claude.ai subsection says the download link serves the latest release"
 fi
 if grep -qF "<skill folder>" "$README"; then bad "the README resolves <skill folder> to the install paths"; else ok "the README resolves <skill folder> to the install paths"; fi
 for path in "~/.claude/skills/sentl-monitor" "~/.agents/skills/sentl-monitor" "claude plugin list --json"; do
