@@ -112,7 +112,7 @@ Read the playbook of the route invoked and follow it step by step.
   on the pack the user attached or the one kept in the Project's files; with several packs,
   unpack the one with the latest date in its name. When the route ends (after `check` in
   `report`, after the operator's answers in `adopt`, after `close` in `snapshot`), run `monitor.py pack --study <folder>
-  --out <folder the host offers for download>`, copy the report and its PDF, if one was made, to
+  --out <folder the host offers for download>`, copy the report and the PDF in `reports/share/`, if one was made, to
   the same folder, and offer them for download. Tell the user to keep the report and the new
   pack and, when the host has Projects, to put the pack in the Project's files in place of the
   previous one: the next conversation reads it from there. The playbooks say where.

@@ -1191,7 +1191,7 @@ of a route and attaches to the next conversation, or keeps in the Project's file
 host has Projects, replacing the previous pack. A conversation unpacks the pack with the latest
 date before its next command and packs the study again once `check` passes (in `adopt`, once
 the operator's answers are written); `check` passing in a sandbox prints a reminder to do so.
-The report, its PDF if one was made, and the pack are copied to the folder the host offers for
+The report, its PDF in `reports/share/` if one was made, and the pack are copied to the folder the host offers for
 download. Claude Code, opencode and Codex keep the folder on disk and pack only to move or
 archive a study.
 

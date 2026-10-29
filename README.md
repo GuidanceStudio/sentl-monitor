@@ -277,7 +277,9 @@ found in Sentl. Ask for the charts and it writes `reports/2026-10-14.charts.md` 
 
 Ask for the PDF and `monitor.py pdf --study <folder>` writes `reports/<date>.html` and, when chromium,
 google-chrome, weasyprint or wkhtmltopdf is installed, `reports/<date>.pdf`; without one it says how to
-print the page to PDF from a browser.
+print the page to PDF from a browser. The copy to send is written to `reports/share/` as
+`<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf` (subject from `study.json`, period
+from the report's entry in `history/reports.json`); the files in `reports/` keep their date names.
 
 ### 3. The next reports
 

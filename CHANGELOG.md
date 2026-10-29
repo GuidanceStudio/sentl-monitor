@@ -5,6 +5,10 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `monitor.py pdf` also writes the copy to send, `reports/share/<Subject> + Sentl.ai - monitoring
+  report (<start> to <end>).pdf` (the page as `.html` when no PDF engine is installed), and the
+  `report` and `snapshot` routes and the pack step attach that file instead of `reports/<date>.pdf`.
+  Characters a file system refuses in the subject become spaces.
 - The skill follows Sentl's MCP of 2026-10-29. `SKILL.md` opens with a table of what the operator
   may want and the route for each, and no longer repeats the tools' parameters, roles or limits.
   `snapshot` creates a snapshot in Sentl (`create-snapshot-tool`: no project slot, no schedule, one

@@ -55,7 +55,7 @@ class RenderTest(unittest.TestCase):
         self.assertIn("@page", out)
 
 
-class CommandTest(StudyCase, unittest.TestCase):
+class CommandBase(StudyCase):
 
     def setUp(self):
         super().setUp()
@@ -74,6 +74,9 @@ class CommandTest(StudyCase, unittest.TestCase):
     def run_pdf(self, *args, check=0):
         with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
             return self.cli("pdf", "--study", self.study, *args, check=check)
+
+
+class CommandTest(CommandBase, unittest.TestCase):
 
     def test_without_an_engine_it_writes_the_page_and_says_how_to_print_it(self):
         proc = self.run_pdf()
@@ -123,3 +126,43 @@ class CommandTest(StudyCase, unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ShareNameTest(CommandBase, unittest.TestCase):
+
+    def share(self):
+        return self.study / "reports" / "share"
+
+    def record(self, subject="Avenello"):
+        import json
+        (self.study / "study.json").write_text(json.dumps({"subject": {"label": subject}, "report_language": "en"}),
+                                               encoding="utf-8")
+        (self.study / "history").mkdir(exist_ok=True)
+        (self.study / "history" / "reports.json").write_text(json.dumps([{
+            "date": "2026-10-14", "file": "reports/2026-10-14.md", "status": "final",
+            "period": {"from": "2026-10-08T09:00:00+00:00", "to": "2026-10-14T23:59:59+00:00"}}]), encoding="utf-8")
+
+    def test_the_pdf_is_copied_under_a_name_that_says_whose_report_and_which_period(self):
+        self.record()
+        self.fake_engine("weasyprint")
+        self.run_pdf()
+        copy = self.share() / "Avenello + Sentl.ai - monitoring report (2026-10-08 to 2026-10-14).pdf"
+        self.assertTrue(copy.read_bytes().startswith(b"%PDF"))
+        self.assertTrue((self.study / "reports" / "2026-10-14.pdf").exists())
+
+    def test_without_an_engine_the_page_is_copied(self):
+        self.record()
+        self.run_pdf()
+        self.assertTrue((self.share() / "Avenello + Sentl.ai - monitoring report (2026-10-08 to 2026-10-14).html").exists())
+
+    def test_characters_a_file_system_refuses_are_replaced(self):
+        self.record("Ave/nello: Foods")
+        self.run_pdf()
+        names = [p.name for p in self.share().iterdir()]
+        self.assertEqual(names, ["Ave nello Foods + Sentl.ai - monitoring report (2026-10-08 to 2026-10-14).html"])
+
+    def test_without_a_report_entry_the_name_carries_the_report_date(self):
+        self.run_pdf()
+        names = [p.name for p in self.share().iterdir()]
+        self.assertEqual(len(names), 1)
+        self.assertTrue(names[0].endswith("monitoring report (2026-10-14).html"), names)

@@ -129,8 +129,39 @@ def _latest(folder):
     return found[-1]
 
 
+def share_name(folder, study, date):
+    """`<Subject> + Sentl.ai - monitoring report (<start> to <end>)`: what the recipient sees of the file."""
+    subject = ((study.get("subject") or {}).get("label") or "").strip()
+    entry = next((e for e in folder.reports() if e["date"] == date), None)
+    period = entry.get("period") if entry else None
+    span = f"{period['from'][:10]} to {period['to'][:10]}" if period else date
+    name = f"{subject} + Sentl.ai - monitoring report ({span})" if subject else f"Sentl.ai - monitoring report ({span})"
+    return " ".join(re.sub(r'[/\\:*?"<>|]', " ", name).split())
+
+
+def _share(folder, study, source, target, pdf):
+    """Copy the page and the PDF made for `source` to reports/share/ under the descriptive name."""
+    name = share_name(folder, study, source.stem)
+    shared = folder.path("reports", "share")
+    shared.mkdir(exist_ok=True)
+    for made in (target, pdf):
+        if made.exists():
+            shutil.copyfile(made, shared / f"{name}{made.suffix}")
+    return shared / f"{name}{'.pdf' if pdf.exists() else '.html'}"
+
+
 def write(root, date=None, engines=ENGINES):
-    """Write reports/<date>.html and, with a PDF engine on the path, reports/<date>.pdf."""
+    """Write reports/<date>.html and, with a PDF engine on the path, reports/<date>.pdf; the copies to send
+    are written to reports/share/ under a descriptive name."""
+    message = _write(root, date, engines)
+    folder = Study(root)
+    source = folder.path("reports", f"{date}.md") if date else _latest(folder)
+    study = folder.study if folder.path("study.json").exists() else {}
+    shared = _share(folder, study, source, source.with_suffix(".html"), source.with_suffix(".pdf"))
+    return f"{message} To send: {shared}"
+
+
+def _write(root, date, engines):
     folder = Study(root)
     source = folder.path("reports", f"{date}.md") if date else _latest(folder)
     if not source.exists():

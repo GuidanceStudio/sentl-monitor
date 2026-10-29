@@ -257,10 +257,12 @@ and the next report compares with it.
 
 Offer the report as a PDF: `python3 <skill>/scripts/monitor.py pdf --study "$S"` writes
 `reports/D.html` and, when chromium, google-chrome, weasyprint or wkhtmltopdf is installed,
-`reports/D.pdf`; without one it says how to print the page to PDF.
+`reports/D.pdf`; without one it says how to print the page to PDF. It also writes the copy to send,
+`reports/share/<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf`: attach and give
+that file, never `reports/D.pdf`, whose name says nothing to the person who receives it.
 
 On a host without a lasting folder, `check` ends by saying so. Pack the study, then copy the
-report, and its PDF if one was made, to the same folder:
+report, and its copy in `reports/share/` if one was made, to the same folder:
 
 ```bash
 python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder>

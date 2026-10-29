@@ -794,6 +794,20 @@ language.
 
 **Done when:** the suite passes and `setup/SETUP.md` shows the template with a fictional example.
 
+## M14: Files for sharing carry a descriptive name ✅
+
+**Why:** asked by the operator on 2026-10-29. A report handed to a client was attached as `reports/<date>.pdf`; the recipient sees only the file name, and a date says nothing about whose report it is or what period it covers.
+
+**Decision:** the internal names stay (`reports/<date>.md/.html/.pdf`, `history/reports.json` keys, `check`). `monitor.py pdf` also writes a copy in `reports/share/` named `<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf`, with ISO dates. The subject is `study.json` `subject.label`, the period is the report's entry in `history/reports.json` (without an entry: `(<report date>)`). Characters a file system refuses (`/ \ : * ? " < > |`) become a space. What goes out is the file in `reports/share/`.
+
+**Tasks:**
+- [x] Test: unit — `pdf` writes `reports/share/<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf` (and the `.html` copy when no engine); unsafe characters in the subject are replaced; without a `reports.json` entry the name carries the report date
+- [x] Implement in `pdf.py`; playbooks (`report`, `snapshot`, pack step) name `reports/share/` as what is attached; ARCHITECTURE, README, CHANGELOG
+- [x] Full suite
+- [x] Commit and push
+
+**Done when:** the suite passes and `pdf` on the fictional example produces the named copy.
+
 ## M13: A guide that follows Sentl's MCP of 2026-10-29, and a PDF export ✅
 
 **Why:** asked by the operator on 2026-10-29. Sentl's MCP gained `archive-project-tool`, `restore-project-tool`, `undo-project-archive-tool`, `create-snapshot-tool` and `delete-snapshot-tool`; `list-projects-tool` returns `kind` (`project` or `snapshot`) and `archived`; creating a project past the plan's limit returns `error.code: project_limit_reached` (`limit`, `active`), and the other refusals carry codes too. The skill still tells the operator to archive by hand in the panel (G16), creates a snapshot as a paused project that takes one of the plan's slots, says every Sentl error reads the same, and repeats the tool list that the MCP already describes. It makes no PDF; it only says "its PDF, if one was made".

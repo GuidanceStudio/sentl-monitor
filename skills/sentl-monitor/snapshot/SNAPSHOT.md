@@ -248,4 +248,4 @@ pack and the report for download (SKILL.md).
 
 In the chat: the report's path, the credits the estimate gave, the runs left out or unavailable,
 the dimensions shown without a figure, unmatched responses, and what became of the snapshot
-(kept, deleted, or followed by a study). Offer the report as a PDF: `monitor.py pdf --study "$S"`.
+(kept, deleted, or followed by a study). Offer the report as a PDF: `monitor.py pdf --study "$S"`; what is sent is the file it names in `reports/share/`.
