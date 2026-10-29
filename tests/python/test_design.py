@@ -270,7 +270,7 @@ class ReviewTest(DesignCase, unittest.TestCase):
         self.assertIn("100 credits per run", out)
         # a weekly schedule read monthly is four runs.
         self.assertIn("200 credits per report period", out)
-        self.assertIn("Judging is not in this figure", out)
+        self.assertIn("Judging costs no credits", out)
 
     def test_the_estimate_follows_the_tariff_and_the_rounds(self):
         study = mutated(lambda s: s["projects"][0].update(rounds=2, models=[GPT, NEW]))

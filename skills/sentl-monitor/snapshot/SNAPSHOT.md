@@ -162,7 +162,7 @@ second failure stop and show the operator what it lists.
 ## 7. Cost
 
 Call `estimate-run-tool` for the project and save the response to `$S/inbox/estimate.json`. Show
-the operator, in Sentl credits: the credits per researcher model, the credits for judging, the
+the operator, in Sentl credits: the credits per researcher model, the
 total, the credits available in the organization, and whether the run can start. This tool reads
 only and starts nothing. Then stop and ask for the go to start the run. When the estimate says
 the run cannot start, say why (credits, subscription) and stop: the folder resumes here.

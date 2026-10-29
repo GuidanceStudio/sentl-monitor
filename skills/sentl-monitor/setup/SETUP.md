@@ -168,33 +168,32 @@ from Sentl, `save-project-questions-tool` with every dimension and question and 
 
 When every project is set up, call `estimate-run-tool` for each: credits per model, judging
 credits, credits available, and whether the run can start. Show them in credits. This tool
-reads only and starts nothing.
+reads only and starts nothing. The balance falls by the researcher models' credits; judging
+costs none. The credits renew at the next reset (`credits.resets_at` from
+`get-organization-tool`), in 30-day cycles.
 
 **Recap table.** After the estimates, show one table with a row per project and a total row. It
 is written here in English; show it in the operator's language, translating the headers.
 
-| Project | Dimensions (questions) | Questions | Models (credits) | Rounds | Credits per month |
+| Project | Dimensions (questions) | Questions | Models (credits) | Rounds | Credits per 30 days |
 |---|---|---|---|---|---|
-| Oat drink · Brand | Identity (4) · Taste (3) · Price (3) | 10 | GPT-5 Mini (2) · Sonar (1) · Gemini 3.5 Flash Lite (4) | 3/week | 1,200 (max 1,500: 5 × 300) |
-| Oat drink · Discovery | Occasions (4) · Alternatives (4) | 8 | Sonar (1) | 1/day | 480 (max 496: 31 × 16) |
-| **Total** | | **18** | | | **1,680 (max 1,996)** |
+| Oat drink · Brand | Identity (4) · Taste (3) · Price (3) | 10 | GPT-5 Mini (2) · Sonar (1) · Gemini 3.5 Flash Lite (4) | 3/week | 1,290 (4.3 × 300) |
+| Oat drink · Discovery | Occasions (4) · Alternatives (4) | 8 | Sonar (1) | 1/day | 480 (30 × 16) |
+| **Total** | | **18** | | | **1,770** |
 
 - **Project:** the project's name in Sentl.
 - **Dimensions (questions):** every dimension of the project, active ones only, each with its
   number of questions in parentheses, separated by ` · `.
 - **Questions:** the project's total; the total row sums them.
 - **Models (credits):** the project's researcher models, each with its credits per answer from
-  `list-ai-models` in parentheses, separated by ` · `. Judging adds one credit per answer and is
-  not shown here.
+  `list-ai-models` in parentheses, separated by ` · `. Judging costs no credits and is not shown.
 - **Rounds:** the number of rounds, then the frequency of the schedule as `/day`, `/week` or
   `/month`: `3/week`, `1/day`, `2/month`. A project with no schedule shows the rounds and
   `no schedule`.
-- **Credits per month:** the median month, then in parentheses the worst month and how it is
-  made. A run costs what `estimate-run-tool` returns as `total`, rounds and judging included.
-  Runs in a month, median and worst: daily 30 and 31, weekly 4 and 5, monthly 1 and 1. The
-  median figure is the cost of a run times the median runs; the worst is the cost of a run times
-  the worst runs, written `max 1,950: 5 × 390`. A project with no schedule shows the cost of one
-  run. The total row sums each of the two figures.
+- **Credits per 30 days:** the cost of a run times the runs in one 30-day cycle: daily 30,
+  weekly 30/7 (4.3), monthly 1. A run costs what `estimate-run-tool` returns as `total`. Round the
+  figure to the nearest whole credit and write the arithmetic in parentheses, `4.3 × 300`. A
+  project with no schedule shows the cost of one run. The total row sums the figures.
 
 ## 7. First run and schedule, only on a go
 

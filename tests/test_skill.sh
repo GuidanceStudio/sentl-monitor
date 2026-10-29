@@ -370,9 +370,11 @@ has "delete_missing: true.*only|Only when they approve those deletions" "$SETUP_
 has "explicit go" "$SETUP_MD" "SETUP.md asks for the operator's explicit go"
 has "Recap table" "$SETUP_MD" "SETUP.md defines the recap table"
 has "Models \\(credits\\)" "$SETUP_MD" "SETUP.md recap table has the models column with their credits"
-has "Credits per month" "$SETUP_MD" "SETUP.md recap table has the credits per month column"
-has "daily.*30.*31" "$SETUP_MD" "SETUP.md gives the median and maximum runs per month of a daily schedule"
-has "weekly.*4.*5" "$SETUP_MD" "SETUP.md gives the median and maximum runs per month of a weekly schedule"
+has "Credits per 30 days" "$SETUP_MD" "SETUP.md recap table has the credits per 30 days column"
+has "daily 30" "$SETUP_MD" "SETUP.md gives the runs in a 30-day cycle of a daily schedule"
+has "weekly 30/7" "$SETUP_MD" "SETUP.md gives the runs in a 30-day cycle of a weekly schedule"
+has "resets_at" "$SETUP_MD" "SETUP.md names the next reset"
+if grep -rqiE "worst month|Judging adds" "$PAYLOAD" 2>/dev/null; then bad "the skill still has a worst month or says judging adds credits"; else ok "no worst month and no judging credits in the skill"; fi
 ESTIMATE_LINE=$(grep -n "estimate-run-tool" "$SETUP_MD" | head -1 | cut -d: -f1)
 TRIGGER_LINE=$(grep -n "trigger-run-tool" "$SETUP_MD" | tail -1 | cut -d: -f1)
 if [ -n "$ESTIMATE_LINE" ] && [ -n "$TRIGGER_LINE" ] && [ "$ESTIMATE_LINE" -lt "$TRIGGER_LINE" ]; then

@@ -5,6 +5,10 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- The recap table of `setup` counts credits per 30-day cycle, as Sentl bills from 2026-10-29: one figure
+  per project (daily 30 runs, weekly 4.3, monthly 1), no worst month. The playbooks no longer say judging
+  adds credits: a run costs the researcher models' credits, as `estimate-run-tool` returns.
+
 ## 0.2.0 (2026-10-29)
 
 - `monitor.py pdf` writes the report in Sentl's look by default (white page, orange #FF850D and #B85C00, text

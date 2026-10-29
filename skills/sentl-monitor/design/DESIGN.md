@@ -123,7 +123,7 @@ python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models
 It writes `$S/study-review.md` and prints it: the narrative, the theme inventory with origins
 and search demand, projects and dimensions, every question with its persona, framing, rubric and
 the judge instructions Sentl will receive, and the credit estimate from the tariffs. Judging
-credits are not in the estimate; `setup` shows Sentl's own figure before any run. Show the
+costs no credits; `setup` shows Sentl's own figure before any run. Show the
 operator the review and stop. Nothing is created in Sentl until they approve it.
 
 ## Revising a study

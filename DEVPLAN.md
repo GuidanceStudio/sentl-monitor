@@ -866,3 +866,17 @@ language.
 - [x] Commit
 
 **Done when:** the latest release at github.com/GuidanceStudio/sentl-monitor serves `sentl-monitor.zip` and its sha256 for 0.2.0, and the suite passes on the tag.
+
+## M16: Credits are counted per 30-day cycle ✅
+
+**Why:** Sentl moves billing from calendar-month anniversaries to 30-day cycles (rolling out 2026-10-29); the operator said to write it as settled. The recap table of `setup` gives a median month and a worst month (31 days, 5 weekly runs), which no longer exist, and says judging adds a credit per answer, which the operator measured as false on 2026-10-29 (the balance fell by exactly the researcher models' credits).
+
+**Approach:** `setup/SETUP.md` step 6: the column becomes "Credits per 30 days", one figure per project: the cost of a run times the runs in a cycle (daily 30, weekly 30/7 rounded to the nearest whole credit, monthly 1), no maximum; the example rows and totals follow. A run costs what `estimate-run-tool` returns, and the balance falls by the researcher models' credits. The reset is read as the next reset (`credits.resets_at`). ARCHITECTURE, SNAPSHOT.md, DESIGN.md, README and CHANGELOG say the same where they mention judging credits or a month. `report_every` stays weekly or monthly: it is about reports.
+
+**Tasks:**
+- [x] Test: bash — SETUP.md names "Credits per 30 days", gives daily 30, weekly 30/7 and monthly 1, and has no "worst month" or "max" figure; no playbook says judging adds credits
+- [x] Implement the text; CHANGELOG
+- [x] Suites green, commit, push, CI green on 3.10 to 3.13
+
+**Done when:** the suites pass and a grep finds no "worst month" and no "Judging adds" in the skill.
+

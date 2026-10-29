@@ -302,7 +302,7 @@ def _credits(study, models_file):
         lines.append(line)
     lines.append(f"- all projects: {total:g} credits per run" + (f"; {total_period:g} credits per report period"
                                                                   if period_known else ""))
-    lines += ["", "Judging is not in this figure: estimate-run-tool gives the total before a run starts.", ""]
+    lines += ["", "Judging costs no credits; estimate-run-tool gives the total before a run starts.", ""]
     return lines
 
 

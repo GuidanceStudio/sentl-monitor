@@ -548,8 +548,8 @@ monthly 0.25 or 1.
 origins and search demand, projects and dimensions with question counts, every question with
 its persona, framing and rubric, and the credit estimate from the models' tariffs. The
 estimate for a project is its questions times `rounds` times the sum of its models' `credits`
-(the tariff per call in `list-ai-models`), for one run and for a report period; judging credits
-are not in it, and `estimate-run-tool` gives the total before a run starts. `review` refuses a
+(the tariff per call in `list-ai-models`), for one run and for a report period; judging costs no
+credits, and `estimate-run-tool` gives the total before a run starts. `review` refuses a
 study that fails `validate` and a model whose `credits` the response does not give (exit 2).
 
 **Revising a study.** A question keeps its `key` when it is reworded with the same intent
@@ -597,7 +597,7 @@ retired entries.
    question missing, a text, rubric or judge instructions that are not the study's (the save
    did not apply). A project with no dimension and none bound is just created and is bound
    without that check.
-6. `estimate-run-tool`: credits per model, judging credits, available credits, whether the
+6. `estimate-run-tool`: credits per model, available credits, whether the
    run can start. Shown to the operator.
 7. Only on the operator's explicit go: `trigger-run-tool` for a first run, and
    `update-project-settings-tool` with `is_active: true` for the schedule. If a run is already
@@ -717,7 +717,7 @@ stay in `history/`, so the first `report` of the study compares its period with 
    `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
    `monitor.py payload` builds both calls in snapshot mode: `create-project-tool` carries the
    name, models and rounds only, and the questions call is the one `setup` builds.
-7. **Cost.** `estimate-run-tool`: credits per researcher model, credits for judging, the
+7. **Cost.** `estimate-run-tool`: credits per researcher model, the
    total, the credits available in the organization, and whether the run can start. Shown
    to the operator in Sentl credits. Stops for the go.
 8. **Run.** On the go, `trigger-run-tool` once. `list-runs-tool` follows the run until its
