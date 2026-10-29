@@ -105,7 +105,8 @@ def render(markdown):
             ordered = bool(re.match(r"^\s*\d+\.\s", line))
             tag, j, items = ("ol" if ordered else "ul"), i, []
             while j < len(lines) and re.match(r"^\s*([-*]|\d+\.)\s", lines[j]):
-                items.append(f"<li>{inline(re.sub(r'^\s*([-*]|\d+\.)\s+', '', lines[j]))}</li>")
+                text = re.sub(r"^\s*([-*]|\d+\.)\s+", "", lines[j])
+                items.append(f"<li>{inline(text)}</li>")
                 j += 1
             out.append(f"<{tag}>{''.join(items)}</{tag}>")
             i = j
