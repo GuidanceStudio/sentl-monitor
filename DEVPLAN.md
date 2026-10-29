@@ -5,7 +5,7 @@ projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 
 Revised 2026-10-24 against Sentl's MCP as its tool descriptions read that day, on the operator's
 instruction: M9 (the statuses, ids, filters and error codes Sentl documents today), M10 (a live
 snapshot, promoted), R6 (release 0.2.0), R3e re-ordered with claude.ai first, M11 (`compare`, moved
-out of M8). Order: M9, M13 (added 2026-10-29), M10, R6, R3e, M11 when a second snapshot of one subject exists. M15 done (added 2026-10-29). In progress: R6.
+out of M8). Order: M9, M13 (added 2026-10-29), M10, R6, R3e, M11 when a second snapshot of one subject exists. M15 and R6 done 2026-10-29 (v0.2.0 released).
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -853,7 +853,7 @@ language.
 
 **Done when:** the suite passes and `monitor.py pdf` on the fictional example report writes an orange-and-ink page with the Sentl mark, offline, and `--theme` with the README's example changes its colours and name.
 
-## R6: Release 0.2.0 🔄
+## R6: Release 0.2.0 ✅
 
 **Why:** 0.1.0 (2026-10-19) holds `adopt` and `report`; `brief`, `design`, `setup`, `snapshot`, `promote`, the unattended report, the export and the pack are in CHANGELOG's Unreleased, so the zip Sentl users download lacks them, and `install.sh --check` on this machine shows 0.1.0.
 
@@ -862,7 +862,7 @@ language.
 **Tasks:**
 - [x] Test: bash — the version in SKILL.md, `plugin.json`, the marketplace entry and CHANGELOG's latest release agree; `build_zip.py` passes on the tagged tree
 - [x] CHANGELOG, README, the version; commit; tag `v0.2.0`; the release checked: zip, sha256, workflow green on Python 3.10 to 3.13
-- [ ] `install.sh --force` and `--check` on this machine show 0.2.0
-- [ ] Commit
+- [x] `install.sh --force` and `--check` on this machine show 0.2.0
+- [x] Commit
 
 **Done when:** the latest release at github.com/GuidanceStudio/sentl-monitor serves `sentl-monitor.zip` and its sha256 for 0.2.0, and the suite passes on the tag.
