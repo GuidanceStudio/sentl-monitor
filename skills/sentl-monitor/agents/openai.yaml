@@ -5,7 +5,7 @@ interface:
 dependencies:
   tools:
     - type: "mcp"
-      value: "sentinel-reputation"
+      value: "sentl-mcp"
       description: "Sentl's MCP server, read-only for the adopt and report routes"
       transport: "streamable_http"
-      url: "https://app.sentl.ai/mcp/reputation"
+      url: "https://app.sentl.ai/mcp"

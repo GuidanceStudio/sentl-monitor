@@ -106,8 +106,8 @@ done
 for cmd in "claude plugin install sentl-monitor --marketplace GuidanceStudio/sentl-monitor" \
            "claude plugin marketplace add GuidanceStudio/sentl-monitor" \
            "claude plugin install sentl-monitor@sentl-monitor" \
-           "codex mcp add sentinel-reputation --url https://app.sentl.ai/mcp/reputation" \
-           "codex mcp login sentinel-reputation"; do
+           "codex mcp add sentl-mcp --url https://app.sentl.ai/mcp" \
+           "codex mcp login sentl-mcp"; do
     if grep -qF -- "$cmd" <<<"$INSTALL_SECTION"; then ok "the install section gives '$cmd'"; else bad "the install section gives '$cmd'"; fi
 done
 if grep -qE '^/plugin ' <<<"$INSTALL_SECTION"; then
@@ -249,7 +249,7 @@ done
 # R1 review: Sentl's tools in every folder, the tested install route first, the hosts where a report
 # cannot be produced, the release link, the skill's folder, and md2 named with its link.
 CLAUDE_SECTION=$(awk '/^### Claude Code$/ {on=1; next} on && /^##/ {exit} on' "$README")
-MCP_ADD="claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation"
+MCP_ADD="claude mcp add --scope user --transport http sentl-mcp https://app.sentl.ai/mcp"
 if grep -qxF -- "$MCP_ADD" <<<"$CLAUDE_SECTION"; then ok "the Claude Code subsection gives '$MCP_ADD'"; else bad "the Claude Code subsection gives '$MCP_ADD'"; fi
 if grep -F "claude mcp add" "$README" | grep -vqF -- "--scope user"; then
     bad "every 'claude mcp add' in the README has --scope user"

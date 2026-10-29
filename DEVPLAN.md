@@ -5,7 +5,7 @@ projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 
 Revised 2026-10-24 against Sentl's MCP as its tool descriptions read that day, on the operator's
 instruction: M9 (the statuses, ids, filters and error codes Sentl documents today), M10 (a live
 snapshot, promoted), R6 (release 0.2.0), R3e re-ordered with claude.ai first, M11 (`compare`, moved
-out of M8). Order: M9, M13 (added 2026-10-29), M10, R6, R3e, M11 when a second snapshot of one subject exists. In progress: M13.
+out of M8). Order: M9, M13 (added 2026-10-29), M10, R6, R3e, M11 when a second snapshot of one subject exists. M15 done (added 2026-10-29). In progress: R6.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -832,7 +832,28 @@ language.
 
 **Done when:** the suite passes, `monitor.py pdf` produces a PDF from the fictional example report on this machine, and a grep of the playbooks finds no instruction to archive in the panel.
 
-## R6: Release 0.2.0
+## M15: Reports carry Sentl's look by default, and a theme replaces it ✅
+
+**Why:** asked by the operator on 2026-10-29. `monitor.py pdf` uses a grey, unbranded style. A user who installs the skill gets reports that look like nobody's; the operator's own machine renders through a converter and a template he made. The skill needs a default that looks like Sentl and a way to put the user's own colours, font and logo in its place, without the skill knowing which tool the user sends files with (Drive, SharePoint, a mailbox).
+
+**Decision:** the page uses CSS variables only; a theme changes the variables and the logo, never the structure. The default theme is Sentl's: colours, font and mark read from https://sentl.ai and https://app.sentl.ai on 2026-10-29 (sources in ARCHITECTURE §Theme). Resolution, first hit wins: `--theme <file>`; the `theme` key of `study.json` (a path); `theme.json` or `theme.css` in the study folder; `~/.config/sentl-monitor/theme.json` or `theme.css`; the built-in Sentl theme. The converter route (`charts`, for a deck) is unchanged. The skill writes files in the study folder and sends none: moving them to a drive or a mailbox is done by the connectors the user's assistant has.
+
+**Approach:**
+- `sentlmon/theme.py`: the built-in theme (colours, font stack, the mark as a data URI, footer), `resolve(study, option)` and `css(theme)`; a theme JSON has `colors`, `font`, `font_url` (optional), `logo` (a path or inline SVG), `footer`; a theme CSS file overrides the same variables. A logo path that does not exist falls back to Sentl's mark and the command says so. No network at run time: the font is a stack, `font_url` is the user's choice and goes into the page as a link only when set.
+- `pdf.py`: `STYLE` becomes variables, the header carries the logo and the footer text; `pdf --theme <file>`; the copy in `reports/share/` is the themed export.
+- README "Make it yours" with a fictional theme; README note on where the files go (no converter named); README names the server "Sentl MCP" at `https://app.sentl.ai/mcp`, as the setup page reads today, in the commands, `agents/openai.yaml` and the tests. ARCHITECTURE §Theme records each value and its source and date. CHANGELOG.
+
+**Tasks:**
+- [x] Test: unit — the default page carries Sentl's colours, the mark as a data URI and no external URL
+- [x] Test: unit — each level of the resolution overrides the next one; a theme JSON changes the variables and the footer; a theme CSS overrides variables; `theme` in `study.json` is read; a missing logo falls back with a message
+- [x] Test: unit — the share copy is the themed export; `font_url` appears only when set
+- [x] Implement `theme.py`, `pdf.py`, the `--theme` option
+- [x] README, ARCHITECTURE §Theme with sources, CHANGELOG
+- [x] Commit and push
+
+**Done when:** the suite passes and `monitor.py pdf` on the fictional example report writes an orange-and-ink page with the Sentl mark, offline, and `--theme` with the README's example changes its colours and name.
+
+## R6: Release 0.2.0 🔄
 
 **Why:** 0.1.0 (2026-10-19) holds `adopt` and `report`; `brief`, `design`, `setup`, `snapshot`, `promote`, the unattended report, the export and the pack are in CHANGELOG's Unreleased, so the zip Sentl users download lacks them, and `install.sh --check` on this machine shows 0.1.0.
 

@@ -349,7 +349,7 @@ echo "=== agents/openai.yaml: Codex's display fields and the Sentl MCP dependenc
 OPENAI="$PAYLOAD/agents/openai.yaml"
 for key in '^interface:' '^  display_name: ' '^  short_description: ' '^  default_prompt: ' '^dependencies:' \
            '^  tools:' '^    - type: "mcp"' '^      transport: "streamable_http"' \
-           '^      url: "https://app.sentl.ai/mcp/reputation"'; do
+           '^      url: "https://app.sentl.ai/mcp"'; do
     if grep -qE "$key" "$OPENAI" 2>/dev/null; then ok "openai.yaml has $key"; else bad "openai.yaml has $key"; fi
 done
 SHORT=$(sed -n 's/^  short_description: "\(.*\)"$/\1/p' "$OPENAI" 2>/dev/null)

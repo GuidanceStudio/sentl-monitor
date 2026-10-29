@@ -16,7 +16,7 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | Route | What it does |
 |---|---|
 | `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
-| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations, and the report as a PDF; started by a scheduler it runs [unattended](#scheduled-reports) |
+| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as Markdown chart tables, and the report as a PDF in Sentl's look or your own ([make it yours](#make-it-yours)); started by a scheduler it runs [unattended](#scheduled-reports) |
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), collects how people search for them and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
@@ -62,7 +62,7 @@ Whether opencode saves a large result to a file has not been measured.
   schedule are set in the Sentl web panel; `adopt` reads them.
 - **The Sentl MCP server connected to your assistant.** Sentl's setup page,
   https://app.sentl.ai/mcp/setup, gives the configuration for each client and names the server
-  `sentinel-reputation`; the steps for each host are under [Install](#install). The skill finds
+  "Sentl MCP" (`sentl-mcp` in the commands below); the steps for each host are under [Install](#install). The skill finds
   Sentl's tools by their suffix, so it works whatever the server is called. The
   assistant signs in through the browser (OAuth). For a client without OAuth, create a token in
   Sentl under **Integrations → API Tokens** and pass it as an `Authorization: Bearer` header, as
@@ -100,10 +100,10 @@ The skill's folder is then `skills/sentl-monitor` inside the `installPath` that
 `claude plugin list --json` reports for `sentl-monitor@sentl-monitor`.
 
 Connect Sentl for every folder you open Claude Code in (`--scope user`), then run `/mcp`, select
-`sentinel-reputation` and sign in:
+`sentl-mcp` and sign in:
 
 ```bash
-claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation
+claude mcp add --scope user --transport http sentl-mcp https://app.sentl.ai/mcp
 ```
 
 ### opencode
@@ -123,11 +123,11 @@ shows: https://app.sentl.ai/mcp/setup.
 ```
 
 The skill's folder is then `~/.agents/skills/sentl-monitor`. Connect Sentl as the server
-`sentinel-reputation`, then sign in:
+`sentl-mcp`, then sign in:
 
 ```bash
-codex mcp add sentinel-reputation --url https://app.sentl.ai/mcp/reputation
-codex mcp login sentinel-reputation
+codex mcp add sentl-mcp --url https://app.sentl.ai/mcp
+codex mcp login sentl-mcp
 ```
 
 A report in Codex reads Sentl's run export; this has not been tested in Codex yet.
@@ -141,7 +141,7 @@ A report in Codex reads Sentl's run export; this has not been tested in Codex ye
 2. In Settings → Capabilities, turn on code execution.
 3. In Customize → Skills, upload the zip.
 4. In Settings → Connectors, add a custom connector with the URL
-   `https://app.sentl.ai/mcp/reputation`, and sign in.
+   `https://app.sentl.ai/mcp`, and sign in.
 
 On Team and Enterprise plans, an owner can add the skill for the whole organization. A report on
 claude.ai reads Sentl's run export, since a run's results do not fit in a conversation; this has
@@ -152,7 +152,7 @@ not been tested on claude.ai yet.
 OpenAI documents standalone skills in the ChatGPT desktop app, the Codex CLI and the
 IDE extension, and on the web only inside plugins. Whether the release zip uploads as a skill
 on chatgpt.com is not confirmed. Sentl connects as a connector in developer mode, with the URL
-`https://app.sentl.ai/mcp/reputation`. A report in ChatGPT reads Sentl's run export; this has not been tested
+`https://app.sentl.ai/mcp`. A report in ChatGPT reads Sentl's run export; this has not been tested
 in ChatGPT yet.
 
 ### Every assistant at once
@@ -312,7 +312,44 @@ that it still passes `check`. Its sections:
 From the second report on, "What changed" and "What the assistants say" come first and the
 sections on method close the report.
 [examples/avenello-report-2026-10-14.charts.md](examples/avenello-report-2026-10-14.charts.md)
-holds the same report's figures as chart tables for md2.
+holds the same report's figures as Markdown chart tables.
+
+## Make it yours
+
+`monitor.py pdf` writes the report as a page and, when a PDF engine is installed, as a PDF. The page
+is white with Sentl's orange, text colour and mark, and needs no network. To use your own colours,
+font and logo, put a theme file where the skill looks for it; the first hit wins:
+
+1. `--theme <file>` on the command;
+2. the `theme` key of the study's `study.json`, a path;
+3. `theme.json` or `theme.css` in the study folder;
+4. `theme.json` or `theme.css` in `~/.config/sentl-monitor/`;
+5. Sentl's look.
+
+A JSON theme names only what it changes; what it leaves out stays Sentl's. This one is for a fictional
+brand:
+
+```json
+{
+  "colors": {"primary": "#2255AA", "deep": "#112244", "text": "#1B1F2A"},
+  "font": "Georgia, serif",
+  "logo": "avenello-logo.png",
+  "footer": "Prepared for Avenello"
+}
+```
+
+`colors` takes `primary` (rules and quote bars), `deep` (headings and links), `text`, `muted`, `line`
+(borders) and `tint` (table headers and code). `logo` is a path (png, jpg, gif, webp or svg), relative
+to the theme file, or the text of an SVG; a logo that cannot be read is replaced by Sentl's mark and
+the command says so. `font_url` is optional: set it to a stylesheet address and the page links it,
+which then needs the network when the page is opened. A `.css` theme overrides the page's variables
+(`--sl-primary`, `--sl-deep`, `--sl-text`, `--sl-muted`, `--sl-line`, `--sl-tint`, `--sl-font`) and may
+add rules; `.sl-header` and `.sl-footer` are the logo band and the footer. The copy in
+`reports/share/` is the themed page.
+
+The skill writes its files (Markdown, HTML, PDF) in the study folder and sends none of them.
+Putting a report in a drive, a document library or a mailbox is done by the connectors your assistant
+already has.
 
 ## Scheduled reports
 
@@ -348,7 +385,7 @@ never in the study folder:
 
 ```bash
 read -rs SENTL_TOKEN
-claude mcp add --scope user --transport http sentinel-reputation https://app.sentl.ai/mcp/reputation --header "Authorization: Bearer $SENTL_TOKEN"
+claude mcp add --scope user --transport http sentl-mcp https://app.sentl.ai/mcp --header "Authorization: Bearer $SENTL_TOKEN"
 unset SENTL_TOKEN
 ```
 
@@ -357,7 +394,7 @@ and the five Sentl tools the report reads, so the unattended assistant cannot cr
 change a setting or start a run:
 
 ```text
-0 7 * * 1  cd <study folder> && claude -p "Run the sentl-monitor skill: report, unattended, for the study in this folder." --allowedTools "Bash(python3 *)" Read Write Edit mcp__sentinel-reputation__list-organizations mcp__sentinel-reputation__get-project-tool mcp__sentinel-reputation__list-runs-tool mcp__sentinel-reputation__get-run-results-tool mcp__sentinel-reputation__list-ai-models >> <log file> 2>&1
+0 7 * * 1  cd <study folder> && claude -p "Run the sentl-monitor skill: report, unattended, for the study in this folder." --allowedTools "Bash(python3 *)" Read Write Edit mcp__sentl-mcp__list-organizations mcp__sentl-mcp__get-project-tool mcp__sentl-mcp__list-runs-tool mcp__sentl-mcp__get-run-results-tool mcp__sentl-mcp__list-ai-models >> <log file> 2>&1
 ```
 
 The log file holds the assistant's closing message, which names the outcome. Read

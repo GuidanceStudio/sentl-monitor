@@ -5,6 +5,12 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `monitor.py pdf` writes the report in Sentl's look by default (white page, orange #FF850D and #B85C00, text
+  #2C2C31, Sentl's mark embedded, no network). A theme replaces it: `--theme <file>`, the `theme` key of
+  `study.json`, `theme.json` or `theme.css` in the study folder or in `~/.config/sentl-monitor/`; a JSON
+  theme sets `colors`, `font`, `font_url`, `logo` and `footer`, a CSS theme overrides the `--sl-*`
+  variables. The copy in `reports/share/` is the themed page. README: "Make it yours", the connectors that
+  move the files, and the MCP server named "Sentl MCP" at `https://app.sentl.ai/mcp`.
 - `monitor.py pdf` also writes the copy to send, `reports/share/<Subject> + Sentl.ai - monitoring
   report (<start> to <end>).pdf` (the page as `.html` when no PDF engine is installed), and the
   `report` and `snapshot` routes and the pack step attach that file instead of `reports/<date>.pdf`.

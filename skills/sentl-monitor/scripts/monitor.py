@@ -119,13 +119,14 @@ def _parser():
                         "and record it as a draft")
     c.add_argument("report", help="the report file")
 
-    g = command("charts", "write a report's figures as md2 chart tables for a deck")
+    g = command("charts", "write a report's figures as Markdown chart tables for a deck")
     g.add_argument("--study", default=".")
     g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
 
     f = command("pdf", "write a report as a print-ready page and, when a PDF engine is installed, as a PDF")
     f.add_argument("--study", default=".")
     f.add_argument("--date", help="report date, YYYY-MM-DD (default: the latest report)")
+    f.add_argument("--theme", help="a theme file (.json or .css) in place of the study's, the user's or Sentl's")
 
     h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
     h.add_argument("--study", help="study folder to check (optional)")
@@ -260,7 +261,7 @@ def main(argv=None):
         elif args.command == "charts":
             print(charts.write(args.study, args.date))
         elif args.command == "pdf":
-            print(pdf.write(args.study, args.date))
+            print(pdf.write(args.study, args.date, args.theme))
         elif args.command == "doctor":
             lines, ok = doctor.report(args.study, skill_version=_skill_version())
             print("\n".join(lines))

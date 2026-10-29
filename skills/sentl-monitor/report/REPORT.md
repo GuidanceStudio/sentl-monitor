@@ -257,7 +257,10 @@ and the next report compares with it.
 
 Offer the report as a PDF: `python3 <skill>/scripts/monitor.py pdf --study "$S"` writes
 `reports/D.html` and, when chromium, google-chrome, weasyprint or wkhtmltopdf is installed,
-`reports/D.pdf`; without one it says how to print the page to PDF. It also writes the copy to send,
+`reports/D.pdf`; without one it says how to print the page to PDF. The page is in Sentl's colours with
+Sentl's mark unless the operator has a theme (`--theme <file>`, `theme.json` or `theme.css` in the study
+folder or in `~/.config/sentl-monitor/`; README, "Make it yours"); the skill sends no file anywhere, and the
+operator's own connectors move it to a drive or a mailbox. It also writes the copy to send,
 `reports/share/<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf`: attach and give
 that file, never `reports/D.pdf`, whose name says nothing to the person who receives it.
 
@@ -294,7 +297,7 @@ When the operator presents the report as a deck, after `check` has passed:
 python3 <skill>/scripts/monitor.py charts --study "$S" --date D
 ```
 
-It writes `reports/D.charts.md`: the report's figures as md2 `:::chart` tables, each under a
+It writes `reports/D.charts.md`: the report's figures as Markdown `:::chart` tables, each under a
 heading that says what it shows and the period or halves it covers. Per project, the dimension
 means as a radar and a bar (the previous period and this one, the two halves, or this period
 alone) and, with more than one assistant, by assistant; per question, the share stating the

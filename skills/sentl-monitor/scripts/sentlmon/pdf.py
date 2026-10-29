@@ -11,6 +11,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import theme as sentl_theme
 from .common import Refused, Study
 
 ENGINES = (
@@ -28,17 +29,21 @@ ENGINES = (
 
 STYLE = """
 @page { size: A4; margin: 18mm 16mm; }
-body { font: 11pt/1.5 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1c1c1c; max-width: 46em; margin: 0 auto; }
-h1 { font-size: 20pt; line-height: 1.25; margin: 0 0 .4em; }
-h2 { font-size: 14pt; margin: 1.6em 0 .4em; border-bottom: 1px solid #d0d0d0; padding-bottom: .2em; break-after: avoid; }
+body { font: 11pt/1.5 var(--sl-font); color: var(--sl-text); max-width: 46em; margin: 0 auto; }
+.sl-header { display: flex; align-items: center; gap: .6em; margin: 0 0 1.2em; padding-bottom: .5em; border-bottom: 3px solid var(--sl-primary); }
+.sl-logo { height: 34px; width: auto; }
+h1 { font-size: 20pt; line-height: 1.25; margin: 0 0 .4em; color: var(--sl-deep); }
+h2 { font-size: 14pt; margin: 1.6em 0 .4em; border-bottom: 1px solid var(--sl-line); padding-bottom: .2em; color: var(--sl-deep); break-after: avoid; }
 h3 { font-size: 12pt; margin: 1.2em 0 .3em; break-after: avoid; }
+a { color: var(--sl-deep); }
 p, ul, ol, table, blockquote { margin: .6em 0; }
-blockquote { border-left: 3px solid #b8b8b8; padding: .1em 0 .1em 1em; color: #333; break-inside: avoid; }
+blockquote { border-left: 3px solid var(--sl-primary); padding: .1em 0 .1em 1em; color: var(--sl-muted); break-inside: avoid; }
 table { border-collapse: collapse; width: 100%; font-size: 10pt; break-inside: avoid; }
-th, td { border: 1px solid #d0d0d0; padding: .3em .5em; text-align: left; vertical-align: top; }
-th { background: #f2f2f2; }
-code { font: 10pt ui-monospace, Menlo, Consolas, monospace; background: #f2f2f2; padding: 0 .2em; }
-hr { border: 0; border-top: 1px solid #d0d0d0; margin: 1.2em 0; }
+th, td { border: 1px solid var(--sl-line); padding: .3em .5em; text-align: left; vertical-align: top; }
+th { background: var(--sl-tint); }
+code { font: 10pt var(--sl-mono); background: var(--sl-tint); padding: 0 .2em; }
+hr { border: 0; border-top: 1px solid var(--sl-line); margin: 1.2em 0; }
+.sl-footer { margin-top: 2.4em; padding-top: .5em; border-top: 1px solid var(--sl-line); font-size: 9pt; color: var(--sl-muted); }
 """
 
 
@@ -113,12 +118,19 @@ def render(markdown):
     return "\n".join(out)
 
 
-def page(markdown, language="en"):
+def page(markdown, language="en", theme=None):
+    theme = theme or sentl_theme.builtin()
     body = render(markdown)
     title = re.search(r"<h1>(.*?)</h1>", body)
     name = re.sub(r"<[^>]+>", "", title.group(1)) if title else "Report"
+    font = (f'<link rel="stylesheet" href="{html.escape(theme["font_url"], quote=True)}">'
+            if theme.get("font_url") else "")
+    logo = f'<img class="sl-logo" src="{html.escape(theme["logo"], quote=True)}" alt="">' if theme.get("logo") else ""
+    header = f'<header class="sl-header">{logo}</header>\n' if logo else ""
+    footer = f'\n<footer class="sl-footer">{html.escape(theme["footer"])}</footer>' if theme.get("footer") else ""
+    style = sentl_theme.variables(theme) + STYLE + (theme.get("css") or "")
     return (f'<!doctype html>\n<html lang="{html.escape(language)}"><head><meta charset="utf-8">'
-            f"<title>{name}</title><style>{STYLE}</style></head><body>\n{body}\n</body></html>\n")
+            f"<title>{name}</title>{font}<style>{style}</style></head><body>\n{header}{body}{footer}\n</body></html>\n")
 
 
 def _latest(folder):
@@ -150,10 +162,11 @@ def _share(folder, study, source, target, pdf):
     return shared / f"{name}{'.pdf' if pdf.exists() else '.html'}"
 
 
-def write(root, date=None, engines=ENGINES):
+def write(root, date=None, option=None, engines=ENGINES):
     """Write reports/<date>.html and, with a PDF engine on the path, reports/<date>.pdf; the copies to send
     are written to reports/share/ under a descriptive name."""
-    message = _write(root, date, engines)
+    message, notes = _write(root, date, option, engines)
+    message = " ".join([*notes, message])
     folder = Study(root)
     source = folder.path("reports", f"{date}.md") if date else _latest(folder)
     study = folder.study if folder.path("study.json").exists() else {}
@@ -161,14 +174,16 @@ def write(root, date=None, engines=ENGINES):
     return f"{message} To send: {shared}"
 
 
-def _write(root, date, engines):
+def _write(root, date, option, engines):
     folder = Study(root)
     source = folder.path("reports", f"{date}.md") if date else _latest(folder)
     if not source.exists():
         raise Refused(f"{source} not found: run `report` first")
     study = folder.study if folder.path("study.json").exists() else {}
     target = source.with_suffix(".html")
-    target.write_text(page(source.read_text(encoding="utf-8"), study.get("report_language") or "en"), encoding="utf-8")
+    chosen, notes = sentl_theme.resolve(folder, option)
+    target.write_text(page(source.read_text(encoding="utf-8"), study.get("report_language") or "en", chosen),
+                      encoding="utf-8")
     pdf = source.with_suffix(".pdf")
     failures = []
     for name, template in engines:
@@ -182,11 +197,11 @@ def _write(root, date, engines):
             failures.append(f"{name} took more than 3 minutes")
             continue
         if done.returncode == 0 and pdf.exists():
-            return f"Wrote {target} and {pdf} (engine: {name})."
+            return f"Wrote {target} and {pdf} (engine: {name}).", notes
         pdf.unlink(missing_ok=True)
         failures.append(f"{name}: {' '.join((done.stderr or done.stdout).split())[:160]}")
     if failures:
         return (f"Wrote {target}. No installed PDF engine wrote the PDF ({'; '.join(failures)}). Open the page in a "
-                "browser and print it to PDF.")
+                "browser and print it to PDF."), notes
     return (f"Wrote {target}. No PDF engine (weasyprint, chromium, google-chrome, wkhtmltopdf) is on this machine: "
-            "open the page in a browser and print it to PDF, or install one and run this command again.")
+            "open the page in a browser and print it to PDF, or install one and run this command again."), notes

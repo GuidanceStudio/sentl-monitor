@@ -1265,6 +1265,29 @@ it was, and the command exits 6. Unpacking leaves the folder's other files as th
 held per project, and that the next report covers the runs started after the last run of that
 report.
 
+## Theme
+
+`monitor.py pdf` renders the page with `sentlmon/theme.py`. The page's rules read `--sl-*` variables only; a
+theme sets the variables, the logo (an `<img>` with a data URI) and the footer, and never the structure.
+Resolution, first hit wins: `--theme <file>`; the `theme` key of `study.json`; `theme.json` or `theme.css`
+in the study folder; `theme.json` or `theme.css` in `$XDG_CONFIG_HOME/sentl-monitor` (default
+`~/.config/sentl-monitor`); the built-in Sentl theme. A JSON theme is read over the built-in one, so what it
+leaves out stays Sentl's; a CSS theme is appended after the page's own rules. Values that could leave the
+stylesheet (`;`, braces, `<`) are refused. A logo that cannot be read falls back to Sentl's mark and the
+command prints why. The page needs no network: the font is a stack and `font_url` is a link only when the
+user sets it. `reports/share/` receives the themed page and PDF.
+
+Where the built-in values come from (read 2026-10-29):
+
+| Value | Source |
+|---|---|
+| Orange `#FF850D` (`--sl-primary`) | `--primary` in the `:root` of https://sentl.ai |
+| Deep orange `#B85C00` (`--sl-deep`, text on white) | `--primary-deep` of https://sentl.ai |
+| Text `#2C2C31` | the dark background of https://sentl.ai (`--app-bg`) |
+| Mark | https://sentl.ai/brand/mark-sentl.webp, 61 x 70, lossless webp with alpha; `assets/sentl-mark.webp` is the file as fetched, `assets/sentl-mark.png` the same image as PNG so that every PDF engine reads it |
+| Font | the site's system sans stack (`-apple-system`, Segoe UI, Roboto, Helvetica Neue, Arial) with Inter, the face https://app.sentl.ai/fonts/filament/filament/inter/index.css loads, used only where it is installed |
+| Muted `#4B5563`, line `#E2E5EB`, tint `#FFF3E3` | chosen for a white page; Sentl publishes none for print |
+
 ## Failure and degradation
 
 | Situation | What the skill does |
