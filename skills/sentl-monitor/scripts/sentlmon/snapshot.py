@@ -199,37 +199,42 @@ def resume(root, runs_file=None):
     if not reported:
         return _step("report", "The run is ingested and no report has passed check: write the report (step 9).")
     if "closed" not in bound:
-        return _step("archive", "The report is final and the project is not closed: ask the operator whether to follow "
-                                "the subject over time (promote) or pause the project and give the panel link to "
-                                "archive it (step 10).")
+        return _step("end", "The report is final and the snapshot is not closed: ask the operator whether to keep it, "
+                            "delete it, or follow the subject over time (step 10).")
     return _step("done", "The snapshot is finished: the report is final and the project is closed.")
 
 
-def close(root, saved_file):
-    """Record in sentl.json that the snapshot's project is paused and left for the operator to archive."""
+def close(root, saved_file=None, deleted=False):
+    """Record in sentl.json how the snapshot ended: kept in Sentl, archived, or deleted."""
     folder = Study(root)
     study = _load(root)
     key = study["projects"][0]["key"]
     if not folder.path("sentl.json").exists():
-        raise Refused(f"sentl.json not found in {root}: the project is created and bound first (SNAPSHOT.md step 6)")
+        raise Refused(f"sentl.json not found in {root}: the snapshot is created and bound first (SNAPSHOT.md step 6)")
     binding = load_json(folder.path("sentl.json"))
     bound = binding["projects"].get(key)
     if bound is None:
         raise Refused(f"project {key!r} has no binding in sentl.json")
-    saved = schema.project(saved_file)
-    if saved["id"] != bound["project_id"]:
-        raise Refused(f"the saved project is {saved['id']}, but {key} is bound to project {bound['project_id']}: "
-                      "save get-project-tool's response for the right project")
-    if saved.get("is_active"):
-        raise Refused("the project is still is_active in Sentl: call update-project-settings-tool with is_active "
-                      "false, save get-project-tool again and run close again")
     if "closed" in bound:
-        return f"Project {key} was already closed at {bound['closed']['paused_at']}; nothing changed."
-    bound["closed"] = {"paused_at": now_iso(), "archive": "operator"}
+        return f"Project {key} was already closed at {bound['closed']['closed_at']}; nothing changed."
+    if deleted:
+        how = "deleted"
+    else:
+        if not saved_file:
+            raise Refused("pass --saved (the get-project-tool response read now), or --deleted when the snapshot was "
+                          "deleted")
+        saved = schema.project(saved_file)
+        if saved["id"] != bound["project_id"]:
+            raise Refused(f"the saved project is {saved['id']}, but {key} is bound to project {bound['project_id']}: "
+                          "save get-project-tool's response for the right project")
+        if saved.get("is_active"):
+            raise Refused("the project is still is_active in Sentl: archive it, or call update-project-settings-tool "
+                          "with is_active false, save get-project-tool again and run close again")
+        how = "archived" if saved.get("archived") else "kept"
+    bound["closed"] = {"closed_at": now_iso(), "how": how}
     write_json(folder.path("sentl.json"), binding)
-    return (f"Project {key} is paused and recorded as closed in sentl.json. The Sentl MCP cannot archive or delete a "
-            "project: give the operator the link from project-edit-link-tool, to archive or delete it in the Sentl "
-            "web panel. Deleting loses nothing the report needs, since the run is saved in this folder.")
+    return (f"Project {key} is recorded as closed in sentl.json ({how}). The run and the report stay in this folder, "
+            "so nothing the report needs is lost if the snapshot is deleted or the project archived.")
 
 
 # --- promote ------------------------------------------------------------------
@@ -262,6 +267,9 @@ def promote(root, answers_file, models_file):
     bound = binding["projects"].get(key)
     if bound is None or not bound.get("questions"):
         raise Refused(f"project {key} is not created in Sentl: a snapshot is promoted after its run")
+    if bound.get("kind") == "snapshot":
+        raise Refused("a snapshot takes no schedule, so it cannot be followed: design a study for the subject "
+                      "(`brief`, `design`) and keep this report as the first look")
     if "closed" in bound:
         raise Refused("the snapshot's project is closed: nothing is left to follow. Design a study for the "
                       "subject (`brief`, `design`) and keep this report as the first look")

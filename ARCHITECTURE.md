@@ -235,10 +235,10 @@ schedule `daily`, `weekly` or `monthly`.
 It is kept apart from `study.json` so the same design can be set up again in another
 organization.
 
-A snapshot's project also carries `closed`, written by the route's last step:
-`{"paused_at": "<time>", "archive": "operator"}`. `archive` is `operator` while the operator
-must archive or delete the project in the Sentl web panel (gap G16), and `mcp` once the route
-can archive it itself.
+A snapshot also carries `closed`, written by the route's last step:
+`{"closed_at": "<time>", "how": "kept" | "archived" | "deleted"}`. `kind` is the `kind` of the
+saved `get-project-tool` response (`project` or `snapshot`) and is written only when Sentl returns
+it; `promote` refuses a binding whose kind is `snapshot`, since a snapshot takes no schedule.
 
 ### Version snapshot, `history/versions/<project>-<NNN>.json`
 
@@ -727,16 +727,14 @@ stay in `history/`, so the first `report` of the study compares its period with 
    on the one run, with no comparison, then `method`. The agent writes `findings`;
    `monitor.py check` verifies the report in the snapshot order of §The report. Written to
    `reports/<date>.md`.
-10. **Archive.** The Sentl MCP has no tool that archives or deletes a project (gap G16).
-    When the saved project is active, `payload` prints `update-project-settings-tool` with
-    `is_active: false` and the route calls it, so no scheduled run can start and no further
-    credits are spent. `monitor.py close --saved <get-project-tool, read after the pause>` refuses
-    a project still active and writes `closed` to `sentl.json`; closing a closed project changes
-    nothing.
-    `project-edit-link-tool` gives the operator the project's page in the Sentl web panel,
-    where the operator archives or deletes it by hand. Deleting loses nothing the report
-    needs, because the run is saved in the snapshot folder. Once the MCP can archive a
-    project, this step archives it and records `archive: mcp`.
+10. **End.** The operator keeps the snapshot, deletes it, or follows the subject. Deleting is
+    `delete-snapshot-tool` on the operator's go, then `monitor.py close --deleted`; keeping is
+    `monitor.py close --saved <get-project-tool, read now>`, which refuses a project still active
+    and records `archived` when Sentl says so. Both write `closed` to `sentl.json`; closing a
+    closed snapshot changes nothing. Deleting loses nothing the report needs, because the run is
+    saved in the snapshot folder. Following the subject is `brief` and `design`, keeping the
+    report as the first look: a snapshot takes no schedule. A snapshot created as a project before
+    Sentl had snapshots is still promoted with `promote`, and archived with `archive-project-tool`.
 
 **`validate` in snapshot mode** refuses: fewer than 4 or more than 5 dimensions; a
 dimension with more or fewer than one question; a dimension without a catalogue id or with
@@ -841,9 +839,10 @@ is refused with exit 2: it is to be saved again.
 Times are ISO 8601; a time written without a time zone is read as UTC. The known statuses are `completed` and `completed_with_warnings`, final,
 and `pending`, `queued` and `running`, not final yet (A2). `runs` lists a status outside them
 as never seen, apart from the runs not final yet, and fetches neither; `ingest` refuses results
-with such a status. Every error Sentl returns reads "An internal server error occurred.",
-whatever its cause, so the playbooks call the tool once more and then record the run as
-unavailable (`get-run-results-tool`) or stop (any other tool). Any other unexpected error in
+with such a status. A refusal carries `error.code` and a message (seen: `not_found`, `invalid_argument`,
+`project_limit_reached` with `limit` and `active`), which the playbooks tell the operator as they came;
+only "An internal server error occurred." is called once more and then recorded as unavailable
+(`get-run-results-tool`) or stops the route (any other tool). Any other unexpected error in
 `monitor.py` exits 6 with a one-line message; `--debug`, before or after the command, or
 `SENTL_MONITOR_DEBUG=1`, prints the traceback. Ctrl-C exits 130 with one line. `runs` lists the
 runs not final yet and the statuses never seen among the runs of the report's window and those
@@ -1302,7 +1301,9 @@ report.
 | `check` fails | interactive: the agent fixes the report; unattended: saved as draft |
 | Facts older than 90 days | listed to the operator after the report; the report is unaffected |
 | Snapshot run still open when the session ends | the next `snapshot` invocation in the folder follows the same run and starts nothing |
-| Snapshot project left in the account | paused through the MCP; the operator archives or deletes it in the Sentl web panel (gap G16) |
+| Snapshot left in the account | kept, or deleted with `delete-snapshot-tool` on the operator's go; it takes no project slot |
+| Plan's project limit reached | `create-project-tool` answers `project_limit_reached`: nothing is created; the operator names a project to archive, or the study runs as a snapshot |
+| A queued run ends `stalled` | not charged; `trigger-run-tool` once more on the operator's go. A second `trigger-run-tool` while a run is queued starts a second run |
 
 ## MCP gaps
 
@@ -1327,9 +1328,9 @@ convenience.
 | G13 | A notification when a run completes, or a way to list runs completed since a time | P3 | polls on the report's schedule |
 | G14 | The run score's definition documented; the "general rule" that `get-project-tool` describes returned or removed from the description | P3 | computes the project figure as the mean of the dimension means, the definition observed (A4), and records Sentl's score beside it |
 | G15 | The credits each run consumed, in `list-runs-tool` | P3 | tells the operator `estimate-run-tool`'s figure, never the spend |
-| G16 | Archive a project and restore it, or delete it; archived projects left out of `list-projects-tool` unless asked for. Today a project has only `is_active`, set by `update-project-settings-tool` | P2 | pauses a snapshot project with `is_active: false` and gives the operator the link to archive or delete it in the Sentl web panel by hand |
+| G16 | Archive a project and restore it, or delete it | P2 | closed 2026-10-29: `archive-project-tool`, `undo-project-archive-tool` (ten minutes), `restore-project-tool`, and `delete-snapshot-tool` for a snapshot; `list-projects-tool` returns `kind` and `archived`. The skill archives on the operator's go |
 | G17 | The results of every run readable: `get-run-results-tool` returns a server error on some older runs | P2 | records them as unavailable, requests them again at every invocation, and reports without them |
-| G18 | Errors that say what failed: every error reads "An internal server error occurred." | P2 | calls the tool once more, then records the run as unavailable or stops, without knowing whether the cause is the request, the data or the server |
+| G18 | Errors that say what failed | P2 | closed 2026-10-29 for the tools seen: errors carry a code and a message, which the playbooks tell the operator; only the internal server error is called once more |
 | G19 | The run statuses documented, with which are final | P3 | reads `completed` and `completed_with_warnings` as final and `pending`, `queued` and `running` as not final yet, and lists any other as never seen |
 
 ## Assumptions

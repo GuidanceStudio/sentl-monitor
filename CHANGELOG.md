@@ -5,6 +5,19 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- The skill follows Sentl's MCP of 2026-10-29. `SKILL.md` opens with a table of what the operator
+  may want and the route for each, and no longer repeats the tools' parameters, roles or limits.
+  `snapshot` creates a snapshot in Sentl (`create-snapshot-tool`: no project slot, no schedule, one
+  round) and ends by keeping it, deleting it with `delete-snapshot-tool`, or following the subject
+  with `brief` and `design`; `monitor.py close` records `closed_at` and `how` (`kept`, `archived`
+  or `deleted`) and `--deleted` needs no saved project. `setup` stops on `project_limit_reached`,
+  offers archiving a project the operator names, and gains a step to stop a project with
+  `archive-project-tool`. Errors are shown with their code and message; only the internal server
+  error is called once more. A run that ends `stalled` is not charged and is triggered once more
+  on a go. `get-project-tool`'s `kind` and `archived` are read; `payload` refuses an archived
+  project. `monitor.py pdf` writes a report as a print-ready page and as a PDF when an engine is
+  installed.
+
 - `setup` ends its estimate step with a recap table: a row per project with its dimensions and
   question counts, the models with their credits per answer, the rounds with their frequency, and the credits per month as a median month
   with the worst month in parentheses (daily 30 and 31 runs, weekly 4 and 5, monthly 1 and 1).

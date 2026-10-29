@@ -119,6 +119,8 @@ PROJECT = _Object({
     "schedule_frequency": (TEXT_OR_NULL, True),
     "rounds": (COUNT, True),
     "is_active": (BOOLEAN, False),
+    "kind": (_Leaf("project or snapshot", lambda v: v in ("project", "snapshot")), False),
+    "archived": (BOOLEAN, False),
     "researcher_model_ids": (_List(TEXT, "a list of model ids"), True),
     "dimensions": (_List(_Object({
         "id": (INTEGER, True),

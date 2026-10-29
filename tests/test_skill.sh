@@ -231,6 +231,20 @@ for insight in "Fact currency" "Sources behind" "Readings" "Episodes" "Presence 
 done
 
 echo ""
+echo "=== The guide follows Sentl's MCP of 2026-10-29 ==="
+has '^\| You want \| Route \|' "$SKILL" "SKILL.md holds the table of what the operator may want"
+has 'error code|code and a message' "$SKILL" "SKILL.md tells the operator an error's code and message"
+if grep -rqiE "cannot archive|no tool that archives" "$PAYLOAD" --include=*.md; then
+    bad "no playbook says the MCP cannot archive"
+else
+    ok "no playbook says the MCP cannot archive"
+fi
+has 'archive-project-tool' "$PAYLOAD/setup/SETUP.md" "SETUP.md archives a project that is no longer needed"
+has 'project_limit_reached' "$PAYLOAD/setup/SETUP.md" "SETUP.md handles the plan's project limit"
+has 'create-snapshot-tool' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md creates a snapshot, not a project"
+has 'delete-snapshot-tool' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md ends by deleting on the operator's go"
+
+echo ""
 echo "=== monitor.py --help ==="
 # Captured before grepping: grep -q exits at the first match and the SIGPIPE
 # it leaves would fail the command under pipefail.

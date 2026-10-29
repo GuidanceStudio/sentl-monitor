@@ -8,7 +8,8 @@ account and can spend credits: every write has its own go.
 in `study.json`. The fields are in ARCHITECTURE.md §`study.json`, §`sentl.json` and §`setup`.
 
 **Every call to `create-project-tool`, `update-project-settings-tool`,
-`save-project-questions-tool` (a dry run included) and `trigger-run-tool` needs the operator's
+`save-project-questions-tool` (a dry run included), `trigger-run-tool`, `archive-project-tool` and
+`restore-project-tool` needs the operator's
 explicit go, each time.** Show the call's arguments in full, in plain words next to the JSON,
 and wait. A go for one call is not a go for the next, and a go given earlier in the conversation
 for another study or another project is not one. `monitor.py payload` only prints the arguments;
@@ -19,10 +20,10 @@ not have the shape the skill reads, and the message names the tool and the field
 the file, stop and tell the operator, since the skill needs an update. Exit 6: an unexpected
 error; stop, give the operator the message, and run the command again with `--debug`.
 
-**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
-its cause. Call the tool once more. If it fails again, on `get-run-results-tool` record the run
-as unavailable (step 3); on any other tool stop, say which tool failed and that `setup` can be
-run again later. After a failed write, call `get-project-tool` before anything else: the write
+**Sentl's errors.** Show the operator the error's code and message as Sentl gave them. Only "An
+internal server error occurred." is called once more; if it fails again, on `get-run-results-tool`
+record the run as unavailable (step 3); on any other tool stop, say which tool failed and that
+`setup` can be run again later. After a failed write, call `get-project-tool` before anything else: the write
 may have been applied.
 
 ## 1. Preflight
@@ -101,6 +102,12 @@ Skip this step for a project that is not bound yet.
 ```bash
 python3 <skill>/scripts/monitor.py payload --study "$S" --project <key> --models "$S/inbox/models.json"
 ```
+
+The plan allows a number of projects that are not archived, paused ones included, and
+`get-organization-tool` (step 1) says how many remain. With none left, or on a refusal with the
+code `project_limit_reached`, do not create anything: tell the operator, name the projects that
+are open (`list-projects-tool`, `archived: false`), and offer to archive one they name, or to run
+the study as a snapshot (`snapshot`), which takes no slot. Never pick the project to archive.
 
 The output holds `create-project-tool` with its arguments. Show them and ask for the go. On the
 go, call `create-project-tool` with exactly those arguments: the project is created paused, with
@@ -197,14 +204,25 @@ stays paused until the operator says otherwise, and a run spends credits.
 
 - **First run.** Call `list-runs-tool` first. A run already open: follow it, start nothing, and
   tell the operator. Otherwise, on an explicit go after the estimate, call `trigger-run-tool`.
-  If the estimate says the run cannot start, do not call it; tell the operator why.
+  If the estimate says the run cannot start, do not call it; tell the operator why. A run that
+  ends `stalled` (the queue did not pick it up) was not charged: call `trigger-run-tool` once
+  more on the operator's go. Calling it while a run is queued starts a second run, so look first.
 - **Schedule.** On an explicit go, call `update-project-settings-tool` with `project_id` and
   `is_active: true`. Then save `get-project-tool` and run `bind` again so that the version
   records the activation.
 
 A run takes some time to complete. `report` reads it once it has.
 
-## 8. Close
+## 8. Stop a project
+
+When the operator no longer needs a project, `archive-project-tool` on their go, naming the project
+by its name: it stops the schedule, frees the plan's slot and keeps every result readable.
+`undo-project-archive-tool` reverts it in the first ten minutes; later, `restore-project-tool`
+brings the project back paused. An archived project is not saved to or scheduled: `payload`
+refuses it and names the restore. Export its history first with `export-runs-tool` when the
+operator wants it in the study folder.
+
+## 9. Close
 
 Call `project-edit-link-tool` for each project and give the operator the links. Tell them, in
 the chat: the projects created and changed, the dimensions and questions saved, the questions

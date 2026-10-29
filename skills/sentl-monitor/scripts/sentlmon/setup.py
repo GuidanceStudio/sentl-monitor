@@ -29,6 +29,9 @@ def _judge_text(q):
 
 
 def _check_saved(saved, bound, key):
+    if saved.get("archived"):
+        raise Refused(f"project {saved['id']} is archived in Sentl: restore it first, or leave it as a history to "
+                      "read; nothing is saved to an archived project")
     if saved["id"] != bound["project_id"]:
         raise Refused(f"the saved project is {saved['id']}, but {key} is bound to project {bound['project_id']}: "
                       "save get-project-tool's response for the right project")
@@ -72,8 +75,10 @@ def _create(project, binding, study):
     if not organization:
         raise Refused("study.json and sentl.json name no organization: set `organization` in study.json to the "
                       "slug list-organizations gives")
-    out = {"organization": organization, "name": project["name"], "researcher_model_ids": list(project["models"]),
-           "rounds": project["rounds"]}
+    out = {"organization": organization, "name": project["name"], "researcher_model_ids": list(project["models"])}
+    if study.get("kind") == "snapshot":
+        return out
+    out["rounds"] = project["rounds"]
     if project.get("schedule"):
         out["schedule_frequency"] = project["schedule"]
     return out
@@ -85,14 +90,15 @@ def _settings_update(project, bound, saved, is_snapshot=False):
     it only on the operator's go, and a snapshot's call can only pause."""
     differs = (norm(saved["name"]) != norm(project["name"])
                or set(saved.get("researcher_model_ids") or []) != set(project["models"])
-               or saved["rounds"] != project["rounds"]
-               or (not is_snapshot and saved.get("schedule_frequency") != project["schedule"]))
+               or (not is_snapshot and (saved["rounds"] != project["rounds"]
+                                        or saved.get("schedule_frequency") != project["schedule"])))
     pause = is_snapshot and bool(saved.get("is_active"))
     if not (differs or pause):
         return None
     out = {"project_id": bound["project_id"], "name": project["name"],
-           "researcher_model_ids": list(project["models"]), "rounds": project["rounds"]}
+           "researcher_model_ids": list(project["models"])}
     if not is_snapshot:
+        out["rounds"] = project["rounds"]
         out["schedule_frequency"] = project["schedule"]
     if pause:
         out["is_active"] = False
@@ -148,9 +154,10 @@ def payload(root, key, models_file, saved_file=None, runs_file=None):
     bound = binding["projects"].get(key)
     out = {"project": key}
     if bound is None:
-        out["create-project-tool"] = _create(project, binding, study)
-        out["notes"] = ["the project does not exist in Sentl yet: call create-project-tool, save its project to "
-                        "inbox/, run bind, then run payload again for the questions"]
+        tool = "create-snapshot-tool" if is_snapshot else "create-project-tool"
+        out[tool] = _create(project, binding, study)
+        out["notes"] = [f"the {'snapshot' if is_snapshot else 'project'} does not exist in Sentl yet: call {tool}, "
+                        "save its project to inbox/, run bind, then run payload again for the questions"]
         return json.dumps(out, ensure_ascii=False, indent=2)
 
     if not saved_file or not runs_file:
@@ -379,6 +386,8 @@ def bind(root, key, saved_file, run_file=None):
     binding["projects"][key] = {"project_id": saved["id"], "version": number,
                                 "dimensions": {d["key"]: d["id"] for d in layout},
                                 "questions": {q["key"]: q["id"] for d in layout for q in d["questions"]}}
+    if saved.get("kind"):
+        binding["projects"][key]["kind"] = saved["kind"]
     write_json(folder.path("sentl.json"), binding)
     lines = [head, f"{len(layout)} dimensions and {sum(len(d['questions']) for d in layout)} questions have their ids "
                    "in sentl.json."]

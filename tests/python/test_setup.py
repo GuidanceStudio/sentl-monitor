@@ -241,6 +241,20 @@ class PayloadForABoundProject(SetupCase):
         saved["project"]["id"] = 12345
         self.payload(saved, listing([], 12345), check=2)
 
+    def test_an_archived_project_is_refused_and_restore_is_named(self):
+        saved = copy.deepcopy(self.saved)
+        saved["project"]["archived"] = True
+        proc = self.payload(saved, self.no_runs(), check=2)
+        self.assertIn("archived", proc.stderr)
+        self.assertIn("restore", proc.stderr)
+
+    def test_the_kind_and_archived_fields_sentl_returns_are_accepted_and_the_kind_is_bound(self):
+        saved = copy.deepcopy(self.saved)
+        saved["project"].update(kind="project", archived=False)
+        self.payload(saved, self.no_runs())
+        self.bind(saved)
+        self.assertEqual(self.read("sentl.json")["projects"][KEY]["kind"], "project")
+
     def test_a_bound_project_needs_the_saved_project_and_the_run_listing(self):
         self.payload(None, self.no_runs(), check=2)
         self.payload(self.saved, None, check=2)

@@ -15,8 +15,8 @@ tell the operator the tool and the field, since the skill needs an update before
 Exit 6: an unexpected error; stop, give the operator the message, and run the same command with
 `--debug` to show where it failed.
 
-**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
-its cause. Call the tool once more. If it fails again on `get-run-results-tool`, record the run
+**Sentl's errors.** An error carries a code and a message: tell the operator both as Sentl gave
+them. "An internal server error occurred." is called once more. If it fails again on `get-run-results-tool`, record the run
 as unavailable (step 3) and go on. If it fails again on `get-project-tool`, `list-runs-tool` or
 `list-ai-models`, stop: the report cannot be written without it. Tell the operator which tool
 failed and that `report` can be run again later.
@@ -254,6 +254,10 @@ refused (exit 2) when a half's file is missing: run `period` again. A period bui
 episodes recorded the runs after their close is refused (exit 2) too: run `period` again for that
 date, then `check`. When it passes, the report is recorded in `history/reports.json` as final,
 and the next report compares with it.
+
+Offer the report as a PDF: `python3 <skill>/scripts/monitor.py pdf --study "$S"` writes
+`reports/D.html` and, when chromium, google-chrome, weasyprint or wkhtmltopdf is installed,
+`reports/D.pdf`; without one it says how to print the page to PDF.
 
 On a host without a lasting folder, `check` ends by saying so. Pack the study, then copy the
 report, and its PDF if one was made, to the same folder:

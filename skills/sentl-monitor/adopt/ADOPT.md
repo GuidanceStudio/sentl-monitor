@@ -11,8 +11,8 @@ what it returns: do not edit the file; stop and tell the operator the tool and t
 the skill needs an update before it can adopt the project. Exit 6: an unexpected error; stop, give
 the operator the message, and run the same command with `--debug` to show where it failed.
 
-**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
-its cause. Call the tool once more. If it fails again on `get-run-results-tool`, go to the next
+**Sentl's errors.** An error carries a code and a message: tell the operator both as Sentl gave
+them. "An internal server error occurred." is called once more. If it fails again on `get-run-results-tool`, go to the next
 completed run (step 4); on `list-projects-tool`, `get-project-tool` or `list-runs-tool`, stop and
 tell the operator which tool failed and that `adopt` can be run again later.
 

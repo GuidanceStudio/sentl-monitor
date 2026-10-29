@@ -16,11 +16,11 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | Route | What it does |
 |---|---|
 | `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
-| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations; started by a scheduler it runs [unattended](#scheduled-reports) |
+| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as chart tables for [md2](https://github.com/GuidanceStudio/md2), a converter from Markdown to HTML presentations, and the report as a PDF; started by a scheduler it runs [unattended](#scheduled-reports) |
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), collects how people search for them and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
-| `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, one project created paused, one run on your go after Sentl's credit estimate, and a short report; then the project is paused and left for you to archive in the Sentl web panel, because Sentl's MCP cannot archive a project. Invoked again in the same folder, it resumes where it stopped |
+| `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, one snapshot in Sentl, which takes none of the plan's project slots, one run on your go after Sentl's credit estimate, and a short report; then you keep the snapshot, delete it, or follow the subject with `brief` and `design`. Invoked again in the same folder, it resumes where it stopped |
 
 `adopt` and `report` only read from Sentl: they create and change nothing in your account and
 spend no credits. `brief` does not call Sentl at all, and `design` reads only the list of models
@@ -274,6 +274,10 @@ In the chat, and never in the report, the assistant tells you the runs the repor
 week rebuilt from earlier runs, and anything to check: runs not final yet, runs left out, edits
 found in Sentl. Ask for the charts and it writes `reports/2026-10-14.charts.md` with
 `monitor.py charts`.
+
+Ask for the PDF and `monitor.py pdf --study <folder>` writes `reports/<date>.html` and, when chromium,
+google-chrome, weasyprint or wkhtmltopdf is installed, `reports/<date>.pdf`; without one it says how to
+print the page to PDF from a browser.
 
 ### 3. The next reports
 

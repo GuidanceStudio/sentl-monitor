@@ -9,7 +9,7 @@ from fixtures import GEM, GPT, StudyCase, listing, models
 from snapshot_study import (BOUND_AT, DATE, KEY, PROJECT_ID, RUN_ID, RUN_STARTED, SCORES, clean_snapshot,
                             extra_dimension, mutated, run_results, saved_project)
 
-TOOLS = ("create-project-tool", "update-project-settings-tool", "save-project-questions-tool")
+TOOLS = ("create-project-tool", "create-snapshot-tool", "update-project-settings-tool", "save-project-questions-tool")
 SNAPSHOT_ORDER = ["What we did and to what end", "The dimensions and how we reached them", "The questions",
                   "How the answers are scored", "What the assistants say", "What a single run cannot show"]
 
@@ -257,15 +257,17 @@ def values(node):
 
 class PayloadSnapshotTest(SnapshotCase):
 
-    def test_an_unbound_snapshot_gets_create_arguments_with_one_round_and_no_schedule(self):
+    def test_an_unbound_snapshot_gets_the_arguments_of_create_snapshot_tool_and_no_project_call(self):
         out = self.payload()
-        self.assertEqual(sorted(k for k in out if k in TOOLS), ["create-project-tool"])
-        self.assertEqual(out["create-project-tool"], {
+        self.assertEqual(sorted(k for k in out if k in TOOLS), ["create-snapshot-tool"])
+        self.assertEqual(out["create-snapshot-tool"], {
             "organization": "example-org", "name": f"Snapshot · Avenello · {DATE}",
-            "researcher_model_ids": [GPT, GEM], "rounds": 1})
+            "researcher_model_ids": [GPT, GEM]})
 
-    def test_the_create_arguments_do_not_activate_the_project(self):
-        self.assertNotIn("is_active", self.payload()["create-project-tool"])
+    def test_the_create_arguments_carry_no_rounds_no_schedule_and_no_activation(self):
+        args = self.payload()["create-snapshot-tool"]
+        for field in ("rounds", "schedule_frequency", "is_active"):
+            self.assertNotIn(field, args)
 
     def test_a_bound_snapshot_saves_one_project_with_its_four_dimensions_and_asks_for_no_settings_change(self):
         saved = self.bind_full()
@@ -471,9 +473,9 @@ class ResumeTest(SnapshotCase):
         self.ingest_run()
         self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "report")
 
-    def test_a_finished_report_on_a_project_not_closed_resumes_at_the_archive(self):
+    def test_a_finished_report_on_a_snapshot_not_closed_resumes_at_the_end_choice(self):
         self.final_report()
-        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "archive")
+        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "end")
 
     def test_a_closed_snapshot_has_nothing_left(self):
         self.final_report()
@@ -491,17 +493,35 @@ class ResumeTest(SnapshotCase):
 
 class CloseTest(SnapshotCase):
 
-    def test_the_archive_step_writes_closed_with_archive_operator(self):
+    def close_deleted(self, check=0):
+        return self.cli("close", "--study", self.study, "--deleted", check=check, at="2026-10-22T12:00:00Z")
+
+    def saved_archived(self):
+        return saved_project(self.design, edit=lambda p: p.update(archived=True))
+
+    def closed(self):
+        return self.read("sentl.json")["projects"][KEY]["closed"]
+
+    def test_a_snapshot_left_in_sentl_is_closed_as_kept(self):
         self.final_report()
         self.close(self.saved_paused())
-        closed = self.read("sentl.json")["projects"][KEY]["closed"]
-        self.assertEqual(closed, {"paused_at": "2026-10-22T12:00:00Z", "archive": "operator"})
+        self.assertEqual(self.closed(), {"closed_at": "2026-10-22T12:00:00Z", "how": "kept"})
 
-    def test_it_tells_the_operator_to_archive_the_project_in_the_panel(self):
+    def test_an_archived_project_is_closed_as_archived(self):
+        self.final_report()
+        self.close(self.saved_archived())
+        self.assertEqual(self.closed()["how"], "archived")
+
+    def test_a_deleted_snapshot_is_closed_without_reading_it(self):
+        self.final_report()
+        self.close_deleted()
+        self.assertEqual(self.closed(), {"closed_at": "2026-10-22T12:00:00Z", "how": "deleted"})
+
+    def test_close_says_the_run_and_the_report_stay_in_the_folder_and_names_no_panel(self):
         self.final_report()
         out = self.close(self.saved_paused()).stdout
-        self.assertIn("web panel", out)
-        self.assertIn("project-edit-link-tool", out)
+        self.assertIn("stay in this folder", out)
+        self.assertNotIn("web panel", out)
 
     def test_a_project_still_active_is_not_closed(self):
         self.final_report()
@@ -515,7 +535,11 @@ class CloseTest(SnapshotCase):
         again = self.cli("close", "--study", self.study, "--saved", self.save("p.json", self.saved_paused()),
                          check=0, at="2026-10-23T12:00:00Z")
         self.assertIn("already closed", again.stdout)
-        self.assertEqual(self.read("sentl.json")["projects"][KEY]["closed"]["paused_at"], "2026-10-22T12:00:00Z")
+        self.assertEqual(self.closed()["closed_at"], "2026-10-22T12:00:00Z")
+
+    def test_neither_saved_nor_deleted_is_refused(self):
+        self.final_report()
+        self.cli("close", "--study", self.study, check=2)
 
     def test_a_project_that_is_not_bound_is_refused(self):
         self.close(self.saved_paused(), check=2)
@@ -637,3 +661,13 @@ class PromoteTest(SnapshotCase):
                         scores={k: 5 for k in SCORES})
         proc = self.cli("period", "--study", self.study, "--date", "2026-11-22", "--models", self.models, check=0)
         self.assertIn(f"Compared with the period of {DATE}", proc.stdout)
+
+    def test_a_native_snapshot_cannot_be_followed_and_the_message_names_brief_and_design(self):
+        self.bind_full(edit=lambda p: p.update(kind="snapshot"))
+        self.assertEqual(self.read("sentl.json")["projects"][KEY]["kind"], "snapshot")
+        self.ingest_run()
+        self.write_report()
+        self.check(check=0)
+        err = self.promote(check=2).stderr
+        self.assertIn("no schedule", err)
+        self.assertIn("brief", err)

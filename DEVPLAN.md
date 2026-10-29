@@ -5,7 +5,7 @@ projects with read-only tools. M1, M2, M2b, M2c, M2d, M2e and M2f done; R0–R4 
 Revised 2026-10-24 against Sentl's MCP as its tool descriptions read that day, on the operator's
 instruction: M9 (the statuses, ids, filters and error codes Sentl documents today), M10 (a live
 snapshot, promoted), R6 (release 0.2.0), R3e re-ordered with claude.ai first, M11 (`compare`, moved
-out of M8). Order: M9, M10, R6, R3e, M11 when a second snapshot of one subject exists. Next: M9.
+out of M8). Order: M9, M13 (added 2026-10-29), M10, R6, R3e, M11 when a second snapshot of one subject exists. In progress: M13.
 
 **Decisions of 2026-10-16:** MIT licence, public repository at
 github.com/GuidanceStudio/sentl-monitor; a one-off check of a subject is the `snapshot` route
@@ -793,6 +793,30 @@ language.
 - [x] Commit
 
 **Done when:** the suite passes and `setup/SETUP.md` shows the template with a fictional example.
+
+## M13: A guide that follows Sentl's MCP of 2026-10-29, and a PDF export ✅
+
+**Why:** asked by the operator on 2026-10-29. Sentl's MCP gained `archive-project-tool`, `restore-project-tool`, `undo-project-archive-tool`, `create-snapshot-tool` and `delete-snapshot-tool`; `list-projects-tool` returns `kind` (`project` or `snapshot`) and `archived`; creating a project past the plan's limit returns `error.code: project_limit_reached` (`limit`, `active`), and the other refusals carry codes too. The skill still tells the operator to archive by hand in the panel (G16), creates a snapshot as a paused project that takes one of the plan's slots, says every Sentl error reads the same, and repeats the tool list that the MCP already describes. It makes no PDF; it only says "its PDF, if one was made".
+
+**Decision:** the skill holds what the MCP does not: which route to take for what the operator wants, the order of steps, the approvals, the figures and the report. It does not restate a tool's parameters, roles, errors or limits: the assistant reads those from the tool when it calls it. The only fact about a tool kept in the skill is the one a route depends on (for instance that a snapshot takes no slot and that a refusal with a code is shown to the operator as it came).
+
+**Approach:**
+- `SKILL.md`: a "What do you want to do" table at the top (a first look; follow a subject; a report; change the questions; stop a project; a PDF), each line naming the route; the rule listing the tool suffixes shrinks to the ones the scripts' inputs depend on; the error rule becomes: show the code and message, retry once only on `internal`; writes list gains `archive-project-tool`, `restore-project-tool`, `create-snapshot-tool`, `delete-snapshot-tool`, each after the operator's go.
+- `snapshot/SNAPSHOT.md` and `setup/SETUP.md`: the snapshot is created with `create-snapshot-tool` (no slot, no schedule, one round); its end is a choice: keep it, delete it with `delete-snapshot-tool` after a go, or `promote` it by creating a project with the same questions through `setup`. A project that is no longer needed is archived with `archive-project-tool` after a go, and `undo-project-archive-tool` is named for the first 10 minutes. `setup` step 4 checks the plan's limit by reading `list-projects-tool` (`archived: false` count) and, on `project_limit_reached`, offers the archive of a named project or a snapshot instead of a project.
+- Scripts: `setup.py` builds the arguments of `create-snapshot-tool` for a snapshot and refuses an archived project; `schema.py` accepts `kind` and `archived`; `snapshot.py` closes as kept, archived or deleted and refuses `promote` for a native snapshot.
+- PDF: `monitor.py pdf --study <folder> [report]` turns `reports/<date>.md` into a print-ready HTML file with the report's own styles and, when `chromium`, `google-chrome`, `weasyprint` or `wkhtmltopdf` is on the machine, into `reports/<date>.pdf`; with none, it writes the HTML and prints what to open it with. Python standard library only. The routes `report` and `snapshot` end by offering it; the pack step copies the PDF when it exists.
+- ARCHITECTURE §MCP gaps (G16 closed with the date), §Failure and degradation, §`snapshot <subject>`; README; CHANGELOG.
+
+**Tasks:**
+- [x] Test: bash — `SKILL.md` has the intent table and names no tool parameter; no playbook says the MCP cannot archive; the error rule names `error.code`
+- [x] Test: unit — payload for `create-snapshot-tool`: organization slug, name, researcher models, no rounds, no schedule, no `is_active`; the same study as a project still builds `create-project-tool` arguments
+- [x] Test: unit — the project schema accepts `kind` and `archived`, `bind` records the kind, and `payload` refuses an archived project naming the restore (`adopt` is unchanged: it reads the project as before)
+- [x] Test: unit — `pdf` writes the HTML for a fixture report (headings, tables, lists, the chart tables), picks the PDF engine found on the path, and with none writes the HTML only and exits 0 with the instruction
+- [x] Implement the playbook text, the payload and the `pdf` command; ARCHITECTURE, README, CHANGELOG
+- [ ] Live check on the test organization, only on the operator's go: a snapshot created, estimated, run once, deleted; recorded as A7 (a snapshot's run reads through `get-run-results-tool` like a project's)
+- [x] Commit and push
+
+**Done when:** the suite passes, `monitor.py pdf` produces a PDF from the fictional example report on this machine, and a grep of the playbooks finds no instruction to archive in the panel.
 
 ## R6: Release 0.2.0
 

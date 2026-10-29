@@ -1,7 +1,8 @@
 # snapshot
 
 A one-off check of a subject, in a folder of its own: a small study of four or five dimensions, one
-Sentl project, one run, one report, and no project left running in Sentl. It writes to the
+snapshot in Sentl (it takes none of the plan's project slots), one run, one report, and nothing left
+running in Sentl. It writes to the
 operator's Sentl account and spends credits: every write has its own go.
 
 `<skill>` below is this skill's directory, `$S` the snapshot's folder, `D` today's date
@@ -9,8 +10,8 @@ operator's Sentl account and spends credits: every write has its own go.
 `--study "$S"`. The fields are in ARCHITECTURE.md §`study.json`, §`sentl.json` and §`snapshot
 <subject>`; the dimension catalogue is `<skill>/design/catalogue.md`.
 
-**Every call to `create-project-tool`, `save-project-questions-tool` (a dry run included),
-`update-project-settings-tool` and `trigger-run-tool` needs the operator's explicit go, each
+**Every call to `create-snapshot-tool`, `save-project-questions-tool` (a dry run included),
+`update-project-settings-tool`, `trigger-run-tool`, `delete-snapshot-tool` and `archive-project-tool` needs the operator's explicit go, each
 time.** Show the call's arguments in full, in plain words next to the JSON, and wait. A go for one
 call is not a go for the next, and a go given for another folder is not one. `monitor.py payload`
 only prints the arguments; the assistant makes the call with exactly those arguments.
@@ -20,10 +21,10 @@ not have the shape the skill reads, and the message names the tool and the field
 file, stop and tell the operator, since the skill needs an update. Exit 6: an unexpected error;
 stop, give the operator the message, and run the command again with `--debug`.
 
-**Sentl's errors.** Every error from Sentl reads "An internal server error occurred.", whatever
-its cause. Call the tool once more. If it fails again, stop and say which tool failed and that
-`snapshot` can be run again in the same folder: it resumes. After a failed write, call
-`get-project-tool` before anything else, since the write may have been applied.
+**Sentl's errors.** Show the operator the error's code and message as Sentl gave them. Only
+"An internal server error occurred." is called once more; if it fails again, stop and say which
+tool failed and that `snapshot` can be run again in the same folder: it resumes. After a failed
+write, call `get-project-tool` before anything else, since the write may have been applied.
 
 ## 1. Preflight and where to resume
 
@@ -53,7 +54,7 @@ Exit 1: the folder cannot be written; choose another. On a web sandbox, unpack t
    python3 <skill>/scripts/monitor.py resume --study "$S" --runs "$S/inbox/runs-<project id>.json"
    ```
 
-   It prints `Next step: design`, `project`, `cost`, `run`, `report`, `archive` or `done`, and
+   It prints `Next step: design`, `project`, `cost`, `run`, `report`, `end` or `done`, and
    the step of this playbook that follows. Go to that step and skip the ones before it. A new
    folder is at `design`.
 
@@ -126,10 +127,11 @@ Nothing here starts a run. First, the project:
 python3 <skill>/scripts/monitor.py payload --study "$S" --project K --models "$S/inbox/models.json"
 ```
 
-The output holds `create-project-tool` with the project's name, models and rounds, and neither
-`is_active` nor a schedule, so the project is created paused. Show it and ask for the go; on the
-go call it with exactly those arguments. Call `get-project-tool` on the id it returns, save the
-response to `$S/inbox/created.json` and bind it:
+The output holds `create-snapshot-tool` with the snapshot's name and models. A snapshot has no
+schedule, runs one round and takes none of the plan's project slots, so the plan's project limit
+does not apply to it. Show it and ask for the go; on the go call it with exactly those arguments.
+Call `get-project-tool` on the id it returns, save the response to `$S/inbox/created.json` and
+bind it:
 
 ```bash
 python3 <skill>/scripts/monitor.py bind --study "$S" --project K --saved "$S/inbox/created.json"
@@ -171,10 +173,9 @@ Call `list-runs-tool` first. A run already open: follow it, start nothing, and t
 operator. Otherwise, only on the operator's explicit go after the estimate, call
 `trigger-run-tool` once, with the project id.
 
-If it is refused because the project is paused, tell the operator, and ask for a new go to set
-`is_active: true` with `update-project-settings-tool` for the length of the run. On that go,
-activate the project, call `trigger-run-tool` once, pause the project with `is_active: false`
-as soon as the run is open, and record in the chat that a paused project did not start a run.
+If it is refused, tell the operator the code and message as Sentl gave them, and activate
+nothing: a snapshot is not activated. A run that ends `stalled` (the queue did not pick it up) was
+not charged: with the operator's go, call `trigger-run-tool` once more.
 
 Follow the run with `list-runs-tool` until its status is `completed` or
 `completed_with_warnings`, a few minutes apart. If the conversation ends first, the next
@@ -215,49 +216,29 @@ python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
 Exit 1 lists each problem: fix the report and run it again until it passes. A passing report is
 recorded in `history/reports.json` as final.
 
-## 10. Follow it, or archive it
+## 10. Keep it, delete it, or follow the subject
 
-Ask the operator: **follow this subject over time?** The run and its report are the baseline of
-a study when the answer is yes, and then the project is kept, not archived. A no goes to the
-archive below.
+Ask the operator which of three. The run and its report stay in this folder whichever they choose.
 
-**Yes: promote.** Ask for what a monitored study needs and the snapshot did not: how often the
-project runs (`daily`, `weekly` or `monthly`), how often a report covers (`weekly` or `monthly`),
-the audience (`generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason), and
-the question and the decision of the project. Save them as `$S/inbox/promote.json`:
-
-```json
-{"schedule": "weekly", "report_every": "monthly",
- "audience": {"choice": "generic_consumer", "reason": "..."},
- "project": {"question": "...", "decision": "..."}}
-```
-
-```bash
-python3 <skill>/scripts/monitor.py promote --study "$S" --answers "$S/inbox/promote.json" --models "$S/inbox/models.json"
-```
-
-It writes `study.json` as a study (questions, rubrics and rounds unchanged, one theme per
-dimension with the snapshot as its origin) and sends nothing. Then follow `setup/SETUP.md` from
-the `payload` step: it saves the schedule, and activates the project only on the operator's go
-after `estimate-run-tool`. The snapshot's report becomes the baseline: the next `report` compares
-the first period with it. `promote` on a snapshot folder is also the answer when the operator
-comes back later and asks to follow the subject, as long as the project is not closed.
-
-**No: archive.** The Sentl MCP has no tool that archives or deletes a project. Pause it so that no scheduled run
-can start and no further credits are spent. Call `get-project-tool`, saved to
-`$S/inbox/project.json`. When it shows `is_active: true`, run the payload of step 6 with `--saved` and `--runs` and, on the
-operator's go, call `update-project-settings-tool` with exactly the arguments it prints under
-that name (`is_active: false`); call nothing else from its output. Then `get-project-tool`
-again, saved, and:
+**Keep it.** The snapshot stays in Sentl, readable, and costs nothing more. Call `get-project-tool`,
+saved to `$S/inbox/project.json`, and:
 
 ```bash
 python3 <skill>/scripts/monitor.py close --study "$S" --saved "$S/inbox/project.json"
 ```
 
-Exit 2 saying the project is still active: pause it and save it again. It records `closed` with
-`archive: operator` in `sentl.json`. Call `project-edit-link-tool` and give the operator the
-project's page in the Sentl web panel, where they archive or delete it by hand. Deleting loses
-nothing the report needs, because the run is saved in this folder.
+**Delete it.** On the operator's go, call `delete-snapshot-tool`, then:
+
+```bash
+python3 <skill>/scripts/monitor.py close --study "$S" --deleted
+```
+
+**Follow the subject over time.** A snapshot takes no schedule, so following it means a project:
+go on with `brief` and `design`, keeping this report as the first look. `promote` exists only for
+a snapshot that was created as a project before Sentl had snapshots; for a snapshot it exits 2
+and says so. When the project of such a snapshot is no longer needed, archive it with
+`archive-project-tool` on the operator's go (`undo-project-archive-tool` reverts it in the first
+ten minutes), then run `close` with `--saved` after reading it again.
 
 On a host without a lasting folder, pack the snapshot before the conversation ends:
 `monitor.py pack --study "$S" --out <the folder the host offers for download>`, and offer the
@@ -266,5 +247,5 @@ pack and the report for download (SKILL.md).
 ## 11. Tell the operator
 
 In the chat: the report's path, the credits the estimate gave, the runs left out or unavailable,
-the dimensions shown without a figure, unmatched responses, whether a paused project started the
-run, and that the project is paused and waits for the operator to archive it.
+the dimensions shown without a figure, unmatched responses, and what became of the snapshot
+(kept, deleted, or followed by a study). Offer the report as a PDF: `monitor.py pdf --study "$S"`.

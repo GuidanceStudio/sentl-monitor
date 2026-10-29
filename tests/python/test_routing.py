@@ -13,7 +13,7 @@ SHAPES = {
     "runs completed since the last report": ["report"],
     "what changed between two moments": ["what changed", "report"],
     "a first look at a subject": ["first look", "snapshot <subject>"],
-    "follow a subject already looked at": ["follow a subject they already looked at", "promote"],
+    "follow a subject already looked at": ["follow the subject", "brief"],
     "start a study": ["brief <subject>", "design"],
     "projects not yet in Sentl": ["setup"],
 }

@@ -24,7 +24,7 @@ if doctor.python_problem():
     sys.exit(2)
 
 from sentlmon import (adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack,  # noqa: E402
-                      period, runs, schema, setup, snapshot)
+                      pdf, period, runs, schema, setup, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -123,6 +123,10 @@ def _parser():
     g.add_argument("--study", default=".")
     g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
 
+    f = command("pdf", "write a report as a print-ready page and, when a PDF engine is installed, as a PDF")
+    f.add_argument("--study", default=".")
+    f.add_argument("--date", help="report date, YYYY-MM-DD (default: the latest report)")
+
     h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
     h.add_argument("--study", help="study folder to check (optional)")
 
@@ -191,9 +195,10 @@ def _parser():
     z.add_argument("--study", default=".")
     z.add_argument("--runs", help="saved list-runs-tool response, read now (required once the project is bound)")
 
-    l = command("close", "record that a snapshot's project is paused and left for the operator to archive")
+    l = command("close", "record how a snapshot ended: kept in Sentl, archived, or deleted")
     l.add_argument("--study", default=".")
-    l.add_argument("--saved", required=True, help="saved get-project-tool response, read after the pause")
+    l.add_argument("--saved", help="saved get-project-tool response, read now (not needed with --deleted)")
+    l.add_argument("--deleted", action="store_true", help="the snapshot was deleted in Sentl, so there is nothing to read")
 
     r = command("promote", "turn a finished snapshot whose project is still open into a monitored study")
     r.add_argument("--study", default=".")
@@ -254,6 +259,8 @@ def main(argv=None):
                       "offer the report and the pack for download.")
         elif args.command == "charts":
             print(charts.write(args.study, args.date))
+        elif args.command == "pdf":
+            print(pdf.write(args.study, args.date))
         elif args.command == "doctor":
             lines, ok = doctor.report(args.study, skill_version=_skill_version())
             print("\n".join(lines))
@@ -287,7 +294,7 @@ def main(argv=None):
         elif args.command == "resume":
             print(snapshot.resume(args.study, args.runs))
         elif args.command == "close":
-            print(snapshot.close(args.study, args.saved))
+            print(snapshot.close(args.study, args.saved, args.deleted))
         elif args.command == "promote":
             print(snapshot.promote(args.study, args.answers, args.models))
         elif args.command == "unpack":
