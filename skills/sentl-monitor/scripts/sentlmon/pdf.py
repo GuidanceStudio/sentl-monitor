@@ -147,7 +147,10 @@ def share_name(folder, study, date):
     subject = ((study.get("subject") or {}).get("label") or "").strip()
     entry = next((e for e in folder.reports() if e["date"] == date), None)
     period = entry.get("period") if entry else None
-    span = f"{period['from'][:10]} to {period['to'][:10]}" if period else date
+    span = date
+    if period:
+        start, end = period["from"][:10], period["to"][:10]
+        span = start if start == end else f"{start} to {end}"
     name = f"{subject} + Sentl.ai - monitoring report ({span})" if subject else f"Sentl.ai - monitoring report ({span})"
     return " ".join(re.sub(r'[/\\:*?"<>|]', " ", name).split())
 

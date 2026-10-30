@@ -161,6 +161,16 @@ class ShareNameTest(CommandBase, unittest.TestCase):
         names = [p.name for p in self.share().iterdir()]
         self.assertEqual(names, ["Ave nello Foods + Sentl.ai - monitoring report (2026-10-08 to 2026-10-14).html"])
 
+    def test_a_one_day_period_is_named_with_that_day_once(self):
+        import json
+        self.record()
+        (self.study / "history" / "reports.json").write_text(json.dumps([{
+            "date": "2026-10-14", "file": "reports/2026-10-14.md", "status": "final",
+            "period": {"from": "2026-10-14T09:00:00+00:00", "to": "2026-10-14T18:00:00+00:00"}}]), encoding="utf-8")
+        self.run_pdf()
+        names = [p.name for p in self.share().iterdir()]
+        self.assertEqual(names, ["Avenello + Sentl.ai - monitoring report (2026-10-14).html"])
+
     def test_without_a_report_entry_the_name_carries_the_report_date(self):
         self.run_pdf()
         names = [p.name for p in self.share().iterdir()]

@@ -880,3 +880,16 @@ language.
 
 **Done when:** the suites pass and a grep finds no "worst month" and no "Judging adds" in the skill.
 
+
+## M17: A one-day report is named with its day once ✅
+
+**Why:** a baseline report covers one day and its share copy was named `(2026-10-29 to 2026-10-29)`.
+
+**Approach:** `share_name` in `pdf.py` writes `(<day>)` when the period starts and ends on the same day.
+
+**Tasks:**
+- [x] Test: unit — a one-day period gives `monitoring report (2026-10-14)`
+- [x] Implement; CHANGELOG
+- [x] Suites green, commit, push
+
+**Done when:** the suite passes and the share copy of a one-day report carries a single date.
