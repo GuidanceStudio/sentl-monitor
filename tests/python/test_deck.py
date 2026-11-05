@@ -371,6 +371,26 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc["actions"][0]["what"] = "Chiarire su avenello.example/prezzi e su https://www.avenello.example/prezzi/ il prezzo"
         self.assertEqual(self.problems(doc), "")
 
+    def test_a_page_recorded_as_the_source_of_a_fact_passes(self):
+        study = json.loads((self.study / "study.json").read_text(encoding="utf-8"))
+        fact = next(f for p in study["projects"] for d in p["dimensions"] for q in d["questions"] for f in q.get("facts") or [])
+        fact["source"] = "avenello.example/listino"
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Chiarire su avenello.example/listino il prezzo al litro"
+        self.assertEqual(self.problems(doc), "")
+
+    def test_saying_the_answers_are_correct_is_refused(self):
+        for text in ("Il prezzo è corretto in 1 risposta su 2.", "The price is correct in 1 of 2 answers."):
+            doc = self.filled()
+            doc["blocks"]["facts"][0]["read"] = text
+            self.assertIn("current", self.problems(doc), text)
+
+    def test_an_action_may_ask_to_correct_a_page(self):
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Pubblicare su avenello.example il dato corretto e chiedere di correggerlo"
+        self.assertEqual(self.problems(doc), "")
+
     def test_a_facts_row_carries_its_scores_in_the_figures_file(self):
         text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
         self.assertRegex(text, r"(?m)^- .*not stated .*scores 4-5: \d+ su \d+, 3: \d+ su \d+, 1-2: \d+ su \d+")

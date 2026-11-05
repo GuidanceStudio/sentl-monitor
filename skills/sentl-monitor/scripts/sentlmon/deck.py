@@ -35,6 +35,7 @@ LIMITS = {"title": 125, "point": 175, "read": 210, "what": 175, "rests_on": 70, 
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
 SWEEPING = re.compile(r"\b(nessun[aoe]?|assent[ei]|tutt[ei]|mai|sempre|absent|none|never|always|no (?:answer|assistant)s?"
                       r"|every (?:answer|assistant)|all (?:the |\d+ )?(?:answers|assistants))\b", re.I)
+OVERSTATED = re.compile(r"\b(corrett[aeio]|correct|accurat[aeio]?|esatt[aeio])\b", re.I)
 BAND_WORDS = re.compile(r"\b(fasci[ae] (?:alt[ae]|bass[ae]|medi[ae])|(?:top|high|upper|low|lower) bands?)\b", re.I)
 PAGE = re.compile(r"(?<![\w@/.-])(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,}/[\w%~+-][\w%~+./-]*)", re.I)
 SENTENCE_START = re.compile(r"(?:^|[.!?:;]|(?:^|\s)(?:[-•]|\d+[.)]))\s*$")
@@ -538,10 +539,14 @@ def _address(page):
     return re.sub(r"^(?:https?://)?(?:www\.)?", "", page.lower()).rstrip("/.")
 
 
-def _unseen_pages(doc, folder, period):
-    """An address the writer composed reads as a page that exists: only those the answers cite may be named."""
-    cited = "\n".join(_address(s["url"]) for _, r in _answered(folder, period) for s in r["sources"] if s.get("url"))
-    cited += "\n".join(r["answer"].lower() for _, r in _answered(folder, period))
+def _unseen_pages(doc, study, folder, period):
+    """An address the writer composed reads as a page that exists: only those the answers cite, or the study
+    records as the source of a fact, may be named."""
+    answered = [r for _, r in _answered(folder, period)]
+    known = [_address(s["url"]) for r in answered for s in r["sources"] if s.get("url")]
+    known += [_address(f.get("source") or "") for p in study["projects"] for d in p["dimensions"] for q in d["questions"]
+              for f in q.get("facts") or []]
+    cited = "\n".join(known + [r["answer"].lower() for r in answered])
     return [f"{field} names {page}, an address no answer cites: give the domain, or an address the answers cite"
             for field, _, text in _texts(doc) for page in PAGE.findall(text) if _address(page) not in cited]
 
@@ -654,7 +659,10 @@ def problems_of(folder, study, period, doc):
     problems += [f"a score band is written as the chart writes it, score 4 or 5: {w.group(0)}" for w in BAND_WORDS.finditer(text)]
     problems += [f"{field} says all or nothing with {w.group(0)!r}: write the count, x of y, as the figures give it"
                  for field, limit, claim in _texts(doc) if limit in ("title", "point", "read") for w in SWEEPING.finditer(claim)]
-    problems += _unseen_pages(doc, folder, period)
+    problems += [f"{field} says {w.group(0)!r}: a figure counts the answers carrying the current term, and those can be wrong "
+                 "elsewhere; write that they carry it, as the chart does"
+                 for field, limit, claim in _texts(doc) if limit in ("title", "point", "read") for w in OVERSTATED.finditer(claim)]
+    problems += _unseen_pages(doc, study, folder, period)
     problems += leaks(folder, study, period, text, folder.binding)
     shown = [*names.values(), *(n.split(": ", 1)[-1] for n in names.values())]
     answers = [a for pool in by_answer.values() for a in pool]

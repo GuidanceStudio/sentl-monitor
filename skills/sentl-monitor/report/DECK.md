@@ -108,16 +108,20 @@ An action needs at least three answers behind it, from more than one assistant o
 and `confused` need two, since an error can be checked and a view cannot. A result resting on fewer goes in the notes
 to the operator.
 
-The places to act are the subject's own pages and third parties' pages: the figures file lists the third parties the
-answers cite. A competitor's site is a place to read, never one to act on, and `check` refuses it. An action says what
+The places to act are the subject's own pages and the third parties that list or compare others: comparison sites,
+directories, review sites, the press. The figures file lists every domain that is neither the subject's nor a listed
+competitor's, so read what each one is before naming it. A competitor's site is a place to read, never one to act on,
+and `check` refuses those the study lists. The site or blog of any other seller in the field counts as a competitor's,
+even with a comparison page on it. A public authority's site is no place to get listed: being on it depends on rules the
+answers do not show, so it goes in the notes to the operator. An action says what
 to publish and leaves the content to the subject: it states as fact only what `study.json` records, however many
 answers say it. Never assign an action to a department of the client. Never promise an outcome. A page an answer cites
 did not necessarily cause it: write "cited", never "caused".
 
 Ask a third party to correct a page only when the answers show that page saying something false about the subject. A
 page about another company with a similar name is right as it stands, and its address usually carries that name: the
-action then stays on the subject's own pages. Name a page by its domain, or by an address the answers cite: `check`
-refuses an address no answer cites.
+action then stays on the subject's own pages. Name a page by its domain, by an address the answers cite or by the source
+a fact records: `check` refuses any other address.
 
 Before asking the subject to publish something, look at its pages the answers cite and at what the answers say of them.
 What exists is made clearer or completed, naming the page; only what is missing is published. Name only third parties
@@ -157,7 +161,9 @@ of your own. A figure belongs to what it counts: a dimension's figure carries th
 it, a question's figure the question. Never give a dimension's count to one of its questions, and never call a
 dimension a question: it is a theme, as the chart says. Write small figures as "x of y". A score band reads as the chart
 writes it, "score 4 or 5", and `check` refuses any other name for it. A facts row carries the question's scores as well:
-when the fact is right and the answers are weak, say how many scored 4 or 5. A figure per assistant only when the difference between assistants is
+when the fact is right and the answers are weak, say how many scored 4 or 5. A facts figure counts the answers stating
+the current term, and the same answer can get the rest wrong, adding a price or a plan the facts do not hold: write that
+they carry the current figure, as the chart does, and `check` refuses "correct". A figure per assistant only when the difference between assistants is
 itself the finding. For `reach`, lead with presence and leave the mean out. A price or term from `facts` goes in «»,
 so it is read as a term and not as a figure.
 
@@ -170,7 +176,8 @@ the answer does not say. Give the question as `figures` writes it and the assist
 comparison of three goes well, write two of three and name the third. Say how many, in words the figures hold: `check`
 refuses "none", "all", "never", "absent" and their like in titles, points and reads, since what the answers say is a
 count. Read every answer of a question before you say what they do, and count them. "The answers say" stands for most
-of them: when fewer say it, write "some answers". Call a fact wrong only against the facts in
+of them: when fewer say it, write "some answers". What the answers say about the subject stays theirs unless `study.json`
+records it: "some answers say the price list is not published", never "the price list is not published". Call a fact wrong only against the facts in
 `study.json`; otherwise say the answers diverge. A competitor being preferred is a result, not an error of the answer.
 
 **Never mention** the model that scores the answers, run or question ids, model ids, credits, readings, unstable pairs,
@@ -183,8 +190,10 @@ answer stating an outdated term) counts by its fact in the deck, and goes in the
 ## 6. Reread, check and render
 
 Before running the commands, go through every sentence that says what the answers do. Open `material` on that question,
-count the answers that do it, and keep the sentence only if the count supports it. Take out a sentence that tells the
-reader nothing about the results, such as one on how the questions are built.
+count the answers that do it, and keep the sentence only if the count supports it. For a sentence saying what the answers
+choose or rank, find the sentence of each answer that says so: "there is no single best, it depends" is no choice, and
+a name in a list of candidates is not a preference for it. Take out a sentence that tells the reader nothing about the
+results, such as one on how the questions are built.
 
 ```bash
 python3 <skill>/scripts/monitor.py check --study "$S" reports/D.deck.json
