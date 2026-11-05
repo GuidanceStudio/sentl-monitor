@@ -115,6 +115,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 ### Phase F — Release to every Sentl user
 - R0, R1, R2, R4, R5, R3a, R3b, R3d: done; 0.1.0 released 2026-10-19 with `adopt` and `report`.
 - R6: Release 0.2.0 — the routes of Phases B to E in the zip Sentl users download.
+- R7: Release 0.3.0 — the deck route in the zip Sentl users download. Done 2026-11-05.
 - R3e: Each host tested before the README says it is supported — claude.ai first; the announcement to Sentl users waits for it.
 
 ## Out of scope
@@ -925,7 +926,7 @@ enters the skill only after the operator has seen the result.
 - [x] `check` on a deck: refuses no actions, an action with no evidence slide, a figure missing from the period, an excerpt not verbatim, cropped without a mark, or attributed to the wrong question or assistant, text over the length a slide holds, and the words the deck must not carry
 - [x] `pdf --deck`: 16:9 pages, chromium first, refused when the pages are not the slides
 - [x] Playbook, SKILL.md, ARCHITECTURE, README, CHANGELOG; deploy
-- [~] Produce the deck of one real study from zero with opencode and the installed skill, with no edit by hand; a fault goes back to the skill and the deck is produced again
+- [x] Produce the deck of one real study from zero with opencode and the installed skill, with no edit by hand; a fault goes back to the skill and the deck is produced again
   - [x] Fourth round of faults: a universal claim the answers do not support, a composed address no answer cites, a request to correct a page that is right about another company, the subject's own pages taken for someone else's, a title contradicted by a row of its chart, a score band named in words, no score on a facts row. `check` refuses the first, the second and the band; facts rows and their chart carry the scores; the playbook holds the rest
   - [x] Fifth round of faults, read on three study shapes: action slides with no excerpt, a title citing a figure its chart does not draw, a superlative true only within one slide, an action to publish what the subject already publishes, a third party not cited on the action's questions, "the answers say" for a minority, a reason no answer supports. `check` refuses the first two; the playbook holds the rest and adds a reread before rendering
   - [x] Sixth round: answers carrying the current term called correct though one added a price the facts do not hold, and an address refused though the study records it as a fact's source. `check` refuses the word and accepts the recorded source

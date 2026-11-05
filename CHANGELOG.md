@@ -5,6 +5,8 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+## 0.3.0 (2026-11-05)
+
 - The `deck` route turns a period into one slide deck for whoever decides, the only thing a client needs to read:
   what was found, what to do, the evidence block by block, the sources, the method on the last slide. `monitor.py
   deck` places each question in a block by its type (reach, description, facts) and writes
