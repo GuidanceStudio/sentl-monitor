@@ -97,6 +97,9 @@ Each action has:
 - `read_next`: the figure to read in the next report, with its value today;
 - `block`: the block whose slide holds the evidence. Set that slide's `action` to the action's number.
 
+Every `wrong_fact` and `confused` result that qualifies takes a place among the actions, ahead of the last of the others:
+an assistant stating a wrong fact or describing someone else is what the reader can correct first.
+
 An action needs at least three answers behind it, from more than one assistant or more than one question; `wrong_fact`
 and `confused` need two, since an error can be checked and a view cannot. A result resting on fewer goes in the notes
 to the operator.
@@ -117,7 +120,7 @@ did not necessarily cause it: write "cited", never "caused".
 | `blocks.<block>` | One slide, or two when the block supports two or more actions |
 | `slide.title` | What the block found. `slide.read`: the one or two sentences the chart does not say |
 | `slide.dimensions` | The dimensions this slide draws; empty draws them all. Across a block's slides every dimension is drawn |
-| `slide.rows` | `dimensions`, or `questions` to draw one row per question: use it to show a comparison question by question, on few dimensions |
+| `slide.rows` | `dimensions`, or `questions` to draw one row per question. A slide on one or two dimensions draws their questions anyway |
 | `slide.excerpts` | At most two, each `{"text", "question", "assistant"}` |
 | `slide.action` | The number of the action this slide supports, or `null` |
 | `sources.title`, `sources.read` | Which pages form the answers and which of them matter for the actions |
@@ -133,7 +136,8 @@ rhetorical questions, no metaphors, no contrast built for effect. Delete any sen
 removed. The reader calls this document a report: never write "deck".
 
 **Figures.** Cite only the figures `history/deck/D.figures.md` holds, as they stand: `check` refuses any other, and sums
-of your own. Write small figures as "x of y". A figure per assistant only when the difference between assistants is
+of your own. A figure belongs to what it counts: a dimension's figure carries the dimension's name as the chart shows
+it, a question's figure the question. Never give a dimension's count to one of its questions. Write small figures as "x of y". A figure per assistant only when the difference between assistants is
 itself the finding. For `reach`, lead with presence and leave the mean out. A price or term from `facts` goes in «»,
 so it is read as a term and not as a figure.
 
@@ -142,7 +146,8 @@ the meaning of the sentence it comes from: a condition or a comparison stays who
 "but". Read the sentence before it and the sentence after it first. An excerpt that loses its condition says what
 the answer does not say. Give the question as `figures` writes it and the assistant's name.
 
-**Framing.** Neutral. State what holds as well as what does not. Call a fact wrong only against the facts in
+**Framing.** Neutral. State what holds as well as what does not. A sentence about a set holds for the whole set: if one
+comparison of three goes well, write two of three and name the third. Call a fact wrong only against the facts in
 `study.json`; otherwise say the answers diverge. A competitor being preferred is a result, not an error of the answer.
 
 **Never mention** the model that scores the answers, run or question ids, model ids, credits, readings, unstable pairs,

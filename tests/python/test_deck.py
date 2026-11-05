@@ -166,6 +166,10 @@ class SkeletonTest(DeckCase, unittest.TestCase):
         self.assertIn("## Blocks", text)
         self.assertIn(f"«{CHOICE_Q}»", text)
 
+    def test_the_figures_file_gives_each_question_its_own_figure(self):
+        text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
+        self.assertRegex(text, r"«" + re.escape(CHOICE_Q) + r"»: 0 su 2")
+
     def test_a_second_run_keeps_what_the_writer_wrote(self):
         self.save_doc(self.filled())
         self.cli("deck", "--study", self.study, "--date", DATE, check=0)
@@ -353,6 +357,11 @@ class RenderTest(DeckCase, unittest.TestCase):
     def test_a_slide_lists_the_third_parties_the_reader_can_ask(self):
         self.assertIn("prezzi.example (1)", self.page())
         self.assertIn("Pagine di terzi più citate", self.page())
+
+    def test_a_slide_on_one_or_two_dimensions_draws_their_questions(self):
+        doc = self.filled()
+        doc["blocks"]["reach"][0]["dimensions"] = ["Scelta"]
+        self.assertIn(CHOICE_Q, self.page(doc))
 
     def test_few_actions_are_set_larger(self):
         self.assertIn('<section class="slide actions few-actions"', self.page())

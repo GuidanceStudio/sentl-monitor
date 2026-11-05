@@ -80,8 +80,8 @@ td.class { font-weight: 700; }
 .actions th:nth-child(1), .actions th:nth-child(6) { width: 44px; }
 .actions th:nth-child(2) { width: 136px; }
 .actions th:nth-child(3) { width: 38%; }
-.few-actions table { font-size: 19px; }
-.few-actions td { padding: 16px 10px; }
+.few-actions table { font-size: 18px; }
+.few-actions td { padding: 12px 10px; }
 .sources table { font-size: 18px; }
 .sources th { font-size: 15px; }
 .sources td { padding: 22px 10px; }
@@ -317,7 +317,14 @@ def _plan(m, study, date, lang):
             if key != "reach" and row.get("mean") is not None:
                 line += f"; mean {fmt_decimal(row['mean'], lang)}"
             out.append(line)
-        out += ["", "Questions:"] + [f"- {q['key']} ({q['dimension']}): «{q['text']}»" for q in block["placed"]]
+        by_text = {r["label"]: r for r in block["questions"] + (block["rows"] if key == "facts" else [])}
+        out += ["", "Questions:"]
+        for q in block["placed"]:
+            row = by_text.get(q["text"])
+            shown = (": " + of(*_measure(key, row))) if row else ""
+            if row and key != "reach" and row.get("mean") is not None:
+                shown += f"; mean {fmt_decimal(row['mean'], lang)}"
+            out.append(f"- {q['key']} ({q['dimension']}): «{q['text']}»{shown}")
         s = block["sources"]
 
         def listed(domains):
@@ -458,10 +465,18 @@ def _any_sources(m):
 
 
 def rows_of(key, block, slide):
-    """The rows a slide draws: its dimensions, one row each or, with `rows: questions`, one per question."""
-    pool = block["questions"] if slide.get("rows") == "questions" and key != "facts" else block["rows"]
+    """The rows a slide draws: its dimensions, one row each or, with `rows: questions`, one per question. A slide
+    on one or two dimensions draws their questions: it is about them, and the text speaks of a question."""
     chosen = slide.get("dimensions") or []
-    return [r for r in pool if not chosen or r["dimension"] in chosen]
+
+    def picked(pool):
+        return [r for r in pool if not chosen or r["dimension"] in chosen]
+    if key == "facts":
+        return picked(block["rows"])
+    questions = picked(block["questions"])
+    if slide.get("rows") == "questions" or (len(picked(block["rows"])) <= 2 and len(questions) <= 6):
+        return questions
+    return picked(block["rows"])
 
 
 def _responses(folder, period):
@@ -785,7 +800,7 @@ def page_of(root, date=None, option=None):
     slides = [cover]
     for n, (kind, key, slide) in enumerate(order[1:], 2):
         foot = (f'<footer class="foot"><span>{logo}{esc(subject)} · {esc(days)}</span><span>{n} / {len(order)}</span></footer>')
-        extra = " few-actions" if kind == "actions" and len(doc.get("actions") or []) <= 3 else ""
+        extra = " few-actions" if kind == "actions" and len(doc.get("actions") or []) <= 4 else ""
         slides.append(f'<section class="slide {kind}{extra}">{_slide_html(kind, key, slide, doc, m, order, t, lang, cover)}{foot}</section>')
     font = f'<link rel="stylesheet" href="{html.escape(chosen["font_url"], quote=True)}">' if chosen.get("font_url") else ""
     style = sentl_theme.variables(chosen) + STYLE + (chosen.get("css") or "")
