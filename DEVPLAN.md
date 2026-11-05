@@ -937,3 +937,33 @@ enters the skill only after the operator has seen the result.
 
 **Done when:** the operator has accepted a deck produced by the route on each study shape, and `check`
 refuses a deck with no actions, an action with no evidence slide or a figure missing from the period.
+
+## M19: The deck says what it shows, and its reader understands it
+
+**Why:** the operator read the second slide of the deck M18 produced and could not tell what it was about. It
+opens on figures and never says what was done, what the "questions" are or what "score 4 or 5" means. Three
+trial readers, each playing the client's marketing manager with only the PDF, stopped at slide 2 or 3 on all three
+study shapes. M18 hardened whether each sentence is true and never tested whether the reader understands it.
+Part of the fault is its own rules: refusing "none" and "all" turned plain sentences into "0 answers of 18".
+
+The missing comparison also misleads. The reach figure stands alone, so a title reads it as weak; the competitors'
+counts are in the period and can reverse that reading. In two of the three trials the subject is second of ten.
+
+**Approach:** the reader is the marketing manager of the company: they know their market and their competitors, and
+have never seen the questions, the scores or the project names. The deck says what it shows before any figure. Each
+figure comes with what it is compared to. Every label is in the reader's words. A deck reaches the operator only
+after a reader who sees nothing but the PDF has understood it.
+
+**Tasks:**
+- [ ] Cover: what was done in one sentence, who prepared it, whether this is the first reading
+- [ ] New slide after the cover, drawn from `study.json`: the two or three questions the report answers in the reader's words, one real question each, who asks them, the assistants by maker, and how a question becomes several answers
+- [ ] Comparison: the reach tile and the first slide carry the competitors' counts on the same answers; `check` refuses a presence title with no comparison, and "but" on a subject among the first
+- [ ] Reader's words: no block, project or result-class name on a slide; a dimension is never the subject of a sentence; score bands drawn as favourable, neutral and unfavourable; each facts row states the fact it counts
+- [ ] Figures: "none" and "all" allowed where the figure is 0 or y; a figure in a read is drawn like one in a title; a figure's base is drawn; one figure repeated at most twice in the first slides; two near figures (named, cited) told apart
+- [ ] Charts: a slide draws what its title claims; a confusion with another entity draws the answers, not the scores by dimension
+- [ ] Actions: read the subject's live pages before asking it to publish, and say what is missing; the table holds what to do, why and today's figure
+- [ ] Reader gate in the playbook: a fresh reader sees only the PDF and answers what was done, what the figures count, whether the main result is good and against whom, what to do first and why, using slides 1 to 4; a failed deck is not handed over
+- [ ] Show the operator the first four slides of one study before producing the rest
+- [ ] Produce three study shapes from zero with opencode, no edit by hand, each through the reader gate
+
+**Done when:** on each study shape the reader gate passes and the operator accepts the deck.
