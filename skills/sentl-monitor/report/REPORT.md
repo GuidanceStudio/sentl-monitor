@@ -4,6 +4,8 @@ Reads the completed runs since the previous report, pools them into one period, 
 period with the earlier ones and writes `reports/<date>.md`. Reads only: no Sentl write, no
 credit spent.
 
+A client reads the deck, not this document: `report/DECK.md` starts from the period of step 5.
+
 `<skill>` is this skill's directory, `$S` the study folder, `D` today's date (`YYYY-MM-DD`).
 Run every command with `--study "$S"`. When the invocation is unattended, a scheduler started it
 and no operator can answer: read "Unattended mode", at the end, before step 1.

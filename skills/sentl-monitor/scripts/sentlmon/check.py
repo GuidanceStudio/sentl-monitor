@@ -158,6 +158,7 @@ def _allowed(scopes, extra=(set(), set())):
             p = c["presence"]
             pairs |= {(c["judged"], c["expected"]), (c["judged"], c["received"]), (c["received"], c["expected"]),
                       (p["named"], p["given"]), (c["owned"]["citing"], c["owned"]["with_sources"])}
+            pairs |= {(n, p["given"]) for n in (c.get("foils") or {}).values()}
             if "readings" in c:
                 pairs |= {(c["readings"], p["given"]), (c["readings"], c["received"])}
                 a = c["authors"]
@@ -481,6 +482,30 @@ def check(root, report_path, date=None, unattended=False):
     for key in ("summary", "changes"):
         problems += _only_beside_episodes(body.get(key, ""), every_episode, lang)
 
+    problems += leaks(folder, study, period, text, binding)
+
+    entry = {"date": date, "status": "final",
+             "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
+             "previous": comparison.get("previous")}
+    if not problems:
+        entry["file"] = _shown(folder, report_path)
+        folder.record_report(entry)
+        folder.record_outcome("written", f"report of {date} passed check")
+    elif unattended:
+        # An unattended report that fails check is kept beside the final ones and counts as the
+        # previous report, so the next invocation finds no run it has not seen.
+        draft = report_path.with_name(f"{date}.draft.md")
+        if draft != report_path:
+            os.replace(report_path, draft)
+        folder.record_report({**entry, "file": _shown(folder, draft), "status": "draft"})
+        shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
+        folder.record_outcome("draft", f"check found {len(problems)} problem(s): {shown}")
+    return problems
+
+
+def leaks(folder, study, period, text, binding):
+    """What of the machine shows in a text the reader gets: keys, ids, file names, credit figures."""
+    problems = []
     question_keys = {q["key"] for p in study["projects"] for d in p["dimensions"] for q in d["questions"]}
     for key in sorted(question_keys):
         if re.search(r"(?<![\w-])" + re.escape(key) + r"(?![\w-])", text):
@@ -499,23 +524,6 @@ def check(root, report_path, date=None, unattended=False):
             problems.append(f"an id appears: {m.group(0)!r}")
     problems += [f"a file name appears: {m.group(0)}" for m in FILE_NAME.finditer(text)]
     problems += [f"a credit figure appears: {m.group(0)}" for m in CREDIT.finditer(text)]
-
-    entry = {"date": date, "status": "final",
-             "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
-             "previous": comparison.get("previous")}
-    if not problems:
-        entry["file"] = _shown(folder, report_path)
-        folder.record_report(entry)
-        folder.record_outcome("written", f"report of {date} passed check")
-    elif unattended:
-        # An unattended report that fails check is kept beside the final ones and counts as the
-        # previous report, so the next invocation finds no run it has not seen.
-        draft = report_path.with_name(f"{date}.draft.md")
-        if draft != report_path:
-            os.replace(report_path, draft)
-        folder.record_report({**entry, "file": _shown(folder, draft), "status": "draft"})
-        shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
-        folder.record_outcome("draft", f"check found {len(problems)} problem(s): {shown}")
     return problems
 
 

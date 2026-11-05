@@ -5,6 +5,20 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- The `deck` route turns a period into one slide deck for whoever decides, the only thing a client needs to read:
+  what was found, what to do, the evidence block by block, the sources, the method on the last slide. `monitor.py
+  deck` places each question in a block by its type (reach, description, facts) and writes
+  `history/deck/<date>.figures.md`, the figures with the answers taken out, and `reports/<date>.deck.json`, the text
+  to fill. The code draws the cover, tiles, charts, tables, sources and method table from the period, so a figure
+  or a layout cannot be written wrong. `monitor.py check` on `.deck.json` refuses a deck with no action, an action
+  with no evidence slide, a figure missing from the period, an excerpt not verbatim, attributed to another question
+  or assistant, or cut inside a sentence with no mark, and a text longer than its slide holds. `monitor.py pdf
+  --deck` writes 16:9 pages and refuses a slide that runs over its page.
+- The material prints "Who wrote the sources" on every dimension whose answers cite a source, when the study lists
+  its competitors' domains, and no longer only when a competitor's page is cited; and it counts the answers naming
+  each competitor, by dimension and by question (`foils` in each cell of the period). A period built earlier is built
+  again with `period`.
+
 - The share copy of a report whose period is a single day is named with that day once, not `(day to day)`.
 
 - The recap table of `setup` counts credits per 30-day cycle, as Sentl bills from 2026-10-29: one figure

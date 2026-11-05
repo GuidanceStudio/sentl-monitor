@@ -142,8 +142,8 @@ def _latest(folder):
     return found[-1]
 
 
-def share_name(folder, study, date):
-    """`<Subject> + Sentl.ai - monitoring report (<start> to <end>)`: what the recipient sees of the file."""
+def share_name(folder, study, date, kind="monitoring report"):
+    """`<Subject> + Sentl.ai - <kind> (<start> to <end>)`: what the recipient sees of the file."""
     subject = ((study.get("subject") or {}).get("label") or "").strip()
     entry = next((e for e in folder.reports() if e["date"] == date), None)
     period = entry.get("period") if entry else None
@@ -151,7 +151,7 @@ def share_name(folder, study, date):
     if period:
         start, end = period["from"][:10], period["to"][:10]
         span = start if start == end else f"{start} to {end}"
-    name = f"{subject} + Sentl.ai - monitoring report ({span})" if subject else f"Sentl.ai - monitoring report ({span})"
+    name = f"{subject} + Sentl.ai - {kind} ({span})" if subject else f"Sentl.ai - {kind} ({span})"
     return " ".join(re.sub(r'[/\\:*?"<>|]', " ", name).split())
 
 
@@ -164,6 +164,26 @@ def _share(folder, study, source, target, pdf):
         if made.exists():
             shutil.copyfile(made, shared / f"{name}{made.suffix}")
     return shared / f"{name}{'.pdf' if pdf.exists() else '.html'}"
+
+
+def print_pdf(target, pdf, engines):
+    """The page at `target` printed to `pdf` by the first engine that writes it: (engine, failures)."""
+    failures = []
+    for name, template in engines:
+        exe = shutil.which(name)
+        if not exe:
+            continue
+        cmd = [exe] + [a.format(html=str(target), pdf=str(pdf), url=target.resolve().as_uri()) for a in template]
+        try:
+            done = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        except subprocess.TimeoutExpired:
+            failures.append(f"{name} took more than 3 minutes")
+            continue
+        if done.returncode == 0 and pdf.exists():
+            return name, failures
+        pdf.unlink(missing_ok=True)
+        failures.append(f"{name}: {' '.join((done.stderr or done.stdout).split())[:160]}")
+    return None, failures
 
 
 def write(root, date=None, option=None, engines=ENGINES):
@@ -189,21 +209,9 @@ def _write(root, date, option, engines):
     target.write_text(page(source.read_text(encoding="utf-8"), study.get("report_language") or "en", chosen),
                       encoding="utf-8")
     pdf = source.with_suffix(".pdf")
-    failures = []
-    for name, template in engines:
-        exe = shutil.which(name)
-        if not exe:
-            continue
-        cmd = [exe] + [a.format(html=str(target), pdf=str(pdf), url=target.resolve().as_uri()) for a in template]
-        try:
-            done = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        except subprocess.TimeoutExpired:
-            failures.append(f"{name} took more than 3 minutes")
-            continue
-        if done.returncode == 0 and pdf.exists():
-            return f"Wrote {target} and {pdf} (engine: {name}).", notes
-        pdf.unlink(missing_ok=True)
-        failures.append(f"{name}: {' '.join((done.stderr or done.stdout).split())[:160]}")
+    engine, failures = print_pdf(target, pdf, engines)
+    if engine:
+        return f"Wrote {target} and {pdf} (engine: {engine}).", notes
     if failures:
         return (f"Wrote {target}. No installed PDF engine wrote the PDF ({'; '.join(failures)}). Open the page in a "
                 "browser and print it to PDF."), notes

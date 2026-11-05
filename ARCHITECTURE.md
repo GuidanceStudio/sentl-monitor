@@ -40,10 +40,12 @@ is a new version inside the same folder, so the history stays in one place.
     periods/<YYYY-MM-DD>.json       metrics of one report period and its comparison
     periods/<YYYY-MM-DD>.first.json the halves of a first period with no earlier one (and .second.json)
     material/<YYYY-MM-DD>.md        the figures and candidate answers the insights are written from
+    deck/<YYYY-MM-DD>.figures.md    the figures of the deck and of the material, with the answers taken out
     reports.json                    index of reports: period, runs, status
     last-report.json                outcome of the latest `report` invocation
   reports/<YYYY-MM-DD>.md        the reports
   reports/<YYYY-MM-DD>.charts.md the report's figures as md2 chart tables for a deck (optional)
+  reports/<YYYY-MM-DD>.deck.json the deck's text; .deck.html and .deck.pdf, the deck drawn from it (§The deck)
 ```
 
 A snapshot folder has the same layout without `brief.md`, `seeds.json`, `volumes.json` and
@@ -1134,6 +1136,41 @@ changes section included, or a figure for the whole project. The rules it applie
   projects may have dimensions of the same name: each entry cites its own project's
   figures, and each project needs an entry for each of its dimensions). `method` leaves a
   `[[...]]` marker for each, and a report that still holds one fails.
+
+## The deck
+
+`report/DECK.md` turns one period into one slide deck, the only thing a client reads. The report stays as the
+operator's record of the same period. What the reader must decide orders the slides: cover, what was found, what to
+do, the evidence block by block, the sources, the method last.
+
+**Who writes what.** `deck.py` draws everything that is a figure: tiles, charts, tables, sources, the method table,
+every label (`DECK` in `i18n.py`). The writer fills only text, in `reports/<date>.deck.json`. A weaker model can then
+write a weak sentence, but not a wrong chart or a broken page.
+
+**Blocks.** A block comes from the type of a question, never from the name of a project, so every study shape fits:
+a question naming no subject is `reach`, unless the subject is a category or a method; a question with recorded
+facts is `facts`; any other is `description`. A question naming no subject stays in `reach` when it has facts,
+because presence is what it measures, and its fact also shows in `facts` when an answer states it. `moved` in the
+deck's text sends to `description` a question that names no subject and scores a position in a debate.
+
+**Figures.** Reach: named in x answers of y. Description: answers scored 4 or 5, x of y, drawn with the three score
+bands, and the mean of the answers of the row. Facts: answers carrying the current fact, x of y, over the answers
+given. A row's mean is the mean of its judged answers, and it is left out when a question of the row has no figure.
+A block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing.
+
+**The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (one to five actions, each with a
+class, a block, an evidence slide, a figure it rests on and a figure to read next), the length of each text against
+what its slide holds (`LIMITS`), each excerpt against the answers of its own question and assistant, the figures
+against the period and the figures the deck draws, and the same leaks as a report. An excerpt that starts or ends
+inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the
+deck in `history/reports.json`, as the period's report.
+
+**The pages.** 13.333 x 7.5 inches. A slide has a minimum height and no fixed one, so too much text runs onto a new
+page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. The theme of
+§Theme applies. wkhtmltopdf is not used: it does not read flex or grid.
+
+**Later editions.** `reports/<date>.deck.json` keeps each action with its `read_next` figure, for the next deck to read
+them. The slide of what changed is not written yet (DEVPLAN M18).
 
 ## Charts for a deck
 

@@ -107,6 +107,7 @@ class Reader:
         self.aliases = subject.get("aliases") or []
         self.owned = subject.get("owned_domains") or []
         self.foils = [f.get("aliases") or [] for f in study.get("foils") or []]
+        self.foil_names = [(f.get("label") or f.get("id"), f.get("aliases") or []) for f in study.get("foils") or []]
         self.foil_domains = [(f.get("label") or f.get("id"), f["domains"]) for f in study.get("foils") or []
                              if isinstance(f.get("domains"), list) and f["domains"]]
 
@@ -115,6 +116,11 @@ class Reader:
         if is_owned(domain, self.owned):
             return "owned"
         return next((label for label, domains in self.foil_domains if is_owned(domain, domains)), "third")
+
+    def foils_named(self, answer):
+        """The labels of the foils an answer names."""
+        text = folded(answer)
+        return [label for label, aliases in self.foil_names if first_mention(text, aliases) is not None]
 
     def position(self, answer):
         """None when the subject is not named; else 1 + the foils named before it."""
@@ -148,6 +154,7 @@ def cell(responses, expected, reader):
             with_sources += 1
             citing += any(is_owned(d, reader.owned) for d in found)
     coverage = len(judged) / expected if expected else None
+    foils = Counter(label for r in given for label in reader.foils_named(r["answer"]))
     return {
         "mean": mean(judged),
         "figure": coverage is not None and coverage >= FIGURE_FLOOR and bool(judged),
@@ -163,6 +170,7 @@ def cell(responses, expected, reader):
         "owned": {"citing": citing, "with_sources": with_sources},
         "readings": readings(responses),
         "authors": _authors(responses, reader),
+        "foils": dict(sorted(foils.items(), key=lambda kv: (-kv[1], kv[0]))),
     }
 
 
@@ -723,9 +731,9 @@ def _question_lines(scope, name, lang):
     return out
 
 
-def _author_lines(authors):
-    """Who wrote the cited pages, when a foil's pages are among them."""
-    if not authors["foil"]:
+def _author_lines(authors, reader):
+    """Who wrote the cited pages, on a dimension citing any, when the study lists its foils' domains."""
+    if not authors["with_sources"] or not reader.foil_domains:
         return []
     n = authors["with_sources"]
     out = ["", "##### Who wrote the sources", "",
@@ -736,6 +744,13 @@ def _author_lines(authors):
             f"{p['page']} ({p['foil']}, {_n_answers(p['answers'])})"
             for p in authors["foil_pages"]))
     return out
+
+
+def _foil_line(c):
+    """The answers naming each competitor, as a table of the deck counts them."""
+    given = c["presence"]["given"]
+    return ["Competitors named: " + "; ".join(f"{label} in {n} of {_n_answers(given)}" for label, n in c["foils"].items())
+            ] if c["foils"] else []
 
 
 def _fmt(value, lang):
@@ -770,7 +785,8 @@ def _material(proj, dims, block, responses, runs, names, reader, lang):
         out += [f"- {name(m)}: {_cell_line(c, lang)}" for m, c in e["by_model"].items()]
         doms = e["total"]["domains"]
         out.append("Domains: " + (", ".join(f"{k} ({v})" for k, v in doms.items()) or "none"))
-        out += _author_lines(e["total"]["authors"])
+        out += _foil_line(e["total"])
+        out += _author_lines(e["total"]["authors"], reader)
         if e["total"]["unstable_pairs"]:
             out.append("Unstable pairs: " + ", ".join(f"{u['question']} / {name(u['model'])}"
                                                       for u in e["total"]["unstable_pairs"]))
@@ -778,6 +794,7 @@ def _material(proj, dims, block, responses, runs, names, reader, lang):
             names_subject = "yes" if reader.position(q["text"]) else "no"
             out += ["", f"#### Question: {q['text']}", f"names the subject: {names_subject}",
                     f"{_cell_line(e['questions'][q['key']]['total'], lang)}"]
+            out += _foil_line(e["questions"][q["key"]]["total"])
             out += _question_lines(e["questions"][q["key"]], name, lang)
             for r in responses:
                 if r["question"] != q["key"]:

@@ -919,9 +919,15 @@ enters the skill only after the operator has seen the result.
 **Tasks:**
 - [x] Write the general specification, with no client in it
 - [x] Try it from zero with opencode on three study shapes: a three-block study, a study with no recorded facts, a study in another language and market
-- [~] Review the decks with the operator and revise the specification
-- [ ] After the operator's go: test first, then the route, `check`, rendering, the action register between editions, CHANGELOG, README
+- [x] Review the decks with the operator: the trial showed tables with no chart, half-empty slides, literal Italian labels, a cropped excerpt that changed its meaning, a title that contradicted its figure, the `rounds` setting shown in place of what ran, no rule for a question naming no subject with recorded facts, and a material with no author split on most dimensions and no count of the competitors named
+- [x] Material: who wrote the sources on every dimension with cited pages, answers naming each competitor by dimension and question, and a figures file with the answers removed
+- [x] Route `deck`: the code places each question in a block and draws tiles, charts, tables and the method table from the period; the writer fills only text in `reports/<date>.deck.json`
+- [x] `check` on a deck: refuses no actions, an action with no evidence slide, a figure missing from the period, an excerpt not verbatim, cropped without a mark, or attributed to the wrong question or assistant, text over the length a slide holds, and the words the deck must not carry
+- [x] `pdf --deck`: 16:9 pages, chromium first, refused when the pages are not the slides
+- [x] Playbook, SKILL.md, ARCHITECTURE, README, CHANGELOG; deploy
+- [~] Produce the deck of one real study from zero with opencode and the installed skill, with no edit by hand; a fault goes back to the skill and the deck is produced again
+- [ ] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
 - [ ] Open the task for interactive screens in Sentl's own board
 
-**Done when:** the operator has accepted a deck produced from the specification on each study shape, and `check`
-refuses a deck with no actions, an action with no evidence slide or a figure missing from the material.
+**Done when:** the operator has accepted a deck produced by the route on each study shape, and `check`
+refuses a deck with no actions, an action with no evidence slide or a figure missing from the period.

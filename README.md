@@ -287,6 +287,23 @@ A week later, `sentl-monitor report` again. It reads the runs started after the 
 previous report, compares the new week with up to four earlier ones, and the report opens with
 what changed.
 
+### The deck: what a client reads
+
+A report is the record of a period; a client reads the deck. Ask for it and the assistant follows `report/DECK.md`:
+
+```bash
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py deck --study avenello-study --date 2026-10-14
+# the assistant writes the findings and the actions in reports/2026-10-14.deck.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.deck.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --deck --date 2026-10-14
+```
+
+Six to eleven slides, whatever the size of the study: what was found, what to do, one block each for whether the
+assistants find the subject, what they say and whether the facts are right, then the sources and the method. Each
+action says what to do and where, the figure it rests on, the figure to read next time and the slide with the
+evidence. The script draws every figure from the period; the copy to send is
+`reports/share/<Subject> + Sentl.ai - monitoring deck (<start> to <end>).pdf`.
+
 ## A sample report
 
 [examples/avenello-report-2026-10-14.md](examples/avenello-report-2026-10-14.md) is the first

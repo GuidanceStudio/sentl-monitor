@@ -326,6 +326,87 @@ CHARTS = {
 }
 
 
+# The labels of the deck. A label states what its value asserts, in the words of the language.
+DECK = {
+    "it": {
+        "of": "su",
+        "cover_title": "Cosa dicono gli assistenti AI di {subject}",
+        "cover_kind": "Report di monitoraggio",
+        "cover_line": "{questions} domande, {assistants} assistenti, {answers} risposte",
+        "blocks": {"reach": "Presenza", "description": "Descrizione", "facts": "Fatti"},
+        "tile": {"reach": "risposte nominano {subject} su domande che non ne fanno il nome",
+                 "description": "risposte con punteggio 4 o 5 su domande che nominano {subject}",
+                 "facts": "risposte riportano il dato corrente"},
+        "action": "Azione {n}",
+        "actions_head": ("N.", "Problema", "Cosa fare e dove", "Dato su cui si basa",
+                         "Dato da rileggere nel prossimo report", "Slide"),
+        "classes": {"not_named": "Non nominato", "named_by_name_only": "Nominato solo se chiesto per nome",
+                    "passed_over": "Preferito un concorrente", "no_information": "Informazioni non trovate",
+                    "named_with_warning": "Nominato con riserve", "wrong_fact": "Dato sbagliato",
+                    "confused": "Confuso con un altro soggetto", "holds": "Da mantenere"},
+        "reach_head": ("Tema", "Risposte che nominano {subject}", "", "Concorrenti nominati (risposte)"),
+        "description_head": ("Tema", "Risposte per punteggio", "Media su 5"),
+        "facts_head": ("Domanda", "Cosa riportano le risposte", "Dato corrente", "Media su 5"),
+        "bands": {"4-5": "Punteggio 4-5", "3": "Punteggio 3", "1-2": "Punteggio 1-2"},
+        "fact_parts": {"current": "Dato corrente", "outdated": "Dato superato", "silent": "Dato non riportato"},
+        "none": "nessuno",
+        "question": "Domanda",
+        "assistant": "Assistente",
+        "sources_head": ("Blocco", "Risposte con fonti", "Pagine di {subject}", "Pagine dei concorrenti", "Pagine di terzi",
+                         "Domini più citati (risposte)"),
+        "method_title": "Come è stata fatta la rilevazione",
+        "method_head": ("Progetto", "Domande", "Assistenti", "Risposte nel periodo", "Frequenza"),
+        "frequency": {"daily": "Ogni giorno", "weekly": "Ogni settimana", "monthly": "Ogni mese"},
+        "scores_title": "Come leggere i punteggi",
+        "scores": "Ogni domanda ha un proprio criterio, scritto prima di leggere le risposte. 5: la risposta è quella "
+                  "che il criterio descrive come la migliore, con elementi a sostegno. 3: risposta neutra o generica. "
+                  "1: la risposta va contro il criterio.",
+        "limits_title": "Cosa queste risposte non dicono",
+        "where_title": "Dove leggere ogni risposta",
+        "where": "Tutte le risposte, con le fonti citate, sono nell'app di Sentl.",
+        "ask_title": "Da chiedere a Claude o ChatGPT con il connettore di Sentl",
+    },
+    "en": {
+        "of": "of",
+        "cover_title": "What AI assistants say about {subject}",
+        "cover_kind": "Monitoring report",
+        "cover_line": "{questions} questions, {assistants} assistants, {answers} answers",
+        "blocks": {"reach": "Presence", "description": "Description", "facts": "Facts"},
+        "tile": {"reach": "answers name {subject} on questions that do not",
+                 "description": "answers scored 4 or 5 on questions naming {subject}",
+                 "facts": "answers carry the current fact"},
+        "action": "Action {n}",
+        "actions_head": ("No.", "Problem", "What to do and where", "Figure it rests on",
+                         "Figure to read in the next report", "Slide"),
+        "classes": {"not_named": "Not named", "named_by_name_only": "Named only when asked by name",
+                    "passed_over": "A competitor preferred", "no_information": "No information found",
+                    "named_with_warning": "Named with a warning", "wrong_fact": "Wrong fact",
+                    "confused": "Confused with another entity", "holds": "To keep"},
+        "reach_head": ("Topic", "Answers naming {subject}", "", "Competitors named (answers)"),
+        "description_head": ("Topic", "Answers by score", "Mean out of 5"),
+        "facts_head": ("Question", "What the answers carry", "Current fact", "Mean out of 5"),
+        "bands": {"4-5": "Score 4-5", "3": "Score 3", "1-2": "Score 1-2"},
+        "fact_parts": {"current": "Current fact", "outdated": "Outdated fact", "silent": "Fact not stated"},
+        "none": "none",
+        "question": "Question",
+        "assistant": "Assistant",
+        "sources_head": ("Block", "Answers with sources", "{subject}'s pages", "Competitors' pages", "Third-party pages",
+                         "Domains cited most (answers)"),
+        "method_title": "How the measurement was made",
+        "method_head": ("Project", "Questions", "Assistants", "Answers in the period", "Frequency"),
+        "frequency": {"daily": "Every day", "weekly": "Every week", "monthly": "Every month"},
+        "scores_title": "How to read the scores",
+        "scores": "Each question has its own criteria, written before the answers were read. 5: the answer is the one "
+                  "the criteria describe as best, with evidence. 3: a neutral or generic answer. 1: the answer goes "
+                  "against the criteria.",
+        "limits_title": "What these answers do not say",
+        "where_title": "Where to read every answer",
+        "where": "Every answer, with the sources it cites, is in the Sentl app.",
+        "ask_title": "To ask Claude or ChatGPT through Sentl's connector",
+    },
+}
+
+
 def join(items, lang):
     items = list(items)
     if len(items) < 2:

@@ -149,8 +149,8 @@ counted. The answer never says why the evidence was missing.
 party's, and which competitor pages are cited most. The study lists, under each foil, the
 `domains` it owns; subdomains count as the same author.
 
-**Figures.** Material heading "Who wrote the sources", per dimension, shown when a competitor's
-pages are cited: the answers citing owned, a competitor's and third-party pages, each out of the
+**Figures.** Material heading "Who wrote the sources", per dimension, shown when the dimension's
+answers cite a source and the study lists its competitors' domains: the answers citing owned, a competitor's and third-party pages, each out of the
 answers citing any source; then the competitor pages most cited, with how many answers cite
 each.
 

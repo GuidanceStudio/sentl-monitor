@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import (adopt, charts, check, demand, design, detect, exportfile, frontmatter, ingest, method, pack,  # noqa: E402
+from sentlmon import (adopt, charts, check, deck, demand, design, detect, exportfile, frontmatter, ingest, method, pack,  # noqa: E402
                       pdf, period, runs, schema, setup, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
@@ -123,9 +123,14 @@ def _parser():
     g.add_argument("--study", default=".")
     g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
 
+    e = command("deck", "place the period's questions in the deck's blocks and write what the deck's writer fills")
+    e.add_argument("--study", default=".")
+    e.add_argument("--date", help="period date, YYYY-MM-DD (default: the latest period)")
+
     f = command("pdf", "write a report as a print-ready page and, when a PDF engine is installed, as a PDF")
     f.add_argument("--study", default=".")
     f.add_argument("--date", help="report date, YYYY-MM-DD (default: the latest report)")
+    f.add_argument("--deck", action="store_true", help="write the deck of the period, which must pass check")
     f.add_argument("--theme", help="a theme file (.json or .css) in place of the study's, the user's or Sentl's")
 
     h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
@@ -240,6 +245,17 @@ def main(argv=None):
             print(period.build(args.study, args.date, args.models))
         elif args.command == "method":
             print(method.write(args.study, args.date, args.models, args.force))
+        elif args.command == "deck":
+            print(deck.write(args.study, args.date))
+        elif args.command == "check" and args.report.endswith(".deck.json"):
+            problems = deck.check(args.study, args.report, args.date)
+            if problems:
+                print(f"check failed: {len(problems)} problem(s)")
+                for problem in problems:
+                    print(f"  - {problem}")
+                return 1
+            print("check passed: the deck has its actions and their evidence, excerpts are verbatim, figures are the "
+                  "period's and each text fits its slide. The deck is recorded as final in history/reports.json.")
         elif args.command == "check":
             problems = check.check(args.study, args.report, args.date, args.unattended)
             if problems:
@@ -260,6 +276,8 @@ def main(argv=None):
                       "offer the report and the pack for download.")
         elif args.command == "charts":
             print(charts.write(args.study, args.date))
+        elif args.command == "pdf" and args.deck:
+            print(deck.render(args.study, args.date, args.theme))
         elif args.command == "pdf":
             print(pdf.write(args.study, args.date, args.theme))
         elif args.command == "doctor":
