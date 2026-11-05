@@ -30,6 +30,10 @@ class DeckCase(InsightCase):
         self.made = self.cli("deck", "--study", self.study, "--date", DATE, check=0)
         self.path = self.study / "reports" / f"{DATE}.deck.json"
 
+    def model_args(self, doc):
+        folder, day, study, period, _ = deck.load(self.study, DATE)
+        return folder, study, period, doc
+
     def filled(self, **changes):
         doc = json.loads(self.path.read_text(encoding="utf-8"))
         slide = {"title": "Il blocco dice una cosa precisa", "read": "Una frase sul blocco.", "excerpts": [], "action": 1}
@@ -295,6 +299,48 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc["blocks"]["reach"] = doc["blocks"]["reach"] * 3
         self.assertIn("at most 2", self.problems(doc))
 
+    def test_a_sentence_saying_all_or_nothing_is_refused(self):
+        for text in ("Nessuna trova il prezzo.", "Avenello resta assente dalle risposte.", "Tutte citano il prezzo.",
+                     "Non lo citano mai."):
+            doc = self.filled()
+            doc["blocks"]["facts"][0]["read"] = text
+            self.assertIn("x of y", self.problems(doc), text)
+
+    def test_a_count_of_zero_says_the_same_and_passes(self):
+        doc = self.filled()
+        doc["blocks"]["reach"][0]["read"] = "Avenello compare in 0 risposte su 2."
+        self.assertEqual(self.problems(doc), "")
+
+    def test_an_action_may_say_all_of_what_to_do(self):
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Pubblicare su avenello.example tutte le condizioni del piano"
+        self.assertEqual(self.problems(doc), "")
+
+    def test_a_band_named_in_words_is_refused(self):
+        doc = self.filled()
+        doc["found"]["points"] = ["Una risposta su 2 sta nella fascia alta."]
+        self.assertIn("as the chart writes it", self.problems(doc))
+
+    def test_a_page_no_answer_cites_is_refused(self):
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Chiarire su avenello.example/listino il prezzo al litro"
+        self.assertIn("avenello.example/listino", self.problems(doc))
+
+    def test_a_page_the_answers_cite_passes(self):
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Chiarire su avenello.example/prezzi e su https://www.avenello.example/prezzi/ il prezzo"
+        self.assertEqual(self.problems(doc), "")
+
+    def test_a_facts_row_carries_its_scores_in_the_figures_file(self):
+        text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^- .*not stated .*scores 4-5: \d+ su \d+, 3: \d+ su \d+, 1-2: \d+ su \d+")
+
+    def test_a_score_count_on_a_facts_question_may_be_cited(self):
+        doc = self.filled()
+        row = deck.build_model(*self.model_args(doc))["blocks"]["facts"]["rows"][0]
+        doc["blocks"]["facts"][0]["read"] = f"Hanno punteggio 4 o 5 in {row['bands']['4-5']} risposte su {row['judged']}."
+        self.assertEqual(self.problems(doc), "")
+
     def test_words_about_how_the_answers_were_scored_are_refused(self):
         doc = self.filled()
         doc["found"]["points"] = ["Il giudice ha dato un punteggio basso."]
@@ -373,6 +419,13 @@ class RenderTest(DeckCase, unittest.TestCase):
 
     def test_evidence_slides_are_numbered_from_the_block(self):
         self.assertIn('<td class="num">4</td>', self.page())
+
+    def test_the_facts_chart_shows_the_answers_scored_4_or_5(self):
+        self.save_doc(self.filled())
+        chart = deck.page_of(self.study, DATE)[0].split('class="rows facts-rows')[1]
+        row = deck.build_model(*self.model_args(self.filled()))["blocks"]["facts"]["rows"][0]
+        self.assertIn('<div class="head">Punteggio 4-5</div>', chart)
+        self.assertIn(f'<div class="fig">{row["bands"]["4-5"]} su {row["judged"]}</div>', chart)
 
     def test_a_slide_shows_its_action_in_words(self):
         self.assertIn("Azione 1: Pubblicare una pagina di confronto", re.sub(r"<[^>]+>", "", self.page()))

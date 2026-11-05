@@ -33,6 +33,10 @@ MAX_ACTIONS, MAX_POINTS, MAX_SLIDES, MAX_EXCERPTS, MAX_ROWS, MAX_WORDS = 5, 4, 1
 # The characters each text may hold for its slide to stay on one page.
 LIMITS = {"title": 125, "point": 175, "read": 210, "what": 175, "rests_on": 70, "read_next": 70, "limit": 170, "ask": 120}
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
+SWEEPING = re.compile(r"\b(nessun[aoe]?|assent[ei]|tutt[ei]|mai|sempre|absent|none|never|always|no (?:answer|assistant)s?"
+                      r"|every (?:answer|assistant)|all (?:the |\d+ )?(?:answers|assistants))\b", re.I)
+BAND_WORDS = re.compile(r"\b(fasci[ae] (?:alt[ae]|bass[ae]|medi[ae])|(?:top|high|upper|low|lower) bands?)\b", re.I)
+PAGE = re.compile(r"(?<![\w@/.-])(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,}/[\w%~+-][\w%~+./-]*)", re.I)
 SENTENCE_START = re.compile(r"(?:^|[.!?:;]|(?:^|\s)(?:[-•]|\d+[.)]))\s*$")
 SENTENCE_END = re.compile(r"[.!?:;…]$")
 # The printers a deck takes: the page lays its slides out with flex and grid, which wkhtmltopdf does not read.
@@ -93,7 +97,7 @@ td.class { font-weight: 700; }
 .rows { display: grid; column-gap: 18px; row-gap: 9px; align-items: center; font-size: 17px; line-height: 1.25; }
 .reach-rows { grid-template-columns: 290px 1fr 84px 340px; }
 .description-rows { grid-template-columns: 330px 1fr 92px; }
-.facts-rows { grid-template-columns: 440px 1fr 92px 92px; }
+.facts-rows { grid-template-columns: 400px 1fr 92px 100px 92px; }
 .long { font-size: 15px; }
 .head { font-size: 14px; font-weight: 600; color: var(--sl-muted); }
 .group { grid-column: 1 / -1; font-size: 15px; font-weight: 700; color: var(--sl-deep); margin-top: 4px; }
@@ -166,7 +170,7 @@ def _fact_row(project, dimension, question, scope):
     total = scope["total"]
     return {"project": project, "dimension": dimension, "label": question["text"], "given": c["given"],
             "current": c["current_only"] + c["both"], "outdated": c["outdated_only"], "silent": c["given"] - c["stating"],
-            "mean": total["mean"] if total["figure"] else None}
+            "judged": total["judged"], "bands": total["bands"], "mean": total["mean"] if total["figure"] else None}
 
 
 def _measure(key, row):
@@ -314,6 +318,8 @@ def _plan(m, study, date, lang):
                 line += "; scores 1-2: " + of(row["bands"]["1-2"], row["judged"]) + ", 3: " + of(row["bands"]["3"], row["judged"])
             if key == "facts":
                 line += f"; outdated {of(row['outdated'], row['given'])}, not stated {of(row['silent'], row['given'])}"
+                if row.get("mean") is not None:
+                    line += "; scores " + ", ".join(f"{band}: {of(row['bands'][band], row['judged'])}" for band in ("4-5", "3", "1-2"))
             if key != "reach" and row.get("mean") is not None:
                 line += f"; mean {fmt_decimal(row['mean'], lang)}"
             out.append(line)
@@ -479,16 +485,34 @@ def rows_of(key, block, slide):
     return picked(block["rows"])
 
 
-def _responses(folder, period):
-    """{(question text, model): the answers given}, compared in `check`'s plain form."""
-    out = {}
+def _answered(folder, period):
+    """(question text as `check` compares it, response) of every answer of the period."""
     for key, ids in period["runs"].items():
         keys = {q["key"]: match_key(q["text"]) for d in period["asked"].get(key, []) for q in d["questions"]}
         for run_id in ids:
             for r in folder.run(key, run_id)["responses"]:
                 if r["match"] != "unmatched" and r["answer"] and r["question"] in keys:
-                    out.setdefault((keys[r["question"]], r["model"]), []).append(_plain(r["answer"]))
+                    yield keys[r["question"]], r
+
+
+def _responses(folder, period):
+    """{(question text, model): the answers given}, compared in `check`'s plain form."""
+    out = {}
+    for text, r in _answered(folder, period):
+        out.setdefault((text, r["model"]), []).append(_plain(r["answer"]))
     return out
+
+
+def _address(page):
+    return re.sub(r"^(?:https?://)?(?:www\.)?", "", page.lower()).rstrip("/.")
+
+
+def _unseen_pages(doc, folder, period):
+    """An address the writer composed reads as a page that exists: only those the answers cite may be named."""
+    cited = "\n".join(_address(s["url"]) for _, r in _answered(folder, period) for s in r["sources"] if s.get("url"))
+    cited += "\n".join(r["answer"].lower() for _, r in _answered(folder, period))
+    return [f"{field} names {page}, an address no answer cites: give the domain, or an address the answers cite"
+            for field, _, text in _texts(doc) for page in PAGE.findall(text) if _address(page) not in cited]
 
 
 def _cut(text, pieces, answers):
@@ -563,12 +587,12 @@ def _allowed_figures(m, period):
             _ratio(*_measure(key, row), percents, pairs)
             if row.get("mean") is not None:
                 decimals.add(round_half_up(row["mean"], 1))
+            for n in row["bands"].values():
+                _ratio(n, row["judged"], percents, pairs)
             if key == "facts":
                 _ratio(row["outdated"], row["given"], percents, pairs)
                 _ratio(row["silent"], row["given"], percents, pairs)
             else:
-                for n in row["bands"].values():
-                    _ratio(n, row["judged"], percents, pairs)
                 for _, n in row["foils"]:
                     _ratio(n, row["given"], percents, pairs)
         s = block["sources"]
@@ -596,6 +620,10 @@ def problems_of(folder, study, period, doc):
             problems.append(f"{field} is empty")
     text = "\n".join(t for _, _, t in _texts(doc))
     problems += [f"a word about how the deck was built appears: {w.group(0)}" for w in UNSAID.finditer(text)]
+    problems += [f"a score band is written as the chart writes it, score 4 or 5: {w.group(0)}" for w in BAND_WORDS.finditer(text)]
+    problems += [f"{field} says all or nothing with {w.group(0)!r}: write the count, x of y, as the figures give it"
+                 for field, limit, claim in _texts(doc) if limit in ("title", "point", "read") for w in SWEEPING.finditer(claim)]
+    problems += _unseen_pages(doc, folder, period)
     problems += leaks(folder, study, period, text, folder.binding)
     shown = [*names.values(), *(n.split(": ", 1)[-1] for n in names.values())]
     answers = [a for pool in by_answer.values() for a in pool]
@@ -667,8 +695,9 @@ def _rows(key, rows, t, lang, subject, grouped, excerpts):
             b = row["bands"]
             out.append(f'{label}{_bar([(b["4-5"], "good"), (b["3"], "mid"), (b["1-2"], "low")])}<div class="fig">{mean}</div>')
         else:
+            high = _of(row["bands"]["4-5"], row["judged"], t) if mean else ""
             out.append(f'{label}{_bar([(row["current"], "good"), (row["outdated"], "low"), (row["silent"], "mid")])}'
-                       f'<div class="fig">{_of(row["current"], row["given"], t)}</div><div class="fig">{mean}</div>')
+                       f'<div class="fig">{_of(row["current"], row["given"], t)}</div><div class="fig">{high}</div><div class="fig">{mean}</div>')
     grid = f'<div class="rows {key}-rows{long}{few}">' + "".join(out) + "</div>"
     legend = {"description": [("good", t["bands"]["4-5"]), ("mid", t["bands"]["3"]), ("low", t["bands"]["1-2"])],
               "facts": [("good", t["fact_parts"]["current"]), ("low", t["fact_parts"]["outdated"]),

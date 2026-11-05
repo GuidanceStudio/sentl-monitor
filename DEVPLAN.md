@@ -926,6 +926,7 @@ enters the skill only after the operator has seen the result.
 - [x] `pdf --deck`: 16:9 pages, chromium first, refused when the pages are not the slides
 - [x] Playbook, SKILL.md, ARCHITECTURE, README, CHANGELOG; deploy
 - [~] Produce the deck of one real study from zero with opencode and the installed skill, with no edit by hand; a fault goes back to the skill and the deck is produced again
+  - [x] Fourth round of faults: a universal claim the answers do not support, a composed address no answer cites, a request to correct a page that is right about another company, the subject's own pages taken for someone else's, a title contradicted by a row of its chart, a score band named in words, no score on a facts row. `check` refuses the first, the second and the band; facts rows and their chart carry the scores; the playbook holds the rest
 - [ ] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
 - [ ] Open the task for interactive screens in Sentl's own board
 
