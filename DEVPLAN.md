@@ -893,3 +893,35 @@ language.
 - [x] Suites green, commit, push
 
 **Done when:** the suite passes and the share copy of a one-day report carries a single date.
+
+## M18: The report becomes one short deck that leads to decisions 🔄
+
+**Why:** a client's marketing lead read an 18-page first report and called it unreadable: the summary sat
+on page 7 after six pages of method, the report held no recommended action, and each dimension repeated the
+same statistics. The report is a recurring tool for someone who decides, and it reads like a study.
+
+**Approach:** one slide deck replaces the document for every client and every study shape. The deck is
+organised by what the reader must decide, and its blocks come from the type of each question, so no block
+depends on the name of a project:
+
+- reach: the question names no subject and presence is what is scored; the figure is presence;
+- description: the question names the subject, or the subject is a category or a method, or the question
+  scores a position; the figure is the mean;
+- facts: the question has recorded facts; the figure is how many answers carry the current fact.
+
+A block appears only when the study has its questions. The order is what was found, what to do, the evidence
+block by block, the sources, one method slide at the end. Each action belongs to a result class taken from
+Sentl's own list (not named, named only when asked by name, named with a warning, wrong fact, plus passed over
+in a comparison, confused with another entity, no information found) and states what to do, where, the figure
+it rests on and the figure to read in the next report. The full specification is tried from zero first; it
+enters the skill only after the operator has seen the result.
+
+**Tasks:**
+- [x] Write the general specification, with no client in it
+- [x] Try it from zero with opencode on three study shapes: a three-block study, a study with no recorded facts, a study in another language and market
+- [~] Review the decks with the operator and revise the specification
+- [ ] After the operator's go: test first, then the route, `check`, rendering, the action register between editions, CHANGELOG, README
+- [ ] Open the task for interactive screens in Sentl's own board
+
+**Done when:** the operator has accepted a deck produced from the specification on each study shape, and `check`
+refuses a deck with no actions, an action with no evidence slide or a figure missing from the material.
