@@ -372,7 +372,7 @@ DECK = {
         "cover_kind": "Monitoring report",
         "cover_line": "{questions} questions, {assistants} assistants, {answers} answers",
         "blocks": {"reach": "Presence", "description": "Description", "facts": "Facts"},
-        "tile": {"reach": "answers name {subject} on questions that do not",
+        "tile": {"reach": "answers name {subject} on questions that do not name it",
                  "description": "answers scored 4 or 5 on questions naming {subject}",
                  "facts": "answers carry the current fact"},
         "action": "Action {n}",

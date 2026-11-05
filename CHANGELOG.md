@@ -16,7 +16,8 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   --deck` writes 16:9 pages and refuses a slide that runs over its page. `check` also refuses a claim of all or
   nothing in place of a count, a page address neither cited by an answer nor recorded as a fact's source, the word "correct" for answers carrying the current fact, a score band named in words, a slide with an action
   and no excerpt, and a title citing a figure its chart does not draw; a facts row shows how many answers scored 4
-  or 5.
+  or 5. A fact a later project records with other terms no longer counts as current: its question moves to the
+  description block, the figures file names the later record, and `check` refuses its term.
 - The material prints "Who wrote the sources" on every dimension whose answers cite a source, when the study lists
   its competitors' domains, and no longer only when a competitor's page is cited; and it counts the answers naming
   each competitor, by dimension and by question (`foils` in each cell of the period). A period built earlier is built

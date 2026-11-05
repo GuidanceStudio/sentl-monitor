@@ -930,6 +930,7 @@ enters the skill only after the operator has seen the result.
   - [x] Fifth round of faults, read on three study shapes: action slides with no excerpt, a title citing a figure its chart does not draw, a superlative true only within one slide, an action to publish what the subject already publishes, a third party not cited on the action's questions, "the answers say" for a minority, a reason no answer supports. `check` refuses the first two; the playbook holds the rest and adds a reread before rendering
   - [x] Sixth round: answers carrying the current term called correct though one added a price the facts do not hold, and an address refused though the study records it as a fact's source. `check` refuses the word and accepts the recorded source
   - [x] Seventh round: a preference no answer states, what the answers say written as fact, a public authority and other sellers named as places to get listed. The playbook holds the three, and the reread names the case of a choice
+  - [x] Eighth round: an action told the subject to state a fact a later project had replaced. A fact recorded later with other terms takes its question out of the facts block, the figures file names it, `check` refuses its term
 - [ ] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
 - [ ] Open the task for interactive screens in Sentl's own board
 

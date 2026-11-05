@@ -49,7 +49,8 @@ It writes `history/deck/D.figures.md` and, the first time, `reports/D.deck.json`
 after changing `moved` or `same_audience`: it keeps what is written.
 
 Read `history/deck/D.figures.md` whole. `history/material/D.md` holds the same figures with every answer: it is
-very long, so never read it whole. Search it for the question or the term you need.
+very long, so never read it whole. Search it for the question or the term you need. A question whose fact a later project
+replaces is listed there under its own heading: it counts by score in `description`, and `check` refuses its term.
 
 Two settings of `reports/D.deck.json` are yours:
 
@@ -122,6 +123,9 @@ Ask a third party to correct a page only when the answers show that page saying 
 page about another company with a similar name is right as it stands, and its address usually carries that name: the
 action then stays on the subject's own pages. Name a page by its domain, by an address the answers cite or by the source
 a fact records: `check` refuses any other address.
+
+A recorded fact can be old. Answers citing an official register or the subject's own page against it go in the notes to
+the operator, with no action on that fact.
 
 Before asking the subject to publish something, look at its pages the answers cite and at what the answers say of them.
 What exists is made clearer or completed, naming the page; only what is missing is published. Name only third parties
@@ -203,7 +207,7 @@ python3 <skill>/scripts/monitor.py pdf --study "$S" --deck --date D
 `check` refuses a deck with no action, an action with no evidence slide, a figure missing from the period, an excerpt
 not verbatim, attributed to another question or assistant, or cut inside a sentence with no mark, a text longer than
 its slide holds, a claim of all or nothing, an address no answer cites, a slide with an action and no excerpt, a title
-citing a figure its chart does not draw, and the words the deck must not carry. Fix the text and run it again until it
+citing a figure its chart does not draw, a term a later record replaces, and the words the deck must not carry. Fix the text and run it again until it
 passes. Never fix a failure by changing a figure drawn by the code.
 
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its

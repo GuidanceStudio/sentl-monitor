@@ -143,13 +143,32 @@ def _short(name, subject):
     return re.sub(rf"^{re.escape(subject)}\s*[·:–-]\s*", "", name)
 
 
-def _block(study, reader, text, scope):
+def _block(study, reader, text, facts):
     """The block a question belongs to. A question naming no subject measures whether the subject is
     found, even when it has recorded facts; a category or a method has no presence to measure."""
     kind = (study.get("subject") or {}).get("kind")
     if not reader.position(text) and kind not in ("category", "method"):
         return "reach"
-    return "facts" if scope.get("facts") else "description"
+    return "facts" if facts else "description"
+
+
+def _later_record(study, question):
+    """The fact another project records later for this question, with other current terms: the earlier
+    record no longer says what is current, whatever the period's answers were read against."""
+    mine = fact_terms(question)
+    if not mine:
+        return None
+    dated = max(f.get("date") or "" for f in question["facts"])
+    text = match_key(question["text"])
+    for project in study["projects"]:
+        for d in project["dimensions"]:
+            for q in d["questions"]:
+                terms = fact_terms(q)
+                if terms and match_key(q["text"]) == text and set(terms["current"]) != set(mine["current"]):
+                    later = [f for f in q["facts"] if (f.get("date") or "") > dated]
+                    if later:
+                        return later[-1]
+    return None
 
 
 def _row(project, dimension, label, items):
@@ -211,7 +230,7 @@ def build_model(folder, study, period, doc=None):
     reader, subject = Reader(study), study["subject"]["label"]
     names = period.get("names") or {}
     blocks = {b: {"rows": [], "questions": [], "placed": [], "responses": []} for b in BLOCKS}
-    method, cache = [], {}
+    method, cache, replaced = [], {}, []
 
     def run_of(key, run_id):
         if (key, run_id) not in cache:
@@ -229,12 +248,18 @@ def build_model(folder, study, period, doc=None):
                 if "foils" not in scope["total"]:
                     raise Refused(f"the period of {period['date']} was built before the deck's figures: "
                                   f"run period --date {period['date']} again")
-                block = moved.get(q["key"]) or _block(study, reader, q["text"], scope)
+                later = _later_record(study, q)
+                facts = None if later else scope.get("facts")
+                if later:
+                    replaced.append({"question": q["text"], "fact": q["facts"][-1]["fact"], "date": q["facts"][-1].get("date"),
+                                     "later": later["fact"], "later_date": later.get("date"),
+                                     "terms": fact_terms(q)["current"]})
+                block = moved.get(q["key"]) or _block(study, reader, q["text"], facts)
                 here[block].append((q, scope))
                 blocks[block]["placed"].append({"key": q["key"], "text": q["text"], "dimension": d["name"],
                                                 "names_subject": bool(reader.position(q["text"]))})
                 blocks[block]["responses"] += _answers_to(runs, q["key"])
-                if scope.get("facts") and (block == "facts" or scope["facts"]["total"]["stating"]):
+                if facts and (block == "facts" or facts["total"]["stating"]):
                     blocks["facts"]["rows"].append(_fact_row(name, d["name"], q, scope))
             for b in ("reach", "description"):
                 if here[b]:
@@ -248,7 +273,7 @@ def build_model(folder, study, period, doc=None):
         block["figures"] = _block_figures(key, block["rows"], doc.get("same_audience"))
         block["sources"] = _sources(block.pop("responses"), reader)
     assistants = {a for row in method for a in row["assistants"]}
-    return {"blocks": blocks, "method": method, "subject": subject,
+    return {"blocks": blocks, "method": method, "subject": subject, "replaced": replaced,
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
                        "answers": sum(r["answers"] for r in method)}}
 
@@ -340,6 +365,13 @@ def _plan(m, study, date, lang):
                     f"competitors' pages in {s['foil']}, third parties' pages in {s['third']}.",
                 f"third parties' domains cited most: {listed(s['third_domains'])}",
                 f"competitors' domains cited most: {listed(s['foil_domains'])}", ""]
+    if m["replaced"]:
+        out += ["## Facts a later record replaces", "",
+                "These questions count by score, in their block. Their terms no longer say what is current: never write one "
+                "as current, and take no action on it.", ""]
+        out += [f"- «{r['question']}»: {r['fact']} ({r['date']}), replaced by: {r['later']} ({r['later_date']})"
+                for r in m["replaced"]]
+        out.append("")
     return out
 
 
@@ -663,6 +695,9 @@ def problems_of(folder, study, period, doc):
                  "elsewhere; write that they carry it, as the chart does"
                  for field, limit, claim in _texts(doc) if limit in ("title", "point", "read") for w in OVERSTATED.finditer(claim)]
     problems += _unseen_pages(doc, study, folder, period)
+    problems += [f"{field} names {term}, the current term of a fact a later record replaces: {r['later']}"
+                 for r in m["replaced"] for term in r["terms"] for field, _, claim in _texts(doc)
+                 if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", claim)]
     problems += leaks(folder, study, period, text, folder.binding)
     shown = [*names.values(), *(n.split(": ", 1)[-1] for n in names.values())]
     answers = [a for pool in by_answer.values() for a in pool]

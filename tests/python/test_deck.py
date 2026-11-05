@@ -1,5 +1,6 @@
 """The deck route: the material it needs, its blocks, its check and its pages."""
 
+import copy
 import json
 import re
 import shutil
@@ -57,6 +58,49 @@ class DeckCase(InsightCase):
     def problems(self, doc):
         self.save_doc(doc)
         return "\n".join(deck.check(self.study, self.path, DATE))
+
+
+class LaterRecordTest(DeckCase, unittest.TestCase):
+    """A fact another project records later, with other terms, no longer says what is current."""
+
+    def add_later_record(self, current):
+        path = self.study / "study.json"
+        study = json.loads(path.read_text(encoding="utf-8"))
+        later = copy.deepcopy(study["projects"][0])
+        later["key"], later["name"] = "market-2", "Mercato 2"
+        for d in later["dimensions"]:
+            for q in d["questions"]:
+                for f in q.get("facts") or []:
+                    f.update({"fact": "Il prezzo al litro non è più pubblicato", "date": "2027-02-01", "current": current})
+        study["projects"].append(later)
+        path.write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+
+    def model(self):
+        return deck.build_model(*self.model_args(self.filled()))
+
+    def test_the_question_leaves_the_facts_block(self):
+        self.add_later_record([])
+        m = self.model()
+        self.assertNotIn(PRICE_Q, [r["label"] for r in m["blocks"]["facts"]["rows"]])
+        self.assertIn(PRICE_Q, [q["text"] for q in m["blocks"]["description"]["placed"]])
+
+    def test_the_same_terms_in_a_later_project_change_nothing(self):
+        self.add_later_record(["2,10 €"])
+        self.assertIn(PRICE_Q, [r["label"] for r in self.model()["blocks"]["facts"]["rows"]])
+
+    def test_the_figures_file_names_the_later_record(self):
+        self.add_later_record([])
+        text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
+        self.assertIn("## Facts a later record replaces", text)
+        self.assertIn("Il prezzo al litro non è più pubblicato", text)
+
+    def test_the_replaced_term_is_refused(self):
+        self.add_later_record([])
+        doc = self.filled()
+        del doc["blocks"]["facts"]
+        doc["actions"][0]["what"] = "Pubblicare su avenello.example il prezzo di «2,10 €» al litro"
+        self.assertIn("a later record replaces", self.problems(doc))
 
 
 class TitleFiguresTest(unittest.TestCase):
