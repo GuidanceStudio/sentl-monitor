@@ -53,15 +53,18 @@ very long, so never read it whole. Search it for the question or the term you ne
 
 Two settings of `reports/D.deck.json` are yours:
 
-- `same_audience`: `true` only when every project addresses the same audience and market, as `narrative.audience`
-  and each project's `question` and `decision` in `study.json` show. It lets a block add its projects up. With
-  `false` each project keeps its own figure. Audiences and markets are never added up.
+- `same_audience`: `true` when the projects differ in what they measure and address the same people in the same
+  market, as `narrative.audience` shows: the usual case, and the reader then sees one figure per block. `false` when
+  the study splits its projects by audience or market, such as a project per country or per customer segment: each
+  project keeps its figure, because audiences and markets are never added up.
 - `moved`: `{"<question key>": "description"}` for a question that names no subject and scores a position in a debate
   rather than whether the subject is found. Move nothing else.
 
 ## 3. Find the results
 
-Read the answers behind the lowest and the most surprising figures in `material`. Give each result one class:
+Read in `material` every answer scored 1 or 2 on a question naming the subject, then the answers behind the lowest
+and the most surprising figures. Look at what those answers describe and at the domains they cite: an answer about
+a company with a similar name is `confused`, whatever its score. Give each result one class:
 
 | `class` | What the answers do | What to do, in general |
 |---|---|---|
@@ -74,8 +77,11 @@ Read the answers behind the lowest and the most surprising figures in `material`
 | `confused` | The answer describes someone else | Make the identity clear on the subject's pages, ask for corrections where the pages mix the two |
 | `holds` | The answers are favourable and correct | Keep it: one line in the block, no action |
 
-`passed_over` needs answers that actually choose. An answer saying the choice depends on the need does not pass the
-subject over: say that it splits the choice, and on what.
+`passed_over` needs answers that actually choose. An answer saying the choice depends on the need or the stage does
+not pass the subject over: say that it splits the choice, and on what. A verb like "prefer", "choose" or "send to" comes
+from reading the answers, condition included. If the answers say "a competitor at first, the subject once volumes
+grow", write that, not "they choose the competitor". A count from a score band means what the question's rubric says
+for those scores: read the rubric before you name it.
 
 ## 4. Choose the actions
 
@@ -91,9 +97,15 @@ Each action has:
 - `read_next`: the figure to read in the next report, with its value today;
 - `block`: the block whose slide holds the evidence. Set that slide's `action` to the action's number.
 
-An action needs at least three answers behind it, from more than one assistant or more than one question: a result
-resting on fewer goes in the notes to the operator. Never assign an action to a department of the client. Never
-promise an outcome. A page an answer cites did not necessarily cause it: write "cited", never "caused".
+An action needs at least three answers behind it, from more than one assistant or more than one question; `wrong_fact`
+and `confused` need two, since an error can be checked and a view cannot. A result resting on fewer goes in the notes
+to the operator.
+
+The places to act are the subject's own pages and third parties' pages: the figures file lists the third parties the
+answers cite. A competitor's site is a place to read, never one to act on, and `check` refuses it. An action says what
+to publish and leaves the content to the subject: it states as fact only what `study.json` records, however many
+answers say it. Never assign an action to a department of the client. Never promise an outcome. A page an answer cites
+did not necessarily cause it: write "cited", never "caused".
 
 ## 5. Write the text
 
@@ -117,7 +129,8 @@ In a large study, group what the slides show and give excerpts only to what supp
 **Titles.** Plain declarative sentences that say the finding. A title stays true when read beside its own figure: never
 "not found: 14 of 90", which says the opposite of its number. A number in a title says what it counts ("named in 14
 answers of 90"). A title claims no more than its evidence: "preferred" only for answers that choose. No slogans, no
-rhetorical questions, no contrast built for effect. Delete any sentence that loses no information when removed.
+rhetorical questions, no metaphors, no contrast built for effect. Delete any sentence that loses no information when
+removed. The reader calls this document a report: never write "deck".
 
 **Figures.** Cite only the figures `history/deck/D.figures.md` holds, as they stand: `check` refuses any other, and sums
 of your own. Write small figures as "x of y". A figure per assistant only when the difference between assistants is

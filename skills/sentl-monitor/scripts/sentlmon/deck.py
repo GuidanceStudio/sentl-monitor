@@ -32,7 +32,7 @@ TODO = "[[...]]"
 MAX_ACTIONS, MAX_POINTS, MAX_SLIDES, MAX_EXCERPTS, MAX_ROWS, MAX_WORDS = 5, 4, 11, 2, 8, 40
 # The characters each text may hold for its slide to stay on one page.
 LIMITS = {"title": 125, "point": 175, "read": 210, "what": 175, "rests_on": 70, "read_next": 70, "limit": 170, "ask": 120}
-SCORING = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable)\b", re.I)
+UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
 SENTENCE_START = re.compile(r"(?:^|[.!?:;]|(?:^|\s)(?:[-•]|\d+[.)]))\s*$")
 SENTENCE_END = re.compile(r"[.!?:;…]$")
 # The printers a deck takes: the page lays its slides out with flex and grid, which wkhtmltopdf does not read.
@@ -80,9 +80,12 @@ td.class { font-weight: 700; }
 .actions th:nth-child(1), .actions th:nth-child(6) { width: 44px; }
 .actions th:nth-child(2) { width: 136px; }
 .actions th:nth-child(3) { width: 38%; }
-.sources table { font-size: 17px; }
+.few-actions table { font-size: 19px; }
+.few-actions td { padding: 16px 10px; }
+.sources table { font-size: 18px; }
 .sources th { font-size: 15px; }
-.sources td { padding: 16px 10px; }
+.sources td { padding: 22px 10px; }
+.method table { font-size: 17px; }
 .sources .small-meter { height: 12px; }
 .chart { flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 .legend { display: flex; gap: 22px; font-size: 14px; color: var(--sl-muted); }
@@ -118,8 +121,8 @@ td.class { font-weight: 700; }
 .strip b { color: var(--sl-deep); }
 .method-cols { display: flex; gap: 28px; flex: 1; }
 .method-cols > div { flex: 1; }
-h2 { font-size: 17px; color: var(--sl-deep); margin: 0 0 4px; }
-.method-cols p, .method-cols ul { font-size: 16px; line-height: 1.32; margin: 0 0 12px; }
+h2 { font-size: 18px; color: var(--sl-deep); margin: 0 0 4px; }
+.method-cols p, .method-cols ul { font-size: 17px; line-height: 1.34; margin: 0 0 14px; }
 .method-cols ul { padding-left: 18px; }
 """
 
@@ -186,8 +189,10 @@ def _block_figures(key, rows, same_audience):
 def _sources(responses, reader):
     out = _authors(responses, reader)
     domains = Counter(d for r in responses for d in {s["domain"] for s in r["sources"] if s["domain"]})
-    top = sorted(domains.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
-    return {**out, "domains": [{"domain": d, "answers": n, "author": reader.author(d)} for d, n in top]}
+    ranked = [{"domain": d, "answers": n, "author": reader.author(d)}
+              for d, n in sorted(domains.items(), key=lambda kv: (-kv[1], kv[0]))]
+    return {**out, "domains": ranked[:5], "third_domains": [d for d in ranked if d["author"] == "third"][:5],
+            "foil_domains": [d for d in ranked if d["author"] not in ("owned", "third")][:5]}
 
 
 def _assistant(model, names):
@@ -314,9 +319,13 @@ def _plan(m, study, date, lang):
             out.append(line)
         out += ["", "Questions:"] + [f"- {q['key']} ({q['dimension']}): «{q['text']}»" for q in block["placed"]]
         s = block["sources"]
+
+        def listed(domains):
+            return ", ".join(f"{d['domain']} ({d['answers']})" for d in domains) or "none"
         out += ["", f"Sources: of {s['with_sources']} answers citing a source, the subject's pages in {s['owned']}, "
-                    f"competitors' pages in {s['foil']}, third parties' pages in {s['third']}; domains cited most: "
-                    + (", ".join(f"{d['domain']} ({d['answers']})" for d in s["domains"]) or "none"), ""]
+                    f"competitors' pages in {s['foil']}, third parties' pages in {s['third']}.",
+                f"third parties' domains cited most: {listed(s['third_domains'])}",
+                f"competitors' domains cited most: {listed(s['foil_domains'])}", ""]
     return out
 
 
@@ -376,6 +385,14 @@ def _texts(doc):
         yield "method limit", "limit", text
     for text in method.get("ask") or []:
         yield "method question", "ask", text
+
+
+def _competitor_sites(doc, study):
+    """A competitor's own site is no place to act on: the reader can ask third parties, not rivals."""
+    domains = [d for f in study.get("foils") or [] for d in f.get("domains") or []]
+    return [f"action {n} sends the reader to {d}, a competitor's site: name the third parties' pages the answers cite"
+            for n, a in enumerate(doc.get("actions") or [], 1) for d in domains
+            if re.search(r"(?<![\w-])" + re.escape(d) + r"(?![\w-])", a.get("what") or "")]
 
 
 def _structure(doc, m):
@@ -540,7 +557,8 @@ def _allowed_figures(m, period):
                 for _, n in row["foils"]:
                     _ratio(n, row["given"], percents, pairs)
         s = block["sources"]
-        for n in (s["owned"], s["foil"], s["third"], *(d["answers"] for d in s["domains"])):
+        for n in (s["owned"], s["foil"], s["third"],
+                  *(d["answers"] for ds in (s["domains"], s["third_domains"], s["foil_domains"]) for d in ds)):
             _ratio(n, s["with_sources"], percents, pairs)
     return decimals, percents, pairs
 
@@ -552,7 +570,7 @@ def problems_of(folder, study, period, doc):
         return ["a text is left to write: replace every [[...]] marker"]
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
-    problems = _structure(doc, m)
+    problems = _structure(doc, m) + _competitor_sites(doc, study)
     names = period.get("names") or {}
     by_answer = _responses(folder, period)
     problems += _excerpts(doc, study, period, by_answer, names)
@@ -562,7 +580,7 @@ def problems_of(folder, study, period, doc):
         if not text.strip():
             problems.append(f"{field} is empty")
     text = "\n".join(t for _, _, t in _texts(doc))
-    problems += [f"a word about how the answers were scored appears: {w.group(0)}" for w in SCORING.finditer(text)]
+    problems += [f"a word about how the deck was built appears: {w.group(0)}" for w in UNSAID.finditer(text)]
     problems += leaks(folder, study, period, text, folder.binding)
     shown = [*names.values(), *(n.split(": ", 1)[-1] for n in names.values())]
     answers = [a for pool in by_answer.values() for a in pool]
@@ -614,9 +632,10 @@ def _legend(entries):
     return '<div class="legend">' + "".join(f'<span><i class="{kind}"></i>{esc(label)}</span>' for kind, label in entries) + "</div>"
 
 
-def _rows(key, rows, t, lang, subject, grouped):
+def _rows(key, rows, t, lang, subject, grouped, excerpts):
     long = " long" if any(len(r["label"]) > 60 for r in rows) else ""
-    few = " few" if len(rows) <= 3 else " dense" if len(rows) > 5 else ""
+    height = len(rows) + 2 * excerpts + (len({r["project"] for r in rows}) if grouped else 0)
+    few = " few" if len(rows) <= 3 else " dense" if height > 8 else ""
     head = {"reach": t["reach_head"], "description": t["description_head"], "facts": t["facts_head"]}[key]
     out, group = [_head(head, subject)], None
     for row in rows:
@@ -698,7 +717,7 @@ def _sources_table(m, t, subject):
             continue
         n = s["with_sources"]
         cells = "".join(f'<td><span class="fig">{_of(s[k], n, t)}</span>{_meter(s[k], n, True)}</td>' for k in ("owned", "foil", "third"))
-        domains = ", ".join(f'{d["domain"]} ({d["answers"]})' for d in s["domains"])
+        domains = ", ".join(f'{d["domain"]} ({d["answers"]})' for d in s["third_domains"]) or t["none"]
         rows.append(f'<tr><td class="class">{esc(t["blocks"][key])}</td><td class="num">{n}</td>{cells}<td>{esc(domains)}</td></tr>')
     return f'<table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
@@ -738,7 +757,8 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang, cover):
     rows = rows_of(key, block, slide)
     grouped = len({r["project"] for r in rows}) > 1 and not doc.get("same_audience")
     out = (f'<h1>{esc(slide.get("title"))}</h1><p class="read">{esc(slide.get("read"))}</p>'
-           + _rows(key, rows, t, lang, subject, grouped) + _quotes(slide.get("excerpts"), t))
+           + _rows(key, rows, t, lang, subject, grouped, len(slide.get("excerpts") or []))
+           + _quotes(slide.get("excerpts"), t))
     n = slide.get("action")
     if n is not None and 1 <= n <= len(doc.get("actions") or []):
         label = t["action"].format(n=n)
@@ -765,7 +785,8 @@ def page_of(root, date=None, option=None):
     slides = [cover]
     for n, (kind, key, slide) in enumerate(order[1:], 2):
         foot = (f'<footer class="foot"><span>{logo}{esc(subject)} · {esc(days)}</span><span>{n} / {len(order)}</span></footer>')
-        slides.append(f'<section class="slide {kind}">{_slide_html(kind, key, slide, doc, m, order, t, lang, cover)}{foot}</section>')
+        extra = " few-actions" if kind == "actions" and len(doc.get("actions") or []) <= 3 else ""
+        slides.append(f'<section class="slide {kind}{extra}">{_slide_html(kind, key, slide, doc, m, order, t, lang, cover)}{foot}</section>')
     font = f'<link rel="stylesheet" href="{html.escape(chosen["font_url"], quote=True)}">' if chosen.get("font_url") else ""
     style = sentl_theme.variables(chosen) + STYLE + (chosen.get("css") or "")
     text = (f'<!doctype html>\n<html lang="{html.escape(lang)}"><head><meta charset="utf-8"><title>{esc(subject)} · {esc(days)}</title>'

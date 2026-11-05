@@ -141,6 +141,16 @@ class BlocksTest(DeckCase, unittest.TestCase):
         self.assertEqual({k: sources[k] for k in ("owned", "foil", "third", "with_sources")},
                          {"owned": 1, "foil": 0, "third": 1, "with_sources": 2})
         self.assertEqual(sources["domains"][0]["answers"], 1)
+        self.assertEqual([d["domain"] for d in sources["third_domains"]], ["prezzi.example"])
+
+    def test_the_figures_file_tells_third_parties_from_competitors(self):
+        self.ingest_market(9102, OCT[1], rows(choice=(("La migliore è Avoria.", 3, ["https://avoria.example/x", "https://guida.example/y"]),
+                                                      ("Dipende.", 3, []))))
+        self.build(DATE)
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+        text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
+        self.assertIn("third parties' domains cited most: guida.example (1)", text)
+        self.assertIn("competitors' domains cited most: avoria.example", text)
 
     def test_the_method_table_shows_what_ran_and_not_a_setting(self):
         row = self.model()["method"][0]
@@ -293,6 +303,18 @@ class CheckTest(DeckCase, unittest.TestCase):
         self.assertIn(GPT, found)
         self.assertIn("deck.json", found)
 
+    def test_the_deck_is_not_named_in_its_own_text(self):
+        doc = self.filled()
+        doc["method"]["limits"] = ["Il deck non mostra cambiamenti nel tempo."]
+        self.assertIn("deck", self.problems(doc))
+
+    def test_an_action_cannot_send_the_reader_to_a_competitor_s_site(self):
+        doc = self.filled()
+        doc["actions"][0]["what"] = "Farsi inserire nelle pagine citate: guida.example, www.avoria.example."
+        found = self.problems(doc)
+        self.assertIn("action 1", found)
+        self.assertIn("avoria.example", found)
+
     def test_a_slide_cites_an_action_that_exists(self):
         doc = self.filled()
         doc["blocks"]["description"][0]["action"] = 7
@@ -327,6 +349,13 @@ class RenderTest(DeckCase, unittest.TestCase):
         self.assertIn("4,0", text)
         self.assertIn("Avoria 1", text)
         self.assertIn('class="bar"', text)
+
+    def test_a_slide_lists_the_third_parties_the_reader_can_ask(self):
+        self.assertIn("prezzi.example (1)", self.page())
+        self.assertIn("Pagine di terzi più citate", self.page())
+
+    def test_few_actions_are_set_larger(self):
+        self.assertIn('<section class="slide actions few-actions"', self.page())
 
     def test_the_labels_are_in_the_report_s_language(self):
         text = self.page()
