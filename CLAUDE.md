@@ -4,7 +4,7 @@ This repository is the `sentl-monitor` skill. Today it takes an existing Sentl p
 study folder (`adopt`) and writes a report after each period of runs, compared with the earlier
 periods (`report`), lists the themes to monitor (`brief`) and designs a study from them
 (`design`), creates and updates the study's projects in Sentl (`setup`), and runs a one-off
-snapshot of a subject that leaves no project running (`snapshot`); it reads and writes Sentl
+snapshot of a subject that leaves no project running (`snapshot`), and turns a period into the short deck a client reads (`deck`); it reads and writes Sentl
 through Sentl's MCP server. A scheduler can start `report` unattended. Start every session by reading, in this order:
 
 1. `README.md`: what the skill does, its routes, its requirements.
