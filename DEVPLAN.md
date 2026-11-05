@@ -927,6 +927,7 @@ enters the skill only after the operator has seen the result.
 - [x] Playbook, SKILL.md, ARCHITECTURE, README, CHANGELOG; deploy
 - [~] Produce the deck of one real study from zero with opencode and the installed skill, with no edit by hand; a fault goes back to the skill and the deck is produced again
   - [x] Fourth round of faults: a universal claim the answers do not support, a composed address no answer cites, a request to correct a page that is right about another company, the subject's own pages taken for someone else's, a title contradicted by a row of its chart, a score band named in words, no score on a facts row. `check` refuses the first, the second and the band; facts rows and their chart carry the scores; the playbook holds the rest
+  - [x] Fifth round of faults, read on three study shapes: action slides with no excerpt, a title citing a figure its chart does not draw, a superlative true only within one slide, an action to publish what the subject already publishes, a third party not cited on the action's questions, "the answers say" for a minority, a reason no answer supports. `check` refuses the first two; the playbook holds the rest and adds a reread before rendering
 - [ ] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
 - [ ] Open the task for interactive screens in Sentl's own board
 

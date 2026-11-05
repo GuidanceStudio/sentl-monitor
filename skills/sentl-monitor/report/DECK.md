@@ -119,6 +119,11 @@ page about another company with a similar name is right as it stands, and its ad
 action then stays on the subject's own pages. Name a page by its domain, or by an address the answers cite: `check`
 refuses an address no answer cites.
 
+Before asking the subject to publish something, look at its pages the answers cite and at what the answers say of them.
+What exists is made clearer or completed, naming the page; only what is missing is published. Name only third parties
+cited on the questions the action rests on: `material` lists the domains question by question. A reason given for an
+action comes from the figures or from `narrative.purpose`: what buyers do or think is not in the answers.
+
 ## 5. Write the text
 
 | Field | What it holds |
@@ -127,10 +132,10 @@ refuses an address no answer cites.
 | `found.points` | One to four sentences with what matters, at least one saying what holds |
 | `actions_title` | Which action comes first and why, as a full sentence. It never announces the list |
 | `blocks.<block>` | One slide, or two when the block supports two or more actions |
-| `slide.title` | What the block found. `slide.read`: the one or two sentences the chart does not say |
+| `slide.title` | What the block found. `slide.read`: the one or two sentences the chart does not say. A slide with an action says, in one of the two, the result the action rests on |
 | `slide.dimensions` | The dimensions this slide draws; empty draws them all. Across a block's slides every dimension is drawn. Put together only what one title can say |
-| `slide.rows` | `dimensions`, or `questions` to draw one row per question. A slide on one or two dimensions draws their questions anyway |
-| `slide.excerpts` | At most two, each `{"text", "question", "assistant"}` |
+| `slide.rows` | `dimensions`, or `questions` to draw one row per question. A slide on one or two dimensions draws their questions anyway. A figure in the title is one the chart draws, and `check` refuses any other: to cite a question, draw the questions |
+| `slide.excerpts` | At most two, each `{"text", "question", "assistant"}`. A slide with an action shows at least one: what the action rests on, in the assistant's words |
 | `slide.action` | The number of the action this slide supports, or `null` |
 | `sources.title`, `sources.read` | Which pages form the answers and which of them matter for the actions |
 | `method.limits` | Only a limit that changes what the reader may conclude, such as a question type not measured |
@@ -142,7 +147,8 @@ In a large study, group what the slides show and give excerpts only to what supp
 "not found: 14 of 90", which says the opposite of its number. A number in a title says what it counts ("named in 14
 answers of 90"). A title claims no more than its evidence: "preferred" only for answers that choose. A title holds for
 every row its slide draws: when a row says otherwise, name the rows the title speaks of, or give them a slide of their
-own. "Behind" or "ahead" holds only where the comparisons go that way, each of them. No slogans, no
+own. "Behind" or "ahead" holds only where the comparisons go that way, each of them. A superlative ("the weakest",
+"the strongest") compares with every row of the block, on all its slides. No slogans, no
 rhetorical questions, no metaphors, no contrast built for effect. Delete any sentence that loses no information when
 removed. The reader calls this document a report: never write "deck".
 
@@ -163,7 +169,8 @@ the answer does not say. Give the question as `figures` writes it and the assist
 **Framing.** Neutral. State what holds as well as what does not. A sentence about a set holds for the whole set: if one
 comparison of three goes well, write two of three and name the third. Say how many, in words the figures hold: `check`
 refuses "none", "all", "never", "absent" and their like in titles, points and reads, since what the answers say is a
-count. Read every answer of a question before you say what they do, and count them. Call a fact wrong only against the facts in
+count. Read every answer of a question before you say what they do, and count them. "The answers say" stands for most
+of them: when fewer say it, write "some answers". Call a fact wrong only against the facts in
 `study.json`; otherwise say the answers diverge. A competitor being preferred is a result, not an error of the answer.
 
 **Never mention** the model that scores the answers, run or question ids, model ids, credits, readings, unstable pairs,
@@ -173,7 +180,11 @@ answers, or anything about how the deck was built.
 Write the text in the study's `report_language`. An answer whose score and fact disagree (a score of 4 or 5 on an
 answer stating an outdated term) counts by its fact in the deck, and goes in the notes to the operator.
 
-## 6. Check and render
+## 6. Reread, check and render
+
+Before running the commands, go through every sentence that says what the answers do. Open `material` on that question,
+count the answers that do it, and keep the sentence only if the count supports it. Take out a sentence that tells the
+reader nothing about the results, such as one on how the questions are built.
 
 ```bash
 python3 <skill>/scripts/monitor.py check --study "$S" reports/D.deck.json
@@ -182,8 +193,9 @@ python3 <skill>/scripts/monitor.py pdf --study "$S" --deck --date D
 
 `check` refuses a deck with no action, an action with no evidence slide, a figure missing from the period, an excerpt
 not verbatim, attributed to another question or assistant, or cut inside a sentence with no mark, a text longer than
-its slide holds, a claim of all or nothing, an address no answer cites, and the words the deck must not carry. Fix the
-text and run it again until it passes. Never fix a failure by changing a figure drawn by the code.
+its slide holds, a claim of all or nothing, an address no answer cites, a slide with an action and no excerpt, a title
+citing a figure its chart does not draw, and the words the deck must not carry. Fix the text and run it again until it
+passes. Never fix a failure by changing a figure drawn by the code.
 
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
 text. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. On a host without a lasting folder,

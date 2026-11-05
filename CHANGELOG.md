@@ -14,8 +14,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   with no evidence slide, a figure missing from the period, an excerpt not verbatim, attributed to another question
   or assistant, or cut inside a sentence with no mark, and a text longer than its slide holds. `monitor.py pdf
   --deck` writes 16:9 pages and refuses a slide that runs over its page. `check` also refuses a claim of all or
-  nothing in place of a count, a page address no answer cites, and a score band named in words; a facts row shows
-  how many answers scored 4 or 5.
+  nothing in place of a count, a page address no answer cites, a score band named in words, a slide with an action
+  and no excerpt, and a title citing a figure its chart does not draw; a facts row shows how many answers scored 4
+  or 5.
 - The material prints "Who wrote the sources" on every dimension whose answers cite a source, when the study lists
   its competitors' domains, and no longer only when a competitor's page is cited; and it counts the answers naming
   each competitor, by dimension and by question (`foils` in each cell of the period). A period built earlier is built

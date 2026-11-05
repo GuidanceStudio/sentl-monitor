@@ -16,7 +16,7 @@ from pathlib import Path
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .charts import span
-from .check import (ELLIPSIS, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
+from .check import (COUNT, ELLIPSIS, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
 from .common import Refused, Study, fmt_decimal, load_json, match_key, round_half_up, write_json, write_text
 from .i18n import DECK
@@ -444,6 +444,9 @@ def _structure(doc, m):
                                 "split them over its two slides with `dimensions`")
             if len(slide.get("excerpts") or []) > MAX_EXCERPTS:
                 problems.append(f"a slide of block {key} holds more than {MAX_EXCERPTS} excerpts")
+            if slide.get("action") is not None and not slide.get("excerpts"):
+                problems.append(f"the slide of block {key} supporting action {slide['action']} shows no answer: "
+                                "give an excerpt of what the action rests on")
             if slide.get("action") is not None and not 1 <= slide["action"] <= len(actions):
                 problems.append(f"a slide of block {key} supports action {slide['action']}, which the deck does not have")
         missing = {r["dimension"] for r in block["rows"]} - shown
@@ -463,6 +466,34 @@ def _structure(doc, m):
     count = 3 + sum(len(s) for s in blocks.values()) + bool(_any_sources(m)) + 1
     if count > MAX_SLIDES:
         problems.append(f"the deck has {count} slides, at most {MAX_SLIDES}")
+    return problems
+
+
+def _drawn(key, block, slide):
+    """The x of y a slide shows: its chart, the dimensions of the questions it draws, and the block's tile."""
+    rows = rows_of(key, block, slide)
+    dimensions = {r["dimension"] for r in rows}
+    seen = {(f["a"], f["b"]) for f in block["figures"]}
+    seen.add(tuple(sum(f[k] for f in block["figures"]) for k in ("a", "b")))
+    for row in rows + [r for r in block["rows"] if r["dimension"] in dimensions]:
+        seen.add(_measure(key, row))
+        seen |= {(n, row["judged"]) for n in row["bands"].values()}
+        seen |= {(n, row["given"]) for _, n in row.get("foils") or []}
+        seen |= {(row.get(part), row["given"]) for part in ("outdated", "silent")}
+    return seen
+
+
+def _undrawn(doc, m):
+    """A figure in a title is what the reader looks for in the chart below it."""
+    problems = []
+    for key, slides in (doc.get("blocks") or {}).items():
+        if key not in m["blocks"]:
+            continue
+        for slide in slides:
+            seen = _drawn(key, m["blocks"][key], slide)
+            problems += [f"{key} title cites {c.group(0)}, which its chart does not draw: set `rows` to `questions`, "
+                         "or draw fewer dimensions" for c in COUNT.finditer(slide.get("title") or "")
+                         if (int(c.group(1)), int(c.group(4))) not in seen]
     return problems
 
 
@@ -609,7 +640,7 @@ def problems_of(folder, study, period, doc):
         return ["a text is left to write: replace every [[...]] marker"]
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
-    problems = _structure(doc, m) + _competitor_sites(doc, study)
+    problems = _structure(doc, m) + _competitor_sites(doc, study) + _undrawn(doc, m)
     names = period.get("names") or {}
     by_answer = _responses(folder, period)
     problems += _excerpts(doc, study, period, by_answer, names)

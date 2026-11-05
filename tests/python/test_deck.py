@@ -43,7 +43,8 @@ class DeckCase(InsightCase):
             "actions": [{"class": "not_named", "what": "Pubblicare una pagina di confronto su avenello.example",
                          "rests_on": "0 risposte su 2 nominano Avenello", "read_next": "Risposte che nominano Avenello: 0 su 2",
                          "block": "reach"}],
-            "blocks": {"reach": [dict(slide)], "description": [{**slide, "action": None}], "facts": [{**slide, "action": None}]},
+            "blocks": {"reach": [{**slide, "excerpts": [{"text": OUTDATED[0], "question": PRICE_Q, "assistant": "Acme Chat"}]}],
+                       "description": [{**slide, "action": None}], "facts": [{**slide, "action": None}]},
             "sources": {"title": "Le pagine citate sono soprattutto di terzi", "read": "Una frase sulle fonti."},
             "method": {"limits": [], "ask": ["Quali pagine citano gli assistenti?"]},
         })
@@ -56,6 +57,40 @@ class DeckCase(InsightCase):
     def problems(self, doc):
         self.save_doc(doc)
         return "\n".join(deck.check(self.study, self.path, DATE))
+
+
+class TitleFiguresTest(unittest.TestCase):
+    """A figure in a title is what the reader looks for in the chart below it."""
+
+    def row(self, dimension, label, high, low, judged):
+        return {"project": "P", "dimension": dimension, "label": label, "judged": judged, "given": judged, "named": 0,
+                "bands": {"4-5": high, "3": judged - high - low, "1-2": low}, "foils": []}
+
+    def setUp(self):
+        questions = [self.row("Confronti", "Q1", 1, 4, 6), self.row("Confronti", "Q2", 4, 1, 6), self.row("Confronti", "Q3", 4, 0, 6)]
+        rows = [self.row("Confronti", "Confronti", 9, 5, 18), self.row("Startup", "Startup", 6, 3, 12),
+                self.row("Prezzi", "Prezzi", 13, 2, 18)]
+        questions += [self.row("Startup", "Q4", 3, 1, 6), self.row("Startup", "Q5", 3, 2, 6), self.row("Prezzi", "Q6", 7, 1, 9),
+                      self.row("Prezzi", "Q7", 6, 1, 9)]
+        self.m = {"blocks": {"description": {"rows": rows, "questions": questions, "figures": [{"a": 28, "b": 48}]}}}
+
+    def problems(self, title, **slide):
+        return deck._undrawn({"blocks": {"description": [{"title": title, **slide}]}}, self.m)
+
+    def test_a_question_figure_over_a_chart_of_dimensions_is_refused(self):
+        self.assertIn("does not draw", self.problems("Nel confronto 1 risposta su 6 ha un punteggio 4 o 5")[0])
+
+    def test_drawing_the_questions_lets_the_title_cite_them(self):
+        self.assertEqual(self.problems("Nel confronto 1 risposta su 6 ha un punteggio 4 o 5", rows="questions"), [])
+
+    def test_a_dimension_figure_stays_citable_when_its_questions_are_drawn(self):
+        self.assertEqual(self.problems("Confronti ha 9 risposte su 18", dimensions=["Confronti"]), [])
+
+    def test_a_figure_of_a_dimension_left_out_of_the_slide_is_refused(self):
+        self.assertTrue(self.problems("Startup ha 6 risposte su 12", dimensions=["Confronti"]))
+
+    def test_the_block_figure_on_the_tiles_may_be_cited(self):
+        self.assertEqual(self.problems("In tutto 28 risposte su 48 hanno punteggio 4 o 5"), [])
 
 
 class MaterialTest(InsightCase, unittest.TestCase):
@@ -298,6 +333,11 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         doc["blocks"]["reach"] = doc["blocks"]["reach"] * 3
         self.assertIn("at most 2", self.problems(doc))
+
+    def test_a_slide_with_an_action_needs_an_excerpt(self):
+        doc = self.filled()
+        doc["blocks"]["reach"][0]["excerpts"] = []
+        self.assertIn("shows no answer", self.problems(doc))
 
     def test_a_sentence_saying_all_or_nothing_is_refused(self):
         for text in ("Nessuna trova il prezzo.", "Avenello resta assente dalle risposte.", "Tutte citano il prezzo.",
