@@ -368,6 +368,15 @@ assistant, or cut inside a sentence with no mark, a text longer than its slide h
 do not bear out, an address no answer cites, a slide with an action and no excerpt, and a term a later record replaces. Fix
 the text and run it again until it passes. Never fix a failure by changing a figure drawn by the code.
 
+`check` reads a count in digits in any form: "9 of 12", "9 of the 12", "9 delle 12". A count beside a site, a page, an assistant
+or a competitor must be that name's, on the period, a block, the questions of its slide, a topic or one question: the refusal
+prints the counts the name has, so take the one that fits the sentence, and never reword the count to get past it. A site's
+count is not its page's: "guide.example is cited by 9 of the 12, and its list by 3 of them". A count beside a site carries its
+base: "(39)" and "cited by 25 answers" are refused. A grounding redirect hides the page an answer read, so a page's count may
+run from the answers showing its address to those plus the answers the redirect hides. A site said to be cited most comes
+first, alone, among the sites the sentence speaks of: write "among third parties" when the subject's own site leads. On the
+sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
+
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
 text. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. On a host without a lasting folder,
 end as SKILL.md says, with the deck's PDF in place of the report.
@@ -396,7 +405,9 @@ start one, audit it yourself and tell the operator the audit was not independent
 
 > You audit a client deck against its data, and change nothing. Read `reports/D.deck.json`, the figures file and `study.json`
 > in full, and search the answers in `history/material/D.md` with grep. For every title and sentence, check the figure, the
-> name and the claim. A sentence that generalises must hold on every row and question it covers: go through them one by one,
+> name and the claim. `check` has held every count in digits beside a site, a page, an assistant or a competitor to that name:
+> spend your time on what the sentence claims from its count, on a count written in words, and on a count of a word or a fact
+> in the answers, which it cannot read. A sentence that generalises must hold on every row and question it covers: go through them one by one,
 > and name any it leaves out. A comparison between two names must hold on their counts. "Chosen" needs answers that choose.
 > An excerpt must say what the sentence beside it claims. An action must rest on at least three answers, and must not ask for
 > what the page already has: open the subject's pages it names. The actions must answer the deck's main result: when it is

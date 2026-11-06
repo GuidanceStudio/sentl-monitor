@@ -17,9 +17,12 @@ SUBHEADING = re.compile(r"^#{3,4} (.+?)\s*$")
 QUOTED = re.compile(r"«[^»\n]*»|“[^”\n]*”|\"[^\"\n]*\"")
 DECIMAL = re.compile(r"(?<![\w.,])(\d+)([.,])(\d+)(?![.,]?\d)")
 PERCENT = re.compile(r"(?<![\w.,])(\d+(?:[.,]\d+)?)\s?%")
-COUNT = re.compile(r"(?<![\w.,])(\d+)\s+((?:[^\W\d]+\s+){0,3}?)(su|of)\s+(\d+)(?!\w|[.,]\d)", re.I)
+COUNT = re.compile(r"(?<![\w.,])(\d+)\s+((?:[^\W\d]+\s+){0,3}?)(su|of the|of|out of|delle|degli|dei)\s+(\d+)(?!\w|[.,]\d)", re.I)
 # A count of answers names them, or the citing they did: "N of M answers", "N su M citano".
 ANSWER_WORD = re.compile(r"rispost|answer|\bcit(?:e|es|ing|a|ano)\b", re.I)
+# What else "x of y" may count: a deck reads every count but these.
+OTHER_UNIT = re.compile(r"\b(?:domand[ae]|questions?|assistent[ei]|assistants?|nom[ei]|names?|sit[io]|sites?|pagin[ae]|pages?"
+                        r"|font[ei]|sources?|slide|temi|topics?|mes[ei]|months?|giorn[oi]|days?|ann[oi]|years?)\b", re.I)
 FILE_NAME = re.compile(r"\b[\w-]+(?:\.[\w-]+)*\.(?:json|gz|md|py|csv|xlsx)\b", re.I)
 CREDIT = re.compile(r"\d[\d.,]*\s*(?:crediti|credito|credits?)\b|\b(?:crediti|credito|credits?)\s*:?\s*\d", re.I)
 ID_WORDS = r"(?:run|id|project|progetto|question|domanda|dimension|dimensione)"
@@ -214,13 +217,14 @@ def _unquote(text, questions, answers, names=()):
         text = text.replace(name, " ")
     def keep(m):
         inner = m.group(0)[1:-1]
-        if tight(match_key(inner)) in questions or (_plain(inner) and any(_plain(inner) in a for a in answers)):
+        plain = _plain(inner)
+        if tight(match_key(inner)) in questions or (plain and any(plain in a for a in answers)):
             return " "
         return " " + inner + " "
     return QUOTED.sub(keep, text)
 
 
-def _figures(text, lang, allowed):
+def _figures(text, lang, allowed, every_count=False):
     decimals, percents, pairs = allowed
     problems = []
     for m in PERCENT.finditer(text):
@@ -239,7 +243,7 @@ def _figures(text, lang, allowed):
             problems.append(f"figure {m.group(0)} is not in the period's figures for this part")
     for m in COUNT.finditer(text):
         tail = text[m.end():m.end() + 40]
-        if not ANSWER_WORD.search(m.group(2) + " " + tail):
+        if OTHER_UNIT.search(f"{m.group(2)} {' '.join(tail.split()[:1])}") if every_count else not ANSWER_WORD.search(m.group(2) + " " + tail):
             continue
         a, b = int(m.group(1)), int(m.group(4))
         if (a, b) not in pairs:

@@ -970,3 +970,33 @@ after a reader who sees nothing but the PDF has understood it.
 **Done when:** on each study shape the reader gate passes and the operator accepts the deck.
 
 **State:** released in 0.4.0. The reader gate passes on the three study shapes. The heading stays 🔄 until the operator accepts the decks.
+
+## M20: `check` reads every count and ties it to what it counts ✅
+
+**Why:** the last independent audit of the three trial decks reported 20 points, some of them on counts. Measured on those decks, `check` read 33 of their 73 "x of y" counts. It skipped 17 because no word for "answers" stood near them, and it never read the 23 written "9 of the 12", which is how the English deck writes: there it read 1 of 26. A count it does read only has to exist somewhere in the period, whatever name it sits beside. Bare counts beside a site, such as "(39)" or "cited by 25 answers", are not read at all. No count in the three decks turned out false: those missing from the period's figures are true page counts.
+
+The audit by a stronger model stays out of the skill: the operator chose this part only.
+
+**Approach:** deterministic, in `check`, with any model as the writer. A refusal gives the real count, so that a weaker writer corrects it without guessing. What a sentence means ("chooses", "attributes to") stays with the reader and the audit.
+
+**Tasks (test first, fictional subject):**
+- [x] Every form is read: "9 delle 12", "9 of the 12", "8 dei 10", "out of", and a pair with no word for "answers" near it; the pair must be in the period's figures
+- [x] Page counts enter the allowed figures, so that a true page count is not refused
+- [x] A count beside a site or a page is that site's or page's, on the period, a block, the questions of the slide or one question; the refusal gives the count on each
+- [x] A site's count beside a page is refused: a page is told from its site by its address or by the action's `pages`. A site counts with its subdomains or alone, both accepted
+- [x] A cited address hidden behind a redirect leaves the page unknown: a page's count may run from the answers showing its address up to those plus the answers that cite the site only through a redirect
+- [x] A count beside an assistant is that assistant's, on that site or page
+- [x] A count beside a competitor is that competitor's on the same questions
+- [x] A count beside a site carries its base: "(39)" and "cited by 25 answers" are refused
+- [x] A site said to be cited most comes first among the sites the sentence names, on its scope; a tie is refused
+- [x] `DECK.md`: the writer's rules and the audit brief say what `check` now covers, so that the audit spends its time on meaning
+- [x] Replay: the counts the last audit reports corrected are refused when put back into the three trial decks, as a local run with no client data in the repo
+- [x] Release 0.4.1, install, report the link
+
+**Done when:** the suite passes; on the three trial decks every count is read; the replay refuses the audit's count points; the only refusals on the final decks are counts without a base, listed for the operator. Those decks are not rewritten in this milestone.
+
+**Deviations:**
+- The replay stops 4 of the audit's 20 points: the rank in two sources titles, the base and the site-for-page count in two sources texts. An earlier estimate of about half was wrong: the others are on what a sentence means or leaves out, or on form. Count points it does not stop: a count of a word in the answers, and a page chosen for an action while only its site is well cited.
+- Added: the title of the sources slide ranks any site it says the answers cite; a count of a site or a page stands in an action's reason and over a chart, which the writer had been getting past by writing it "delle".
+- A count written in words ("otto delle 18") stays unread: in digits it would be refused with no way to state a true count of a word. The audit brief says so.
+- The final trial decks carry 5 counts with no base, on two of the three decks.

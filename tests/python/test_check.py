@@ -162,6 +162,13 @@ class CheckTest(StudyCase, unittest.TestCase):
         self.edit(path, "su 4 risposte giudicate su 4", "su 4 risposte giudicate su 9")
         self.assertIn("4 su 9", self.check(path, 1).stdout)
 
+    def test_a_count_written_as_delle_or_of_the_is_read(self):
+        path = self.write_report()
+        self.edit(path, "su 4 risposte giudicate su 4", "su 4 delle 9 risposte giudicate")
+        self.assertIn("count 4 delle 9", self.check(path, 1).stdout)
+        self.edit(path, "4 delle 9", "4 of the 9")
+        self.assertIn("count 4 of the 9", self.check(path, 1).stdout)
+
     def test_a_figure_in_guillemets_that_quote_nothing_fails(self):
         path = self.write_report()
         self.edit(path, "punteggio medio di 3,8", "punteggio medio di «3,9»")

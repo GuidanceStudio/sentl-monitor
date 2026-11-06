@@ -139,7 +139,8 @@ class TitleFiguresTest(unittest.TestCase):
                 self.row("Prezzi", "Prezzi", 13, 2, 18)]
         questions += [self.row("Startup", "Q4", 3, 1, 6), self.row("Startup", "Q5", 3, 2, 6), self.row("Prezzi", "Q6", 7, 1, 9),
                       self.row("Prezzi", "Q7", 6, 1, 9)]
-        self.m = {"blocks": {"description": {"rows": rows, "questions": questions, "figures": [{"a": 28, "b": 48}]}}}
+        self.m = {"subject": "Avenello", "answers_of": {},
+                  "blocks": {"description": {"rows": rows, "questions": questions, "figures": [{"a": 28, "b": 48}]}}}
 
     def problems(self, title, **slide):
         return deck._undrawn({"blocks": {"description": [{"title": title, **slide}]}}, self.m)
@@ -356,7 +357,7 @@ class CheckTest(DeckCase, unittest.TestCase):
 
     def test_a_figure_missing_from_the_period_is_refused(self):
         doc = self.filled()
-        doc["found"]["title"] = "Avoria compare in 7 risposte su 9"
+        doc["found"]["title"] = "Il dato compare in 7 risposte su 9"
         self.assertIn("count 7 su 9", self.problems(doc))
 
     def test_a_mean_missing_from_the_period_is_refused(self):
@@ -374,6 +375,8 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         figure = deck.build_model(*self.model_args(doc))["blocks"]["reach"]["figures"][0]
         doc["actions"][0]["why"] = f"Avenello compare in {figure['a']} risposte su {figure['b']}"
+        doc["found"]["answers"]["reach"] = f"Avoria compare in {dict(figure['rivals'])['Avoria']} risposte su {figure['b']}, " \
+                                           f"Avenello in {figure['a']} risposte su {figure['b']}."
         return doc
 
     def excerpt(self, doc, text, question=PRICE_Q, assistant="Acme Chat"):

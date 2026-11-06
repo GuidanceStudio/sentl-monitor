@@ -14,13 +14,14 @@ import shutil
 import subprocess
 from collections import Counter
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .charts import span
-from .check import (COUNT, ELLIPSIS, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
+from .check import (COUNT, ELLIPSIS, OTHER_UNIT, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
-from .common import Refused, Study, fmt_date, load_json, match_key, write_json, write_text
+from .common import REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, write_json, write_text
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
 from .insights import page_of as cited_page
@@ -102,6 +103,19 @@ THEME_VERB = (r"\s+(?:l[aoei]\s+(?:nomin|cit|menzion)\w*|è a\b|sono a\b|sta a\b
               r"|names? \w+|mentions? \w+)")
 # Words that read a figure as low: wrong of a subject among the first of the names monitored.
 PLAYED_DOWN = re.compile(r"\b(solo|soltanto|appena|poco|poche|pochi|debole|scars[ao]|only|just|barely|few|weak|low)\b", re.I)
+# A count stands beside what it counts when it is said to cite: "X è citato in 9 delle 12", "19 citano X", "X (39)".
+CITING = re.compile(r"\b(?:citat[aoie]|cit(?:a|ano)|cited|cites?|citing)\b", re.I)
+BARE_COUNT = re.compile(r"(?<![\w.,/-])(\d+)(?=\s+(?:rispost[ae]\b|answers?\b|citazion[ei]\b|citations?\b|cit(?:a|ano)\b|cites?\b))"
+                        r"|\b(?:citat[aoie]|cited)\s+(?:da|in|by|on|su)\s+(\d+)\b|\((\d+)\)", re.I)
+CUE_REACH = 12
+PAGE_WORD = re.compile(r"\b(?:pagin[ae]|sched[ae]|guid[ae]|list[ae]|articol[oi]|pages?|sheets?|guides?|lists?|articles?)\b", re.I)
+RIVAL_VERB = r"(?:(?:è|sono|viene|vengono|is|are|appears?|compare|compaiono|nominat\w+|menzionat\w+|named|mentioned)\s+){0,3}"
+BARE_RIVAL = re.compile(r"\d{1,3}(?!\d)")
+# After a competitor's bare count, a word that keeps it a count: "in 12 e Finom in 11", never "in 3 paesi".
+AFTER_BARE = re.compile(r"\s*(?:[,;.)]|$)|\s+(?:rispost[ae]|answers?|e|ed|and|mentre|while|sul\w*|on)\b", re.I)
+SITE_SUFFIX = {"co", "com", "org", "net", "ac", "gov"}
+MOST = re.compile(r"\b(?:soprattutto|più citat[aoie]|cited most|most[- ]cited|mainly|above all)\b", re.I)
+THIRD_WORD = re.compile(r"\b(?:terz[ie]|estern[aoie]|altri siti|third|external|other sites)\b", re.I)
 PAGE = re.compile(r"(?<![\w@/.-])(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,}/[\w%~+-][\w%~+./-]*)", re.I)
 DOMAIN = re.compile(r"(?<![\w@/.-])(?:https?://)?(?:www\.)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?![\w-])", re.I)
 SENTENCE = re.compile(r"(?<=[.!?;])\s+")
@@ -820,7 +834,8 @@ def _undrawn(doc, m):
             problems += [f"{key} {field} cites {c.group(0)}, which its chart does not draw: draw the question with "
                          "`questions`, draw fewer dimensions, or leave the figure out"
                          for field in ("title", "read") for c in COUNT.finditer(slide.get(field) or "")
-                         if (int(c.group(1)), int(c.group(4))) not in seen]
+                         if (pair := (int(c.group(1)), int(c.group(4)))) not in seen
+                         and pair not in _tied_to_sites(slide.get(field) or "", m)]
     return problems
 
 
@@ -832,7 +847,8 @@ def _why_drawn(doc, m):
         slide = next((s for s in (doc.get("blocks") or {}).get(key) or [] if s.get("action") == n), None)
         if slide is None or key not in m["blocks"]:
             continue
-        seen, why = _drawn(key, m["blocks"][key], slide), action.get("why") or ""
+        why = action.get("why") or ""
+        seen = _drawn(key, m["blocks"][key], slide) | _tied_to_sites(why, m)
         cited = [(int(c.group(1)), int(c.group(4))) for c in COUNT.finditer(why)] + [(0, int(c.group(1))) for c in NONE_OF.finditer(why)]
         problems += [f"action {n} gives {a} of {b} as its reason, and its slide does not draw it: draw that question, "
                      "or give the reason its slide shows" for a, b in cited if (a, b) not in seen]
@@ -1335,6 +1351,262 @@ def _compared(doc, m):
     return problems
 
 
+def _site_name(domain):
+    """The name a sentence gives a site: Trustpilot for it.trustpilot.com, Money for money.co.uk."""
+    parts = domain.split(".")[:-1]
+    if len(parts) > 1 and parts[-1] in SITE_SUFFIX:
+        parts.pop()
+    return parts[-1].capitalize() if parts else domain
+
+
+def _cited_domains(m):
+    return {s["domain"] for answers in m["answers_of"].values() for r in answers for s in r["sources"] if s.get("domain")}
+
+
+def _site_labels(m):
+    """{a third party's name as a sentence writes it: its domains}. A competitor counts by its name, and a word of three
+    letters reads as a word."""
+    taken = {m["subject"].lower(), *(n.lower() for n in m.get("monitored") or [])}
+    labels = {}
+    for domain in _cited_domains(m):
+        name = _site_name(domain)
+        if m["author"](domain) == "third" and len(name) > 3 and name.lower() not in taken:
+            labels.setdefault(name, []).append(domain)
+    return labels
+
+
+def _names_in(part, labels):
+    """(start, end, shown, domains, page, by its bare name) of every site and page a part of a sentence names."""
+    found = [(p.start(), p.end(), p.group(1), [_address(p.group(1)).split("/")[0]], _address(p.group(1)), False)
+             for p in PAGE.finditer(part)]
+    taken = [(a, b) for a, b, *_ in found]
+    found += [(d.start(), d.end(), d.group(1).lower(), [d.group(1).lower()], None, False) for d in DOMAIN.finditer(part)
+              if not any(a <= d.start() < b for a, b in taken)]
+    if labels:
+        words = "|".join(re.escape(name) for name in sorted(labels, key=len, reverse=True))
+        found += [(w.start(), w.end(), w.group(0), labels[w.group(0)], None, True)
+                  for w in re.finditer(rf"(?<![\w.-])(?:{words})(?![\w-]|\.[a-z])", part)]
+    return sorted(found)
+
+
+def _spans(part):
+    """(start, end, count, base) of every count in a part of a sentence; a count with no base has None."""
+    found = [(c.start(), c.end(), int(c.group(1)), int(c.group(4))) for c in COUNT.finditer(part)
+             if not OTHER_UNIT.search(f"{c.group(2)} {' '.join(part[c.end():].split()[:1])}")]
+    found += [(c.start(), c.end(), 0, int(c.group(1))) for c in NONE_OF.finditer(part)]
+    found += [(c.start(), c.end(), int(c.group(1)), int(c.group(1))) for c in ALL_OF.finditer(part)]
+    for bare in BARE_COUNT.finditer(part):
+        group = next(g for g in (1, 2, 3) if bare.group(g))
+        if not any(a <= bare.start(group) < b for a, b, *_ in found):
+            found.append((bare.start(group), bare.end(group), int(bare.group(group)), None))
+    return sorted(found)
+
+
+def _beside(part, start, end, names):
+    """The site a count stands beside, and whether it speaks of one of its pages: the name before its brackets, or the address
+    the verb of citing joins it to. "Citare" also means naming in the text, so "9 citano Swan" is no count of a site's: a bare
+    name ties only through brackets or a page. None when the count is of something else."""
+    opened = part[:start].rstrip()
+    if opened.endswith("("):
+        before = opened[:-1].rstrip()
+        name = next((n for n in names if n[1] == len(before)), None)
+        return (name, False) if name else None
+    addresses = [n for n in names if not n[5]]
+    cue = next((c for c in reversed(list(CITING.finditer(part, 0, start))) if start - c.end() <= CUE_REACH), None)
+    if cue:
+        name = next((n for n in reversed(addresses) if n[1] <= cue.start()), None)
+        if name:
+            return name, bool(PAGE_WORD.search(part[max(0, name[0] - 25):name[0]] + " " + part[name[1]:start]))
+    cue = CITING.search(part, end, end + 40)
+    if not cue:
+        return None
+    name = next((n for n in addresses if n[0] >= cue.end()), None)
+    if name:
+        return name, False
+    name = next((n for n in reversed(names) if n[1] <= start), None)
+    return (name, True) if name and PAGE_WORD.search(part, cue.end(), cue.end() + 15) else None
+
+
+def _tied_to_sites(text, m):
+    """The x of y of a text that stand beside a site: no chart draws those."""
+    labels = _site_labels(m)
+    return {(a, b) for part in SENTENCE.split(text) for start, end, a, b in _spans(part)
+            if b is not None and _beside(part, start, end, _names_in(part, labels))}
+
+
+def _scopes(doc, m):
+    """(block or part of one, name, answers) of the sets of answers a sentence may count, the widest first. Past the questions without the
+    name a block counts the answers it scored, and a sentence may count those or all it was given."""
+    everyone = {id(r): r for answers in m["answers_of"].values() for r in answers}
+    yield "block", "the period", [r for r in everyone.values() if r["answer"] is not None]
+    for key, block in m["blocks"].items():
+        yield "block", f"block {key}", block["responses"]
+        for slide in (doc.get("blocks") or {}).get(key) or []:
+            yield "part", "its slide", _slide_answers(key, slide, m)
+        for project in {r.get("project") for r in block["rows"]}:
+            keys = [q.get("key") for q in block["questions"] if q.get("project") == project]
+            yield "part", f"block {key} of {project}", [r for k in keys for r in m["answers_of"].get(k, []) if r["answer"] is not None]
+    for key, block in m["blocks"].items():
+        narrow = [(q["label"][:50], [q.get("key")]) for q in block["questions"]]
+        narrow += [(row["label"], [q.get("key") for q in block["questions"] if q.get("project") == row.get("project")
+                                   and set(_dimensions(q)) & set(_dimensions(row))]) for row in block["rows"]]
+        for label, keys in narrow:
+            given = [r for k in keys for r in m["answers_of"].get(k, []) if r["answer"] is not None]
+            scored = [r for r in given if r["score"] is not None]
+            yield "part", label, given
+            if len(scored) != len(given):
+                yield "part", label, scored
+
+
+def _pages_cited(r, domains):
+    """The pages of a site an answer cites by address, and whether it cites the site with its page hidden: a grounding redirect
+    gives the site alone."""
+    sources = [s for s in r["sources"] if s.get("domain") and is_owned(s["domain"], domains)]
+    hidden = [urlparse(s.get("url") or "").hostname in REDIRECT_HOSTS for s in sources]
+    return {cited_page(s) for s, away in zip(sources, hidden) if not away}, any(hidden)
+
+
+def _tally(answers, domains, page, in_words):
+    """(lowest, highest) answers that may count for a site or a page among `answers`: an answer hiding the page may have read it."""
+    cited = [_pages_cited(r, domains) for r in answers]
+    if page or in_words:
+        pages = {page} if page else {p for shown, _ in cited for p in shown if "/" in p}
+        hidden = sum(hides and not shown & pages for shown, hides in cited)
+        known = [sum(p in shown for shown, _ in cited) for p in pages]
+        return [(n, n + hidden) for n in known] or [(1, hidden)]
+    alone = [sum(any(s.get("domain") == d for s in r["sources"]) for r in answers) for d in domains]
+    together = sum(bool(shown) or hides for shown, hides in cited)
+    return [(n, n) for n in {*alone, together}]
+
+
+def _held(rows):
+    """The counts of a name for the writer, those on the base it cited first."""
+    shown = [(f"{lo} to {hi}" if lo != hi else str(lo), base, where) for lo, hi, base, where in rows if hi]
+    seen, out = set(), []
+    for count, base, where in shown:
+        if (count, base) not in seen:
+            seen.add((count, base))
+            out.append(f"{count} of {base} on {where}")
+    return "; ".join(out[:3]) or "no answer cites it"
+
+
+def _tied_sites(field, part, labels, assistants, scopes):
+    """The counts of a part of a sentence that stand beside a site: what is wrong with them, and those it judged."""
+    names, problems, read = _names_in(part, labels), [], set()
+    for start, end, a, b in _spans(part):
+        tied = _beside(part, start, end, names)
+        if not tied:
+            continue
+        (first, last, shown, domains, page, _), in_words = tied
+        said = part[max(0, min(start, first) - 20):max(end, last)]
+        models = [model for model, names_of in assistants.items() if any(n in said for n in names_of)]
+        rows = []
+        for _, where, answers in scopes:
+            pool = [r for r in answers if r["model"] in models] if models else answers
+            rows += [(lo, hi, len(pool), where) for lo, hi in _tally(pool, domains, page, in_words)]
+        what = f"a page of {shown}" if in_words else shown
+        if b is None:
+            problems.append(f"{field} says {a} beside {what} with no base: write it as a count of the answers it comes from: "
+                            + _held(sorted(rows, key=lambda r: (r[0] != a, not r[0] <= a <= r[1], r[1] - r[0]))))
+            continue
+        read.add((a, b))
+        if not any(lo <= a <= hi and base == b for lo, hi, base, _ in rows):
+            problems.append(f"{field} says {a} of {b} beside {what}: it has " + _held(sorted(rows, key=lambda r: r[2] != b)))
+    return problems, read
+
+
+def _rival_counts(m):
+    """{competitor: {(answers naming it, answers)}} on every figure, row and question."""
+    held = {name: [] for name in m.get("monitored") or []}
+    for key, block in m["blocks"].items():
+        for f in block["figures"]:
+            for name in held:
+                held[name].append((dict(f.get("rivals") or []).get(name, 0), f["b"], f"block {key}"))
+        for row in block["rows"] + block["questions"]:
+            if "rivals" in row:
+                for name in held:
+                    held[name].append((row["rivals"].get(name, 0), row["given"], row["label"][:50]))
+    return held
+
+
+def _tied_rivals(field, part, held):
+    """The counts of a part of a sentence said of a competitor: "X è nominata in 48 su 90", "X in 12", "X (37)"."""
+    problems, read = [], set()
+    for name, rows in held.items():
+        for said in re.finditer(rf"(?<!\w){re.escape(name)}(?!\w)\s*(?:\(|{RIVAL_VERB}(?:in|at)\s+)(?=\d)", part):
+            pair = COUNT.match(part, said.end())
+            bare = BARE_RIVAL.match(part, said.end())
+            if pair and not OTHER_UNIT.search(pair.group(2)):
+                a, b = int(pair.group(1)), int(pair.group(4))
+                read.add((a, b))
+                if not any((a, b) == (n, base) for n, base, _ in rows):
+                    problems.append(f"{field} says {a} of {b} beside {name}: it has "
+                                    + _held([(n, n, base, where) for n, base, where in sorted(rows, key=lambda r: r[1] != b)]))
+            elif not pair and bare and AFTER_BARE.match(part, bare.end()):
+                a = int(bare.group(0))
+                if not any(a == n for n, _, _ in rows):
+                    problems.append(f"{field} says {a} beside {name}: it has " + _held([(n, n, base, where) for n, base, where in rows]))
+    return problems, read
+
+
+def _tied_counts(doc, m, clean=str):
+    """A count must be the count of the name beside it, not merely some count of the period: what is wrong, and the counts
+    judged here, which the period's figures need not hold."""
+    labels, held = _site_labels(m), _rival_counts(m)
+    assistants = {model: name.split(": ") for model, name in m["names"].items()}
+    scopes = [s for s in _scopes(doc, m) if s[2]]
+    problems, read = [], set()
+    for field, limit, text in _texts(doc):
+        if limit in ("who", "question", "ask"):
+            continue
+        for part in SENTENCE.split(clean(text)):
+            for found, judged in (_tied_sites(field, part, labels, assistants, scopes), _tied_rivals(field, part, held)):
+                problems += found
+                read |= judged
+    return problems, read
+
+
+def _most_cited(doc, m):
+    """A site said to be cited most comes first, alone, among the sites the sentence speaks of, on some set of answers: a whole
+    block on the sources slide, whose title says so of whatever site it says the answers cite."""
+    labels, problems = _site_labels(m), []
+    scopes = [s for s in _scopes(doc, m) if s[2]]
+    for field, _, text in _texts(doc):
+        for part in SENTENCE.split(text):
+            cited = CITING.search(part)
+            word = MOST.search(part) or (cited if field == "sources title" else None)
+            names = _names_in(part, labels) if word and cited else []
+            if not names:
+                continue
+            claimed = min(names, key=lambda n: abs(n[0] - word.start()))
+            site = _site_name(claimed[3][0])
+            third = bool(THIRD_WORD.search(part))
+            level, first = None, None
+            for kind, where, answers in scopes:
+                if kind != "block" and field.startswith("sources"):
+                    continue
+                counts = Counter(k for r in answers for k in {_site_name(s["domain"]) for s in r["sources"] if s.get("domain")
+                                                              and (not third or m["author"](s["domain"]) == "third")})
+                if not counts:
+                    continue
+                top = max(counts.values())
+                leaders = sorted(k for k, n in counts.items() if n == top)
+                first = first or (where, leaders[0], top)
+                if leaders == [site]:
+                    break
+                if site in leaders:
+                    level = level or (where, next(k for k in leaders if k != site), top)
+            else:
+                if level:
+                    problems.append(f"{field} says {claimed[2]} is cited most, and it is level with {level[1]} on {level[0]}, "
+                                    f"at {level[2]} answers: a tie is no most")
+                elif first:
+                    leader = min((d for d in _cited_domains(m) if _site_name(d) == first[1]), key=len, default=first[1])
+                    problems.append(f"{field} says {claimed[2]} is cited most, and it comes first nowhere: on {first[0]} "
+                                    f"{leader} has {first[2]} answers")
+    return problems
+
+
 def problems_of(folder, study, period, doc):
     if doc.get("schema") != SCHEMA:
         return [f"schema is not {SCHEMA}"]
@@ -1375,7 +1647,10 @@ def problems_of(folder, study, period, doc):
     problems += leaks(folder, study, period, text, folder.binding)
     shown = [*names.values(), *(n.split(": ", 1)[-1] for n in names.values())]
     answers = [a for pool in by_answer.values() for a in pool]
-    problems += _figures(_unquote(text, _quotable(study), answers, shown), lang, allowed)
+    quotable = _quotable(study)
+    tied, read = _tied_counts(doc, m, lambda t: _unquote(t, quotable, answers))
+    problems += tied + _most_cited(doc, m)
+    problems += _figures(_unquote(text, quotable, answers, shown), lang, (*allowed[:2], allowed[2] | read), every_count=True)
     return problems
 
 
@@ -1727,6 +2002,16 @@ def _evidence(order, action, n):
                 next((i for i, (_, key, _s) in enumerate(order, 1) if key == action.get("block")), ""))
 
 
+def _slide_answers(key, slide, m):
+    """The answers to the questions a slide draws."""
+    block = m["blocks"][key]
+    rows = rows_of(key, block, slide)
+    keys = {r.get("key") for r in rows} - {None}
+    topics = {d for r in rows if not r.get("key") for d in _dimensions(r)}
+    return [r for q in block["questions"] if q.get("key") in keys or set(_dimensions(q)) & topics
+            for r in m["answers_of"].get(q.get("key"), []) if r["answer"] is not None]
+
+
 def _site_counts(action, n, doc, m):
     """Each third party an action names, with the answers to the questions of its slide that cite it and those answers'
     total. On the facts slide the pages say it."""
@@ -1734,14 +2019,9 @@ def _site_counts(action, n, doc, m):
     slide = next((s for s in (doc.get("blocks") or {}).get(key) or [] if s.get("action") == n), None)
     if slide is None or key not in m["blocks"] or key == "facts":
         return []
-    block = m["blocks"][key]
-    rows = rows_of(key, block, slide)
-    keys = {r.get("key") for r in rows} - {None}
-    topics = {d for r in rows if not r.get("key") for d in _dimensions(r)}
-    answers = [r for q in block["questions"] if q.get("key") in keys or set(_dimensions(q)) & topics
-               for r in m["answers_of"].get(q.get("key"), []) if r["answer"] is not None]
+    answers = _slide_answers(key, slide, m)
     def on_site(source, site):
-        return bool(source.get("domain")) and (source["domain"] == site or source["domain"].endswith("." + site))
+        return bool(source.get("domain")) and is_owned(source["domain"], [site])
 
     found = []
     for site in dict.fromkeys(map(str.lower, DOMAIN.findall(action.get("what") or ""))):

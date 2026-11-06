@@ -5,6 +5,18 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+## 0.4.1 (2026-11-07)
+
+- `check` on a deck reads every count in digits: "9 delle 12" and "9 of the 12" went unread, and so did any pair with no word
+  for answers nearby, on three trial decks 40 of 73. Reports read the two new forms as well.
+- A count beside a site, a page, an assistant or a competitor must be that name's. A count in the period's figures used to
+  pass beside any name. A refusal prints the counts the name has.
+- A site's count beside a page is refused, and a count beside a site needs its base. Where a grounding redirect hides the page,
+  its count is a range.
+- A site said to be cited most comes first, alone, among the sites the sentence speaks of, and a tie is refused. The title of
+  the sources slide says it of any site it names as cited.
+- A count of a site's or a page's stands in an action's reason and over a chart: no chart draws it.
+
 ## 0.4.0 (2026-11-06)
 
 - The deck is rewritten for its reader, the client's marketing manager. It opens with what was done and a slide on what the

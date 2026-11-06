@@ -1124,8 +1124,9 @@ changes section included, or a figure for the whole project. The rules it applie
 - **The summary** may cite any figure of the period, any dimension's or question's included,
   and in a later report the figures of its comparison; it holds no excerpt, and its
   `[[summary]]` marker left in place fails like any other.
-- **Counts** "N of M" are checked when a word for answer, or for citing (cite, cites, citing,
-  cita, citano), follows within the sentence.
+- **Counts** "N of M", "N of the M" and "N delle M" are checked when a word for answer, or for
+  citing (cite, cites, citing, cita, citano), follows within the sentence. A deck reads them all,
+  unless the words beside them say they count something else (questions, assistants, names).
 - **Ids** are integers that look like counts, so a Sentl id of the study is refused only
   where a word names it (`run`, `id`, `#`, and the words for project, question and dimension
   in the report's language). Question keys, model ids and file names are distinctive strings
@@ -1173,6 +1174,13 @@ over all the block's answers, so one base serves the whole deck.
 questions per block, one answer per block, one to five actions, each with a class, a block, an evidence slide and a reason
 carrying a figure), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
 own question and assistant, the figures against the period and the figures the deck draws, and the same leaks as a report.
+A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
+the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
+its figures, rows and questions. Such a count needs no place in the period's figures, and the refusal prints the counts the name
+has, so that any writer can correct it. A site's count beside a page is refused, and a count beside a site needs its base. A
+grounding redirect hides the page, so a page's count is a range. A site said to be cited most comes first, alone, among the sites
+the sentence speaks of. A bare name ties a count only through brackets or a page, because "citare" also means naming in the text.
+What a count of a word in the answers says, and a count written in words, stay with the reader and the audit.
 It keeps the reader in mind where a rule can: a figure over a chart must be on that chart; a title holds at most two figures;
 the first slides repeat a figure at most twice; a presence figure comes with a competitor, and a subject among the first two
 is not played down; words of the study, project names and a topic as the subject of a sentence are refused; "none" and "all"
