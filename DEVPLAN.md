@@ -938,7 +938,7 @@ enters the skill only after the operator has seen the result.
 **Done when:** the operator has accepted a deck produced by the route on each study shape, and `check`
 refuses a deck with no actions, an action with no evidence slide or a figure missing from the period.
 
-## M19: The deck says what it shows, and its reader understands it
+## M19: The deck says what it shows, and its reader understands it 🔄
 
 **Why:** the operator read the second slide of the deck M18 produced and could not tell what it was about. It
 opens on figures and never says what was done, what the "questions" are or what "score 4 or 5" means. Three
@@ -955,15 +955,18 @@ figure comes with what it is compared to. Every label is in the reader's words. 
 after a reader who sees nothing but the PDF has understood it.
 
 **Tasks:**
-- [ ] Cover: what was done in one sentence, who prepared it, whether this is the first reading
-- [ ] New slide after the cover, drawn from `study.json`: the two or three questions the report answers in the reader's words, one real question each, who asks them, the assistants by maker, and how a question becomes several answers
-- [ ] Comparison: the reach tile and the first slide carry the competitors' counts on the same answers; `check` refuses a presence title with no comparison, and "but" on a subject among the first
-- [ ] Reader's words: no block, project or result-class name on a slide; a dimension is never the subject of a sentence; score bands drawn as favourable, neutral and unfavourable; each facts row states the fact it counts
-- [ ] Figures: "none" and "all" allowed where the figure is 0 or y; a figure in a read is drawn like one in a title; a figure's base is drawn; one figure repeated at most twice in the first slides; two near figures (named, cited) told apart
-- [ ] Charts: a slide draws what its title claims; a confusion with another entity draws the answers, not the scores by dimension
-- [ ] Actions: read the subject's live pages before asking it to publish, and say what is missing; the table holds what to do, why and today's figure
-- [ ] Reader gate in the playbook: a fresh reader sees only the PDF and answers what was done, what the figures count, whether the main result is good and against whom, what to do first and why, using slides 1 to 4; a failed deck is not handed over
-- [ ] Show the operator the first four slides of one study before producing the rest
-- [ ] Produce three study shapes from zero with opencode, no edit by hand, each through the reader gate
+- [x] Cover: what was done in one sentence, who prepared it, whether this is the first reading
+- [x] New slide after the cover, drawn from `study.json`: the two or three questions the report answers in the reader's words, one real question each, who asks them, the assistants by maker, and how a question becomes several answers
+- [x] Comparison: the reach tile and the first slide carry the competitors' counts on the same answers; `check` refuses a presence title with no comparison, and "but" on a subject among the first
+- [x] Reader's words: no block, project or result-class name on a slide; a dimension is never the subject of a sentence; score bands drawn as favourable, neutral and unfavourable; each facts row states the fact it counts
+- [x] Figures: "none" and "all" allowed where the figure is 0 or y; a figure in a read is drawn like one in a title; a figure's base is drawn; one figure repeated at most twice in the first slides; two near figures (named, cited) told apart
+- [x] Charts: a slide draws what its title claims; a confusion with another entity draws the answers, not the scores by dimension
+- [x] Actions: read the subject's live pages before asking it to publish, and say what is missing; the table holds what to do, why and today's figure
+- [x] Reader gate in the playbook: a fresh reader sees only the PDF and answers what was done, what the figures count, whether the main result is good and against whom, what to do first and why, using slides 1 to 4; a failed deck is not handed over
+- [x] Show the operator the first four slides of one study before producing the rest (waived: the operator gave full autonomy and asked to see only the final result)
+- [x] Produce three study shapes from zero with opencode, no edit by hand, each through the reader gate (the writer's own audit left false claims, so the audit rounds ran on a stronger model and reached the writer through `history/deck/D.audit.md`)
+- [x] `monitor.py page` reads a page's HTML with tooltips and closed answers; `D.audit.md` hands the writer an audit run elsewhere
 
 **Done when:** on each study shape the reader gate passes and the operator accepts the deck.
+
+**State:** released in 0.4.0. The reader gate passes on the three study shapes. The heading stays 🔄 until the operator accepts the decks.

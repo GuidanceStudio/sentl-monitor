@@ -298,11 +298,16 @@ python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --deck --date 2026-10-14
 ```
 
-Six to eleven slides, whatever the size of the study: what was found, what to do, one block each for whether the
-assistants find the subject, what they say and whether the facts are right, then the sources and the method. Each
-action says what to do and where, the figure it rests on, the figure to read next time and the slide with the
-evidence. The script draws every figure from the period; the copy to send is
-`reports/share/<Subject> + Sentl.ai - monitoring deck (<start> to <end>).pdf`.
+The first four slides are enough to decide: the cover says what was done and who prepared it, the second what the report
+shows, with real questions and how to read a figure, the third what was found, with the subject beside the competitors
+the same answers name, and the fourth what to do and why. Then come the evidence, each slide with the question it belongs
+to, the sources, the method and the list of every question. The script draws every figure from the period; the text is
+written for the client's marketing manager, in their words, and a fresh reader must understand it before it goes out. The
+copy to send is `reports/share/<Subject> + Sentl.ai - monitoring deck (<start> to <end>).pdf`.
+
+Before an action names a page, the assistant reads it with `monitor.py page --url <address>`, which prints what the page's HTML
+holds, tooltips and closed answers included. An audit run by another agent goes in `history/deck/<date>.audit.md`, and the
+writer works from it.
 
 ## A sample report
 
@@ -557,7 +562,7 @@ skills/sentl-monitor/  the skill
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
   snapshot/SNAPSHOT.md how a one-off snapshot of a subject is designed, run and reported
-  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, method, check, charts, demand, validate, review, revise, payload, bind, resume, close, doctor, pack, unpack
+  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, method, check, charts, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

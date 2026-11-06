@@ -23,7 +23,7 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import (adopt, charts, check, deck, demand, design, detect, exportfile, frontmatter, ingest, method, pack,  # noqa: E402
+from sentlmon import (adopt, charts, check, deck, demand, design, detect, exportfile, frontmatter, ingest, livepage, method, pack,  # noqa: E402
                       pdf, period, runs, schema, setup, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
@@ -126,6 +126,9 @@ def _parser():
     e = command("deck", "place the period's questions in the deck's blocks and write what the deck's writer fills")
     e.add_argument("--study", default=".")
     e.add_argument("--date", help="period date, YYYY-MM-DD (default: the latest period)")
+
+    w = command("page", "print what a page's HTML holds: title, description, tooltips and closed answers included")
+    w.add_argument("--url", required=True, help="the page, with or without https://")
 
     f = command("pdf", "write a report as a print-ready page and, when a PDF engine is installed, as a PDF")
     f.add_argument("--study", default=".")
@@ -247,6 +250,8 @@ def main(argv=None):
             print(method.write(args.study, args.date, args.models, args.force))
         elif args.command == "deck":
             print(deck.write(args.study, args.date))
+        elif args.command == "page":
+            print(livepage.read(args.url))
         elif args.command == "check" and args.report.endswith(".deck.json"):
             problems = deck.check(args.study, args.report, args.date)
             if problems:

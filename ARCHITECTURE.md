@@ -1140,37 +1140,83 @@ changes section included, or a figure for the whole project. The rules it applie
 ## The deck
 
 `report/DECK.md` turns one period into one slide deck, the only thing a client reads. The report stays as the
-operator's record of the same period. What the reader must decide orders the slides: cover, what was found, what to
-do, the evidence block by block, the sources, the method last.
+operator's record of the same period. The reader is the client's marketing manager: they know the market and the
+competitors, and have never seen the questions, the ratings or the project names. So the slides run: cover, what this
+report shows, what was found, what to do, the evidence block by block, the sources, the method, the list of questions.
+The first four must be enough to decide. The second gives the two or three questions the report answers, in the reader's
+words, each with real questions; the third answers them in the same order; every evidence slide carries the question it
+belongs to.
 
-**Who writes what.** `deck.py` draws everything that is a figure: tiles, charts, tables, sources, the method table,
-every label (`DECK` in `i18n.py`). The writer fills only text, in `reports/<date>.deck.json`. A weaker model can then
+**Who writes what.** `deck.py` draws everything that is a figure: cards, charts, tables, sources, the method table,
+every label (`DECK` in `i18n.py`), the list of questions. The writer fills only text, in `reports/<date>.deck.json`. A weaker model can then
 write a weak sentence, but not a wrong chart or a broken page.
 
 **Blocks.** A block comes from the type of a question, never from the name of a project, so every study shape fits:
-a question naming no subject is `reach`, unless the subject is a category or a method; a question with recorded
-facts is `facts`; any other is `description`. A question naming no subject stays in `reach` when it has facts,
-because presence is what it measures, and its fact also shows in `facts` when an answer states it. `moved` in the
-deck's text sends to `description` a question that names no subject and scores a position in a debate.
+a question naming no subject is `reach`, unless the subject is a category or a method; any other is `description`.
+`facts` is a second reading of questions already placed: a `description` question with recorded facts always shows there,
+and a `reach` question when an answer states the fact. The question also counts in its own block, because a topic reading
+9 of 9 beside its own question reading 3 of 9 flatters the topic. `moved` in the deck's text sends to `description` a
+question that names no subject and scores a position in a debate.
 
-**Figures.** Reach: named in x answers of y. Description: answers scored 4 or 5, x of y, drawn with the three score
-bands, and the mean of the answers of the row. Facts: answers carrying the current fact, x of y, over the answers
-given. A row's mean is the mean of its judged answers, and it is left out when a question of the row has no figure.
-A block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing.
+**Figures.** Reach: named in x answers of y, beside the answers naming each competitor and the subject's position among
+the names monitored. A figure alone misleads: 72 of 120 reads as weak and can be second of ten. A competitor the question
+itself names does not count on that question, because an assistant repeating a name it was given says nothing of who it
+finds. Description: favourable answers (a score of 4 or 5), x of y, drawn with the neutral and unfavourable parts; the deck
+draws no mean and never says "score", since a score means nothing to a reader who has not seen its criteria. Facts: answers
+stating today's figure, x of y, one row per fact however many questions bring it out, with the fact's source and date, and the
+pages cited by the answers with an old figure and hardly ever by those with today's, by who wrote them: a site usually feeds
+both kinds of answer, so a site's count says nothing about where an old figure comes from. A
+block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing. Sources count
+over all the block's answers, so one base serves the whole deck.
 
-**The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (one to five actions, each with a
-class, a block, an evidence slide, a figure it rests on and a figure to read next), the length of each text against
-what its slide holds (`LIMITS`), each excerpt against the answers of its own question and assistant, the figures
-against the period and the figures the deck draws, and the same leaks as a report. An excerpt that starts or ends
-inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the
-deck in `history/reports.json`, as the period's report.
+**The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one or two real
+questions per block, one answer per block, one to five actions, each with a class, a block, an evidence slide and a reason
+carrying a figure), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
+own question and assistant, the figures against the period and the figures the deck draws, and the same leaks as a report.
+It keeps the reader in mind where a rule can: a figure over a chart must be on that chart; a title holds at most two figures;
+the first slides repeat a figure at most twice; a presence figure comes with a competitor, and a subject among the first two
+is not played down; words of the study, project names and a topic as the subject of a sentence are refused; "none" and "all"
+pass only beside the count that says so. It keeps an action answerable: its reason is on its own slide and rests on more than one
+answer, since one answer in a hundred can come from a document years old, it names a site cited by at least five answers, and one in twenty, on that slide's questions, it does not dictate what the study does not record, and one action at
+least is on the subject's own pages, since those are the only ones the reader controls. The sources slide says how many answers citing a site name the subject on the questions without the name: the reason for acting
+on a site or leaving it alone is that count, and a sentence on what the site publishes was a guess the audit kept finding false.
+The deck prints beside an action on a third
+party how many answers cite the site, and on the action's slide the page they cite most, because a reader asked to write to a
+site needs to know why that site and about which page. The figures file lists the other pages cited most, so the writer can
+name a page and not guess what a site covers. An action on a third party also carries `pages`, the record of the page once opened:
+the providers it lists, or the wrong figure it shows. Many pages the assistants cite are a seller's own catalogue, where nobody else
+gets listed, and only opening them tells: a rule asking the writer to open them was ignored, so `check` requires the record, refuses
+a page listing fewer than two others, and the deck prints it. A correction needs a page read to show the wrong figure, on the
+subject's own site too: answers with an old figure cite pages that hold no figure at all. The deck numbers the actions on the subject's own pages first, because
+an order the reader cannot state earns "why this one first?" (`_numbers`). A question with fewer than three answers counts in its topic and in the list of
+questions, and draws no row and no excerpt: one answer of two is no finding. A deck with unfavourable answers shows one, and its
+excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
+in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
+rating printed beside it contradicts it. An
+excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json`, as the period's report.
+
+**The reader's test.** `check` knows whether a sentence is allowed, never whether it is understood. The playbook ends with a
+fresh reader who sees only the PDF's text and must say, from the first four slides, what was done, what the numbers count,
+whether the main result is good and against whom, and what to do first and why. A deck that fails is rewritten, not handed over.
+
+**Reading a page.** `monitor.py page` (`livepage.py`) parses a page's HTML and prints its text, with attributes such as tooltips, closed
+answers, title and description. A web tool returns what a reader sees at first, and two actions asked for what the page held in a
+tooltip and in a closed FAQ. It uses no browser on purpose: chromium needs its sandbox to open a third party's page, and a machine
+without one would run the site's scripts unprotected, while the HTML already holds what was missed. Only http and https pass,
+since the addresses come from what assistants cite. A page built entirely by scripts is refused and left to the web tool.
+
+**The audit.** A reader finds what is not understood, never what is false: a title generalising past a row of its own chart reads
+well and passes `check`, since no pattern tells a true sentence from a false one. So the playbook ends with a second fresh agent,
+given the deck's text, the figures, the study and a search over the answers, who reports only what is false, overstated or left
+out. It can run alone on a deck that passes, so a fault found late costs one sentence and not a new deck. The same writer that wrote a sentence audits it
+less well than a stronger model does, so `history/deck/D.audit.md` lets the operator run the audit elsewhere and hand the writer the report.
 
 **The pages.** 13.333 x 7.5 inches. A slide has a minimum height and no fixed one, so too much text runs onto a new
 page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. The theme of
 §Theme applies. wkhtmltopdf is not used: it does not read flex or grid.
 
 **Later editions.** `reports/<date>.deck.json` keeps each action with its `read_next` figure, for the next deck to read
-them. The slide of what changed is not written yet (DEVPLAN M18).
+them; they are not printed. The slide of what changed is not written yet (DEVPLAN M18).
 
 ## Charts for a deck
 
