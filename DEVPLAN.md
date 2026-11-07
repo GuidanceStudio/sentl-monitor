@@ -764,19 +764,21 @@ The standalone skill is archived with a README pointing here. Its direct model c
 
 **Done when:** a folder outside the repository holds a snapshot report and a study report that compares with the snapshot's baseline, both passing `check`, A6 is recorded as verified, and the live tier passes on that folder.
 
-## M11: `compare` two snapshots of one subject
+## M11: `compare` two snapshots of one subject ✅
 
 **Why:** moved out of M8 on 2026-10-24. Two snapshots of one subject taken at two moments, with no study between them, are compared today by reading both reports. `report` already compares a promoted study with its snapshot, so `compare` serves only snapshots that were not promoted. Built when a second snapshot of one subject exists, after M10.
 
 **Approach:** `monitor.py compare <folder> <folder>` writes `reports/<date>.compare.md` in the second folder: the same questions required, matched by `question_id` when both folders bind the same project and by text otherwise; each dimension's figure and presence on both sides; a change called by the rule of §What counts as a change with one run on each side, and `limits` says that a difference between two single runs is not a trend; `check` in a compare order. `SKILL.md` routes "what changed between two snapshots" to it.
 
 **Tasks:**
-- [ ] Test: unit — `compare` refuses two folders whose questions differ (exit 2) naming the questions; matches answers by question id across two folders of one project and by text across two projects
-- [ ] Test: unit — the compare report's order and `check`; `limits` states one run on each side
-- [ ] Implement `compare`; `SKILL.md` "When to use" and Routes; ARCHITECTURE; CHANGELOG
-- [ ] Commit
+- [x] Test: unit — `compare` refuses two folders whose questions differ (exit 2) naming the questions; matches answers by question id across two folders of one project and by text across two projects
+- [x] Test: unit — the compare report's order and `check`; `limits` states one run on each side
+- [x] Implement `compare`; `SKILL.md` "When to use" and Routes; ARCHITECTURE; CHANGELOG
+- [x] Commit
 
 **Done when:** two snapshot folders of one fictional subject produce a compare report that passes `check`.
+
+**Deviations:** built before M10, on the operator's instruction of 2026-11-07 to do the new functions: no second live snapshot exists, so the fictional folders are the proof. The rows are written by the script and `check` compares them with `history/compare/<date>.json`; nothing in the report is left for the assistant to write.
 
 ## M12: Recap table at the end of `setup` ✅
 

@@ -5,6 +5,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `compare <folder> <folder>` writes what changed between two snapshots of one subject that were not promoted: each dimension's
+  score and presence on both sides, a change by the rule for a single earlier period, and the limit that two single runs are no
+  trend. Questions are matched by id within a project and by text across two, and `check` reads the report.
 - The skill reads Sentl's nine run statuses. `researching` and `judging` are open runs, followed at the next invocation; they
   used to stop `ingest` with exit 5. `failed` and `stalled` are final with no results: listed with Sentl's error, left out of the
   period, and counted by an unattended report.

@@ -24,7 +24,7 @@ if doctor.python_problem():
     sys.exit(2)
 
 from sentlmon import (adopt, charts, check, deck, demand, design, detect, exportfile, frontmatter, ingest, livepage, method, pack,  # noqa: E402
-                      pdf, period, runs, schema, setup, snapshot)
+                      pdf, period, runs, schema, setup, snapcompare, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -95,6 +95,10 @@ def _parser():
     w.add_argument("--study", default=".")
     w.add_argument("--url", required=True, help="download.url of export-runs-tool")
     w.add_argument("--sha256", required=True, help="download.sha256 of export-runs-tool")
+
+    y = command("compare", "write what changed between two snapshots of one subject, in the later one's folder")
+    y.add_argument("first", help="the earlier snapshot's folder")
+    y.add_argument("second", help="the later snapshot's folder")
 
     r = command("period", "compute the metrics of a report period")
     r.add_argument("--study", default=".")
@@ -245,6 +249,8 @@ def main(argv=None):
             print(exportfile.import_export(args.study, args.file, args.sha256))
         elif args.command == "download":
             print(exportfile.download(args.study, args.url, args.sha256))
+        elif args.command == "compare":
+            print(snapcompare.write(args.first, args.second))
         elif args.command == "period":
             print(period.build(args.study, args.date, args.models))
         elif args.command == "method":
@@ -253,6 +259,14 @@ def main(argv=None):
             print(deck.write(args.study, args.date))
         elif args.command == "page":
             print(livepage.read(args.url))
+        elif args.command == "check" and args.report.endswith(".compare.md"):
+            problems = snapcompare.check(args.study, args.report)
+            if problems:
+                print(f"check failed: {len(problems)} problem(s)")
+                for problem in problems:
+                    print(f"  - {problem}")
+                return 1
+            print("check passed: the sections are in order, the rows are the two snapshots' and the limits are in place.")
         elif args.command == "check" and args.report.endswith(".deck.json"):
             problems = deck.check(args.study, args.report, args.date)
             if problems:

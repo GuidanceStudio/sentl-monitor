@@ -53,6 +53,7 @@ Choose the route by the state of the study:
 - Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, `brief` and `design` start from the snapshot's report as the first look.
 - Someone wants what to send a client, or asks for a deck, for slides or for suggested actions: `sentl-monitor deck`, which starts from the period `report` builds.
 - Someone asks what changed between two moments: `sentl-monitor report` in the study's folder; it compares each period with the one before.
+- Someone asks what changed between two snapshots of one subject, neither promoted: `sentl-monitor compare <earlier folder> <later folder>`.
 
 ## Routes
 
@@ -65,6 +66,7 @@ Choose the route by the state of the study:
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
 | `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once, as a snapshot in Sentl that takes no project slot: 4 or 5 dimensions from the catalogue, one run on the operator's go after the credit estimate, a short report, then the operator chooses to keep the snapshot, delete it, or follow the subject; invoked again in the same folder, it resumes |
+| `compare <folder> <folder>` | `compare/COMPARE.md` | sets two folders with the same questions side by side, each dimension's score and presence on both, in `reports/<date>.compare.md` of the later one |
 
 Read the playbook of the route invoked and follow it step by step.
 

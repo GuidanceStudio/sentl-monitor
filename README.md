@@ -21,6 +21,7 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
 | `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, one snapshot in Sentl, which takes none of the plan's project slots, one run on your go after Sentl's credit estimate, and a short report; then you keep the snapshot, delete it, or follow the subject with `brief` and `design`. Invoked again in the same folder, it resumes where it stopped |
+| `compare <folder> <folder>` | Writes what changed between two snapshots of one subject with the same questions, neither promoted: each dimension's score and presence on both sides. It reads the two folders only and spends nothing. |
 
 `adopt` and `report` only read from Sentl: they create and change nothing in your account and
 spend no credits. `brief` does not call Sentl at all, and `design` reads only the list of models
@@ -562,7 +563,8 @@ skills/sentl-monitor/  the skill
   report/REPORT.md
   report/INSIGHTS.md   how a report states each insight
   snapshot/SNAPSHOT.md how a one-off snapshot of a subject is designed, run and reported
-  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, method, check, charts, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, doctor, pack, unpack
+  compare/COMPARE.md   how two snapshots of one subject are set side by side
+  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, compare, method, check, charts, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

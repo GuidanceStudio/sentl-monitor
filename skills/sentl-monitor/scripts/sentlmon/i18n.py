@@ -30,6 +30,37 @@ SECTIONS = {
 FIRST_ORDER = ["purpose", "themes", "dimensions", "questions", "scoring", "summary", "findings", "changes"]
 SNAPSHOT_ORDER = ["purpose", "dimensions", "questions", "scoring", "findings", "limits"]
 LATER_ORDER = ["summary", "changes", "findings", "purpose", "themes", "dimensions", "questions", "scoring"]
+COMPARE_ORDER = ["purpose", "changes", "limits"]
+
+# The report of `compare`, between two snapshots of one subject.
+COMPARE = {
+    "it": {
+        "title": "{subject}: due snapshot a confronto",
+        "purpose": "Abbiamo confrontato due snapshot di {subject}, quello del {first} e quello del {second}: {questions} "
+                   "domande poste a {models}, con un run per parte.",
+        "dimension": "Dimensione", "score": "Punteggio del {date}", "presence": "Presenza del {date}",
+        "change": "Cambiamento tra i due snapshot", "no_figure": "nessun dato", "no_change": "nessun cambiamento",
+        "higher_score": "punteggio più alto", "lower_score": "punteggio più basso",
+        "higher_presence": "presenza più alta", "lower_presence": "presenza più bassa",
+        "rule": "La presenza è la quota di risposte che nominano {subject}. Un cambiamento è segnato quando il punteggio si "
+                "sposta di almeno {score} punti o la presenza di almeno {presence} punti percentuali.",
+        "limits": "Ogni parte è un solo run: una differenza tra due singoli run non è una tendenza.",
+        "shared": "Sono confrontati solo gli assistenti presenti in entrambi gli snapshot: {models}.",
+    },
+    "en": {
+        "title": "{subject}: two snapshots compared",
+        "purpose": "We compared two snapshots of {subject}, of {first} and of {second}: {questions} questions put to "
+                   "{models}, with one run on each side.",
+        "dimension": "Dimension", "score": "Score on {date}", "presence": "Presence on {date}",
+        "change": "Change between the snapshots", "no_figure": "no figure", "no_change": "no change",
+        "higher_score": "higher score", "lower_score": "lower score",
+        "higher_presence": "higher presence", "lower_presence": "lower presence",
+        "rule": "Presence is the share of answers that name {subject}. A change is marked when the score moves by at least "
+                "{score} points or the presence by at least {presence} percentage points.",
+        "limits": "Each side is one run: a difference between two single runs is not a trend.",
+        "shared": "Compared here are only the assistants of both snapshots: {models}.",
+    },
+}
 
 ORIGINS = {
     "it": {"client_material": "Materiali del cliente", "client_issue": "Questioni sollevate dal cliente",

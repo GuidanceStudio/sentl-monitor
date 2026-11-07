@@ -17,6 +17,7 @@ calls Sentl.
 | `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
 | `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json`; `reports/<date>.charts.md` when the operator asks for charts | nothing when run unattended |
 | `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
+| `compare` | two snapshot folders with their periods | `reports/<date>.compare.md` and `history/compare/<date>.json` in the later folder |
 
 ## The study folder
 
@@ -671,6 +672,18 @@ them (see Periods).
    versions detected, facts older than 90 days.
 9. Optional, when the report is presented as a deck: `monitor.py charts` writes the report's
    figures as md2 chart tables (§Charts for a deck).
+
+### `compare <folder> <folder>`
+
+Two snapshots of one subject, taken at two moments with no study between them. `report` already compares a
+promoted study with its snapshot, so this serves only snapshots that were not promoted. The earlier folder comes first; a
+folder with no period, or that is no snapshot, is refused. Questions are matched by Sentl's id when both folders bind one
+project and by text otherwise, and a question on one side only is refused by name, as is a dimension whose questions sit in
+two dimensions of the other side. The figures are the periods', pooled on the assistants both sides asked; the limits name
+them when the two differ. A change follows §What counts as a change with a single previous period. The report takes the
+later date and the order purpose, changes, limits, and its rows are written by the script. `check` on a `.compare.md`
+reads the order, the rows and the limits against `history/compare/<date>.json` and the leaks of §The report. It calls no
+tool and spends nothing.
 
 ### `snapshot <subject>`
 

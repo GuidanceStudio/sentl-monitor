@@ -272,6 +272,8 @@ for f in "$PAYLOAD/setup/SETUP.md" "$PAYLOAD/snapshot/SNAPSHOT.md"; do
     has '`not_found`' "$f" "$(basename "$f") says what to do on not_found"
     has '`invalid_argument`' "$f" "$(basename "$f") says what to do on invalid_argument"
 done
+has 'compare <folder> <folder>' "$SKILL" "SKILL.md routes compare"
+has 'monitor.py compare' "$PAYLOAD/compare/COMPARE.md" "COMPARE.md runs compare"
 has '`researching`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in researching"
 has '`judging`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in judging"
 has '`failed`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a failed run as final with no results"
