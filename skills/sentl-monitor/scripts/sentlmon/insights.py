@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from urllib.parse import urlparse
 
-from .common import REDIRECT_HOSTS, folded
+from .common import REDIRECT_HOSTS, folded, prose
 from .i18n import MISSING_EVIDENCE, THIRD_PERSON
 
 TOP_SOURCES = 5
@@ -154,5 +154,6 @@ def says_missing(answer, lang):
 
 def reset():
     """Forget the folded answers of the previous period."""
+    prose.cache_clear()
     folded.cache_clear()
     _as_terms.cache_clear()

@@ -218,6 +218,29 @@ def slug(text):
     return "-".join(words) or "project"
 
 
+# A Markdown link, inline or by reference: its label, then its target. One level of brackets in a label and of
+# parentheses in an address (a wiki page's "Name_(company)") is read.
+_LINK = re.compile(r"!?\[((?:[^\[\]]|\[[^\[\]]*\])*)\]"
+                   r"(?:\(\s*(?:<[^<>]*>|(?:[^()\s]|\([^()\s]*\))*)(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^()]*\)))?\s*\)"
+                   r"|\[[^\[\]]*\])")
+_LINK_DEFINITION = re.compile(r"^[ \t]*\[[^\[\]]+\]:[ \t]*\S.*$", re.M)
+_ADDRESS = re.compile(r"(?:https?://)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#]\S*)?", re.I)
+_BARE_ADDRESS = re.compile(r"(?<![\w@.-])(?:https?://|www\.)[^\s<>\[\]\"]+", re.I)
+
+
+@functools.lru_cache(maxsize=None)
+def prose(text):
+    """The text of an answer as its reader reads it, where a name counts: a link keeps its label and loses its address,
+    a link whose label is itself a domain or an address goes whole, and so do bare addresses (http://, https://, www.)
+    and the definitions of reference links. A domain written in a sentence stays. `period` clears the cache."""
+    if not text:
+        return ""
+
+    def label(m):
+        return "" if _ADDRESS.fullmatch(m.group(1).strip(" *_`")) else m.group(1)
+    return _BARE_ADDRESS.sub("", _LINK.sub(label, _LINK_DEFINITION.sub("", text)))
+
+
 def first_mention(folded_answer, aliases):
     """Character offset of the first alias found on word boundaries, or None."""
     best = None

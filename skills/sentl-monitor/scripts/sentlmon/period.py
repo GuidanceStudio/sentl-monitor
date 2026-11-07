@@ -6,7 +6,7 @@ import datetime as dt
 from collections import Counter, defaultdict
 
 from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
-                     is_owned, load_json, mean, parse_time, public_name, require_language, write_json,
+                     is_owned, load_json, mean, parse_time, prose, public_name, require_language, write_json,
                      write_text)
 from . import schema
 from .compare import K, compare, dimension_entries
@@ -15,6 +15,9 @@ from .insights import (EPS, TOP_SOURCES, classify, episodes, fact_cell, fact_ter
 
 
 HALVES_DAYS = 14
+# Where a period counted the names in its answers, recorded as its `names_counted_in`: the text, without link addresses
+# (`common.prose`). A period without the record counted them anywhere in the answer, links included.
+NAMES_IN = "prose"
 
 
 class BelowFloor(Exception):
@@ -100,9 +103,12 @@ def latest_criteria(runs, versions):
 
 
 class Reader:
-    """Subject and foil lookup over answers, from the study as it stands now."""
+    """Subject and foil lookup over answers, from the study as it stands now. A name counts in the answer's text as its
+    reader reads it (`common.prose`); with `prose_only` false it counts anywhere in the answer, links included, as in the
+    periods built before that rule, which carry no `names_counted_in`."""
 
-    def __init__(self, study):
+    def __init__(self, study, prose_only=True):
+        self.prose_only = prose_only
         subject = study.get("subject") or {}
         self.aliases = subject.get("aliases") or []
         self.owned = subject.get("owned_domains") or []
@@ -110,6 +116,14 @@ class Reader:
         self.foil_names = [(f.get("label") or f.get("id"), f.get("aliases") or []) for f in study.get("foils") or []]
         self.foil_domains = [(f.get("label") or f.get("id"), f["domains"]) for f in study.get("foils") or []
                              if isinstance(f.get("domains"), list) and f["domains"]]
+
+    @classmethod
+    def of(cls, study, period):
+        """The reader that counted the names of `period`."""
+        return cls(study, prose_only=period.get("names_counted_in") == NAMES_IN)
+
+    def _text(self, answer):
+        return folded(prose(answer) if self.prose_only else answer)
 
     def author(self, domain):
         """`owned`, a foil's label, or `third` (a third party), subdomains included."""
@@ -119,14 +133,14 @@ class Reader:
 
     def foils_named(self, answer):
         """The labels of the foils an answer names."""
-        text = folded(answer)
+        text = self._text(answer)
         return [label for label, aliases in self.foil_names if first_mention(text, aliases) is not None]
 
     def position(self, answer):
         """None when the subject is not named; else 1 + the foils named before it."""
         if answer is None:
             return None
-        text = folded(answer)
+        text = self._text(answer)
         at = first_mention(text, self.aliases)
         if at is None:
             return None
@@ -268,8 +282,8 @@ def _period(study, date, chosen, reader, versions):
     Its dimensions and questions are those of its runs' latest version, named and worded as
     then (an edit made after its last run belongs to the next period), less any with no
     answer expected; a period of runs older than every version takes the first one."""
-    period = {"schema": "sentl-monitor/period@2", "date": date, "runs": {}, "excluded": {}, "versions": {},
-              "starts": {}, "dropped": {}, "asked": {}, "settings": {}, "projects": {}}
+    period = {"schema": "sentl-monitor/period@2", "date": date, "names_counted_in": NAMES_IN, "runs": {}, "excluded": {},
+              "versions": {}, "starts": {}, "dropped": {}, "asked": {}, "settings": {}, "projects": {}}
     starts = []
     lang = (study.get("market") or {}).get("language")
     for proj in study["projects"]:
@@ -467,6 +481,11 @@ def build(root, date, models_file=None):
              if (periods_dir / f"{d}.json").exists()]
     # The answers of the previous period are read.
     folder.require_runs(prevs[:1], date)
+    older = sorted(p["date"] for p in prevs if p.get("names_counted_in") != NAMES_IN)
+    if older:
+        lines.append(f"The period{'s' if len(older) > 1 else ''} of {', '.join(older)} counted the names in the whole answer, "
+                     "links included, and this one counts them in the answers' text, without link addresses: presence can "
+                     "differ by a few answers for that alone (tell the operator).")
     cache = {}
 
     def run_of(key, run_id):

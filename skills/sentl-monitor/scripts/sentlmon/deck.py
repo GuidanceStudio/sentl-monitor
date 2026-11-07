@@ -466,7 +466,7 @@ def _earlier(folder, date):
 def _counted(study, period, doc):
     """{(block, question): (project, assistants, figure, base)}, from the period alone: a pack without --full leaves out
     the runs of the periods before the latest report."""
-    moved, reader, out = doc.get("moved") or {}, Reader(study), {}
+    moved, reader, out = doc.get("moved") or {}, Reader.of(study, period), {}
     for proj, dims in measured(study, period):
         part = period["projects"][proj["key"]]
         asked = sorted(((period.get("settings") or {}).get(proj["key"]) or {}).get("models") or part["by_model"])
@@ -511,7 +511,8 @@ def build_model(folder, study, period, doc=None):
     """What the deck draws, from the period: each block's rows, figures and sources, the method table."""
     doc = doc or {}
     moved = doc.get("moved") or {}
-    reader, subject = Reader(study), study["subject"]["label"]
+    # Names are counted as the period counted them, so a deck drawn again from a period on file says what it said.
+    reader, subject = Reader.of(study, period), study["subject"]["label"]
     names = period.get("names") or {}
     narrative = study.get("narrative") or {}
     blocks = {b: {"rows": [], "questions": [], "placed": [], "responses": []} for b in BLOCKS}

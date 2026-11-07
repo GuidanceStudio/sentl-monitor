@@ -18,14 +18,20 @@ WHAT = "Pubblicare una pagina di confronto su avenello.example"
 class SecondCase(DeckCase, unittest.TestCase):
 
     answers = None
+    old = False  # the earlier period as one built before names were read in the answers' text
 
     def setUp(self):
         super().setUp()
+        if self.old:
+            path = self.study / "history" / "periods" / f"{DATE}.json"
+            period = json.loads(path.read_text(encoding="utf-8"))
+            del period["names_counted_in"]
+            path.write_text(json.dumps(period, ensure_ascii=False), encoding="utf-8")
         self.first = self.filled()
         self.save_doc(self.first)
         self.cli("check", "--study", self.study, self.path, check=0)
         self.ingest_market(9102, LATER_RUN, self.answers or rows())
-        self.build(LATER)
+        self.built = self.build(LATER)
         self.made = self.cli("deck", "--study", self.study, "--date", LATER, check=0)
         self.later = self.study / "reports" / f"{LATER}.deck.json"
 

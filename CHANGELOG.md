@@ -3,6 +3,14 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- A name counts in the answer's text, not in a link's address: a link keeps its label and loses its address, a link whose
+  label is a domain or an address goes whole, and so do bare addresses. A domain written in a sentence stays a name. An answer
+  whose only trace of the subject was a citation such as `[example.it](https://example.it/page)` counted as naming it. Periods
+  built from now on record the rule as `names_counted_in`; periods on file are read as they are and not rebuilt, a deck drawn
+  from one counts names as it did, and `period` tells the operator when it compares with one.
+
 ## 0.5.2 (2026-11-07)
 
 - The deck playbook stops at two readers and two audits per session, however much the text changes after them, and the session

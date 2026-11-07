@@ -317,6 +317,17 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
   by string match (case- and accent-folded, on word boundaries), never by asking a model. An
   alias the operator corrects applies to the whole history. `position` is the subject's order
   among the subject and the foils named in the answer.
+- A name counts in the answer's text as its reader reads it (`common.prose`): a Markdown link
+  keeps its label and loses its address, a link whose label is itself a domain or an address
+  goes whole, and so do bare addresses (`http://`, `https://`, `www.`) and the definitions of
+  reference links. A domain written in a sentence ("see example.it for prices") stays a name.
+  An answer whose only trace of the subject was `[example.it](https://example.it/page)` used to
+  count as naming it. A period records the rule as `"names_counted_in": "prose"`; a period file
+  without it was built before the rule and counted names anywhere in the answer. Such files are
+  read as they are and never rebuilt: `deck` draws a period with the reader that counted it
+  (`Reader.of`), so a deck drawn again from a period on file keeps its counts, and `period`
+  tells the operator when it compares with a period counted the earlier way, since presence can
+  differ by a few answers for that alone.
 - `match` is `exact`, `version` (matched against the text of the other version tried for a
   run started inside a detection window) or `unmatched` (kept with the dimension and question
   Sentl returned under `asked`, excluded from every figure, listed to the operator).
@@ -329,6 +340,7 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
 {
   "schema": "sentl-monitor/period@2",
   "date": "2026-11-30", "from": "2026-11-02T06:00:00Z", "to": "2026-11-30T06:00:00Z",
+  "names_counted_in": "prose",
   "runs": {"brand": [0, 0, 0, 0]}, "versions": {"brand": [2, 3, 3, 3]},
   "starts": {"brand": ["2026-11-02T06:00:00Z", "..."]},
   "excluded": {"brand": [{"run_id": 0, "reason": "..."}]}, "dropped": {"brand": {"0": ["health-2"]}},

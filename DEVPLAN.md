@@ -1066,17 +1066,17 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** those runs end within the limit with a deck passing `check`.
 
-## M24: A name that stands only inside a link is no name
+## M24: A name that stands only inside a link is no name ✅
 
 **Why:** `first_mention` looks for an alias on word boundaries over the whole answer, links included, so an answer whose only trace of the subject is `[example.it](https://example.it/page)` counts as naming it. A writer found this on a from-zero run: 39 answers counted, 38 naming the subject in their text. Measured on eight projects of three studies: the subject loses 1 answer of 39 in one project and none elsewhere; foils lose up to 3 of 16 and 3 of 9; five projects do not change; no ranking moves.
 
 **Approach (operator's go, 2026-11-07, option A without recomputing the past):** names are matched on the answer's prose. Link targets and bare URLs go, and so does a link whose label is a domain; a domain written in a sentence stays a name. Periods already on file are not rebuilt and stay readable as they are: only periods built from now on use the rule, and each records which rule counted its names, so a later reader can tell the two apart. A comparison between a period counted the old way and one counted the new way differs by a few answers for this reason alone; the operator accepted it.
 
 **Tasks:**
-- [ ] Test: unit, `Reader.position` and `foils_named` on a name in the text, in a link's label, in a link target, in a bare URL and as a domain in a sentence; an existing period file without the new record still loads and is not refused
-- [ ] `prose()` in `common.py`, used by `Reader` and by every other count of names in answers; the period records the rule
-- [ ] ARCHITECTURE, CHANGELOG
-- [ ] Commit and push
+- [x] Test: unit, `Reader.position` and `foils_named` on a name in the text, in a link's label, in a link target, in a bare URL and as a domain in a sentence; an existing period file without the new record still loads and is not refused
+- [x] `prose()` in `common.py`, used by `Reader` and by every other count of names in answers; the period records the rule
+- [x] ARCHITECTURE, CHANGELOG
+- [x] Commit and push
 
 **Done when:** the tests are green, the suite passes, and a period built on a real study's saved runs differs from the old one only by answers holding the name in a link.
 
