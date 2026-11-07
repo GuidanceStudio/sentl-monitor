@@ -630,10 +630,12 @@ them (see Periods).
    `completed_with_warnings`) and not in `history/runs/`, started after the last run of the
    previous report and up to the end of the report's date; on the first report, those started
    in the last `report_every` interval and the K = 4 intervals before it. Runs in
-   `history/unavailable.json` are requested again. Runs not final yet and statuses never seen
-   are listed apart and not fetched (§Responses from Sentl). The listing has no paging (gap
-   G8): when its oldest run started after the start of the window, `runs` warns that it may
-   be cut. Unattended, the listings are saved as `inbox/runs-<project id>.json` and
+   `history/unavailable.json` are requested again. Runs not final yet, runs ended with no
+   results, runs the listing shows under the floor and statuses never seen are listed apart and
+   not fetched (§Responses from Sentl). `runs` without `--saved` prints the tool's arguments for
+   the window; a listing whose `total` exceeds the runs read is refused, and one saved without
+   `total` is warned about when its oldest run started after the window's start. Unattended, the
+   listings are saved as `inbox/runs-<project id>.json`, later pages as `.p2.json` and on, and
    `monitor.py pending` reads them: when no project has a run to fetch and none holds a run
    ingested but not yet reported, it writes `nothing_new` to `last-report.json` and the route
    stops. A report dated the day of the invocation counts as the previous report, so a second
@@ -834,21 +836,27 @@ is refused with exit 2: it is to be saved again.
 | Tool | What the skill reads |
 |---|---|
 | `get-project-tool` | under `project`: `id`, `name`, `schedule_frequency` (text or null), `rounds` (1 or more), `is_active` (optional), `researcher_model_ids`; `dimensions` with `id`, `name`, `archived` (optional) and `questions`, each `id`, `question`, `label` (optional, text or null), `grading_rubric` (null, or an object whose keys are anchors from `1` to `5`, each a text or null: Sentl does not require every anchor), `additional_instructions` (optional, text or null) |
-| `list-runs-tool` | `project_id`; `runs`, each `id`, `status` (any text), `started_at` (null only on a run that is not completed) |
+| `list-runs-tool` | `project_id`, `total` and `next_page` (optional); `runs`, each `id`, `status` (any text), `started_at` (null only on a run that is not completed), `expected` and `judged` (optional, a count or null) |
 | `get-run-results-tool` | under `run`: `id`, `project_id`, `status` (a known status), `started_at`, `reputation_score` (1 to 5, or null); `responses`, each `id`, `model_id`, `dimension`, `question`, `answer` (text or null), `judge_score` (an integer from 1 to 5, or null), `sources` (a list, or null for none), each `url` and `title` (optional, text or null). The results of a run not final yet are read for `id` and `status` only |
 | `list-ai-models` | under `researcher_models`: each model id with its public `name`, and `credits` (the tariff per call; optional here, required by `review`) |
 
-Times are ISO 8601; a time written without a time zone is read as UTC. The known statuses are `completed` and `completed_with_warnings`, final,
-and `pending`, `queued` and `running`, not final yet (A2). `runs` lists a status outside them
-as never seen, apart from the runs not final yet, and fetches neither; `ingest` refuses results
-with such a status. A refusal carries `error.code` and a message (seen: `not_found`, `invalid_argument`,
-`project_limit_reached` with `limit` and `active`), which the playbooks tell the operator as they came;
-only "An internal server error occurred." is called once more and then recorded as unavailable
-(`get-run-results-tool`) or stops the route (any other tool). Any other unexpected error in
+Times are ISO 8601; a time written without a time zone is read as UTC. The nine statuses are
+`completed` and `completed_with_warnings`, final; `failed` and `stalled`, final with no results to
+fetch; and `queued`, `pending`, `researching`, `running` and `judging`, not final yet (A2). `runs`
+lists each group apart and a status outside them as never seen, and fetches none of them; `ingest`
+exits 3 on an open run, 2 on a run ended with no results and 5 on a status never seen. A run the
+listing shows under the 90% floor by `expected` and `judged` is left out before its results are
+read and listed to the operator; a listing without those fields leaves it to the results. A
+refusal carries `error.code` and a message, which the playbooks tell the operator as they came, and
+a saved error is refused with exit 2. The read tools' codes are `internal`, called once more and
+then recorded as unavailable (`get-run-results-tool`) or stopping the route (any other tool);
+`not_found`, which stops and names the id; and `invalid_argument`, which stops because the skill
+needs an update. The write tools also refuse with `project_limit_reached` and its `limit` and
+`active`, and stop the route. Any other unexpected error in
 `monitor.py` exits 6 with a one-line message; `--debug`, before or after the command, or
 `SENTL_MONITOR_DEBUG=1`, prints the traceback. Ctrl-C exits 130 with one line. `runs` lists the
-runs not final yet and the statuses never seen among the runs of the report's window and those
-with no start time, so a run left open long ago is not reported at every report.
+runs not final yet, ended with no results or of a status never seen among the runs of the report's
+window and those with no start time, so a run left open long ago is not reported at every report.
 
 ### Periods
 
@@ -1392,7 +1400,9 @@ Where the built-in values come from (read 2026-10-29):
 | A Sentl response without a field the skill reads, or with another type or range | refused (exit 5) naming the tool and the field; nothing written; the operator is told, and the skill needs an update |
 | A saved file that holds another tool's response, or a file missing or unreadable | refused (exit 2) naming the tool it looks like; the assistant saves the right response |
 | Sentl answers "An internal server error occurred." | the tool is called once more; then run results are recorded as unavailable, and any other tool stops the route |
-| Run listing whose oldest run started after the window's start | `runs` warns that the listing may be cut (no paging) or the project has no earlier run; the operator is told |
+| Run listing whose `total` exceeds the runs read | refused with exit 2, naming the page to read |
+| Run listing saved without `total`, whose oldest run started after the window's start | `runs` warns that the listing may be cut or the project has no earlier run; the operator is told |
+| A run ended `failed` or `stalled` | not fetched, left out of the period, listed to the operator with Sentl's error; unattended, `nothing_new` counts it |
 | Unexpected error in `monitor.py` | exit 6 with a one-line message; `--debug` prints the traceback |
 | Run results returned as a server error | recorded in `history/unavailable.json`, listed to the operator, requested again at every invocation; blocks neither a report nor a write |
 | A pack changed after it was written, holding a link or a path outside the study folder, over the size caps, older than the folder's last report, or of another study's projects; a target that is not an empty folder or a study folder | `unpack` refuses it (exit 2) and writes nothing; the operator is told why |
@@ -1427,33 +1437,33 @@ convenience.
 
 | # | Request | Priority | Without it, the skill |
 |---|---|---|---|
-| G1 | `question_id`, `dimension_id` and the round number on each response in `get-run-results-tool` | P1 | matches responses by dimension name and question text; refuses duplicate texts; ingests every pending run before any edit |
+| G1 | `question_id`, `dimension_id` and the round number on each response in `get-run-results-tool` | P1 | closed 2026-11-07: `ingest` matches by `question_id`, then by text, then by `dimension_id` and text, and reads `round`; a null id says the question or dimension was deleted |
 | G2 | A configuration snapshot per run: researcher models, rounds, and the questions with their text, rubric and instructions as they were when the run started | P1 | reconstructs it from local versions; edits made outside the skill leave a window matched by text |
-| G3 | Pagination, filters (dimension, question, model) or a compact mode without answer text in `get-run-results-tool` | P1 | depends on the host saving oversize tool output to a file; a host that truncates cannot ingest large runs |
+| G3 | Pagination, filters (dimension, question, model) or a compact mode without answer text in `get-run-results-tool` | P1 | closed 2026-11-07: pages with `page`, `page_size`, `max_chars` and `content_sha256`, joined by `ingest --pages`, and the filter `question_id` |
 | G4 | Metadata fields: on the project (purpose, research question, market, language, audience) and on dimensions and questions (theme, origins, framing, pair, persona), or one free JSON `metadata` field on each | P1 | keeps them in the study folder only; someone opening the project in Sentl sees none of the reasoning |
-| G5 | The judge's justification for each score | P2 | the agent reads the answer against the rubric itself and never states the judge's reason |
+| G5 | The judge's justification for each score | P2 | Sentl returns `judge_report` on each judged answer since 2026-10-31 (seen live); the skill does not read it yet, so the agent reads the answer against the rubric itself and never states the judge's reason |
 | G6 | Archive a single question, as dimensions can be archived | P2 | asks the operator to approve a deletion, after ingesting every pending run |
-| G7 | `sentiment` set to `null` when the judge did not score the answer | P2 | sets it to `null` itself |
-| G8 | `list-runs-tool` filters (since a date, status, limit) and paging, or a total or a has-more field | P2 | reads the whole list at every report, a list that grows with every run, and warns when its oldest run started after the report's window starts, since a cut listing cannot be told from a project with no earlier run |
+| G7 | `sentiment` set to `null` when the judge did not score the answer | P2 | closed 2026-11-07: documented; the skill still sets it to `null` itself, which changes nothing |
+| G8 | `list-runs-tool` filters (since a date, status, limit) and paging, or a total or a has-more field | P2 | closed 2026-11-07: `runs` prints `started_after` for the report's window, reads `total` and `next_page`, refuses a listing with runs missing, and warns on a cut listing only when it was saved without `total` |
 | G9 | A market or location setting for the researcher models | P2 | names the market in the question text |
 | G10 | Per-dimension and per-question means on each run in `list-runs-tool` | P3 | computes them from the full results |
 | G11 | The model's public name on each response | P3 | uses `list-ai-models`, which no longer lists retired models |
 | G12 | A run-to-run comparison tool | P3 | compares locally |
 | G13 | A notification when a run completes, or a way to list runs completed since a time | P3 | polls on the report's schedule |
-| G14 | The run score's definition documented; the "general rule" that `get-project-tool` describes returned or removed from the description | P3 | computes the project figure as the mean of the dimension means, the definition observed (A4), and records Sentl's score beside it |
+| G14 | The run score's definition documented; the "general rule" that `get-project-tool` describes returned or removed from the description | P3 | closed 2026-11-07: documented as the mean of the dimension averages, one decimal, null when nothing was judged; the skill computes it and records Sentl's score beside it |
 | G15 | The credits each run consumed, in `list-runs-tool` | P3 | tells the operator `estimate-run-tool`'s figure, never the spend |
 | G16 | Archive a project and restore it, or delete it | P2 | closed 2026-10-29: `archive-project-tool`, `undo-project-archive-tool` (ten minutes), `restore-project-tool`, and `delete-snapshot-tool` for a snapshot; `list-projects-tool` returns `kind` and `archived`. The skill archives on the operator's go |
 | G17 | The results of every run readable: `get-run-results-tool` returns a server error on some older runs | P2 | records them as unavailable, requests them again at every invocation, and reports without them |
-| G18 | Errors that say what failed | P2 | closed 2026-10-29 for the tools seen: errors carry a code and a message, which the playbooks tell the operator; only the internal server error is called once more |
-| G19 | The run statuses documented, with which are final | P3 | reads `completed` and `completed_with_warnings` as final and `pending`, `queued` and `running` as not final yet, and lists any other as never seen |
+| G18 | Errors that say what failed | P2 | closed 2026-11-07 for the read tools: `error.code` is `not_found`, `invalid_argument` or `internal`; a saved error is refused with exit 2, naming the code and the message. The write tools keep the rule of 2026-10-29 |
+| G19 | The run statuses documented, with which are final | P3 | closed 2026-11-07: the nine statuses are read as Sentl documents them, and any other is listed as never seen |
 
 ## Assumptions
 
 | # | Assumption | Status |
 |---|---|---|
 | A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they showed the current text, earlier runs not yet ingested would be matched to the new wording. | Verified 2026-10-16 on read-only data. Sentl allocates question ids in sequence across an account. In a project whose questions were reworded after its earliest run, the reworded questions kept their ids inside the project's contiguous id range, so they were edited in place, not replaced. Read after the edit, that earliest run returns the earlier texts for those questions, and every later run returns the current ones. So an earlier run's responses carry the wording asked then: inside a detected version's window they match the earlier text, and in a run older than the first recorded version they are `unmatched` (§Matching). |
-| A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Only those two seen on 2026-10-16. The skill reads `pending`, `queued` and `running` as not final yet, none seen live; `runs` lists any other status as never seen and does not fetch the run, and `ingest` refuses its results (R2). |
-| A3 | With more than one round, each round appears as a separate response with no round number. | Verified 2026-10-16: a run of a project with 3 rounds returned each question–model pair three times, with no round field. |
-| A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |
+| A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Documented in the tool descriptions, read 2026-10-24: `queued`, `pending`, `researching`, `running`, `judging` open; `completed`, `completed_with_warnings`, `failed`, `stalled` final. `stalled` seen live on 2026-11-07, with `expected` set, `received` and `judged` 0 and Sentl's error; the open statuses are still to be seen on a live run (M10). |
+| A3 | With more than one round, each round appears as a separate response with no round number. | Replaced 2026-11-07: each answer carries `round`, from 1, seen live; `ingest` counts rounds by answers only on a response without it. |
+| A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs and documented in the tool descriptions on 2026-10-24. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |
 | A5 | Responses of a model later removed from `list-ai-models` keep its id. | Verified 2026-10-16: older runs carry a model id no longer listed. |
 | A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, on a new go of the operator, and pauses it once the run is open; whether pausing lets an open run complete is not known either. | Unverified: it needs a live write. `tests/live/test_snapshot_live.py` checks, on the folder a live snapshot leaves, that a run was ingested for a project that was never active. |

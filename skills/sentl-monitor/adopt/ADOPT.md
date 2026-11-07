@@ -12,9 +12,10 @@ the skill needs an update before it can adopt the project. Exit 6: an unexpected
 the operator the message, and run the same command with `--debug` to show where it failed.
 
 **Sentl's errors.** An error carries a code and a message: tell the operator both as Sentl gave
-them. "An internal server error occurred." is called once more. If it fails again on `get-run-results-tool`, go to the next
+them. `internal` is called once more. If it fails again on `get-run-results-tool`, go to the next
 completed run (step 4); on `list-projects-tool`, `get-project-tool` or `list-runs-tool`, stop and
-tell the operator which tool failed and that `adopt` can be run again later.
+tell the operator which tool failed and that `adopt` can be run again later. `not_found`: stop and
+name the id. `invalid_argument`: stop, the skill needs an update.
 
 ## 1. Connection
 
@@ -60,8 +61,8 @@ or none: show the candidates with their organization and ask. Note the project i
    It orders the runs by start time, since the listing is not always in that order, and
    names the latest completed run `R` (status `completed` or `completed_with_warnings`), the
    completed runs to try after it, newest first, how many completed runs the project has and
-   the dates of the earliest and the latest. It also lists runs not final yet and any status
-   the skill has never seen: tell the operator.
+   the dates of the earliest and the latest. It also lists runs not final yet, runs ended with
+   no results (`failed`, `stalled`) and any status the skill has never seen: tell the operator.
 3. `get-run-results-tool` on `R`; save it to `$S/inbox/run-R.json`, copying the file the host
    wrote when the response was large. If Sentl returns an error for that run twice, try the
    next completed run `runs` listed; if none can be read, go on without a run.

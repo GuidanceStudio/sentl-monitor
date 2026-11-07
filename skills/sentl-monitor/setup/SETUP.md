@@ -20,10 +20,11 @@ not have the shape the skill reads, and the message names the tool and the field
 the file, stop and tell the operator, since the skill needs an update. Exit 6: an unexpected
 error; stop, give the operator the message, and run the command again with `--debug`.
 
-**Sentl's errors.** Show the operator the error's code and message as Sentl gave them. Only "An
-internal server error occurred." is called once more; if it fails again, on `get-run-results-tool`
-record the run as unavailable (step 3); on any other tool stop, say which tool failed and that
-`setup` can be run again later. After a failed write, call `get-project-tool` before anything else: the write
+**Sentl's errors.** Show the operator the error's code and message as Sentl gave them. Only
+`internal` is called once more; if it fails again, on `get-run-results-tool` record the run as
+unavailable (step 3); on any other tool stop, say which tool failed and that `setup` can be run
+again later. `not_found`: stop and name the id. `invalid_argument`: stop, the skill needs an
+update. After a failed write, call `get-project-tool` before anything else: the write
 may have been applied.
 
 ## 1. Preflight

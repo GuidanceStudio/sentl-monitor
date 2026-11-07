@@ -5,6 +5,16 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- The skill reads Sentl's nine run statuses. `researching` and `judging` are open runs, followed at the next invocation; they
+  used to stop `ingest` with exit 5. `failed` and `stalled` are final with no results: listed with Sentl's error, left out of the
+  period, and counted by an unattended report.
+- `ingest` reads `round` from each answer and matches by `question_id`, by text, then by `dimension_id` and text, so a renamed
+  dimension keeps its answers. An answer with null ids and a text no version holds is listed as deleted in Sentl.
+- `runs` without `--saved` prints the arguments of `list-runs-tool` for the report's window, reads a listing in pages and refuses
+  one with runs missing, naming the page. A run the listing shows under the 90% floor costs no read.
+- A saved error is refused with its code and message. `internal` is called once more, `not_found` stops and names the id,
+  `invalid_argument` stops because the skill needs an update.
+
 ## 0.4.1 (2026-11-07)
 
 - `check` on a deck reads every count in digits: "9 delle 12" and "9 of the 12" went unread, and so did any pair with no word

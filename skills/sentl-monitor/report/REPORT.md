@@ -18,10 +18,12 @@ Exit 6: an unexpected error; stop, give the operator the message, and run the sa
 `--debug` to show where it failed.
 
 **Sentl's errors.** An error carries a code and a message: tell the operator both as Sentl gave
-them. "An internal server error occurred." is called once more. If it fails again on `get-run-results-tool`, record the run
+them. `internal` is called once more. If it fails again on `get-run-results-tool`, record the run
 as unavailable (step 3) and go on. If it fails again on `get-project-tool`, `list-runs-tool` or
 `list-ai-models`, stop: the report cannot be written without it. Tell the operator which tool
-failed and that `report` can be run again later.
+failed and that `report` can be run again later. `not_found`: stop and name the id.
+`invalid_argument`: stop, the skill needs an update. A saved error is refused with exit 2, naming
+its code and message.
 
 ## 1. Preflight
 
@@ -74,11 +76,21 @@ report, not in this one.
 
 ## 3. Read the runs of the period
 
-For each project, `list-runs-tool` with `P`, saved to `$S/inbox/runs-P.json`, then:
+For each project, ask for the arguments of the report's window:
+
+```bash
+python3 <skill>/scripts/monitor.py runs --study "$S" --project K --date D
+```
+
+Call `list-runs-tool` with them, save the response to `$S/inbox/runs-P.json`, then:
 
 ```bash
 python3 <skill>/scripts/monitor.py runs --study "$S" --project K --saved "$S/inbox/runs-P.json" --date D
 ```
+
+A host that cuts large responses reads the listing with `page` and `page_size`: save each page,
+the later ones as `$S/inbox/runs-P.p2.json` and so on, and pass them all to `--saved`. A listing
+whose `total` exceeds the runs read is refused, naming the page to read.
 
 It prints the runs to fetch, ordered by start time (the listing is newest first with
 exceptions), and ends with a `Fetch:` line holding their ids:
@@ -91,11 +103,13 @@ exceptions), and ends with a `Fetch:` line holding their ids:
   up to the end of `D`.
 
 Completed means `completed` or `completed_with_warnings`. Runs already ingested are left out;
-runs recorded as unavailable are listed again. The output also lists the runs not final yet,
-which the next invocation reads, and any status the skill has never seen; neither is fetched.
-A line starting `Warning` says the oldest run in the listing started after the start of the
-window: Sentl's listing has no paging, so either the project has no earlier run or the listing
-stops there. Keep these for step 11.
+runs recorded as unavailable are listed again. The output also lists the runs not final yet
+(`queued`, `pending`, `researching`, `running`, `judging`), which the next invocation reads, the
+runs ended with no results (`failed`, `stalled`), left out of the period with Sentl's error, the
+runs the listing already shows under the 90% floor, which cost no read, and any status the skill
+has never seen; none of these is fetched. A listing with no `expected` or `judged` leaves the floor
+to the results. A line starting `Warning` says a listing saved without its `total` may stop before
+the window's start. Keep these for step 11.
 
 When the host saves a large tool result to a file, take each run on the `Fetch:` line one at a
 time: when its line says it is already saved in `inbox/` (`adopt` saved it), use that file; else
@@ -115,11 +129,12 @@ python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S
 ```
 
 - Exit 2, not complete JSON: save the response again from the host's file and rerun.
-- Sentl returned an error instead of results ("An internal server error occurred."): call
+- Sentl returned the error `internal` instead of results: call
   `get-run-results-tool` once more; if the error repeats, record the run as unavailable and
   go on: `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
   The next report requests it again.
 - Exit 3: the run is not final yet; it is read at the next invocation.
+- Exit 2 on a `failed` or `stalled` run: it holds no results and stays out of the period.
 - The output lists unmatched responses or a run score that differs: keep it for step 11.
 
 ## 4. Models
@@ -283,7 +298,8 @@ report reads it from there.
 ## 11. Tell the operator, in the chat
 
 The report's path, the runs it covers, and anything the scripts flagged: runs not final yet,
-statuses never seen and a run listing that may be cut (step 3), edits detected in
+runs ended with no results and their error, runs under the floor in the listing, statuses never
+seen and a run listing that may be cut (step 3), edits detected in
 Sentl and how each affects the comparison, the periods rebuilt from earlier runs, the two
 halves compared on a first report and any project with runs in one half only, or that no
 earlier period exists, runs left out or
@@ -315,9 +331,9 @@ section before step 1 when the invocation says it is unattended. Every step abov
 this section changes it. Ask nothing: where a step says to ask the operator, take the
 choice written here or stop.
 
-1. Run step 1, then for each project call `list-runs-tool` and save it to
-   `$S/inbox/runs-P.json` (`P` is the project's Sentl id), before anything else is read from
-   Sentl. Then:
+1. Run step 1, then for each project call `list-runs-tool` with the arguments of step 3 and save
+   it to `$S/inbox/runs-P.json` (`P` is the project's Sentl id), later pages as
+   `$S/inbox/runs-P.p2.json` and on, before anything else is read from Sentl. Then:
 
    ```bash
    python3 <skill>/scripts/monitor.py pending --study "$S" --date D

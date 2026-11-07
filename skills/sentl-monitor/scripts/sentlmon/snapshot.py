@@ -181,6 +181,7 @@ def resume(root, runs_file=None):
     reported = any(e["status"] == "final" for e in folder.reports())
     opened = [r for r in rows if r["status"] in schema.OPEN]
     pending = [r for r in rows if r["status"] in FINAL and r["id"] not in ingested]
+    ended = [r for r in rows if r["status"] in schema.ENDED]
     unseen = [r for r in rows if r["status"] not in schema.STATUSES]
     if opened:
         return _step("run", "A run is open: follow it with list-runs-tool until its status is final (step 8). A run "
@@ -189,6 +190,10 @@ def resume(root, runs_file=None):
         ids = ", ".join(f"run {r['id']}" for r in pending)
         return _step("report", f"A completed run is not in history/runs: {ids}. Fetch its results, ingest them and "
                                "write the report (step 9).")
+    if ended and not ingested:
+        shown = ", ".join(f"run {r['id']} ({r['status']})" for r in ended)
+        return _step("run", f"The run ended with no results: {shown}. Tell the operator, with Sentl's error; a stalled "
+                            "run was not charged. Call trigger-run-tool again only on a new go.")
     if unseen and not ingested:
         shown = ", ".join(f"run {r['id']} ({r['status']})" for r in unseen)
         return _step("run", f"Status never seen: {shown}. Tell the operator and do not call trigger-run-tool "

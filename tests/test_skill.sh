@@ -260,9 +260,27 @@ has "5 a Sentl response" "$SKILL" "SKILL.md names exit 5: a Sentl response the s
 has "6 unexpected error" "$SKILL" "SKILL.md names exit 6: an unexpected error"
 for f in "$PAYLOAD/adopt/ADOPT.md" "$PAYLOAD/report/REPORT.md"; do
     has "monitor.py runs" "$f" "$(basename "$f") picks the runs with monitor.py runs"
-    has "An internal server error occurred" "$f" "$(basename "$f") says what to do on Sentl's internal error"
+    has '`internal`' "$f" "$(basename "$f") says what to do on Sentl's internal error"
+    has '`not_found`' "$f" "$(basename "$f") says what to do on not_found"
+    has '`invalid_argument`' "$f" "$(basename "$f") says what to do on invalid_argument"
     has "[Ee]xit 5" "$f" "$(basename "$f") says what to do on exit 5"
 done
+for status in queued pending researching running judging completed completed_with_warnings failed stalled; do
+    has "\`$status\`" "$SKILL" "SKILL.md names the status $status"
+done
+for f in "$PAYLOAD/setup/SETUP.md" "$PAYLOAD/snapshot/SNAPSHOT.md"; do
+    has '`not_found`' "$f" "$(basename "$f") says what to do on not_found"
+    has '`invalid_argument`' "$f" "$(basename "$f") says what to do on invalid_argument"
+done
+has '`researching`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in researching"
+has '`judging`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in judging"
+has '`failed`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a failed run as final with no results"
+has '`stalled`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a stalled run as final with no results"
+if grep -q "has no paging" "$PAYLOAD/report/REPORT.md"; then
+    bad "REPORT.md still says Sentl's listing has no paging"
+else
+    ok "REPORT.md reads the listing in pages"
+fi
 if grep -q "order the runs by \`started_at\`" "$PAYLOAD/report/REPORT.md"; then
     bad "REPORT.md still has the assistant order the runs by hand"
 else

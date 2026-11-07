@@ -22,9 +22,10 @@ file, stop and tell the operator, since the skill needs an update. Exit 6: an un
 stop, give the operator the message, and run the command again with `--debug`.
 
 **Sentl's errors.** Show the operator the error's code and message as Sentl gave them. Only
-"An internal server error occurred." is called once more; if it fails again, stop and say which
-tool failed and that `snapshot` can be run again in the same folder: it resumes. After a failed
-write, call `get-project-tool` before anything else, since the write may have been applied.
+`internal` is called once more; if it fails again, stop and say which tool failed and that
+`snapshot` can be run again in the same folder: it resumes. `not_found`: stop and name the id.
+`invalid_argument`: stop, the skill needs an update. After a failed write, call `get-project-tool`
+before anything else, since the write may have been applied.
 
 ## 1. Preflight and where to resume
 
@@ -175,12 +176,13 @@ operator. Otherwise, only on the operator's explicit go after the estimate, call
 
 If it is refused, tell the operator the code and message as Sentl gave them, and activate
 nothing: a snapshot is not activated. A run that ends `stalled` (the queue did not pick it up) was
-not charged: with the operator's go, call `trigger-run-tool` once more.
+not charged: with the operator's go, call `trigger-run-tool` once more. A run that ends `failed`
+holds no results: tell the operator Sentl's error, and start another only on a new go.
 
-Follow the run with `list-runs-tool` until its status is `completed` or
-`completed_with_warnings`, a few minutes apart. If the conversation ends first, the next
-invocation resumes at this step and starts nothing. A status the skill has never seen is told to
-the operator, who decides.
+Follow the run with `list-runs-tool`, a few minutes apart, through `queued`, `pending`,
+`researching`, `running` and `judging`, until its status is `completed` or
+`completed_with_warnings`. If the conversation ends first, the next invocation resumes at this
+step and starts nothing. A status the skill has never seen is told to the operator, who decides.
 
 ## 9. Report
 

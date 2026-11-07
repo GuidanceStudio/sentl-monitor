@@ -4,14 +4,16 @@ refused before anything is written, naming the tool and the field (exit code 5).
 skill does not read are accepted, so Sentl can add fields without breaking a report."""
 
 import re
+from pathlib import Path
 
 from .common import FINAL, Refused, load_mcp, parse_time, read_mcp
 
-# A run with one of these statuses is not final yet and is read again at the next invocation.
-# None has been seen in a live response; any status outside STATUSES is one the skill has
-# never seen.
-OPEN = ("pending", "queued", "running")
-STATUSES = FINAL + OPEN
+# The nine statuses Sentl documents. A run in OPEN is not final yet and is read again at the next
+# invocation; a run in ENDED is final with no results to fetch. Any other status is one the skill
+# has never seen.
+OPEN = ("queued", "pending", "researching", "running", "judging")
+ENDED = ("failed", "stalled")
+STATUSES = FINAL + ENDED + OPEN
 
 _MISSING = object()
 
@@ -97,6 +99,8 @@ def _time(v):
 
 INTEGER = _Leaf("an integer", _integer)
 COUNT = _Leaf("an integer of 1 or more", lambda v: _integer(v) and v >= 1)
+TALLY = _Leaf("an integer of 0 or more, or null", lambda v: v is None or (_integer(v) and v >= 0))
+ID_OR_NULL = _Leaf("an integer, or null", lambda v: v is None or _integer(v))
 TEXT = _Leaf("a non-empty text", lambda v: isinstance(v, str) and bool(v.strip()))
 STRING = _Leaf("a text", lambda v: isinstance(v, str))
 TEXT_OR_NULL = _Leaf("a text, or null", lambda v: v is None or isinstance(v, str))
@@ -109,8 +113,8 @@ RUN_SCORE = _Leaf("a number from 1 to 5, or null", lambda v: v is None or (_numb
 RUBRIC = _Leaf("null, or an object whose keys are anchors from 1 to 5, each a text or null",
                lambda v: v is None or (isinstance(v, dict) and set(v) <= set("12345")
                                        and all(t is None or isinstance(t, str) for t in v.values())))
-STATUS = _Leaf("one of the statuses the skill knows: " + ", ".join(FINAL) + " (final); "
-               + ", ".join(OPEN) + " (not final yet)", lambda v: v in STATUSES)
+STATUS = _Leaf("one of the statuses the skill knows: " + ", ".join(FINAL) + " (final); " + ", ".join(ENDED)
+               + " (final, no results); " + ", ".join(OPEN) + " (not final yet)", lambda v: v in STATUSES)
 
 # get-project-tool, under "project".
 PROJECT = _Object({
@@ -147,6 +151,9 @@ RUN = _Object({
     "responses": (_List(_Object({
         "id": (INTEGER, True),
         "model_id": (TEXT, True),
+        "round": (COUNT, False),
+        "question_id": (ID_OR_NULL, False),
+        "dimension_id": (ID_OR_NULL, False),
         "dimension": (TEXT, True),
         "question": (TEXT, True),
         "answer": (TEXT_OR_NULL, True),
@@ -156,17 +163,21 @@ RUN = _Object({
     }), "a list of responses"), True),
 })
 
-# The results of a run not final yet: only what says so is read.
+# The results of a run not final yet, or ended with none: only what says so is read.
 RUN_OPEN = _Object({"id": (INTEGER, True), "status": (STATUS, True)})
 
 # list-runs-tool, at the top level. A status is any text here: `runs` reports one it has never
 # seen instead of refusing the listing.
 LISTING = _Object({
     "project_id": (INTEGER, True),
+    "total": (TALLY, False),
+    "next_page": (ID_OR_NULL, False),
     "runs": (_List(_Object({
         "id": (INTEGER, True),
         "status": (TEXT, True),
         "started_at": (TIME_OR_NULL, True),
+        "expected": (TALLY, False),
+        "judged": (TALLY, False),
     }), "a list of runs"), True),
 })
 
@@ -217,10 +228,25 @@ TOOL_KEYS = {"project": "get-project-tool", "run": "get-run-results-tool", "runs
              "researcher_models": "list-ai-models", "projects": "list-projects-tool"}
 
 
+# What the skill does on each error code of the read tools.
+ERROR_RULE = {"internal": "call the tool once more", "not_found": "stop and check the id",
+              "invalid_argument": "stop: the skill needs an update"}
+
+
+def _sentl_error(raw, path, tool):
+    """A saved error is Sentl's answer, not a response of another shape (exit 2)."""
+    error = raw.get("error") if isinstance(raw, dict) else None
+    if isinstance(error, dict) and error.get("code"):
+        code = error["code"]
+        raise Refused(f"{path} holds Sentl's error, not {tool}'s response: {code}: {error.get('message')} "
+                      f"Tell the operator; {ERROR_RULE.get(code, 'stop')}. Nothing was written.")
+
+
 def _read(path, tool, key):
     """The object under `key`. A file holding another tool's response is input to save again
     (exit 2), not a change in Sentl."""
     raw = read_mcp(path)
+    _sentl_error(raw, path, tool)
     if isinstance(raw, dict) and key not in raw:
         other = next((name for k, name in TOOL_KEYS.items() if k in raw and name != tool), None)
         if other:
@@ -247,7 +273,7 @@ def project(path):
 def run_results(path):
     """A run's results; a run not final yet is read only for its id and status."""
     data = _read(path, "get-run-results-tool", "run")
-    spec = RUN_OPEN if data.get("status") in OPEN else RUN
+    spec = RUN_OPEN if data.get("status") in OPEN + ENDED else RUN
     return _load(path, "get-run-results-tool", "run", spec, data=data)
 
 
@@ -257,8 +283,23 @@ def _started(listing, errors):
             errors.append((f"runs[{n}].started_at", "an ISO 8601 date and time on a completed run", None))
 
 
-def run_listing(path):
-    return _load(path, "list-runs-tool", "runs", LISTING, _started)
+def run_listing(paths):
+    """A list-runs-tool response, from one file or from the files of its pages. A listing that
+    says it holds more runs than were read is refused, naming the page to read."""
+    paths = [paths] if isinstance(paths, (str, Path)) else list(paths)
+    pages = [_load(p, "list-runs-tool", "runs", LISTING, _started) for p in paths]
+    projects = {p["project_id"] for p in pages}
+    if len(projects) > 1:
+        raise Refused(f"the saved listings are of projects {', '.join(map(str, sorted(projects)))}: pass the pages of "
+                      "one project")
+    rows = list({r["id"]: r for p in pages for r in p["runs"]}.values())
+    total = max((p["total"] for p in pages if p.get("total") is not None), default=None)
+    if total is not None and len(rows) < total:
+        following = sorted(p["next_page"] for p in pages if p.get("next_page"))
+        ask = f"read page {following[-1]} and the ones after it" if following else "read the listing again"
+        raise Refused(f"the saved listing holds {len(rows)} of the {total} runs: {ask} with list-runs-tool and pass "
+                      "every page")
+    return {**pages[0], "runs": rows}
 
 
 def models(path):
@@ -272,5 +313,5 @@ def check_project(data, where):
 
 def check_run(data, where):
     """A run object already read, as an export holds it; a run not final yet is read for its id and status only."""
-    spec = RUN_OPEN if isinstance(data, dict) and data.get("status") in OPEN else RUN
+    spec = RUN_OPEN if isinstance(data, dict) and data.get("status") in OPEN + ENDED else RUN
     return _load(where, "get-run-results-tool", "run", spec, data=data)

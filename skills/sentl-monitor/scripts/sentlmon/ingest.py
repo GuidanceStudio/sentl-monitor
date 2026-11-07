@@ -38,12 +38,40 @@ def _id_map(version):
     return {q["id"]: (d["key"], q["key"]) for d in version["dimensions"] for q in d["questions"]}
 
 
+def _dimension_map(version):
+    return {(d["id"], match_key(q["text"])): (d["key"], q["key"])
+            for d in version["dimensions"] if d.get("id") is not None for q in d["questions"]}
+
+
 def _asked(r):
     return match_key(r.get("dimension")), match_key(r.get("question"))
 
 
-def _rounds(pairs):
-    return max(Counter(pairs).values(), default=1)
+def _rounds(responses):
+    """The rounds of a run: Sentl's `round`, or the answers of a question and model where it is absent."""
+    marked = [r["round"] for r in responses if r.get("round")]
+    return max(marked) if marked else max(Counter((_asked(r), r.get("model_id")) for r in responses).values(), default=1)
+
+
+def _find(r, maps):
+    """The keys of the question a response answers and how they were found. Sentl's question_id names the
+    question whatever its text says now; then the text, under the dimension's name or, once it was renamed,
+    under its id."""
+    for _, _, ids, _ in maps:
+        if r.get("question_id") in ids:
+            return ids[r["question_id"]], "id"
+    for qmap, how, _, _ in maps:
+        if _asked(r) in qmap:
+            return qmap[_asked(r)], how
+    for _, _, _, dims in maps:
+        if (r.get("dimension_id"), match_key(r.get("question"))) in dims:
+            return dims[(r["dimension_id"], match_key(r["question"]))], "dimension"
+    return None, "unmatched"
+
+
+def _deleted(r):
+    """What Sentl says it deleted: a null id, on a response that carries the ids."""
+    return [name for name in ("question", "dimension") if f"{name}_id" in r and r[f"{name}_id"] is None]
 
 
 def _fit(version, responses):
@@ -55,7 +83,7 @@ def _fit(version, responses):
                 for d in version["dimensions"] if not d["archived"] for q in d["questions"]}
     settings = version["settings"]
     return (set(settings["models"]) == {r.get("model_id") for r in responses},
-            settings["rounds"] == _rounds((_asked(r), r.get("model_id")) for r in responses),
+            settings["rounds"] == _rounds(responses),
             -len(measured ^ {_asked(r) for r in responses}))
 
 
@@ -108,6 +136,9 @@ def ingest(root, key, results_file):
     folder.project(key)
     run = schema.run_results(results_file)
     run_id, status = run["id"], run["status"]
+    if status in schema.ENDED:
+        detail = f" ({run['error']})" if run.get("error") else ""
+        raise Refused(f"run {run_id} ended {status} with no results{detail}: nothing to ingest, it stays out of the period")
     if status not in FINAL:
         raise NotFinal(f"run {run_id} has status {status!r}, not final: it is read again at the next invocation")
 
@@ -131,14 +162,15 @@ def ingest(root, key, results_file):
         elif earlier > later:
             tried.reverse()
     version = tried[0] if tried else None
-    maps = [(_question_map(v), "version" if version is not None and v is not version else "exact", _id_map(v))
-            for v in (tried or versions[:1])]
+    maps = [(_question_map(v), "version" if version is not None and v is not version else "exact", _id_map(v),
+             _dimension_map(v)) for v in (tried or versions[:1])]
 
+    # Sentl orders the answers by id: a run read in another order gives the same snapshot.
+    given = run["responses"]
+    answers = sorted(given, key=lambda r: r["id"]) if any("round" in r for r in given) else given
     responses, unmatched = [], []
-    for r in run["responses"]:
-        # Sentl's question_id names the question whatever its text says now; the text is the fallback.
-        found, how = next(((ids[r["question_id"]], "id") for _, _, ids in maps if r.get("question_id") in ids),
-                          next(((qmap[_asked(r)], how) for qmap, how, _ in maps if _asked(r) in qmap), (None, "unmatched")))
+    for r in answers:
+        found, how = _find(r, maps)
         score = r.get("judge_score")
         entry = {
             "response_id": r.get("id"), "question": found[1] if found else None,
@@ -149,8 +181,12 @@ def ingest(root, key, results_file):
                         for s in r.get("sources") or []],
             "match": how,
         }
+        if "round" in r:
+            entry["round"] = r["round"]
         if not found:
             entry["asked"] = {"dimension": r.get("dimension"), "question": r.get("question")}
+            if _deleted(r):
+                entry["asked"]["deleted"] = _deleted(r)
             unmatched.append(entry)
         responses.append(entry)
 
@@ -166,7 +202,7 @@ def ingest(root, key, results_file):
         asked = {_asked(r) for r in run["responses"]}
         plan = {"questions": sorted({r["question"] for r in matched}),
                 "models": sorted({r["model"] for r in responses}),
-                "rounds": _rounds((_asked(r), r.get("model_id")) for r in run["responses"])}
+                "rounds": _rounds(run["responses"])}
         expected = len(asked) * len(plan["models"]) * plan["rounds"]
     judged = sum(1 for r in matched if r["score"] is not None)
 
@@ -185,7 +221,9 @@ def ingest(root, key, results_file):
              f"{len(responses)} received, {judged} judged of {expected} expected, {len(unmatched)} unmatched."]
     if unmatched:
         lines.append("Unmatched responses, kept and excluded from every figure (tell the operator):")
-        lines += [f"  {u['asked']['dimension']}: {u['asked']['question']} ({u['model']})" for u in unmatched]
+        lines += [f"  {u['asked']['dimension']}: {u['asked']['question']} ({u['model']})"
+                  + (f", {' and '.join(u['asked']['deleted'])} deleted in Sentl" if u["asked"].get("deleted") else "")
+                  for u in unmatched]
     own, sentl = run_score(responses), run.get("reputation_score")
     if own is not None and sentl is not None and abs(own - sentl) > 0.05:
         lines.append(f"Sentl's run score {sentl} differs from the mean of dimension means computed here, "

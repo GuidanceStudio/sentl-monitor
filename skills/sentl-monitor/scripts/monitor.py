@@ -71,7 +71,8 @@ def _parser():
     n = command("runs", "read a saved run listing: the runs to fetch for a report, or the latest "
                         "completed run when adopting")
     n.add_argument("--study", default=".")
-    n.add_argument("--saved", required=True, help="saved list-runs-tool response")
+    n.add_argument("--saved", nargs="+", help="saved list-runs-tool response, or its pages; without it and with "
+                                              "--project, the arguments to call the tool with")
     n.add_argument("--project", help="local key of the project; without it, the latest completed run for adopt")
     n.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
 

@@ -462,6 +462,24 @@ class ResumeTest(SnapshotCase):
                 self.assertIn("trigger-run-tool", proc.stdout)
                 self.assertIn("do not call", proc.stdout)
 
+    def test_a_run_in_researching_or_judging_is_followed_and_starts_nothing(self):
+        self.bind_full()
+        for status in ("researching", "judging"):
+            with self.subTest(status):
+                proc = self.resume(listing([(RUN_ID, status, RUN_STARTED)], PROJECT_ID))
+                self.assertIn("Next step: run", proc.stdout)
+                self.assertIn("do not call trigger-run-tool", proc.stdout)
+
+    def test_a_run_that_ended_with_no_results_is_told_and_starts_nothing_without_a_go(self):
+        self.bind_full()
+        for status in ("failed", "stalled"):
+            with self.subTest(status):
+                proc = self.resume(listing([(RUN_ID, status, RUN_STARTED)], PROJECT_ID))
+                self.assertIn("Next step: run", proc.stdout)
+                self.assertIn(status, proc.stdout)
+                self.assertIn("operator", proc.stdout)
+                self.assertNotIn("never seen", proc.stdout)
+
     def test_a_completed_run_not_in_history_resumes_at_the_report(self):
         self.bind_full()
         proc = self.resume(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID))

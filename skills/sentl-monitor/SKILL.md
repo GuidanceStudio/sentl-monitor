@@ -127,10 +127,15 @@ Read the playbook of the route invoked and follow it step by step.
   the run listing and every run into `inbox/`; `ingest` then reads them as usual. The link lasts
   60 minutes and `download` sends no credential and fetches only from Sentl's own hosts.
 - **Sentl's errors.** An error carries a code and a message. Tell the operator both as Sentl gave
-  them. Only "An internal server error occurred." is called once more; if it fails again,
-  `get-run-results-tool` records the run as unavailable and the route goes on without it (the
-  playbooks say how); any other tool stops the route: say which tool failed and that the route can
-  be run again later.
+  them. `internal` is called once more; if it fails again, `get-run-results-tool` records the run
+  as unavailable and the route goes on without it (the playbooks say how), and any other tool stops
+  the route: say which tool failed and that the route can be run again later. `not_found`: stop and
+  name the id. `invalid_argument`: stop, the skill needs an update. A write tool's refusal stops
+  the route with its code and message.
+- **Sentl's run statuses.** `queued`, `pending`, `researching`, `running` and `judging` are open:
+  the run is read again at the next invocation. `completed` and `completed_with_warnings` are final
+  with results. `failed` and `stalled` are final with no results: tell the operator and leave them
+  out of the period. Any other status is one the skill has never seen: tell the operator.
 - **What the operator is told goes in the chat, never in the report:** runs covered and left
   out, unmatched responses, unavailable runs, a run score that differs from the one computed,
   dimensions shown without a figure, edits detected in Sentl, the periods rebuilt from a
