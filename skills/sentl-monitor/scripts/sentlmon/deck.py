@@ -1612,9 +1612,10 @@ def _tied_sites(field, part, labels, assistants, scopes):
         said = part[max(0, min(start, first) - 20):max(end, last)]
         models = [model for model, names_of in assistants.items() if any(n in said for n in names_of)]
         rows = []
+        only = f", answers of {', '.join(sorted(assistants[model][-1] for model in models))} only" if models else ""
         for _, where, answers in scopes:
             pool = [r for r in answers if r["model"] in models] if models else answers
-            rows += [(lo, hi, len(pool), where) for lo, hi in _tally(pool, domains, page, in_words)]
+            rows += [(lo, hi, len(pool), where + only) for lo, hi in _tally(pool, domains, page, in_words)]
         what = f"a page of {shown}" if in_words else shown
         if b is None:
             problems.append(f"{field} says {a} beside {what} with no base: write it as a count of the answers it comes from: "

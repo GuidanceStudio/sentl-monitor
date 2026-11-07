@@ -937,7 +937,7 @@ enters the skill only after the operator has seen the result.
   - [x] Seventh round: a preference no answer states, what the answers say written as fact, a public authority and other sellers named as places to get listed. The playbook holds the three, and the reread names the case of a choice
   - [x] Eighth round: an action told the subject to state a fact a later project had replaced. A fact recorded later with other terms takes its question out of the facts block, the figures file names it, `check` refuses its term
 - [x] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
-- [ ] Open the task for interactive screens in Sentl's own board
+- [x] Open the task for interactive screens in Sentl's own board (work item 24)
 
 **Done when:** the operator has accepted a deck produced by the route on each study shape, and `check`
 refuses a deck with no actions, an action with no evidence slide or a figure missing from the period.
@@ -1021,4 +1021,15 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Commit and push
 
 **Done when:** a fictional study with two decks renders a second edition whose two slides pass `check`, and a first edition is unchanged.
+
+## M22: The refusal says what its base counts ✅
+
+**Why:** two fix runs through opencode showed it. A refusal on a sentence naming an assistant printed a count and a base without saying the base was that assistant's answers alone, so the writer took it for a fault in the data. The same runs wrote block bases a reader cannot identify.
+
+**Tasks:**
+- [x] Test: unit, the refusal of a count beside a site in a sentence naming an assistant names that assistant
+- [x] `_tied_sites` says it; DECK.md asks the writer to name what a base counts
+- [x] Commit and push
+
+**Done when:** the test is green and the suite passes.
 

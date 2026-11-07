@@ -137,6 +137,9 @@ class AssistantCountTest(TiedCase, unittest.TestCase):
         self.passes("2 delle 3 risposte di Acme Chat citano guida.example.")
         self.refused("3 delle 3 risposte di Acme Chat citano guida.example.", "2 of 3")
 
+    def test_the_refusal_says_the_base_is_that_assistant_s_answers(self):
+        self.refused("3 delle 3 risposte di Acme Chat citano guida.example.", "2 of 3", "answers of Acme Chat only")
+
     def test_an_assistant_may_go_by_its_maker(self):
         self.refused("3 delle 3 risposte di Acme citano guida.example.", "2 of 3")
 

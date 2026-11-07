@@ -384,7 +384,7 @@ the text and run it again until it passes. Never fix a failure by changing a fig
 or a competitor must be that name's, on the period, a block, the questions of its slide, a topic or one question: the refusal
 prints the counts the name has, so take the one that fits the sentence, and never reword the count to get past it. A site's
 count is not its page's: "guide.example is cited by 9 of the 12, and its list by 3 of them". A count beside a site carries its
-base: "(39)" and "cited by 25 answers" are refused. A grounding redirect hides the page an answer read, so a page's count may
+base: "(39)" and "cited by 25 answers" are refused. In a sentence naming an assistant the count and its base are that assistant's answers alone, and the refusal says so. Name what a base counts, because the reader cannot tell what "19 of 141" is: "19 of the 141 answers to the questions on prices". A grounding redirect hides the page an answer read, so a page's count may
 run from the answers showing its address to those plus the answers the redirect hides. A site said to be cited most comes
 first, alone, among the sites the sentence speaks of: write "among third parties" when the subject's own site leads. On the
 sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
