@@ -3,6 +3,12 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## 0.5.1 (2026-11-07)
+
+- The deck playbook has the writer draft `found` and `actions` from the figures file alone and write one section per command. A
+  deck written from zero on a three-project study failed twice with its text blank, holding everything back for one final write.
+- `check` names the fields of a deck left to write.
+
 ## 0.5.0 (2026-11-07)
 
 - A deck that follows a final deck is a second edition: one slide with each block's figure on both dates, on the questions the

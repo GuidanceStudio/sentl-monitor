@@ -1721,11 +1721,21 @@ def _most_cited(doc, m):
     return problems
 
 
+def _left(value, path=""):
+    """The fields of the deck's text that still hold the marker."""
+    if isinstance(value, dict):
+        return [f for k, v in value.items() for f in _left(v, f"{path}.{k}" if path else k)]
+    if isinstance(value, list):
+        return [f for n, v in enumerate(value, 1) for f in _left(v, f"{path}[{n}]")]
+    return [path] if isinstance(value, str) and "[[" in value else []
+
+
 def problems_of(folder, study, period, doc):
     if doc.get("schema") != SCHEMA:
         return [f"schema is not {SCHEMA}"]
     if "[[" in json.dumps(doc, ensure_ascii=False):
-        return ["a text is left to write: replace every [[...]] marker"]
+        left = _left(doc)
+        return [f"a text is left to write: replace every [[...]] marker, {len(left)} left: {', '.join(left[:12])}"]
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
     allowed = _allowed_figures(m, period)

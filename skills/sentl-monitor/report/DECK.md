@@ -49,7 +49,12 @@ A deck that follows a final deck has two more slides after **What we found**: **
 
 ## 1. Preflight
 
-**Keep your work on file.** A long session gets compacted, and what you read and did not write down is lost. Keep `history/deck/D.notes.md`: after each step write what you found, each page you read and what it holds, each action you decided and why. When the file exists as you start, you are resuming: read it and `reports/D.deck.json` first, read this playbook once, and go on from where the notes stop. Go back to the material only for what the notes do not hold. As soon as the actions stand, fill `reports/D.deck.json` with what you have, roughly if need be, and improve it there. `deck` prints how many texts are left.
+**Keep your work on file.** A long session gets compacted, and what you read and did not write down is lost. A session near its limit can also stop with nothing written, so these rules come before everything below:
+
+1. Write a first draft early. Run `deck`, read the figures file once, and write `found` and `actions` into `reports/D.deck.json` before you open an answer or a page. Everything after that improves what is in the file.
+2. Write one section per command: `opening`, `found`, `actions`, each block, `sources`, `method`. Never hold the whole text back for one final write.
+3. Keep `history/deck/D.notes.md`: after each step write what you found, each page you read and what it holds, each action you decided and why. When the file exists as you start, you are resuming: read it and `reports/D.deck.json` first, read this playbook once, and go on from where the notes stop. Go back to the material only for what the notes do not hold.
+4. Leave the skill's code alone. Step 5 lists every field and `check` words every refusal: write, run `check`, fix. `deck` prints how many texts are left, and `check` names them.
 
 ```bash
 python3 <skill>/scripts/monitor.py doctor --study "$S"

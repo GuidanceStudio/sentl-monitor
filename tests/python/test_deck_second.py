@@ -84,6 +84,13 @@ class ProgressTest(DeckCase, unittest.TestCase):
         self.save_doc(self.filled())
         self.assertIn("0 texts left", self.said())
 
+    def test_check_names_the_fields_left_to_write(self):
+        doc = self.filled()
+        doc["found"]["title"], doc["actions"][0]["why"] = deck.TODO, deck.TODO
+        found = self.problems(doc)
+        self.assertIn("found.title", found)
+        self.assertIn("actions[1].why", found)
+
     def test_deck_names_the_notes_of_an_earlier_session(self):
         self.assertNotIn("notes", self.said())
         (self.study / "history" / "deck" / f"{DATE}.notes.md").write_text("Risultati letti.", encoding="utf-8")

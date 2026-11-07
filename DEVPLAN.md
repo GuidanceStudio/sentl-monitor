@@ -1041,16 +1041,18 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 ## M23: A long deck session keeps what it found 🔄
 
-**Why:** a deck written from zero on a three-project study ran into the 90-minute limit with its text still blank. Each time the host compacted the session the writer lost what it had read and started again: the playbook read eight times, the figures file and the same pages over and over, nothing saved. The two other studies finished in 47 minutes only because they needed fewer compactions.
+**Why:** the same deck written from zero on a three-project study failed twice with its text blank. On 0.4.1 it ran into the 90-minute limit after three compactions and 241 commands. On 0.5.0, with the notes rule below, it ended at 56 minutes: no write in 141 commands, the notes saved once, and a last step that reasoned for 9,112 tokens at 291,000 of context and stopped with no output, having said it was ready to generate the final JSON. The two studies that finished wrote their text in parts. All four runs read the skill's code to learn the rules, because `check` says nothing useful until every marker is gone.
 
-**Approach:** the writer keeps `history/deck/<date>.notes.md` and fills the deck file when the actions stand, not at the end. A session that starts on a folder with notes reads them first. `deck` says how many texts are left and points to the notes, so a restarted session sees where it stands.
+**Approach:** the writer drafts `found` and `actions` from the figures file alone, before opening an answer or a page, writes one section per command and keeps `history/deck/<date>.notes.md`. A session that starts on a folder with notes reads them first. `deck` says how many texts are left and points to the notes; `check` names the fields left, so nobody needs the code to know what is missing.
 
 **Tasks:**
 - [x] Test: unit, `deck` says how many texts are left and names the notes when they exist; `test_skill.sh` holds the playbook to it
 - [x] `deck.py` and DECK.md; ARCHITECTURE, CHANGELOG
 - [x] Commit and push
 - [x] Release 0.5.0, install
-- [~] Run the same deck from zero again on the released version, through opencode
+- [x] Test: unit, `check` names the fields left; `test_skill.sh` holds the first draft and the one section per command
+- [x] Release 0.5.1, install
+- [~] Run the same deck from zero twice on the released version, through opencode, and the study that passed once
 
-**Done when:** that run ends within the limit with a deck passing `check`.
+**Done when:** those runs end within the limit with a deck passing `check`.
 
