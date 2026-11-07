@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.6.0 (2026-11-07)
 
 - `validate` refuses a question with neither judge instructions nor facts. Sentl refuses its save with `invalid_argument`,
   because it treats empty `additional_instructions` as missing, and the refusal used to come at the first write.

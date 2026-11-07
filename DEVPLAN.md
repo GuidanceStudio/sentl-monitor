@@ -1106,9 +1106,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the tests are green and the suite passes.
 
-## R7: Release 0.6.0
+## R7: Release 0.6.0 ✅
 
-**Why:** M24 changes what a name in an answer means, and M25 changes the deck's labels and the order of its actions; M10 and R3e's command-line runs need them released first.
+**Why:** M24 changes what a name in an answer means, M25 changes the deck's labels and the order of its actions, and M26 refuses a question Sentl would refuse; M10 and R3e's command-line runs need them released first.
 
 **Tasks:**
-- [ ] Version 0.6.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+- [x] Version 0.6.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
