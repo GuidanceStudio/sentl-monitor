@@ -1093,6 +1093,19 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the tests are green and the suite passes, and a deck rendered from a trial folder shows the new labels and order.
 
+## M26: A question goes to Sentl with instructions for its judge ✅
+
+**Why:** M10's first live save, on 2026-11-07, was refused: `invalid_argument`, "The dimensions.0.questions.0.additional_instructions field is required", for the two questions whose study held neither instructions nor facts. The skill sends an empty string for them, and Sentl refuses an empty string as missing, though the tool's schema only says the field is a required string. `validate` passed the study, so the refusal came at the first write.
+
+**Approach:** `validate` refuses a question whose judge text, its instructions with its facts, is empty, in a study and in a snapshot, and says why. The design and snapshot playbooks ask for instructions on every question. A text is never filled in for the writer: the judge reads it.
+
+**Tasks:**
+- [x] Test: unit, `validate` refuses a question with no instructions and no facts, in a study and in a snapshot; a question with facts and no instructions passes; the fixtures carry instructions
+- [x] `design._check_question`; DESIGN.md and SNAPSHOT.md; ARCHITECTURE, CHANGELOG
+- [x] Commit and push
+
+**Done when:** the tests are green and the suite passes.
+
 ## R7: Release 0.6.0
 
 **Why:** M24 changes what a name in an answer means, and M25 changes the deck's labels and the order of its actions; M10 and R3e's command-line runs need them released first.

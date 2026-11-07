@@ -87,7 +87,8 @@ replaced by another entry. For each, write in `$S/study.json`:
 One question per dimension, written as the person types it, in the market's language, from the
 catalogue entry's pattern. A question that names no brand contains no alias of the subject or of
 a foil, and has `branded: false`. Five anchors per question, adapted from the entry; the judge
-instructions carry the dated facts. Write `study.json` with `"kind": "snapshot"`:
+instructions say how to apply them and carry the dated facts. Every question has instructions: Sentl
+refuses a question whose instructions are empty. Write `study.json` with `"kind": "snapshot"`:
 
 ```json
 {"schema": "sentl-monitor/study@1", "kind": "snapshot", "subject": {}, "foils": [],
@@ -100,7 +101,7 @@ instructions carry the dated facts. Write `study.json` with `"kind": "snapshot"`
                "dimensions": [{"key": "", "catalogue": "", "name": "", "measures": "", "axis": "stance",
                                "questions": [{"key": "", "label": "", "text": "", "branded": true,
                                               "framing": "neutral", "rubric": {"1": "", "2": "", "3": "", "4": "", "5": ""},
-                                              "instructions": "", "facts": []}]}]}]}
+                                              "instructions": "<how the judge applies the anchors>", "facts": []}]}]}]}
 ```
 
 The project has no `schedule` and `rounds` is 1. `criteria.by` names who approved the rubrics,

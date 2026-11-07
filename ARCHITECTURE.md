@@ -212,7 +212,8 @@ and the first and last collection dates, or `null` when no keyword-data source w
   same thing with opposite leans.
 - `axis` is `stance` (1 against the subject, 5 for it with grounds) or `fidelity` (1 wrong as
   fact, 5 accurate with the conditions the evidence sets). The report explains the score by it.
-- Sentl's `additional_instructions` is composed from `instructions` and the dated `facts`.
+- Sentl's `additional_instructions` is composed from `instructions` and the dated `facts`. Sentl refuses an empty one
+  (`invalid_argument`, "field is required", seen live on 2026-11-07), so `validate` refuses a question with neither.
 - A fact may carry `current` and `outdated` terms, as answers write them; `period` counts the
   answers stating each (§Insights). A foil may carry `domains`, the sites it owns; a cited page
   on one of them, or on a subdomain, is the foil's.

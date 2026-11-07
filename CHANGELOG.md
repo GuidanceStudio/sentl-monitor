@@ -5,6 +5,8 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `validate` refuses a question with neither judge instructions nor facts. Sentl refuses its save with `invalid_argument`,
+  because it treats empty `additional_instructions` as missing, and the refusal used to come at the first write.
 - A name counts in the answer's text, not in a link's address: a link keeps its label and loses its address, a link whose
   label is a domain or an address goes whole, and so do bare addresses. A domain written in a sentence stays a name. An answer
   whose only trace of the subject was a citation such as `[example.it](https://example.it/page)` counted as naming it. Periods

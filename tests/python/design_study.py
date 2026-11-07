@@ -13,7 +13,8 @@ def rubric(branded):
             "5": "Favourable, with grounds from a named source"}
 
 
-def question(key, text, framing="neutral", branded=True, pair=None, facts=None, instructions=""):
+def question(key, text, framing="neutral", branded=True, pair=None, facts=None,
+             instructions="Score how the answer treats the subject, not the category."):
     item = {"key": key, "label": text[:40], "text": text, "branded": branded, "framing": framing,
             "persona": "a shopper comparing plant drinks", "rubric": rubric(branded),
             "instructions": instructions, "lineage": [{"version": 1, "change": "created"}]}
@@ -67,7 +68,7 @@ def clean_study():
         qs = []
         for n, (text, framing, pair) in enumerate(items, 1):
             facts = [dict(PRICE_FACT)] if dkey == "price" and n == 1 else None
-            instr = "Score 1 when the answer states an outdated price." if facts else ""
+            instr = "Score 1 when the answer states an outdated price." if facts else "Score the subject, not the category."
             qs.append(question(f"{dkey}-{n}", text, framing, True, pair, facts, instr))
         brand_dims.append({"key": dkey, "name": name, "search_lean": lean, "axis": "stance", "questions": qs})
     category_dims = [{"key": dkey, "name": name, "search_lean": "none", "axis": "stance",

@@ -157,6 +157,8 @@ REFUSALS = {
     "a schedule": (set_(["projects", 0, "schedule"], "weekly"), "a snapshot has no schedule"),
     "two projects": (lambda s: s["projects"].append(dict(s["projects"][0], key="other")), "one project"),
     "a question over 500 characters": (lambda s: q(s, "price-1").update(text="x" * 501), "price-1: text is 501"),
+    "a question with no judge instructions and no facts": (lambda s: q(s, "reputation-1").update(instructions=""),
+                                                           "reputation-1: the judge has no instructions"),
     "an alias in a question marked as naming no brand": (
         lambda s: q(s, "recommendation-1").update(text="Is Avenello the best oat milk in the US?"),
         "recommendation-1 is marked as naming no brand but contains the alias Avenello"),

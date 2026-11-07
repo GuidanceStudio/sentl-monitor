@@ -82,7 +82,8 @@ five anchors, each an observable property of the answer, adapted from the catalo
 question that names no brand, 2 is *not mentioned* and 1 is *named negatively or advised
 against*.
 
-Judge instructions say how to apply the anchors. Put the dated facts in `facts`, not in the
+Judge instructions say how to apply the anchors, and every question has them: Sentl refuses a question whose
+instructions are empty, and `validate` refuses it first. Put the dated facts in `facts`, not in the
 instructions: `{"fact", "source", "date", "current", "outdated"}`, where `current` and
 `outdated` are the terms as answers write them (`period` counts the answers that state each).
 A fact is read from a primary source and dated the day it was read; a statement from an AI

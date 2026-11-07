@@ -44,7 +44,7 @@ ANSWERS = {
 
 def dimension(key, name, catalogue, text, branded=True, axis="stance", measures="what it measures"):
     facts = [dict(PRICE_FACT)] if catalogue == "price" else None
-    instructions = "Score 1 when the answer states an outdated price." if facts else ""
+    instructions = "Score 1 when the answer states an outdated price." if facts else "Score the subject, not the category."
     item = question(f"{key}-1", text, "neutral", branded, None, facts, instructions)
     return {"key": key, "catalogue": catalogue, "name": name, "axis": axis, "measures": measures, "questions": [item]}
 

@@ -57,8 +57,14 @@ def twin_neutral(study):
     q(study, "health-1").pop("pair")
 
 
+def no_judge_text(s):
+    q(s, "health-1").update(instructions="")
+    q(s, "health-1").pop("facts", None)
+
+
 REFUSALS = {
     "a question without its text": (lambda s: q(s, "health-1").pop("text"), "health-1: text"),
+    "a question with no judge instructions and no facts": (no_judge_text, "health-1: the judge has no instructions"),
     "rounds below one": (set_(["projects", 0, "rounds"], 0), "rounds"),
     "a schedule Sentl does not offer": (set_(["projects", 0, "schedule"], "hourly"), "schedule"),
     "a dimension name over 100 characters": (set_(["projects", 0, "dimensions", 0, "name"], LONG[:101]),
@@ -152,6 +158,13 @@ class ValidateTest(DesignCase, unittest.TestCase):
                 proc = self.validate(mutated(change))
                 self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
                 self.assertIn(f"warning: {expected}", proc.stdout)
+
+    def test_a_question_with_facts_and_no_instructions_passes(self):
+        study = clean_study()
+        item = q(study, "health-1")
+        item.update(instructions="", facts=[dict(PRICE_FACT)])
+        proc = self.validate(study)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
     def test_every_problem_is_listed_not_only_the_first(self):
         def change(study):

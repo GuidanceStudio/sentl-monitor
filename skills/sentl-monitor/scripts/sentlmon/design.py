@@ -100,7 +100,10 @@ def _check_question(q, dim, audience, subject_aliases, problems):
         problems.append(f"{qid}: instructions must be a text")
     elif all(isinstance(f, dict) for f in facts):
         size = len(compose_instructions(q.get("instructions", ""), facts))
-        if size > INSTRUCTIONS:
+        if not size:
+            problems.append(f"{qid}: the judge has no instructions: write them in instructions, since Sentl refuses a "
+                            "question whose additional_instructions are empty")
+        elif size > INSTRUCTIONS:
             problems.append(f"{qid}: judge instructions are {size} characters with their facts, over Sentl's limit "
                             f"of {INSTRUCTIONS}")
     if q.get("branded") is False and _text(q.get("text")):
