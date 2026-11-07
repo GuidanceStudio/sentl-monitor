@@ -553,6 +553,7 @@ Depends on Sentl: the export of several runs in one file with a download link an
 - [ ] ChatGPT (Plus or Pro): whether skills, developer mode and the Sentl connector are available on the plan; where they are, the list of the claude.ai run; where they are not, the README says which plan is needed; Business, Enterprise and Edu are not claimed
 - [~] Codex: `install.sh --host agents`, `codex mcp add`, the truncation limit measured, `report` from the export
 - [~] opencode: install, the MCP spill measured, `adopt` and `report`
+- [ ] Codex and opencode from the command line (`codex exec`, `opencode run`), Sentl's MCP connected to M10's test account by its token: `adopt` on the test project, the size of a `list-runs-tool` and a paged `get-run-results-tool` response measured, `report` from `export-runs-tool`, `check` passed (operator, 2026-11-07)
 - [~] Claude Code: the plugin install from the marketplace, `adopt` and `report`
 - [ ] README support table updated from the recorded results, each in the commit of its run
 - [ ] Commit
@@ -769,6 +770,8 @@ The standalone skill is archived with a README pointing here. Its direct model c
 **Done when:** a folder outside the repository holds a snapshot report and a study report that compares with the snapshot's baseline, both passing `check`, A6 is recorded as verified, and the live tier passes on that folder.
 
 **Blocked (2026-11-07):** the rest needs a run, and no organization designated for tests holds credits. It waits for the operator to add credits or designate one.
+
+**Unblocked (2026-11-07, operator):** the test organization is a new Sentl account on the free plan, with its 100 welcome credits, signed up by the agent in a browser. Its MCP is reached over HTTP with a personal token created in that account, kept in a file outside the repository with mode 600. The operator's instruction is the go for M10's writes and its two runs within those credits; the estimate is still shown before each run, and a run that would spend more than the credits left is not started. The project is archived with `archive-project-tool` at the end, which needs no panel.
 
 ## M11: `compare` two snapshots of one subject ✅
 
@@ -1067,13 +1070,32 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Why:** `first_mention` looks for an alias on word boundaries over the whole answer, links included, so an answer whose only trace of the subject is `[example.it](https://example.it/page)` counts as naming it. A writer found this on a from-zero run: 39 answers counted, 38 naming the subject in their text. Measured on eight projects of three studies: the subject loses 1 answer of 39 in one project and none elsewhere; foils lose up to 3 of 16 and 3 of 9; five projects do not change; no ranking moves.
 
-**Approach (proposed, not started):** names are matched on the answer's prose. Link targets and bare URLs go, and so does a link whose label is a domain; a domain written in a sentence stays a name. The period's schema changes, because a new period would differ from an earlier one by a few answers for this reason alone.
-
-**Waits for:** the operator's go. It changes what `presence` means, and the figures of decks already delivered are counted the old way.
+**Approach (operator's go, 2026-11-07, option A without recomputing the past):** names are matched on the answer's prose. Link targets and bare URLs go, and so does a link whose label is a domain; a domain written in a sentence stays a name. Periods already on file are not rebuilt and stay readable as they are: only periods built from now on use the rule, and each records which rule counted its names, so a later reader can tell the two apart. A comparison between a period counted the old way and one counted the new way differs by a few answers for this reason alone; the operator accepted it.
 
 **Tasks:**
-- [ ] Test: unit, `Reader.position` and `foils_named` on a name in the text, in a link's label, in a link target, in a bare URL and as a domain in a sentence
-- [ ] `prose()` in `common.py`, used by `Reader`; period schema, so an older period is rebuilt
-- [ ] ARCHITECTURE, CHANGELOG; release
+- [ ] Test: unit, `Reader.position` and `foils_named` on a name in the text, in a link's label, in a link target, in a bare URL and as a domain in a sentence; an existing period file without the new record still loads and is not refused
+- [ ] `prose()` in `common.py`, used by `Reader` and by every other count of names in answers; the period records the rule
+- [ ] ARCHITECTURE, CHANGELOG
+- [ ] Commit and push
 
-**Done when:** the tests are green, the suite passes, and a period rebuilt on a real study differs from the old one only by answers holding the name in a link.
+**Done when:** the tests are green, the suite passes, and a period built on a real study's saved runs differs from the old one only by answers holding the name in a link.
+
+## M25: Labels the code draws say what they count, and actions are ranked by their gap
+
+**Why:** the writers of the from-zero decks of 2026-11-07 reported labels they cannot change, because the code draws them: a title about where the assistants read above a table that counts citations; source columns whose counts add up past the answers, with nothing saying an answer can cite several kinds of source; "nessuno" in a column headed by a count of answers. And the deck prints the actions on the subject's own pages first by construction, so on one study the largest gap, 0 answers of 18, came third.
+
+**Approach (operator, 2026-11-07: "mi fido di te"):** each label says what its numbers count; a table whose columns overlap says so under it; a count of zero is written as a count. The actions are printed in the order the writer ranks them, by the size of the gap and the reader's purpose, and each says whether it acts on the subject's own pages or asks a third party. The rule that at least one action acts on the subject's own pages stays.
+
+**Tasks:**
+- [ ] Test: unit, the labels in both languages; the zero; the note under overlapping columns; the actions in the writer's order, each with who acts
+- [ ] `i18n.py`, `deck.py`; DECK.md on ranking; ARCHITECTURE, CHANGELOG
+- [ ] Commit and push
+
+**Done when:** the tests are green and the suite passes, and a deck rendered from a trial folder shows the new labels and order.
+
+## R7: Release 0.6.0
+
+**Why:** M24 changes what a name in an answer means, and M25 changes the deck's labels and the order of its actions; M10 and R3e's command-line runs need them released first.
+
+**Tasks:**
+- [ ] Version 0.6.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
