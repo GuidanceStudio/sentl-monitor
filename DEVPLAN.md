@@ -1039,11 +1039,13 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the test is green and the suite passes.
 
-## M23: A long deck session keeps what it found 🔄
+## M23: A long deck session keeps what it found ✅
 
 **Why:** the same deck written from zero on a three-project study failed twice with its text blank. On 0.4.1 it ran into the 90-minute limit after three compactions and 241 commands. On 0.5.0, with the notes rule below, it ended at 56 minutes: no write in 141 commands, the notes saved once, and a last step that reasoned for 9,112 tokens at 291,000 of context and stopped with no output, having said it was ready to generate the final JSON. The two studies that finished wrote their text in parts. All four runs read the skill's code to learn the rules, because `check` says nothing useful until every marker is gone.
 
 **Measured on 0.5.1 (2026-11-07):** the three-project study passed in 30 minutes and the study that passed once in 29 (46 before). The second run of the three-project study reached the 90-minute limit. Its writing held: the deck passed `check`, PDF written, at minute 14. The other 75 minutes went on five readers and five audits, each with its rewrites, while DECK.md capped readers at two and audits not at all. Audits one and two found false claims, the second one a sentence the first had left; the third read the playbook instead of the data, the fourth returned nothing, the fifth nitpicked. New agents keep finding something, so the rounds do not converge. The limit cut the session inside a rewrite: `deck.json` stood one title over the length limit, ahead of the last passing PDF. No notes file in that run, and its one compaction lost nothing, because the text was already on file.
+
+**Measured on 0.5.2 (2026-11-07):** the three-project study twice, 43 and 53 minutes, and the study that passed once, 59 minutes. All three ended by themselves with `check` passed, 14 pages, and no more than two readers and two audits, plus the retries of agents that came back empty. The first PDF came at about minute 13 in the two runs that logged it. The study at 59 took 29 on 0.5.1: the cap is a ceiling, and this run used both audits.
 
 **Approach:** the writer drafts `found` and `actions` from the figures file alone, before opening an answer or a page, writes one section per command and keeps `history/deck/<date>.notes.md`. A session that starts on a folder with notes reads them first. `deck` says how many texts are left and points to the notes; `check` names the fields left, so nobody needs the code to know what is missing. Two readers and two audits per session, however much the text changes after them, and a session ends on a passing deck: `check` and `pdf --deck` are its last commands. Two audits, not one, because the second found a false sentence.
 
@@ -1057,7 +1059,21 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Test: `test_skill.sh` holds two readers, two audits and the end on a passing deck
 - [x] DECK.md, CHANGELOG
 - [x] Release 0.5.2, install
-- [~] Run the same deck from zero twice on the released version, through opencode, and the study that passed once
+- [x] Run the same deck from zero twice on the released version, through opencode, and the study that passed once
 
 **Done when:** those runs end within the limit with a deck passing `check`.
 
+## M24: A name that stands only inside a link is no name
+
+**Why:** `first_mention` looks for an alias on word boundaries over the whole answer, links included, so an answer whose only trace of the subject is `[example.it](https://example.it/page)` counts as naming it. A writer found this on a from-zero run: 39 answers counted, 38 naming the subject in their text. Measured on eight projects of three studies: the subject loses 1 answer of 39 in one project and none elsewhere; foils lose up to 3 of 16 and 3 of 9; five projects do not change; no ranking moves.
+
+**Approach (proposed, not started):** names are matched on the answer's prose. Link targets and bare URLs go, and so does a link whose label is a domain; a domain written in a sentence stays a name. The period's schema changes, because a new period would differ from an earlier one by a few answers for this reason alone.
+
+**Waits for:** the operator's go. It changes what `presence` means, and the figures of decks already delivered are counted the old way.
+
+**Tasks:**
+- [ ] Test: unit, `Reader.position` and `foils_named` on a name in the text, in a link's label, in a link target, in a bare URL and as a domain in a sentence
+- [ ] `prose()` in `common.py`, used by `Reader`; period schema, so an older period is rebuilt
+- [ ] ARCHITECTURE, CHANGELOG; release
+
+**Done when:** the tests are green, the suite passes, and a period rebuilt on a real study differs from the old one only by answers holding the name in a link.
