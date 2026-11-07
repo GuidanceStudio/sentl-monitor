@@ -281,6 +281,9 @@ has '`stalled`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a stalled run as fi
 has 'history/deck/D.notes.md' "$PAYLOAD/report/DECK.md" "DECK.md has the writer keep its notes on file"
 has 'one section per command' "$PAYLOAD/report/DECK.md" "DECK.md has the writer write one section at a time"
 has 'first draft' "$PAYLOAD/report/DECK.md" "DECK.md has the writer draft before opening answers and pages"
+has 'Two readers in the whole session' "$PAYLOAD/report/DECK.md" "DECK.md stops at two readers, whatever changes after them"
+has 'Two audits in the whole session' "$PAYLOAD/report/DECK.md" "DECK.md stops at two audits"
+has 'ends on a deck that passes' "$PAYLOAD/report/DECK.md" "DECK.md has the session end on a passing deck"
 if grep -q "has no paging" "$PAYLOAD/report/REPORT.md"; then
     bad "REPORT.md still says Sentl's listing has no paging"
 else

@@ -413,8 +413,9 @@ deck to a reader who has seen nothing: a fresh agent if the host can start one, 
 > twice, every number or label you cannot explain, and every chart that does not show what its title says. Do not be polite.
 
 The deck passes when the four answers are right and nothing is quoted on slides 1 to 4. Rewrite what fails, render again, and
-give the new text to a new reader. Two readers are enough: a label the code draws is no reason for a third, so tell the
-operator what the second one still quotes. With no way to start a fresh agent, answer the brief yourself slide by slide, and tell the
+give the new text to a new reader. Two readers in the whole session are enough, however much the text changes after them: a
+label the code draws or a rewrite the audit asked for is no reason for a third, so tell the operator what the second one
+still quotes. With no way to start a fresh agent, answer the brief yourself slide by slide, and tell the
 operator the test was not independent.
 
 ## 8. The audit
@@ -451,8 +452,14 @@ biggest gap with no action gets one, or the `read` of its slide says why none ho
 run `check` and `pdf --deck` again. When the deck already exists and passes, this step is a pass of its own: keep what the
 audit does not report and start nothing over.
 
+Two audits in the whole session are enough, both on this brief and on the data: a second one finds what the first let
+through, and every new agent after that finds something else to report, so the rounds never end. Give the second one the
+deck as the first one's corrections left it, and tell the operator what it reports and you could not settle.
+
+The session ends on a deck that passes: `check` and `pdf --deck` are its last commands, with no change to the text after them.
+
 ## 9. Tell the operator
 
 In the chat, never in the deck: where the copy to send is, the choices open to doubt, anything in the data that looks
-wrong, what you could not check on the subject's site, what the reader's test found, and the results left out for resting on
-too few answers. The operator sends the deck: never send it yourself.
+wrong, what you could not check on the subject's site, what the reader's test and the last audit left open, and the results left
+out for resting on too few answers. The operator sends the deck: never send it yourself.

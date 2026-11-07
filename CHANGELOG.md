@@ -3,6 +3,12 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## 0.5.2 (2026-11-07)
+
+- The deck playbook stops at two readers and two audits per session, however much the text changes after them, and the session
+  ends on a deck that passes `check`. A deck that passed at minute 14 went on through five readers and five audits until the
+  90-minute limit cut it inside a rewrite.
+
 ## 0.5.1 (2026-11-07)
 
 - The deck playbook has the writer draft `found` and `actions` from the figures file alone and write one section per command. A
