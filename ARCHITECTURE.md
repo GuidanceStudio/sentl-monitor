@@ -1169,6 +1169,12 @@ The first four must be enough to decide. The second gives the two or three quest
 words, each with real questions; the third answers them in the same order; every evidence slide carries the question it
 belongs to.
 
+**The second edition.** A deck that follows a final deck adds two slides after what was found. `_second` reads the earlier
+deck's text and the two period files, no run: each block's figure on both dates over the questions the same assistants
+answered in both, grouped by project unless `same_audience`, and a change by `compare.called` with the step of a rate with a
+single previous period. The second slide prints each earlier action, its `read_next` and the writer's `earlier.now`. `check`
+refuses a missing part, a `now` with no figure and a stated cause, since the deck does not know whether the client acted.
+
 **Who writes what.** `deck.py` draws everything that is a figure: cards, charts, tables, sources, the method table,
 every label (`DECK` in `i18n.py`), the list of questions. The writer fills only text, in `reports/<date>.deck.json`. A weaker model can then
 write a weak sentence, but not a wrong chart or a broken page.
@@ -1322,6 +1328,7 @@ next report reads:
 | `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
 | `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
 | the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
+| `reports/<date>.deck.json` of each final report, when it has one | the next deck's second edition |
 | the runs of the latest report's period, as `reports.json` and its period file list them, those it left out under the judged floor included, and every run started after its last run | the previous period's answers (verdict changes, episodes, presence sources) and the runs of the next period |
 
 Before the first final report the pack holds every run, since the first report rebuilds the

@@ -22,6 +22,7 @@ from .charts import span
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
 from .common import REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, write_json, write_text
+from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
 from .insights import page_of as cited_page
@@ -53,6 +54,7 @@ THIRD_PAGES = 12
 LIMITS = {"title": 125, "answer": 170, "read": 210, "what": 175, "why": 175, "read_next": 70, "limit": 170, "ask": 120,
           "who": 90, "question": 90}
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
+CAUSED = re.compile(r"\b(grazie a\w*|per effetto|a causa d\w*|in seguito a\w*|thanks to|as a result of|because of|due to|caused by)\b", re.I)
 SWEEPING = re.compile(r"\b(nessun[aoe]?|assent[ei]|tutt[ei]|mai|sempre|absent|none|never|always|no (?:answer|assistant)s?"
                       r"|rest\w+ fuori|fuori dalle risposte|left out|missing from"
                       r"|every (?:answer|assistant)|all (?:the |\d+ )?(?:answers|assistants))\b", re.I)
@@ -188,6 +190,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--sl-line); vertical-align:
 td.num { font-weight: 700; text-align: center; }
 td.class { font-weight: 700; }
 .actions table { table-layout: fixed; flex: 1; }
+.earlier table { table-layout: fixed; }
 .actions th:nth-child(1), .actions th:nth-child(4) { width: 52px; }
 .actions th:nth-child(2) { width: 43%; }
 .actions td { font-size: 17px; padding: 9px 10px; }
@@ -448,6 +451,62 @@ def _makers(models, names):
     return ", ".join(f"{maker} ({', '.join(shown)})" if maker else ", ".join(shown) for maker, shown in sorted(makers.items()))
 
 
+def _earlier(folder, date):
+    """(date, text) of the latest deck before `date` that passed check and still has its period."""
+    days = {e["date"] for e in folder.reports() if e.get("status") == "final" and e["date"] < date}
+    for day in sorted(days, reverse=True):
+        path = folder.path("reports", f"{day}.deck.json")
+        if path.is_file() and folder.path("history", "periods", f"{day}.json").is_file():
+            text = path.read_text(encoding="utf-8")
+            if TODO not in text:
+                return day, json.loads(text)
+    return None
+
+
+def _counted(study, period, doc):
+    """{(block, question): (project, assistants, figure, base)}, from the period alone: a pack without --full leaves out
+    the runs of the periods before the latest report."""
+    moved, reader, out = doc.get("moved") or {}, Reader(study), {}
+    for proj, dims in measured(study, period):
+        part = period["projects"][proj["key"]]
+        asked = sorted(((period.get("settings") or {}).get(proj["key"]) or {}).get("models") or part["by_model"])
+        name = _short(proj["name"], study["subject"]["label"])
+        for d in dims:
+            for q in d["questions"]:
+                scope = part["dimensions"][d["key"]]["questions"][q["key"]]
+                block = moved.get(q["key"]) or _block(study, reader, q["text"])
+                out[block, q["key"]] = (name, asked, *_measure(block, {**scope["total"], **scope["total"]["presence"]}))
+                facts = None if _later_record(study, q) else scope.get("facts")
+                if facts and (block == "description" or facts["total"]["stating"]):
+                    c = facts["total"]
+                    out["facts", q["key"]] = (name, asked, c["current_only"] + c["both"], c["given"])
+    return out
+
+
+def _change(then, now):
+    """"up", "down" or None, by the step of a rate with a single previous period."""
+    rate, before = now[0] / now[1], then[0] / then[1]
+    return ("up" if rate > before else "down") if called(rate, [before], "presence") else None
+
+
+def _second(folder, study, period, doc):
+    """The deck before this one: its date, each block's figure on both dates, its actions. None for a first edition."""
+    found = _earlier(folder, period["date"])
+    if not found:
+        return None
+    day, earlier = found
+    then, now, sums = _counted(study, load_json(folder.path("history", "periods", f"{day}.json")), earlier), _counted(study, period, doc), {}
+    for key in now.keys() & then.keys():
+        if now[key][1] == then[key][1]:
+            group = sums.setdefault((key[0], None if doc.get("same_audience") else now[key][0]), [0, 0, 0, 0])
+            for i, n in enumerate((*then[key][2:], *now[key][2:])):
+                group[i] += n
+    rows = [{"block": block, "project": project, "before": (a, b), "now": (c, d), "change": _change((a, b), (c, d))}
+            for (block, project), (a, b, c, d) in sorted(sums.items(), key=lambda kv: (BLOCKS.index(kv[0][0]), kv[0][1] or ""))
+            if b and d]
+    return {"date": day, "rows": rows, "actions": [{"what": a["what"], "then": a["read_next"]} for a in earlier["actions"]]}
+
+
 def build_model(folder, study, period, doc=None):
     """What the deck draws, from the period: each block's rows, figures and sources, the method table."""
     doc = doc or {}
@@ -521,7 +580,7 @@ def build_model(folder, study, period, doc=None):
             "monitored": [f["label"] for f in study.get("foils") or []],
             "repeated": any(r["answers"] > r["questions"] * len(r["assistants"]) for r in method),
             "by": (narrative.get("criteria") or {}).get("by"), "first": not (period.get("comparison") or {}).get("previous"),
-            "fidelity": narrative.get("score_axis") == "fidelity",
+            "fidelity": narrative.get("score_axis") == "fidelity", "second": _second(folder, study, period, doc),
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
                        "answers": sum(r["answers"] for r in method)}}
 
@@ -559,10 +618,16 @@ def load(root, date=None):
         raise Refused(f"{doc_path} is not valid JSON ({exc})") from None
 
 
+def _earlier_fields(second):
+    fields = {"date": second["date"], "actions_title": TODO, "now": [TODO for _ in second["actions"]]}
+    return {**fields, "title": TODO, "read": TODO} if second["rows"] else fields
+
+
 def _skeleton(date, m):
     slide = {"title": TODO, "read": TODO, "rows": "dimensions", "dimensions": [], "questions": [], "excerpts": [], "action": None}
     shown = present(m)
-    return {"schema": SCHEMA, "date": date, "same_audience": False, "moved": {},
+    second = {"earlier": _earlier_fields(m["second"])} if m.get("second") else {}
+    return {"schema": SCHEMA, "date": date, "same_audience": False, "moved": {}, **second,
             "opening": {"who": TODO, "questions": {b: TODO for b in shown}, "examples": {b: [] for b in shown}},
             "found": {"title": TODO, "answers": {b: TODO for b in shown}},
             "actions_title": TODO,
@@ -645,6 +710,20 @@ def _plan(m, study, date, lang):
         out += [f"- «{r['question']}»: {r['fact']} ({r['date']}), replaced by: {r['later']} ({r['later_date']})"
                 for r in m["replaced"]]
         out.append("")
+    second = m.get("second")
+    if second:
+        out += [f"## Compared with the deck of {second['date']}", ""]
+        if second["rows"]:
+            out += ["Each block's figure on both dates, on the questions asked of the same assistants. Fill `earlier`: `title` and "
+                    "`read` say what moved.", ""]
+            out += [f"- {r['block']}{' (' + r['project'] + ')' if r['project'] else ''}: {of(*r['before'])} then, {of(*r['now'])} now"
+                    + (f", {r['change']}" if r["change"] else "") for r in second["rows"]]
+        else:
+            out.append("No question was asked of the same assistants on both dates: only the slide of the actions is drawn.")
+        out += ["", "The actions of that deck and the figure each said to read next. Fill `earlier.now`, one per action, with the same "
+                    "figure on this period. Never say an action moved a figure: the deck does not know whether the reader acted.", ""]
+        out += [f"{n}. {a['what']}. Figure then: {a['then']}" for n, a in enumerate(second["actions"], 1)]
+        out.append("")
     return out
 
 
@@ -661,8 +740,8 @@ def _without_answers(material):
 
 
 def write(root, date=None):
-    """The figures file and, the first time, the deck's text to fill. A second run keeps what is written and
-    reads its `moved` and `same_audience`."""
+    """The figures file and, the first time, the deck's text to fill. A second run keeps what is written, reads its
+    `moved` and `same_audience`, and adds `earlier` when a deck before this one has become final."""
     folder, date, study, period, doc = load(root, date)
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
@@ -670,6 +749,8 @@ def write(root, date=None):
     if doc is None:
         path.parent.mkdir(exist_ok=True)
         write_json(path, _skeleton(date, m))
+    elif m.get("second") and "earlier" not in doc:
+        write_json(path, {**doc, "earlier": _earlier_fields(m["second"])})
     material = folder.path("history", "material", f"{date}.md")
     if not material.exists():
         raise Refused(f"no material for {date}: run period --date {date} first")
@@ -696,6 +777,12 @@ def _texts(doc):
     for n, a in enumerate(doc.get("actions") or [], 1):
         for field in ("what", "why", "read_next"):
             yield f"action {n} {field}", field, a.get(field) or ""
+    earlier = doc.get("earlier") or {}
+    for field, limit in (("title", "title"), ("read", "read"), ("actions_title", "title")):
+        if field in earlier:
+            yield f"earlier {field}", limit, earlier[field] or ""
+    for n, text in enumerate(earlier.get("now") or [], 1):
+        yield f"earlier action {n} now", "read_next", text
     for key, slides in (doc.get("blocks") or {}).items():
         for slide in slides:
             yield f"{key} title", "title", slide.get("title") or ""
@@ -738,6 +825,27 @@ def _opening(doc, m):
     problems += [f"{key} has no question in this period: remove it from opening and found"
                  for key in set(questions) | set(answers) if key not in present(m)]
     return problems
+
+
+def _second_edition(doc, m):
+    """The part on the deck before this one: there when one exists, a figure for each of its actions, and no cause."""
+    second, earlier = m.get("second"), doc.get("earlier")
+    if not second:
+        return ["`earlier` is filled and no deck comes before this one: remove it"] if earlier else []
+    if not earlier:
+        return [f"the deck of {second['date']} comes before this one: run deck again and fill `earlier`"]
+    problems = []
+    if earlier.get("date") != second["date"]:
+        problems.append(f"earlier date is {earlier.get('date')} and the deck before this one is of {second['date']}")
+    if second["rows"] and not (earlier.get("title") and earlier.get("read")):
+        problems.append("earlier title and read are missing: they say what moved")
+    now = earlier.get("now") or []
+    if len(now) != len(second["actions"]):
+        problems.append(f"{len(second['actions'])} earlier action(s) and {len(now)} figures in earlier now: give one for each")
+    problems += [f"earlier action {n} now carries no figure" for n, text in enumerate(now, 1) if not re.search(r"\d", text)]
+    told = [(f, text) for f, text in ((k, earlier.get(k) or "") for k in ("title", "read", "actions_title"))] + [("now", t) for t in now]
+    return problems + [f"earlier {field} gives a cause ({found.group(0)}): the deck shows the figures on two dates, and does not "
+                       "know whether the reader acted" for field, text in told for found in CAUSED.finditer(text)]
 
 
 def _structure(doc, m):
@@ -1214,6 +1322,9 @@ def _allowed_figures(m, period):
     scopes = [s for b in period["projects"].values() for s in [b, *b["dimensions"].values()]]
     scopes += [q for b in period["projects"].values() for d in b["dimensions"].values() for q in d["questions"].values()]
     decimals, percents, pairs = _allowed(scopes)
+    for row in (m.get("second") or {}).get("rows") or []:
+        _ratio(*row["before"], percents, pairs)
+        _ratio(*row["now"], percents, pairs)
     for key in present(m):
         block = m["blocks"][key]
         for f in block["figures"]:
@@ -1615,7 +1726,7 @@ def problems_of(folder, study, period, doc):
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
     allowed = _allowed_figures(m, period)
-    problems = _structure(doc, m) + _competitor_sites(doc, study) + _undrawn(doc, m) + _compared(doc, m) + _listed_already(doc, m)
+    problems = _structure(doc, m) + _second_edition(doc, m) + _competitor_sites(doc, study) + _undrawn(doc, m) + _compared(doc, m) + _listed_already(doc, m)
     problems += _why_drawn(doc, m) + _named_sites(doc, study, folder, period) + _voices(doc, m) + _too_few(doc, m)
     problems += _read_on_its_slide(doc, study, folder, period, m) + _own_action(doc, study, folder, period) + _same_rows(doc, m)
     problems += _weak_sites(doc, m) + _worst_shown(doc, m) + _same_examples(doc, m) + _doubts(doc, m) + _amounts(doc, study)
@@ -1988,7 +2099,10 @@ def _questions_slide(page, n, pages, m, t):
 
 def _order(doc, m, t):
     """The slides in reading order: (kind, block, slide)."""
-    order = [("cover", None, None), ("opening", None, None), ("found", None, None), ("actions", None, None)]
+    second = m.get("second")
+    order = [("cover", None, None), ("opening", None, None), ("found", None, None)]
+    order += [("changed", None, None)] * bool(second and second["rows"]) + [("earlier", None, None)] * bool(second)
+    order.append(("actions", None, None))
     for key in present(m):
         order += [(key, key, s) for s in (doc.get("blocks") or {}).get(key) or []]
     if _any_sources(m):
@@ -2131,6 +2245,39 @@ def _method(doc, m, t):
             f'<div class="method-cols"><div>{left}</div><div>{right}</div></div>')
 
 
+def _dates(doc, m, lang):
+    return {"then": fmt_date(m["second"]["date"], lang), "now": fmt_date(doc["date"], lang)}
+
+
+def _moved(row, t):
+    if row["change"]:
+        return t["changed_values"][row["change"]]
+    if row["before"][0] * row["now"][1] == row["now"][0] * row["before"][1]:
+        return t["changed_values"]["same"]
+    return t["changed_values"]["small"].format(step=round(100 * STEPS["presence"][1]))
+
+
+def _table(heads, rows, dates):
+    head = "".join(f"<th>{esc(c.format(**dates))}</th>" for c in heads)
+    body = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
+    return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+
+
+def _changed_slide(doc, m, t, lang):
+    earlier, dates = doc.get("earlier") or {}, _dates(doc, m, lang)
+    rows = [(esc(_asked(doc, r["block"])) + (f'<br><span class="site-why">{esc(r["project"])}</span>' if r["project"] else ""),
+             _of(*r["before"], t), _of(*r["now"], t), esc(_moved(r, t))) for r in m["second"]["rows"]]
+    return (f'{_kicker(t["changed_kicker"].format(**dates))}<h1>{esc(earlier.get("title"))}</h1><p class="read">{esc(earlier.get("read"))}</p>'
+            f'{_table(t["changed_head"], rows, dates)}<p class="note">{esc(t["changed_note"])}</p>')
+
+
+def _earlier_slide(doc, m, t, lang):
+    earlier, dates = doc.get("earlier") or {}, _dates(doc, m, lang)
+    rows = [(esc(a["what"]), esc(a["then"]), esc(now)) for a, now in zip(m["second"]["actions"], earlier.get("now") or [])]
+    return (f'{_kicker(t["earlier_kicker"].format(**dates))}<h1>{esc(earlier.get("actions_title"))}</h1>'
+            f'{_table(t["earlier_head"], rows, dates)}<p class="note">{esc(t["earlier_note"])}</p>')
+
+
 def _slide_html(kind, key, slide, doc, m, order, t, lang):
     subject = m["subject"]
     if kind == "opening":
@@ -2138,6 +2285,10 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
         return _opening_slide(doc, m, t, lang, (lists[0], lists[-1]))
     if kind == "found":
         return _found_slide(doc, m, t)
+    if kind == "changed":
+        return _changed_slide(doc, m, t, lang)
+    if kind == "earlier":
+        return _earlier_slide(doc, m, t, lang)
     if kind == "actions":
         return (f'{_kicker(t["actions_kicker"])}<h1>{esc(doc.get("actions_title") or "")}</h1>{_actions_table(doc, order, m, t)}'
                 f'<p class="note">{esc(_actions_note(doc, m, t))}</p>')

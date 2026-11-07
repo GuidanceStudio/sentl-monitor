@@ -5,6 +5,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- A deck that follows a final deck is a second edition: one slide with each block's figure on both dates, on the questions the
+  same assistants answered in both, and one with the earlier actions, their figure then and the same figure now. `check` refuses
+  a stated cause, because the deck does not know whether the client acted. A pack carries the text of the final decks.
 - `compare <folder> <folder>` writes what changed between two snapshots of one subject that were not promoted: each dimension's
   score and presence on both sides, a change by the rule for a single earlier period, and the limit that two single runs are no
   trend. Questions are matched by id within a project and by text across two, and `check` reads the report.

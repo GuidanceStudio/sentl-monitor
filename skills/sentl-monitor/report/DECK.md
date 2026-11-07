@@ -45,6 +45,8 @@ The deck's slides, in order, for every client:
 7. **How the reading was made**, the method.
 8. **The questions**, all of them.
 
+A deck that follows a final deck has two more slides after **What we found**: **What changed** and **The actions proposed** (§The second edition, in step 5).
+
 ## 1. Preflight
 
 ```bash
@@ -151,7 +153,7 @@ Each action has:
 - `what`: what to write and on which page, naming the pages or domains the answers cite. "Strengthen", "optimise" and
   "make the page answer" name no work: `check` refuses them;
 - `why`: one sentence the manager accepts: what the assistants do today, and why this action bears on it. It carries the figure the action starts from. An action on a third party also says why that site: "the site cited most on these questions, by 25 answers";
-- `read_next`: the figure the next report reads, with its value today. It stays in the file for the next edition and is not printed;
+- `read_next`: the figure the next report reads, with its value today. This deck does not print it: the next edition prints it beside the same figure on its own period;
 - `block`: the block whose slide holds the evidence. Set that slide's `action` to the action's number.
 
 Every `wrong_fact` and `confused` result that qualifies takes a place among the actions, ahead of the last of the others:
@@ -346,6 +348,16 @@ answers, or anything about how the deck was built.
 
 Write the text in the study's `report_language`. An answer whose rating and fact disagree (favourable on an
 answer stating an outdated term) counts by its fact in the deck, and goes in the notes to the operator.
+
+### The second edition
+
+When a deck that passed `check` comes before this one, `deck` adds `earlier` to the text to fill and a section "Compared with the deck of ..." to the figures file. A deck started before that one became final gains the field the next time `deck` runs. The code draws the rest: each block's figure on both dates, on the questions asked of the same assistants in both, and each earlier action with its earlier `read_next`. A figure rose or fell when it moved by 20 points or more.
+
+- `earlier.title` and `earlier.read`: what moved, or that the figures stayed where they were. With no question asked of the same assistants on both dates the slide is not drawn and the fields are not there;
+- `earlier.actions_title`: what the figures of the earlier actions show, as a sentence;
+- `earlier.now`: one text per earlier action, in their order: the same figure `read_next` named, on this period, at most 70 characters. Name what the figure counts, as `read_next` does.
+
+The deck does not know whether the client acted. Write no cause: `check` refuses "grazie a", "per effetto", "thanks to", "as a result of" and their kin in these fields. These two slides come on top of the 12 the deck may hold.
 
 ## 6. Reread, check and render
 

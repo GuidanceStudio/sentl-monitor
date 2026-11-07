@@ -936,7 +936,7 @@ enters the skill only after the operator has seen the result.
   - [x] Sixth round: answers carrying the current term called correct though one added a price the facts do not hold, and an address refused though the study records it as a fact's source. `check` refuses the word and accepts the recorded source
   - [x] Seventh round: a preference no answer states, what the answers say written as fact, a public authority and other sellers named as places to get listed. The playbook holds the three, and the reread names the case of a choice
   - [x] Eighth round: an action told the subject to state a fact a later project had replaced. A fact recorded later with other terms takes its question out of the facts block, the figures file names it, `check` refuses its term
-- [ ] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
+- [x] A second edition: the slide of what changed, and the previous deck's actions read against their figures (`reports/<date>.deck.json` keeps them)
 - [ ] Open the task for interactive screens in Sentl's own board
 
 **Done when:** the operator has accepted a deck produced by the route on each study shape, and `check`
@@ -1004,3 +1004,21 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - Added: the title of the sources slide ranks any site it says the answers cite; a count of a site or a page stands in an action's reason and over a chart, which the writer had been getting past by writing it "delle".
 - A count written in words ("otto delle 18") stays unread: in digits it would be refused with no way to state a true count of a word. The audit brief says so.
 - The final trial decks carry 5 counts with no base, on two of the three decks.
+
+## M21: A second edition of the deck ✅
+
+**Why:** M18 left it open. A client reading the deck again wants to know what moved since the last one and what became of the actions it proposed. `read_next` was written for this and nothing reads it.
+
+**Approach:** when a final deck comes before the period, `deck` adds `earlier` to the text to fill and the deck gains two slides after what was found. The first draws each block's figure on both dates, read from the two period files alone so a study carried in a pack needs no earlier run, on the questions asked of the same assistants in both; a change takes the step of a rate with a single previous period. The second lists the earlier actions: `what` and `read_next` copied by the code, `now` written by the writer as the same figure on this period. The deck never says an action moved a figure: `check` refuses it. The deck does not know whether the client acted.
+
+**Tasks:**
+- [x] Test: unit, the skeleton and the figures file of a second edition carry `earlier`; a first edition does not
+- [x] Test: unit, the figures of both dates on the questions asked of the same assistants, a change by the step, no comparable question leaves only the actions slide
+- [x] Test: unit, `check` refuses a deck that lacks `earlier`, a `now` missing or with no figure, a figure outside the period, a cause; the complete deck passes
+- [x] Test: unit, the slides sit after what was found, and carry the earlier action, its figure then and its figure now
+- [x] Test: unit, a slim pack carries the earlier deck's text and the second edition reads no earlier run
+- [x] Implement; DECK.md, ARCHITECTURE, CHANGELOG; M18's task ticked
+- [x] Commit and push
+
+**Done when:** a fictional study with two decks renders a second edition whose two slides pass `check`, and a first edition is unchanged.
+
