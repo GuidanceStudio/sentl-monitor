@@ -39,9 +39,9 @@ host that deletes its files when the conversation ends.
 
 | Host | Install with | Status |
 |---|---|---|
-| Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin install is not yet tested. |
-| opencode | `./install.sh --host agents` | Not yet tested: it installs, and `adopt` and `report` have not been run there. |
-| Codex | `./install.sh --host agents` | Not yet tested: it installs; a report reads Sentl's run export (`import`), which has not been run there. |
+| Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin installs from the marketplace and `report` works on it. |
+| opencode | `./install.sh --host agents` | Partly tested: `report` and `deck` work from a study's saved files. `adopt` and Sentl's MCP have not been run there. |
+| Codex | `./install.sh --host agents` | Partly tested: `report` works from a study's saved files. Sentl's MCP and its run export (`import`) have not been run there. |
 | claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report reads Sentl's run export, which has not been run there. |
 | ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report reads Sentl's run export, which has not been run there. |
 

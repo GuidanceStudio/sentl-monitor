@@ -551,13 +551,17 @@ Depends on Sentl: the export of several runs in one file with a download link an
 **Tasks:**
 - [ ] claude.ai (Pro or Max): connector answering; the release zip uploaded as a skill; `doctor` reports the sandbox; `adopt` on a project with runs; the size of a `list-runs-tool` response and of a paged `get-run-results-tool` response measured against the host's limit; `report` from `export-runs-tool` and `download`, or the attached file and `import`; `pack`; a new conversation with the pack in the Project's files; `report` again; `snapshot` end to end
 - [ ] ChatGPT (Plus or Pro): whether skills, developer mode and the Sentl connector are available on the plan; where they are, the list of the claude.ai run; where they are not, the README says which plan is needed; Business, Enterprise and Edu are not claimed
-- [ ] Codex: `install.sh --host agents`, `codex mcp add`, the truncation limit measured, `report` from the export
-- [ ] opencode: install, the MCP spill measured, `adopt` and `report`
-- [ ] Claude Code: the plugin install from the marketplace, `adopt` and `report`
+- [~] Codex: `install.sh --host agents`, `codex mcp add`, the truncation limit measured, `report` from the export
+- [~] opencode: install, the MCP spill measured, `adopt` and `report`
+- [~] Claude Code: the plugin install from the marketplace, `adopt` and `report`
 - [ ] README support table updated from the recorded results, each in the commit of its run
 - [ ] Commit
 
-**Recorded runs:** none yet.
+**Recorded runs:**
+- 2026-11-07, Claude Code 2.1.319, skill 0.5.0: the plugin installed from the marketplace at project scope; a headless session read the skill from the plugin's folder, filled the fictional study's report from its saved files, and `check` passed on the first run. `adopt` not run through the plugin; the payload is byte-identical to the `install.sh` copy, where it ran.
+- 2026-11-07, Codex 0.164.0 (`gpt-6.1-sol`), skill 0.5.0 by `install.sh --host agents`: the fictional study's report, 4 minutes, `check` passed. Not run: `codex mcp add`, the truncation limit and `report` from the export, which need the operator's login to Sentl on that host.
+- 2026-11-07, opencode 1.18.32 (DeepSeek V4.1 Flash), skill 0.5.0: the fictional study's report, 1 minute, `check` passed; decks of three real studies from zero, see M23. Not run: the MCP spill and `adopt`, because Sentl's MCP is not connected on that host.
+- claude.ai and ChatGPT: not run, they need the operator on his accounts.
 
 **Done when:** every host in the README's table is backed by a recorded run on the released version.
 
