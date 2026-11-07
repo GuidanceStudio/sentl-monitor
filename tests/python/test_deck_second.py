@@ -73,6 +73,23 @@ class SkeletonTest(SecondCase):
         self.assertEqual(kept["earlier"]["now"], [deck.TODO])
 
 
+class ProgressTest(DeckCase, unittest.TestCase):
+    """A session the host compacts starts again: `deck` tells it where the text stands."""
+
+    def said(self):
+        return self.cli("deck", "--study", self.study, "--date", DATE, check=0).stdout
+
+    def test_deck_counts_the_texts_left_to_write(self):
+        self.assertRegex(self.said(), r"\d+ texts left")
+        self.save_doc(self.filled())
+        self.assertIn("0 texts left", self.said())
+
+    def test_deck_names_the_notes_of_an_earlier_session(self):
+        self.assertNotIn("notes", self.said())
+        (self.study / "history" / "deck" / f"{DATE}.notes.md").write_text("Risultati letti.", encoding="utf-8")
+        self.assertIn(f"{DATE}.notes.md", self.said())
+
+
 class FiguresTest(SecondCase):
 
     def test_the_rows_are_the_figures_of_both_dates(self):

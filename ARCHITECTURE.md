@@ -42,6 +42,7 @@ is a new version inside the same folder, so the history stays in one place.
     periods/<YYYY-MM-DD>.first.json the halves of a first period with no earlier one (and .second.json)
     material/<YYYY-MM-DD>.md        the figures and candidate answers the insights are written from
     deck/<YYYY-MM-DD>.figures.md    the figures of the deck and of the material, with the answers taken out
+    deck/<YYYY-MM-DD>.notes.md      what the writer has found so far, for a session that starts again
     reports.json                    index of reports: period, runs, status
     last-report.json                outcome of the latest `report` invocation
   reports/<YYYY-MM-DD>.md        the reports

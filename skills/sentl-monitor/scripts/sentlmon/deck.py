@@ -758,7 +758,9 @@ def write(root, date=None):
     figures.parent.mkdir(exist_ok=True)
     write_text(figures, "\n".join(_plan(m, study, date, lang) + _without_answers(material.read_text(encoding="utf-8"))) + "\n")
     blocks = ", ".join(f"{b} ({len(m['blocks'][b]['placed'])} questions)" for b in present(m))
-    return f"Blocks: {blocks}. Figures: {figures}. To fill: {path}."
+    notes = folder.path("history", "deck", f"{date}.notes.md")
+    earlier = f" Notes of an earlier session: {notes}. Read them first." if notes.exists() else ""
+    return f"Blocks: {blocks}. Figures: {figures}. To fill: {path}, {path.read_text(encoding='utf-8').count(TODO)} texts left.{earlier}"
 
 
 # --- the check --------------------------------------------------------------

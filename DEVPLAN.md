@@ -1035,3 +1035,18 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the test is green and the suite passes.
 
+## M23: A long deck session keeps what it found 🔄
+
+**Why:** a deck written from zero on a three-project study ran into the 90-minute limit with its text still blank. Each time the host compacted the session the writer lost what it had read and started again: the playbook read eight times, the figures file and the same pages over and over, nothing saved. The two other studies finished in 47 minutes only because they needed fewer compactions.
+
+**Approach:** the writer keeps `history/deck/<date>.notes.md` and fills the deck file when the actions stand, not at the end. A session that starts on a folder with notes reads them first. `deck` says how many texts are left and points to the notes, so a restarted session sees where it stands.
+
+**Tasks:**
+- [x] Test: unit, `deck` says how many texts are left and names the notes when they exist; `test_skill.sh` holds the playbook to it
+- [x] `deck.py` and DECK.md; ARCHITECTURE, CHANGELOG
+- [x] Commit and push
+- [x] Release 0.5.0, install
+- [~] Run the same deck from zero again on the released version, through opencode
+
+**Done when:** that run ends within the limit with a deck passing `check`.
+

@@ -3,11 +3,13 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.5.0 (2026-11-07)
 
 - A deck that follows a final deck is a second edition: one slide with each block's figure on both dates, on the questions the
   same assistants answered in both, and one with the earlier actions, their figure then and the same figure now. `check` refuses
   a stated cause, because the deck does not know whether the client acted. A pack carries the text of the final decks.
+- The deck playbook has the writer keep `history/deck/<date>.notes.md` and fill the deck as soon as the actions stand, and `deck`
+  prints the texts left and names the notes. A session the host compacted used to lose what it had read and start again.
 - A refused count in a sentence naming an assistant says that its base is that assistant's answers alone, and the deck playbook
   asks the writer to name what a base counts.
 - `compare <folder> <folder>` writes what changed between two snapshots of one subject that were not promoted: each dimension's

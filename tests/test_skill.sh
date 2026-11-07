@@ -278,6 +278,7 @@ has '`researching`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run i
 has '`judging`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in judging"
 has '`failed`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a failed run as final with no results"
 has '`stalled`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a stalled run as final with no results"
+has 'history/deck/D.notes.md' "$PAYLOAD/report/DECK.md" "DECK.md has the writer keep its notes on file"
 if grep -q "has no paging" "$PAYLOAD/report/REPORT.md"; then
     bad "REPORT.md still says Sentl's listing has no paging"
 else
