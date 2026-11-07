@@ -306,6 +306,9 @@ to, the sources, the method and the list of every question. The script draws eve
 written for the client's marketing manager, in their words, and a fresh reader must understand it before it goes out. The
 copy to send is `reports/share/<Subject> + Sentl.ai - monitoring deck (<start> to <end>).pdf`.
 
+A deck that follows a final deck adds two slides after what was found: each block's figure on both dates, and the earlier actions
+with their figure then and now. The deck does not say an action moved a figure, because it does not know whether the client acted.
+
 Before an action names a page, the assistant reads it with `monitor.py page --url <address>`, which prints what the page's HTML
 holds, tooltips and closed answers included. An audit run by another agent goes in `history/deck/<date>.audit.md`, and the
 writer works from it.

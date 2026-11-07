@@ -752,7 +752,7 @@ The standalone skill is archived with a README pointing here. Its direct model c
 **Approach:** after M9. In the organization the operator designates for tests, with the credits `get-organization-tool` shows, on a subject the operator picks, in a folder outside the repository and never named in it. The preflight counts the organization's projects against the limit of issue #2. `snapshot <subject>`: estimate shown, one run on the go; the session is ended after the go and a new one resumes and follows the run through its statuses, recorded as A2's live observation; the results are read once in pages and compared with the whole response, and R3d's page fixture is corrected if the envelope differs; the report passes `check`. Then `promote` with the operator's answers, `setup` dry run and the questions and schedule saved on the go with the project left paused, `trigger-run-tool` once on the go, and `report`, which compares the period with the snapshot's baseline and passes `check`; then the pause, `close`, and the operator archives the project in the panel. Two runs of four or five questions; the credits spent are read from `get-organization-tool` before and after and recorded against the two estimates. Each outcome goes into ARCHITECTURE with the date and the skill version.
 
 **Tasks:**
-- [ ] Preflight, read-only: `list-organizations`, `get-organization-tool` (credits), `list-projects-tool` (count against the limit), `list-runs-tool` of an existing project read through M9's schema, and whether a judgment in `get-run-results-tool` carries the judge's report (G5); recorded
+- [x] Preflight, read-only: `list-organizations`, `get-organization-tool` (credits), `list-projects-tool` (count against the limit), `list-runs-tool` of an existing project read through M9's schema, and whether a judgment in `get-run-results-tool` carries the judge's report (G5); recorded 2026-11-07: a live listing reads through M9's schema with no never-seen line, and a judgment carries `judge_report`
 - [ ] `snapshot <subject>` to the go; the session ended; a new session resumes and follows the run; the statuses seen recorded (A2 live)
 - [ ] The results read once in pages, compared with the whole response; the page fixture corrected if the envelope differs (R3d)
 - [ ] The snapshot report passes `check`; A6 recorded (the run started on a project never active, or what it took)
@@ -763,6 +763,8 @@ The standalone skill is archived with a README pointing here. Its direct model c
 - [ ] Commit
 
 **Done when:** a folder outside the repository holds a snapshot report and a study report that compares with the snapshot's baseline, both passing `check`, A6 is recorded as verified, and the live tier passes on that folder.
+
+**Blocked (2026-11-07):** the rest needs a run, and no organization designated for tests holds credits. It waits for the operator to add credits or designate one.
 
 ## M11: `compare` two snapshots of one subject ✅
 
