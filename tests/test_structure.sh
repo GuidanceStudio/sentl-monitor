@@ -68,7 +68,7 @@ assert_file "skills/sentl-monitor/scripts/sentlmon/__init__.py"
 echo ""
 echo "=== README: an install section per host and a support table ==="
 # Until a host's run is recorded in the devplan (R3e), its row says "Not yet tested"; "Partly tested"
-# needs that recorded run. The support table opens the README, under "What works today".
+# and "Tested" need that recorded run. The support table opens the README, under "What works today".
 README_ROWS=$(awk '/^## What works today$/ {on=1; next} on && /^## / {exit} on && /^\| / {print}' "$REPO_ROOT/README.md")
 for host in "Claude Code" opencode Codex claude.ai ChatGPT; do
     row=$(grep -F "| $host |" <<<"$README_ROWS")
@@ -76,7 +76,7 @@ for host in "Claude Code" opencode Codex claude.ai ChatGPT; do
         bad "the support table has a row for $host"
     elif [ "$host" = "Claude Code" ]; then
         if grep -q "| Tested" <<<"$row"; then ok "the support table marks Claude Code tested"; else bad "the support table marks Claude Code tested"; fi
-    elif grep -q "| Partly tested" <<<"$row"; then
+    elif grep -qE "\| (Partly tested|Tested)" <<<"$row"; then
         if grep -q "^- [0-9-]*, $host " "$REPO_ROOT/DEVPLAN.md"; then ok "the devplan records the run behind $host's row"; else bad "the devplan records the run behind $host's row"; fi
     elif grep -q "| Not yet tested" <<<"$row"; then
         ok "the support table marks $host not yet tested"

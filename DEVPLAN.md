@@ -109,7 +109,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 ### Phase E — One Sentl skill
 - M8: One Sentl skill: set up, snapshot, status zero — `promote` turns a snapshot into a monitored study.
 - M9: Read Sentl as its MCP documents it today — the nine run statuses, the ids on each response, the run-list filters, the error codes.
-- M10: A live snapshot, promoted — the routes of Phases D and E run on Sentl before they are released.
+- M10: A live snapshot, and a project that follows it — the routes of Phases D and E run on Sentl. Done 2026-11-07 on 0.6.0.
 - M11: `compare` two snapshots of one subject — built when a second snapshot of one subject exists.
 
 ### Phase F — Release to every Sentl user
@@ -551,9 +551,9 @@ Depends on Sentl: the export of several runs in one file with a download link an
 **Tasks:**
 - [ ] claude.ai (Pro or Max): connector answering; the release zip uploaded as a skill; `doctor` reports the sandbox; `adopt` on a project with runs; the size of a `list-runs-tool` response and of a paged `get-run-results-tool` response measured against the host's limit; `report` from `export-runs-tool` and `download`, or the attached file and `import`; `pack`; a new conversation with the pack in the Project's files; `report` again; `snapshot` end to end
 - [ ] ChatGPT (Plus or Pro): whether skills, developer mode and the Sentl connector are available on the plan; where they are, the list of the claude.ai run; where they are not, the README says which plan is needed; Business, Enterprise and Edu are not claimed
-- [~] Codex: `install.sh --host agents`, `codex mcp add`, the truncation limit measured, `report` from the export
-- [~] opencode: install, the MCP spill measured, `adopt` and `report`
-- [ ] Codex and opencode from the command line (`codex exec`, `opencode run`), Sentl's MCP connected to M10's test account by its token: `adopt` on the test project, the size of a `list-runs-tool` and a paged `get-run-results-tool` response measured, `report` from `export-runs-tool`, `check` passed (operator, 2026-11-07)
+- [x] Codex: `install.sh --host agents`, Sentl's MCP added (by `-c` on the command line, the same entry `codex mcp add` writes), `report` from the export. Codex's truncation limit was not measured: the run read the results through the export, so no large response passed through the conversation
+- [x] opencode: install, the MCP response sizes measured, `adopt` and `report`
+- [x] Codex and opencode from the command line (`codex exec`, `opencode run`), Sentl's MCP connected to M10's test account by its token: `adopt` on the test project, the size of a `list-runs-tool` and a paged `get-run-results-tool` response measured, `report` from `export-runs-tool`, `check` passed (operator, 2026-11-07)
 - [~] Claude Code: the plugin install from the marketplace, `adopt` and `report`
 - [ ] README support table updated from the recorded results, each in the commit of its run
 - [ ] Commit
@@ -562,6 +562,8 @@ Depends on Sentl: the export of several runs in one file with a download link an
 - 2026-11-07, Claude Code 2.1.319, skill 0.5.0: the plugin installed from the marketplace at project scope; a headless session read the skill from the plugin's folder, filled the fictional study's report from its saved files, and `check` passed on the first run. `adopt` not run through the plugin; the payload is byte-identical to the `install.sh` copy, where it ran.
 - 2026-11-07, Codex 0.164.0 (`gpt-6.1-sol`), skill 0.5.0 by `install.sh --host agents`: the fictional study's report, 4 minutes, `check` passed. Not run: `codex mcp add`, the truncation limit and `report` from the export, which need the operator's login to Sentl on that host.
 - 2026-11-07, opencode 1.18.32 (DeepSeek V4.1 Flash), skill 0.5.0: the fictional study's report, 1 minute, `check` passed; decks of three real studies from zero, see M23. Not run: the MCP spill and `adopt`, because Sentl's MCP is not connected on that host.
+- 2026-11-07, opencode 1.18.32 (DeepSeek V4.1 Flash), skill 0.6.0 by `install.sh --host agents`, `opencode run` with Sentl's MCP as a remote server in `opencode.json` and the token read from the environment: a snapshot resumed in a new session and reported in 6 minutes; `adopt` and `report` on the test project in 5 minutes; `check` passed on both. A second, unattended invocation recorded `nothing_new` and wrote nothing. The whole `get-run-results-tool` response is 71.5 KB for 12 answers; pages of 5 are 37, 27 and 7 KB.
+- 2026-11-07, Codex 0.164.0 (`gpt-6.1-sol`), skill 0.6.0 by `install.sh --host agents`, `codex exec` with Sentl's MCP given by `-c mcp_servers.sentl.url` and `bearer_token_env_var`: `adopt` and `report` from `export-runs-tool` and its download in 6 minutes, `check` passed. Unattended, `codex exec` needs `--approve-for-me`, or every MCP call is refused with "requires approval", and `sandbox_workspace_write.network_access=true` for the export's download.
 - claude.ai and ChatGPT: not run, they need the operator on his accounts.
 
 **Done when:** every host in the README's table is backed by a recorded run on the released version.
@@ -750,7 +752,7 @@ The standalone skill is archived with a README pointing here. Its direct model c
 
 **Deviations:** an answer with null ids whose text a version holds keeps its question: a question deleted and written again has the same wording, and only one no version holds is listed as deleted. `dimension_id` is tried after the text, which keeps the `match` values and differs only for a renamed dimension. §Periods has no margin to subtract: `started_after` is inclusive and is the previous report's last run; with a run recorded as unavailable the listing is not narrowed. Pages of a listing go to `--saved` together, and `pending` reads `runs-<id>.pN.json`. Live listing of 2026-11-07 read without a never-seen line: 7 runs, 5 `stalled`.
 
-## M10: A live snapshot, promoted, on the test organization
+## M10: A live snapshot, and a project that follows it, on the test organization ✅
 
 **Why:** `snapshot`, `resume`, `close`, `promote` and the pages of `get-run-results-tool` have run only on fixtures; assumption A6 (a run starts on a project that was never active) is unverified; the live tier under `tests/live/` is skipped. 0.2.0 (R6) claims these routes.
 
@@ -758,16 +760,18 @@ The standalone skill is archived with a README pointing here. Its direct model c
 
 **Tasks:**
 - [x] Preflight, read-only: `list-organizations`, `get-organization-tool` (credits), `list-projects-tool` (count against the limit), `list-runs-tool` of an existing project read through M9's schema, and whether a judgment in `get-run-results-tool` carries the judge's report (G5); recorded 2026-11-07: a live listing reads through M9's schema with no never-seen line, and a judgment carries `judge_report`
-- [ ] `snapshot <subject>` to the go; the session ended; a new session resumes and follows the run; the statuses seen recorded (A2 live)
-- [ ] The results read once in pages, compared with the whole response; the page fixture corrected if the envelope differs (R3d)
-- [ ] The snapshot report passes `check`; A6 recorded (the run started on a project never active, or what it took)
-- [ ] `promote` with the operator's answers; `setup` dry run, questions and schedule saved on the go, project left paused; `trigger-run-tool` once on the go; `report` compares the period with the snapshot's baseline and passes `check`
-- [ ] Pause, `close`; the project archived in the panel by the operator; the credits spent recorded against the two estimates
-- [ ] `RUN_LIVE=1`: `test_snapshot_live.py` and `test_setup_live.py` pass on the folder; a live test that fails is fixed, or its expectation corrected, test first
-- [ ] ARCHITECTURE §Assumptions (A2, A6) and §`snapshot <subject>`; README's `snapshot` row says it has run; CHANGELOG
-- [ ] Commit
+- [x] `snapshot <subject>` to the go; the session ended; a new session resumes and follows the run; the statuses seen recorded (A2 live). Recorded 2026-11-07 on skill 0.6.0: the snapshot created with `create-snapshot-tool`, its run started on the go; opencode resumed the folder in a new session and reached the report in 6 minutes. `trigger-run-tool` returns `queued`; the listing then shows `researching` (12 expected, 4 received), `judging` (12 received, 1 judged) and `completed` with 12 of 12 judged. Each of the two runs completed in under a minute.
+- [x] The results read once in pages, compared with the whole response; the page fixture corrected if the envelope differs (R3d). Same answers; each page's `content_sha256` verified; `ingest --pages` writes the same run as `--results`. The envelope carries `total_answers`, which the fixture lacks: a field added, so the fixture stays. The whole response is 71.5 KB for 12 answers; pages of 5 are 37, 27 and 7 KB.
+- [x] The snapshot report passes `check`; A6 recorded: the run started on a snapshot that was never active, and the skill set no schedule. Sentl's response gives `schedule_frequency: daily` for a snapshot created through the MCP, which has no schedule; recorded for Sentl to answer.
+- [x] Following the subject: a snapshot in Sentl cannot become a project (M13), so `promote` does not apply. `setup` on a fictional study of the same subject: dry run, then the project created, its questions and weekly schedule saved, the project left paused; `trigger-run-tool` once on the go; `adopt` and `report` on opencode and on Codex (R3e), `check` passed on both. The first questions save was refused: Sentl requires judge instructions on every question (fixed in M26).
+- [x] The snapshot kept (`close --saved`); the project archived with `archive-project-tool`, which freed the plan's one slot; each run spent the 24 credits its estimate showed
+- [x] `RUN_LIVE=1`: setup 6 of 6; snapshot 8 of 8 once its closing expectation was corrected test first (`closed` records `how` and `closed_at` since M13); report 4 of 4 on both host folders; scheduled 6 of 6 after a second unattended invocation recorded `nothing_new`. Insights, charts and halves need weeks of runs: 15 of 15 on a copy of a real study's history.
+- [x] ARCHITECTURE §Assumptions (A2, A6) and §`snapshot <subject>`; README's `snapshot` row says it has run; CHANGELOG
+- [x] Commit
 
-**Done when:** a folder outside the repository holds a snapshot report and a study report that compares with the snapshot's baseline, both passing `check`, A6 is recorded as verified, and the live tier passes on that folder.
+**Done when:** a folder outside the repository holds a snapshot report and the report of a project that follows the subject, both passing `check`, A6 is recorded as verified, and the live tier passes on those folders.
+
+**Deviations:** the project's report does not compare with the snapshot's baseline, because a snapshot is no longer promoted (M13) and the project's first report has no earlier period. Comparing periods stays covered by `report`'s fixtures and by the history-based live tests on a real study.
 
 **Blocked (2026-11-07):** the rest needs a run, and no organization designated for tests holds credits. It waits for the operator to add credits or designate one.
 

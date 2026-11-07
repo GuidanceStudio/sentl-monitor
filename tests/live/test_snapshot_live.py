@@ -1,5 +1,5 @@
 """Live tier: a snapshot folder produced by running the snapshot route in an organization the operator
-designates for tests: estimate, one run on the operator's go, the report, the pause.
+designates for tests: estimate, one run on the operator's go, the report, and how the snapshot was closed.
 
 The assistant runs the route, since only it holds the MCP connection and the operator's go for every
 write and for the run; this test verifies what it left. It also settles assumption A6: a run started
@@ -96,11 +96,11 @@ class LiveSnapshotTest(unittest.TestCase):
         self.assertTrue(all(p >= 0 for p in positions) and positions == sorted(positions))
         self.assertEqual(text.find(f". {SECTIONS[lang]['changes']}\n"), -1)
 
-    def test_the_project_is_paused_and_closed_for_the_operator_to_archive(self):
-        self.assertEqual(self.bound["closed"]["archive"], "operator")
-        self.assertTrue(self.bound["closed"]["paused_at"])
+    def test_the_snapshot_is_closed_kept_archived_or_deleted_and_never_active(self):
+        self.assertIn(self.bound["closed"]["how"], ("kept", "archived", "deleted"))
+        self.assertTrue(self.bound["closed"]["closed_at"])
         version = read(sorted((self.study / "history" / "versions").glob(f"{self.key}-*.json"))[-1])
-        self.assertFalse(version["settings"]["active"], "the project was left active")
+        self.assertFalse(version["settings"]["active"], "the snapshot was left active")
 
 
 if __name__ == "__main__":

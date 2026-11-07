@@ -33,15 +33,15 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record that its project is paused), `pdf` (the report as a page and a PDF, and the copy to send), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the report as a page and a PDF, and the copy to send), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a report needs), `pending` (says whether an unattended report has a run to report on) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
 | Host | Install with | Status |
 |---|---|---|
 | Claude Code | the plugin, or `./install.sh --host claude` | Tested with `install.sh`: `adopt` and `report` work. The plugin installs from the marketplace and `report` works on it. |
-| opencode | `./install.sh --host agents` | Partly tested: `report` and `deck` work from a study's saved files. `adopt` and Sentl's MCP have not been run there. |
-| Codex | `./install.sh --host agents` | Partly tested: `report` works from a study's saved files. Sentl's MCP and its run export (`import`) have not been run there. |
+| opencode | `./install.sh --host agents` | Tested with Sentl's MCP as a remote server: `snapshot`, `adopt`, `report` and `deck` work, also unattended with `opencode run`. |
+| Codex | `./install.sh --host agents` | Tested with Sentl's MCP: `adopt` and `report` from Sentl's run export work. Unattended, `codex exec` needs `--approve-for-me`, or it refuses every call to Sentl, and network access in its sandbox to download the export. |
 | claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report reads Sentl's run export, which has not been run there. |
 | ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report reads Sentl's run export, which has not been run there. |
 

@@ -3,6 +3,13 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- `snapshot`, `setup`, `adopt` and `report` ran on Sentl on a test organization with 0.6.0: a snapshot, its run and report,
+  then a project for the same subject, its run and the report on opencode and on Codex. The README's support table says so
+  for opencode and Codex. Codex run with `codex exec` needs `--approve-for-me` and network access in its sandbox.
+- The live test of `snapshot` reads how a snapshot was closed (`kept`, `archived` or `deleted`) instead of a pause.
+
 ## 0.6.0 (2026-11-07)
 
 - `validate` refuses a question with neither judge instructions nor facts. Sentl refuses its save with `invalid_argument`,

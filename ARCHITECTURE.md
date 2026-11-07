@@ -701,8 +701,8 @@ tool and spends nothing.
 
 ### `snapshot <subject>`
 
-A one-off check in its own folder: a small study, one Sentl project, one run, one report,
-and nothing left running in Sentl. `study.json` carries `"kind": "snapshot"`. Invoked again
+A one-off check in its own folder: a small study, one snapshot in Sentl, one run, one report,
+and nothing left running in Sentl. Run end to end on Sentl on 2026-11-07 with skill 0.6.0 (M10). `study.json` carries `"kind": "snapshot"`. Invoked again
 in the same folder, the route resumes at the first step whose output is missing: no
 `study.json` → design; no binding in `sentl.json`, or a binding with no question → project; no
 run → cost and go; a run open → follow it; a completed run not in `history/runs/`, or an ingested
@@ -712,8 +712,9 @@ run with no final report → report; no `closed` in `sentl.json` → archive.
 playbook; it needs `--runs` once the project holds questions, and refuses a listing of another
 project.
 
-The last step offers a choice. `monitor.py promote --answers <json> --models <list-ai-models>` turns a
-finished snapshot whose project is not closed into a monitored study: `kind` becomes `study`; the
+The last step offers a choice (step 10). For a snapshot created as a project before Sentl had
+snapshots, `monitor.py promote --answers <json> --models <list-ai-models>` turns it, finished and
+not closed, into a monitored study: `kind` becomes `study`; the
 schedule, `report_every`, the audience and the project's question and decision come from the
 operator's answers; each dimension gets a theme whose origin is `probe` (the snapshot of that date);
 questions, rubrics and rounds are untouched; `sentl.json` is untouched and `closed` is never written.
@@ -742,11 +743,11 @@ stay in `history/`, so the first `report` of the study compares its period with 
 5. **Gate.** `monitor.py validate` in snapshot mode (below) and `monitor.py review`, which
    writes `study-review.md` with the questions, the rubrics and a credit estimate from the
    tariffs. Stops for the operator's approval.
-6. **Project.** `create-project-tool` with the name `Snapshot · <subject> · <date>` and
-   neither `is_active` nor `schedule_frequency`, so the project is created paused with no
-   schedule. `save-project-questions-tool` with `dry_run: true`, then for real.
-   `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
-   `monitor.py payload` builds both calls in snapshot mode: `create-project-tool` carries the
+6. **Snapshot.** `create-snapshot-tool` with the name `Snapshot · <subject> · <date>`, its
+   models and one round; a snapshot takes none of the plan's project slots and has no schedule.
+   `save-project-questions-tool` with `dry_run: true`, then for real, with the snapshot's id as
+   `project_id`. `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
+   `monitor.py payload` builds both calls in snapshot mode: `create-snapshot-tool` carries the
    name, models and rounds only, and the questions call is the one `setup` builds.
 7. **Cost.** `estimate-run-tool`: credits per researcher model, the
    total, the credits available in the organization, and whether the run can start. Shown
@@ -1501,8 +1502,8 @@ convenience.
 | # | Assumption | Status |
 |---|---|---|
 | A1 | After a question is edited in Sentl, the results of an earlier run show the text asked at the time. If they showed the current text, earlier runs not yet ingested would be matched to the new wording. | Verified 2026-10-16 on read-only data. Sentl allocates question ids in sequence across an account. In a project whose questions were reworded after its earliest run, the reworded questions kept their ids inside the project's contiguous id range, so they were edited in place, not replaced. Read after the edit, that earliest run returns the earlier texts for those questions, and every later run returns the current ones. So an earlier run's responses carry the wording asked then: inside a detected version's window they match the earlier text, and in a run older than the first recorded version they are `unmatched` (§Matching). |
-| A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Documented in the tool descriptions, read 2026-10-24: `queued`, `pending`, `researching`, `running`, `judging` open; `completed`, `completed_with_warnings`, `failed`, `stalled` final. `stalled` seen live on 2026-11-07, with `expected` set, `received` and `judged` 0 and Sentl's error; the open statuses are still to be seen on a live run (M10). |
+| A2 | Run statuses other than `completed` and `completed_with_warnings`, and which of them are final. | Documented in the tool descriptions, read 2026-10-24: `queued`, `pending`, `researching`, `running`, `judging` open; `completed`, `completed_with_warnings`, `failed`, `stalled` final. `stalled` seen live on 2026-11-07, with `expected` set, `received` and `judged` 0 and Sentl's error. Seen live on 2026-11-07 (M10, skill 0.6.0): `trigger-run-tool` returns `queued`, then the listing shows `researching` with answers arriving, `judging` with all answers in, and `completed` with every answer judged, within a minute for a run of 12 answers. |
 | A3 | With more than one round, each round appears as a separate response with no round number. | Replaced 2026-11-07: each answer carries `round`, from 1, seen live; `ingest` counts rounds by answers only on a response without it. |
 | A4 | Sentl's run score is the mean of the dimension means, each the mean of the dimension's judged answers, rounded to one decimal. | Verified 2026-10-16 on 7 runs and documented in the tool descriptions on 2026-10-24. The mean of all judged answers, assumed while designing, differed on one of them (4.05 against a run score of 4.0). |
 | A5 | Responses of a model later removed from `list-ai-models` keep its id. | Verified 2026-10-16: older runs carry a model id no longer listed. |
-| A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, on a new go of the operator, and pauses it once the run is open; whether pausing lets an open run complete is not known either. | Unverified: it needs a live write. `tests/live/test_snapshot_live.py` checks, on the folder a live snapshot leaves, that a run was ingested for a project that was never active. |
+| A6 | `trigger-run-tool` starts a run on a paused project (`is_active: false`), so a snapshot project never needs a schedule. If it does not, `snapshot` activates the project only for the run, on a new go of the operator, and pauses it once the run is open; whether pausing lets an open run complete is not known either. | Verified on 2026-11-07 (M10, skill 0.6.0): a run started on a snapshot that was never active, and completed; the skill set no schedule. Sentl's response gives `schedule_frequency: daily` for a snapshot created through the MCP, which has no schedule. `tests/live/test_snapshot_live.py` checks, on the folder a live snapshot leaves, that a run was ingested for a project that was never active. |
