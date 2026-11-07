@@ -198,6 +198,7 @@ td.class { font-weight: 700; }
 .many-actions td { font-size: 15.5px; padding: 5px 10px; line-height: 1.25; }
 .note { margin: 0; font-size: 15.5px; color: var(--sl-muted); }
 .site-why { font-size: .9em; color: var(--sl-muted); }
+.who { font-size: .85em; font-weight: 700; color: var(--sl-muted); }
 .sources table { font-size: 17px; }
 .sources th { font-size: 14.5px; }
 .sources td { padding: 18px 10px; }
@@ -1872,7 +1873,7 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
             out.append(f'<div class="group">{esc(group)}</div>')
         label = f'<div>{esc(row["label"])}</div>'
         if key == "reach":
-            foils = ", ".join(f"{name} {n}" for name, n in row["foils"]) or t["none"]
+            foils = ", ".join(f"{name} {n}" for name, n in row["foils"]) or "0"
             out.append(f'{label}{_meter(row["named"], row["given"])}'
                        f'<div class="fig">{_of(row["named"], row["given"], t)}</div><div class="foils">{esc(foils)}</div>')
         elif key == "description":
@@ -2184,42 +2185,30 @@ def _why_site(action, n, doc, m, t, slide=None, page=False):
     return " ".join(lines)
 
 
-def _numbers(doc, m):
-    """{place in the file: number on the page}. The subject's own pages come first: they depend on the reader alone, and a
-    ranking by a weight nobody sees earns "why this one first?"."""
-    actions = doc.get("actions") or []
-    ranked = sorted(range(1, len(actions) + 1), key=lambda n: _is_third(actions[n - 1], m["author"]))
-    return {n: shown for shown, n in enumerate(ranked, 1)}
-
-
-def _actions_note(doc, m, t):
-    kinds = {_is_third(a, m["author"]) for a in doc.get("actions") or []}
-    order = t["actions_order"].format(subject=m["subject"]) + " " if kinds == {True, False} else ""
-    return order + t["actions_note"]
-
-
 def _actions_table(doc, order, m, t):
+    """The actions in the writer's order, which ranks them by the answers and the part of the reader's purpose each moves,
+    each marked as work on the subject's own pages or a request to a third party: the reader controls only the first."""
     head = "".join(f"<th>{esc(c)}</th>" for c in t["actions_head"])
     rows = ""
-    numbers = _numbers(doc, m)
-    for n in sorted(numbers, key=numbers.get):
-        a = doc["actions"][n - 1]
+    for n, a in enumerate(doc.get("actions") or [], 1):
         slide = _evidence(order, a, n)
         site = _why_site(a, n, doc, m, t, slide=slide)
         site = f'<br><span class="site-why">{esc(site)}</span>' if site else ""
-        rows += (f'<tr><td class="num">{numbers[n]}</td><td>{esc(a.get("what"))}</td><td>{esc(a.get("why"))}{site}</td>'
-                 f'<td class="num">{slide}</td></tr>')
+        who = t["action_who"]["third" if _is_third(a, m["author"]) else "owned"].format(subject=m["subject"])
+        rows += (f'<tr><td class="num">{n}</td><td><span class="who">{esc(who)}</span><br>{esc(a.get("what"))}</td>'
+                 f'<td>{esc(a.get("why"))}{site}</td><td class="num">{slide}</td></tr>')
     return f"<table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>"
 
 
 def _sources_table(doc, m, t, subject):
     head = "".join(f"<th>{esc(c.format(subject=subject))}</th>" for c in t["sources_head"])
     named = " ".join(a.get("what") or "" for a in doc.get("actions") or [])
-    rows, told = [], False
+    rows, told, overlap = [], False, False
     for key in present(m):
         s = m["blocks"][key]["sources"]
         if not s["with_sources"]:
             continue
+        overlap = overlap or s["owned"] + s["foil"] + s["third"] > s["with_sources"]
         n = s["answers"]
         cells = "".join(f'<td><span class="fig">{_of(s[k], n, t)}</span>{_meter(s[k], n, True)}</td>' for k in ("owned", "foil", "third"))
         # A site an action names is on the slide, whatever its rank: the reader asks why that one.
@@ -2228,14 +2217,15 @@ def _sources_table(doc, m, t, subject):
         naming = (s.get("third_naming") or {}) if key == "reach" else {}
         told = told or bool(naming)
         domains = ", ".join(t["site_naming"].format(domain=d, n=n, k=naming[d], subject=subject) if d in naming else f"{d} ({n})"
-                            for d, n in shown.items()) or t["none"]
+                            for d, n in shown.items()) or "0"
         rows.append(f'<tr><td class="class">{esc(t["groups"][key].format(subject=subject))}</td>{cells}<td>{esc(domains)}</td></tr>')
     table = f'<table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
     pages = Counter()
     for key in present(m):
         pages.update(dict(m["blocks"][key]["sources"]["owned_pages"]))
     cited = ", ".join(f"{p} ({n})" for p, n in sorted(pages.items(), key=lambda kv: (-kv[1], kv[0]))[:4])
-    note = t["site_naming_note"].format(subject=subject) + " " if told else ""
+    note = t["sources_overlap"] + " " if overlap else ""
+    note += t["site_naming_note"].format(subject=subject) + " " if told else ""
     note += t["owned_pages"].format(subject=subject, pages=cited) if cited else ""
     return table + (f'<p class="note">{esc(note.strip())}</p>' if note else "")
 
@@ -2305,7 +2295,7 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
         return _earlier_slide(doc, m, t, lang)
     if kind == "actions":
         return (f'{_kicker(t["actions_kicker"])}<h1>{esc(doc.get("actions_title") or "")}</h1>{_actions_table(doc, order, m, t)}'
-                f'<p class="note">{esc(_actions_note(doc, m, t))}</p>')
+                f'<p class="note">{esc(t["actions_note"])}</p>')
     if kind == "sources":
         sources = doc.get("sources") or {}
         return (f'{_kicker(t["sources_kicker"])}<h1>{esc(sources.get("title"))}</h1><p class="read">{esc(sources.get("read"))}</p>'
@@ -2323,7 +2313,7 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
            + _quotes(slide.get("excerpts"), t, m["names"], [_rating(e, m, key) for e in slide.get("excerpts") or []]))
     n = slide.get("action")
     if n is not None and 1 <= n <= len(doc.get("actions") or []):
-        label = t["action"].format(n=_numbers(doc, m)[n])
+        label = t["action"].format(n=n)
         site = _why_site(doc["actions"][n - 1], n, doc, m, t, page=True)
         out += f'<div class="strip"><b>{esc(label)}:</b> {esc(doc["actions"][n - 1].get("what"))}{" " + esc(site) if site else ""}</div>'
     return out

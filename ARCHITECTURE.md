@@ -1235,8 +1235,13 @@ name a page and not guess what a site covers. An action on a third party also ca
 the providers it lists, or the wrong figure it shows. Many pages the assistants cite are a seller's own catalogue, where nobody else
 gets listed, and only opening them tells: a rule asking the writer to open them was ignored, so `check` requires the record, refuses
 a page listing fewer than two others, and the deck prints it. A correction needs a page read to show the wrong figure, on the
-subject's own site too: answers with an old figure cite pages that hold no figure at all. The deck numbers the actions on the subject's own pages first, because
-an order the reader cannot state earns "why this one first?" (`_numbers`). A question with fewer than three answers counts in its topic and in the list of
+subject's own site too: answers with an old figure cite pages that hold no figure at all. The deck prints the actions in the
+writer's order, which ranks them by the answers and the part of the reader's purpose each moves, and marks each, from the
+domains its `what` names, as work on the subject's own pages or a request to a third party: sorting the own pages first had
+put the largest gap of one study, 0 answers of 18, third. The labels the code draws say what their numbers count: the sources
+slide is headed by how many answers cite each source; a note under its table says that an answer can cite more than one kind
+of source when its columns overlap, since they then add up past the answers citing; a cell under a count of answers with
+nothing to count prints 0, never a word. A question with fewer than three answers counts in its topic and in the list of
 questions, and draws no row and no excerpt: one answer of two is no finding. A deck with unfavourable answers shows one, and its
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the

@@ -10,6 +10,12 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   whose only trace of the subject was a citation such as `[example.it](https://example.it/page)` counted as naming it. Periods
   built from now on record the rule as `names_counted_in`; periods on file are read as they are and not rebuilt, a deck drawn
   from one counts names as it did, and `period` tells the operator when it compares with one.
+- The deck prints the actions in the writer's order and marks each as work on the subject's own pages or a request to a
+  third party. It used to print the own pages first, which put the largest gap of one study, 0 answers of 18, third. `check`
+  still requires one action on the subject's own pages.
+- The sources slide is headed "How many answers cite each source" ("Quante risposte citano ogni fonte"), and a note under its
+  table says that an answer can cite more than one kind of source when its columns overlap. A cell under a count of answers
+  with nothing to count prints 0 instead of "none".
 
 ## 0.5.2 (2026-11-07)
 

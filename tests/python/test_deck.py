@@ -950,8 +950,9 @@ class AmountShownTest(DeckCase, unittest.TestCase):
             self.assertEqual(deck._amounts(doc, {}), [])
 
 
-class OwnPagesFirstTest(DeckCase, unittest.TestCase):
-    """A ranking by a weight nobody can see earns "why this one first?": the order is one the reader can state."""
+class ActionOrderTest(DeckCase, unittest.TestCase):
+    """The writer ranks the actions by the answers and the part of the reader's purpose each moves, and the deck keeps
+    that order: sorting the subject's own pages first put the largest gap of one study third. Each action says who acts."""
 
     def doc(self):
         doc = self.filled()
@@ -961,29 +962,86 @@ class OwnPagesFirstTest(DeckCase, unittest.TestCase):
         doc["blocks"]["description"][0]["action"] = 1
         return doc
 
-    def test_the_subjects_own_pages_come_first(self):
-        doc = self.doc()
-        m = deck.build_model(*self.model_args(doc))
-        self.assertEqual(deck._numbers(doc, m), {1: 2, 2: 1})
-
-    def test_the_table_and_the_slides_print_the_same_number(self):
+    def rows(self):
         self.save_doc(self.doc())
         text = deck.page_of(self.study, DATE)[0]
-        table = text.split("<tbody>")[1]
-        self.assertLess(table.index("avenello.example"), table.index("prezzi.example"))
-        self.assertIn("<b>Azione 2:</b> Chiedere a prezzi.example", text)
+        table = text.split('<section class="slide actions')[1].split("<tbody>")[1].split("</tbody>")[0]
+        return text, table.split("</tr>")[:2]
 
-    def test_the_note_says_the_order(self):
-        self.save_doc(self.doc())
-        self.assertIn("Prima le azioni sulle pagine di Avenello", deck.page_of(self.study, DATE)[0])
+    def test_the_table_keeps_the_writers_order_and_says_who_acts(self):
+        _, (first, second) = self.rows()
+        self.assertIn('<td class="num">1</td>', first)
+        self.assertIn("Chiedere a prezzi.example", first)
+        self.assertIn("Richiesta a un sito di terzi", first)
+        self.assertIn("Pubblicare una pagina di confronto su avenello.example", second)
+        self.assertIn("Sulle pagine di Avenello", second)
 
-    def test_a_list_of_one_kind_needs_no_order(self):
-        self.save_doc(self.filled())
-        self.assertNotIn("Prima le azioni", deck.page_of(self.study, DATE)[0])
+    def test_a_slide_prints_the_number_the_table_does(self):
+        text, _ = self.rows()
+        self.assertIn("<b>Azione 1:</b> Chiedere a prezzi.example", text)
+        self.assertIn("<b>Azione 2:</b> Pubblicare una pagina di confronto", text)
+
+    def test_no_note_states_an_order_the_writer_did_not_give(self):
+        text, _ = self.rows()
+        self.assertNotIn("Prima le azioni", text)
+
+    def test_english_says_who_acts(self):
+        study = self.read("study.json")
+        study["report_language"] = "en"
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        _, (first, second) = self.rows()
+        self.assertIn("A request to a third-party site", first)
+        self.assertIn("On Avenello's own pages", second)
+
+    def test_one_action_on_the_subjects_own_pages_is_still_required(self):
+        doc = self.doc()
+        doc["actions"] = doc["actions"][:1]
+        doc["blocks"]["reach"][0]["action"] = None
+        self.assertIn("every action asks a third party", self.problems(doc))
 
     def test_a_text_never_names_an_action_by_number(self):
         doc = self.filled(sources={"title": "Le pagine citate sono soprattutto di altri siti", "read": "L'azione 2 riguarda queste fonti."})
         self.assertIn("by its number", self.problems(doc))
+
+
+def _sources(owned, foil, third, with_sources, third_domains=()):
+    return {"with_sources": with_sources, "answers": 6, "owned": owned, "foil": foil, "third": third,
+            "third_domains": [{"domain": d, "answers": n} for d, n in third_domains], "third_all": dict(third_domains),
+            "third_naming": {}, "owned_pages": []}
+
+
+def _model(sources):
+    return {"subject": "Avenello", "fidelity": False,
+            "blocks": {"reach": {"rows": [{}], "sources": sources}, "description": {"rows": []}, "facts": {"rows": []}}}
+
+
+class DrawnLabelsTest(unittest.TestCase):
+    """A label the code draws says what its numbers count: the writer cannot change it."""
+
+    def test_the_sources_slide_says_its_numbers_count_answers_citing(self):
+        self.assertEqual(deck.DECK["it"]["sources_kicker"], "Quante risposte citano ogni fonte")
+        self.assertEqual(deck.DECK["en"]["sources_kicker"], "How many answers cite each source")
+
+    def test_a_count_of_answers_with_nothing_to_count_is_0(self):
+        row = {"project": "P", "label": "Chi vende bevande all'avena?", "foils": [], "named": 0, "given": 2}
+        for lang, word in (("it", "nessuno"), ("en", "none")):
+            with self.subTest(lang):
+                t = deck.DECK[lang]
+                drawn = deck._rows("reach", [row], t, lang, _model({}), False, 0)
+                self.assertIn('<div class="foils">0</div>', drawn)
+                table = deck._sources_table({"actions": []}, _model(_sources(1, 0, 0, 1)), t, "Avenello")
+                self.assertIn("<td>0</td></tr>", table)
+                self.assertNotIn(word, drawn + table)
+
+    def test_columns_that_overlap_carry_a_note(self):
+        for lang, note in (("it", "Una risposta può citare più tipi di fonte"),
+                           ("en", "An answer can cite more than one kind of source")):
+            with self.subTest(lang):
+                t = deck.DECK[lang]
+                overlapping = _model(_sources(2, 1, 2, 3, [("guida.example", 2)]))
+                self.assertIn(note, deck._sources_table({"actions": []}, overlapping, t, "Avenello"))
+                apart = _model(_sources(1, 0, 2, 3, [("guida.example", 2)]))
+                self.assertNotIn(note, deck._sources_table({"actions": []}, apart, t, "Avenello"))
 
 
 class LivePageTest(unittest.TestCase):
@@ -1609,6 +1667,11 @@ class RenderTest(DeckCase, unittest.TestCase):
     def test_a_slide_lists_the_third_parties_the_reader_can_ask(self):
         self.assertIn("prezzi.example (1)", self.page())
         self.assertIn("Altri siti più citati", self.page())
+
+    def test_the_sources_slide_says_what_its_numbers_count(self):
+        text = self.page()
+        self.assertIn('<div class="kicker">Quante risposte citano ogni fonte</div>', text)
+        self.assertNotIn("Dove leggono", text)
 
     def test_a_slide_on_one_or_two_dimensions_draws_their_questions(self):
         doc = self.filled()

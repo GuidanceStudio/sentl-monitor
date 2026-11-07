@@ -41,7 +41,7 @@ The deck's slides, in order, for every client:
 3. **What we found**: the same questions in the same order, each with its answer and its figure.
 4. **What to do**: three to five actions, each with its reason.
 5. **The evidence**, block by block: each slide carries the question it belongs to, and shows the real answers.
-6. **Where the assistants read**, the sources.
+6. **How many answers cite each source**, the sources.
 7. **How the reading was made**, the method.
 8. **The questions**, all of them.
 
@@ -146,8 +146,8 @@ Write three to five actions, in `actions`. Rank them by how many answers and how
 (`narrative.purpose`, each project's `decision`) they touch. If `themes` or `search-demand.json` carry search volumes,
 use them to break ties. A wrong fact or a confusion comes first, then the largest gaps, where the subject is absent or a
 competitor is chosen, then what is missing on topics mostly favourable: "0 of 18" before "12 of 18 favourable". The deck
-prints the actions on the subject's own pages first, since they depend on the reader alone, then those asking a third
-party, and says so; within each group it keeps your rank. So never refer to an action by its number.
+prints the actions in your order and marks each one, from the domains its `what` names, as work on the subject's own pages
+or a request to a third party. Never refer to an action by its number: `check` refuses it.
 
 The reader controls the subject's own pages and can only ask everywhere else, so at least one action acts on them: `check`
 refuses a deck whose actions all ask third parties. Look for it in what the answers about the subject lack: a price the answers

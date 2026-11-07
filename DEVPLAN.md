@@ -1080,16 +1080,16 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the tests are green, the suite passes, and a period built on a real study's saved runs differs from the old one only by answers holding the name in a link.
 
-## M25: Labels the code draws say what they count, and actions are ranked by their gap
+## M25: Labels the code draws say what they count, and actions are ranked by their gap ✅
 
 **Why:** the writers of the from-zero decks of 2026-11-07 reported labels they cannot change, because the code draws them: a title about where the assistants read above a table that counts citations; source columns whose counts add up past the answers, with nothing saying an answer can cite several kinds of source; "nessuno" in a column headed by a count of answers. And the deck prints the actions on the subject's own pages first by construction, so on one study the largest gap, 0 answers of 18, came third.
 
 **Approach (operator, 2026-11-07: "mi fido di te"):** each label says what its numbers count; a table whose columns overlap says so under it; a count of zero is written as a count. The actions are printed in the order the writer ranks them, by the size of the gap and the reader's purpose, and each says whether it acts on the subject's own pages or asks a third party. The rule that at least one action acts on the subject's own pages stays.
 
 **Tasks:**
-- [ ] Test: unit, the labels in both languages; the zero; the note under overlapping columns; the actions in the writer's order, each with who acts
-- [ ] `i18n.py`, `deck.py`; DECK.md on ranking; ARCHITECTURE, CHANGELOG
-- [ ] Commit and push
+- [x] Test: unit, the labels in both languages; the zero; the note under overlapping columns; the actions in the writer's order, each with who acts
+- [x] `i18n.py`, `deck.py`; DECK.md on ranking; ARCHITECTURE, CHANGELOG
+- [x] Commit and push
 
 **Done when:** the tests are green and the suite passes, and a deck rendered from a trial folder shows the new labels and order.
 
