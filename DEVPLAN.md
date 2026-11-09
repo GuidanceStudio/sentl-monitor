@@ -111,11 +111,13 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - M9: Read Sentl as its MCP documents it today — the nine run statuses, the ids on each response, the run-list filters, the error codes.
 - M10: A live snapshot, and a project that follows it — the routes of Phases D and E run on Sentl. Done 2026-11-07 on 0.6.0.
 - M11: `compare` two snapshots of one subject — built when a second snapshot of one subject exists.
+- M27: Personas from evidence, and Google suggestions in the snapshot — who asks, built in `brief` and carried to every question.
 
 ### Phase F — Release to every Sentl user
 - R0, R1, R2, R4, R5, R3a, R3b, R3d: done; 0.1.0 released 2026-10-19 with `adopt` and `report`.
 - R6: Release 0.2.0 — the routes of Phases B to E in the zip Sentl users download.
 - R7: Release 0.3.0 — the deck route in the zip Sentl users download. Done 2026-11-05.
+- R8: Release 0.7.0 — M27 in the zip Sentl users download.
 - R3e: Each host tested before the README says it is supported — claude.ai first; the announcement to Sentl users waits for it.
 
 ## Out of scope
@@ -1116,3 +1118,32 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Tasks:**
 - [x] Version 0.6.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+
+## M27: Personas from evidence, and Google suggestions in the snapshot 🔄
+
+**Why:** asked by the operator on 2026-11-09. On a study of that day the personas were built by hand: who asks, in what situation, what they decide, how they type it, and the Google suggestions that show each one exists. Three of them changed the study's shape: customers asking how to cancel, buyers for companies, job seekers. The skill holds none of this. `brief` records only a choice among `generic_consumer`, `personas`, `stakeholders` and `mixed`; `design` asks for a free-text `persona` on each question, tied to no list; a snapshot has neither personas nor search demand, and its questions come from the catalogue's patterns. Regulators, consumer associations and the press are easily taken for personas, though the assistants cite them rather than being asked by them.
+
+**Approach:**
+- `brief` gains a persona inventory beside the theme inventory, in `seeds.json` and in `brief.md`. Each persona has `id`, `label`, `group` (who chooses, who is already a customer, who buys for others, who works there, or one the operator names), `situation`, `decision`, `asks` (one or two questions as the persona types them) and `seeds` (the searches that persona would type). `demand autocomplete` sends persona seeds as it sends theme seeds and records the suggestions under the persona; `demand summary` prints them. A persona with no suggestion stays, and `brief.md` marks it as without search evidence. Bodies the assistants cite and nobody asks as (regulators, consumer associations, press) go in `sources_to_watch`, never in the personas.
+- `design`: `study.json` carries `personas` copied from the brief. With an audience of `personas`, `stakeholders` or `mixed`, a question's `persona` is an id from that list, and `validate` refuses one that is not. DESIGN.md §Projects groups projects by the personas they serve, with questions that name the brand and questions that name none in different projects; the mix stays a warning. `review` and `method` print each persona with its situation and its questions.
+- `snapshot`: after the dimensions, the operator names who will read the report and the persona behind each question, one line each. One seed per dimension goes to `demand autocomplete`, and the question starts from the top suggestion and the persona's situation. A host with no network skips the suggestions and the report's method says so. `validate` in snapshot mode requires a persona on every question.
+- Files written before M27 read as before: `seeds@1` and `study@1` gain optional fields, and a study with no `personas` list keeps its free-text personas.
+
+**Tasks:**
+- [ ] Test: unit — `seeds.json` with personas: `demand autocomplete` records each persona's suggestions, `summary` prints them, a persona with none is marked; `sources_to_watch` is kept apart
+- [ ] Test: unit — `validate` refuses a question whose persona is not in `personas`; a study written before M27, with free-text personas and no list, still passes; snapshot mode refuses a question with no persona
+- [ ] Test: unit — `review` and `method` print the personas with their situations and questions
+- [ ] Test: structure — BRIEF.md holds the persona inventory and `sources_to_watch`; DESIGN.md the grouping of projects by persona; SNAPSHOT.md the persona line and the suggestion step
+- [ ] Implement in `demand.py`, `design.py`, `snapshot.py`, `method.py`, `schema.py`; BRIEF.md, DESIGN.md, SNAPSHOT.md; the fictional example study gains three personas; ARCHITECTURE, README, CHANGELOG
+- [ ] Commit and push
+
+**Done when:** the suite passes; a fictional brief with three personas writes their suggestions to `search-demand.json` and a persona table to `brief.md`; a fictional study with a question whose persona is outside the list is refused; a fictional snapshot carries a persona and a question built from a suggestion on every dimension.
+
+## R8: Release 0.7.0
+
+**Why:** M27 changes what `brief`, `design` and `snapshot` write and check; Sentl users get it through the release zip.
+
+**Tasks:**
+- [ ] Version 0.7.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+
+**Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.0.
