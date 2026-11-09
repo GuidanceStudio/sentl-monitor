@@ -1139,11 +1139,11 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the suite passes; a fictional brief with three personas writes their suggestions to `search-demand.json` and a persona table to `brief.md`; a fictional study with a question whose persona is outside the list is refused; a fictional snapshot carries a persona and a question built from a suggestion on every dimension.
 
-## R8: Release 0.7.0
+## R8: Release 0.7.0 🔄
 
 **Why:** M27 changes what `brief`, `design` and `snapshot` write and check; Sentl users get it through the release zip.
 
 **Tasks:**
-- [ ] Version 0.7.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+- [~] Version 0.7.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.0.

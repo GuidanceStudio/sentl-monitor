@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.7.0 (2026-11-09)
 
 - `brief` builds a persona inventory beside the theme inventory. `seeds.json` may list `personas` (id, label, group, situation,
   decision, the questions each types and its search seeds) and `sources_to_watch` (regulators, consumer associations, the
