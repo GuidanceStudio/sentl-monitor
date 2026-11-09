@@ -160,15 +160,18 @@ def _limits(period, lang):
     return [first.format(date=fmt_date(period["from"], lang)), "", second]
 
 
-def _questions(study, projects, lang):
+def _suggestions_lost(folder):
+    """A snapshot whose seeds were written and whose search demand holds no suggestion for any dimension:
+    Google could not be reached when its questions were written."""
+    return folder.path("seeds.json").exists() and not any(demand.recorded(folder.root)[0].values())
+
+
+def _questions(study, projects, lang, lost):
     """Each question with who asks it (a persona of the list by its label) and the Google suggestion it
-    started from. A snapshot whose questions have no suggestion says so first."""
+    started from. With `lost`, the section first says Google's suggestions could not be collected."""
     t = TEXT[lang]
     labels = {p["id"]: p["label"] for p in study.get("personas") or []}
-    asked = [q for _, dims in projects for d in dims for q in d["questions"]]
-    lines = []
-    if study.get("kind") == "snapshot" and not any(q.get("suggestion") for q in asked):
-        lines += [t["no_suggestions"], ""]
+    lines = [t["no_suggestions"], ""] if lost else []
     for _, dims in projects:
         for d in dims:
             lines += [f"**{d['name']}**", ""]
@@ -341,7 +344,8 @@ def write(root, date, models_file, force=False):
         "themes": lambda: _themes(study, projects, folder, lang),
         "dimensions": lambda: (_snapshot_dimensions if study.get("kind") == "snapshot" else _dimensions)(
             study, projects, lang),
-        "questions": lambda: _questions(study, projects, lang),
+        "questions": lambda: _questions(study, projects, lang,
+                                        study.get("kind") == "snapshot" and _suggestions_lost(folder)),
         "scoring": lambda: _scoring(study, projects, lang),
         "findings": lambda: _findings(projects, lang),
         "changes": lambda: _changes(period, lang, study["projects"]),

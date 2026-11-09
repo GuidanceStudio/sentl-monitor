@@ -52,7 +52,10 @@ is a new version inside the same folder, so the history stays in one place.
 
 A snapshot folder has the same layout without `brief.md` and `volumes.json`, and holds one run
 and one report. Its `seeds.json` holds one seed per dimension and its `search-demand.json` their
-Google suggestions; on a host with no network neither is written.
+Google suggestions. On a host with no network, `seeds.json` is written before `demand
+autocomplete` runs, and `autocomplete` writes `search-demand.json` with no suggestion in any
+dimension's block before it exits 1. A snapshot made before personas and suggestions has
+neither file.
 
 On a host that deletes its files when the conversation ends, the folder travels between
 conversations as a pack (§Hosts without a lasting folder).
@@ -607,8 +610,9 @@ the list above it refuses a pair with other than two questions or whose framings
 positive and one negative, a missing `persona` when the audience is `personas` or
 `stakeholders`, a `persona` absent from the study's `personas` list when the audience is
 `personas`, `stakeholders` or `mixed` and the list exists, a `personas` value of another type
-than a list, a persona that lacks a field or repeats an id, a blank `suggestion`, and a
-dimension with no question. A question's judge instructions are counted
+than a list, a persona that lacks a field or repeats an id, a blank `suggestion` or one that
+`search-demand.json` records under no theme and no persona (compared after folding case and
+accents), and a dimension with no question. A question's judge instructions are counted
 as Sentl receives them: the instructions followed by the dated facts with their `current` and
 `outdated` terms (`compose_instructions`). A snapshot `study.json` is checked by the snapshot
 mode of `validate` and `review` (§`snapshot <subject>`); any other `kind` is refused with exit 2. Answers per question and model per report period is
@@ -797,7 +801,8 @@ stay in `history/`, so the first `report` of the study compares its period with 
    suggestion. The question starts from it and from the persona's situation, and records it in
    `suggestion`. A host with no network skips the suggestions: the questions come from the
    catalogue entry's pattern alone, and the report's questions section says the suggestions
-   could not be collected. One question per dimension, written as the person types it,
+   could not be collected. It says so only when the folder holds `seeds.json` and its
+   `search-demand.json` is missing or holds no suggestion for any dimension. One question per dimension, written as the person types it,
    from the catalogue entry's pattern, in the market's language. Five anchors per question,
    adapted from the entry; judge instructions carry the dated facts. Researcher models are
    the operator's choice from a saved `list-ai-models` response, with each model's tariff
@@ -836,7 +841,9 @@ an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a que
 as naming no brand; a model id absent from `list-ai-models`; rounds other than 1; a
 schedule; a narrative without research question and purpose; a study with other than one
 project; a dimension without `measures` or without an entry in `design_rationale`; a question
-without a `persona`; duplicate keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
+without a `persona`; a `suggestion` that `search-demand.json` does not record under the
+question's dimension; a question with no `suggestion` when its dimension's block there holds
+one; duplicate keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
 period do not apply.
 
 **Reading a snapshot.** Its one project mixes questions that name the subject with questions
@@ -1125,7 +1132,7 @@ the order they appear.
 | `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired, in one sentence, or one line per project (its questions, assistants, times each question is asked per run, how often it runs) when the projects differ in any of these; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
 | `themes` | Where the themes came from: themes grouped by origin, the themes that share an identical origin (kind and detail) on one line; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
 | `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why, and each persona of the study's list with its situation and its questions. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
-| `questions` | The questions: per dimension, verbatim, paired questions side by side, each with who asks it (a persona of the list by its label) and the Google suggestion it started from. A snapshot whose questions have no suggestion says that Google's suggestions could not be collected | `method` |
+| `questions` | The questions: per dimension, verbatim, paired questions side by side, each with who asks it (a persona of the list by its label) and the Google suggestion it started from. A snapshot whose folder holds `seeds.json` and whose `search-demand.json` is missing or holds no suggestion says that Google's suggestions could not be collected | `method` |
 | `scoring` | How the answers are scored: a rubric that several questions share stated once for them with all five anchors, and per dimension what a 5, a 3 and a 1 mean for the other questions; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
 | `summary` | In short: three to five plain sentences, a bulleted list, each stating one point with its figure | the agent, written last, from the findings and changes |
 | `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |

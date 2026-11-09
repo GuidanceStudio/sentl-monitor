@@ -126,6 +126,9 @@ REFUSALS = {
                                                     "persona parent: situation"),
     "two personas with one id": (lambda s: s["personas"][1].update(id="parent"), "duplicate persona id parent"),
     "personas that are not a list": (set_(["personas"], {"parent": {}}), "personas must be a list"),
+    "a suggestion with no search demand in the folder": (
+        lambda s: q(s, "health-1").update(suggestion="oat milk bad for you"),
+        "health-1: suggestion «oat milk bad for you» is not in search-demand.json"),
     "a project without its question": (lambda s: s["projects"][0].pop("question"), "project brand has no question"),
     "a project without its decision": (set_(["projects", 1, "decision"], ""), "project category has no decision"),
 }
@@ -182,6 +185,21 @@ class ValidateTest(DesignCase, unittest.TestCase):
         proc = self.validate(mutated(lambda s: (mixed(s), q(s, "price-1").update(persona="runner"))))
         self.assertEqual(proc.returncode, 1, proc.stdout)
         self.assertIn("price-1: persona runner is not in personas", proc.stdout)
+
+    def validate_suggestion(self, suggestion):
+        (self.study / "search-demand.json").write_text(json.dumps(search_demand()), encoding="utf-8")
+        return self.validate(mutated(lambda s: q(s, "health-1").update(suggestion=suggestion)))
+
+    def test_a_suggestion_recorded_under_a_theme_or_a_persona_passes_after_folding(self):
+        for suggestion in ("oat milk bad for you", "Oat Milk Bad For Kidneys", "oat milk for toddlers safe"):
+            with self.subTest(suggestion):
+                proc = self.validate_suggestion(suggestion)
+                self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_suggestion_google_never_gave_is_refused(self):
+        proc = self.validate_suggestion("oat milk cures colds")
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("health-1: suggestion «oat milk cures colds» is not in search-demand.json", proc.stdout)
 
     def test_with_a_generic_audience_a_persona_is_not_read_against_the_list(self):
         def generic(study):

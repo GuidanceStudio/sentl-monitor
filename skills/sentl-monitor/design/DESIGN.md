@@ -74,7 +74,9 @@ part of a question's wording.
 
 Write each question as the person types it, in the market's language, starting from the top
 queries of its theme in `search-demand.json`. Take a pattern from the catalogue entry and adapt
-it; never copy it unchanged.
+it; never copy it unchanged. A question may record the Google suggestion it starts from in
+`suggestion`; `validate` refuses a `suggestion` that is not recorded in `search-demand.json`
+under a theme or a persona.
 
 - `branded` is true when the text names the subject, false when it names no brand. A question
   with `branded: false` contains no alias of the subject and no alias of a foil.

@@ -333,6 +333,11 @@ SNAPSHOT_QUESTIONS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")
 holds "$SNAPSHOT_QUESTIONS" "demand autocomplete" "SNAPSHOT.md sends one seed per dimension to Google's suggestions"
 holds "$SNAPSHOT_QUESTIONS" '"suggestion"' "SNAPSHOT.md records the suggestion a question starts from"
 holds "$SNAPSHOT_QUESTIONS" "no network" "SNAPSHOT.md says what a host with no network does"
+RECORDED='refuses a `suggestion` that is not recorded in `search-demand.json`'
+holds "$SNAPSHOT_QUESTIONS" "$RECORDED" "SNAPSHOT.md says validate checks each suggestion against search-demand.json"
+holds "$(section "$PAYLOAD/design/DESIGN.md" "## 6. ")" "$RECORDED" "DESIGN.md says validate checks each suggestion against search-demand.json"
+holds "$(cat "$REPO_ROOT/ARCHITECTURE.md")" 'writes `search-demand.json` with no suggestion' \
+    "ARCHITECTURE.md says what a snapshot folder holds when the host has no network"
 
 echo ""
 echo "=== Scripts import only the standard library ==="

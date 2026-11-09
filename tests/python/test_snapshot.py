@@ -11,7 +11,8 @@ from urllib.parse import parse_qs, urlparse
 
 from fixtures import GEM, GPT, StudyCase, listing, models
 from snapshot_study import (ASKED_BY, BOUND_AT, DATE, KEY, PROJECT_ID, READER, RUN_ID, RUN_STARTED, SCORES, SEEDS,
-                            SUGGESTIONS, clean_snapshot, extra_dimension, mutated, run_results, saved_project)
+                            SUGGESTIONS, clean_snapshot, extra_dimension, mutated, run_results, saved_project,
+                            search_demand, seeds_file)
 
 from sentlmon import demand
 from sentlmon.i18n import TEXT
@@ -46,10 +47,20 @@ class SnapshotCase(StudyCase, unittest.TestCase):
         self.design = clean_snapshot()
         self.put(self.design)
         self.models = self.save("models.json", models())
+        self.searched(seeds_file(), search_demand())
 
     def put(self, study):
         self.design = study
         (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+
+    def searched(self, seeds, demand_data):
+        """The folder's seeds.json and search-demand.json; None removes the file."""
+        for name, data in (("seeds.json", seeds), ("search-demand.json", demand_data)):
+            path = self.study / name
+            if data is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
     def validate(self, study):
         self.put(study)
@@ -184,6 +195,14 @@ REFUSALS = {
     "a question whose persona is blank": (lambda s: q(s, "health-1").update(persona=" "),
                                           "health-1: persona is missing"),
     "a suggestion that is not a text": (lambda s: q(s, "price-1").update(suggestion=""), "price-1: suggestion"),
+    "a suggestion Google never gave": (lambda s: q(s, "price-1").update(suggestion="avenello oat milk free sample"),
+                                       "price-1: suggestion «avenello oat milk free sample» is not in "
+                                       "search-demand.json"),
+    "a suggestion Google gave for another dimension": (
+        lambda s: q(s, "price-1").update(suggestion=SUGGESTIONS["health"]),
+        f"price-1: suggestion «{SUGGESTIONS['health']}» is not in search-demand.json"),
+    "a question with no suggestion when its dimension has some": (lambda s: q(s, "health-1").pop("suggestion"),
+                                                                  "health-1: suggestion is missing"),
 }
 
 
@@ -213,6 +232,28 @@ class ValidateSnapshotTest(SnapshotCase):
 
     def test_the_study_rules_on_themes_pairs_and_search_lean_do_not_apply(self):
         proc = self.validate(mutated(lambda s: dim(s, "health").update(search_lean="negative")))
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_suggestion_matches_the_recorded_one_after_folding(self):
+        proc = self.validate(mutated(lambda s: q(s, "health-1").update(suggestion="Is Oat Milk Bad For You")))
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_suggestion_with_no_search_demand_in_the_folder_is_refused(self):
+        self.searched(seeds_file(), None)
+        proc = self.validate(clean_snapshot())
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn(f"health-1: suggestion «{SUGGESTIONS['health']}» is not in search-demand.json", proc.stdout)
+
+    def test_with_no_network_the_questions_go_without_a_suggestion(self):
+        self.searched(seeds_file(), search_demand(found=False))
+        proc = self.validate(mutated(lambda s: [d["questions"][0].pop("suggestion", None)
+                                                for d in s["projects"][0]["dimensions"]]))
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+
+    def test_a_snapshot_made_before_suggestions_validates(self):
+        self.searched(None, None)
+        proc = self.validate(mutated(lambda s: [d["questions"][0].pop("suggestion", None)
+                                                for d in s["projects"][0]["dimensions"]]))
         self.assertEqual(proc.returncode, 0, proc.stdout)
 
     def test_a_kind_that_is_neither_study_nor_snapshot_is_refused(self):
@@ -403,16 +444,35 @@ class SnapshotReportTest(SnapshotCase):
             self.assertIn(f"“{SUGGESTIONS[key]}”", body)
         self.assertNotIn(TEXT["en"]["no_suggestions"], body)
 
-    def test_a_snapshot_designed_without_network_says_its_questions_have_no_suggestion(self):
+    def without_suggestions(self, seeds, demand_data):
+        """The report's questions section for a snapshot whose questions carry no suggestion, in a folder holding
+        `seeds` and `demand_data` (None: no such file)."""
         study = self.read("study.json")
         for d in study["projects"][0]["dimensions"]:
             d["questions"][0].pop("suggestion")
         self.put(study)
+        self.searched(seeds, demand_data)
         self.write_report()
-        body = sections(self.report())["The questions"]
+        return sections(self.report())["The questions"]
+
+    def test_a_snapshot_whose_seeds_gave_no_suggestion_says_they_could_not_be_collected(self):
+        body = self.without_suggestions(seeds_file(), search_demand(found=False))
         self.assertIn(TEXT["en"]["no_suggestions"], body)
         self.assertNotIn("Google suggestion “", body)
         self.check(check=0)
+
+    def test_seeds_with_no_search_demand_file_say_the_same(self):
+        body = self.without_suggestions(seeds_file(), None)
+        self.assertIn(TEXT["en"]["no_suggestions"], body)
+
+    def test_suggestions_collected_but_left_off_the_questions_print_no_such_sentence(self):
+        body = self.without_suggestions(seeds_file(), search_demand())
+        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
+
+    def test_a_snapshot_made_before_suggestions_says_nothing_about_them(self):
+        body = self.without_suggestions(None, None)
+        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
+        self.assertNotIn("Google", body)
 
     def test_the_italian_report_says_so_in_italian(self):
         study = self.read("study.json")
@@ -420,6 +480,7 @@ class SnapshotReportTest(SnapshotCase):
         for d in study["projects"][0]["dimensions"]:
             d["questions"][0].pop("suggestion")
         self.put(study)
+        self.searched(seeds_file(), search_demand(found=False))
         self.period()
         self.method()
         self.assertIn(TEXT["it"]["no_suggestions"], self.report())
@@ -481,6 +542,7 @@ class SuggestionStepTest(SnapshotCase):
                       mock.patch.object(demand, "DELAY", 0)):
             patch.start()
             self.addCleanup(patch.stop)
+        self.searched(seeds_file(), None)
 
     @staticmethod
     def google(url):
@@ -489,15 +551,7 @@ class SuggestionStepTest(SnapshotCase):
         first = {seed: SUGGESTIONS[key] for key, seed in SEEDS.items()}.get(prefix)
         return json.dumps([prefix, [first, prefix + " near me"] if first else [prefix + " near me"]])
 
-    def write_seeds(self):
-        seeds = {"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
-                 "subject": {"aliases": ["Avenello"]}, "foils": [{"aliases": ["Avoria"]}],
-                 "components": [{"terms": ["oat milk"]}],
-                 "themes": {key: [seed] for key, seed in SEEDS.items()}}
-        (self.study / "seeds.json").write_text(json.dumps(seeds), encoding="utf-8")
-
     def test_each_dimension_gets_one_seed_and_its_question_starts_from_the_top_suggestion(self):
-        self.write_seeds()
         with mock.patch.object(demand, "_get", side_effect=self.google) as get:
             self.cli("demand", "autocomplete", "--study", self.study, "--hl", "en", "--gl", "US", check=0)
         self.assertEqual(get.call_count, len(SEEDS) * 8)
@@ -510,7 +564,6 @@ class SuggestionStepTest(SnapshotCase):
         self.assertEqual(self.validate(clean_snapshot()).returncode, 0)
 
     def test_without_network_every_prefix_is_listed_and_nothing_is_suggested(self):
-        self.write_seeds()
         with mock.patch.object(demand, "_get", side_effect=OSError("network is unreachable")):
             proc = self.cli("demand", "autocomplete", "--study", self.study, "--hl", "en", "--gl", "US", check=1)
         self.assertIn(f"{len(SEEDS) * 8} prefixes could not be fetched", proc.stdout)

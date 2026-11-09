@@ -4,7 +4,7 @@ to pass to the tools, and `bind` reads a saved get-project-tool response."""
 
 import json
 
-from . import design, schema, snapshot
+from . import demand, design, schema, snapshot
 from .adopt import criteria_hash
 from .common import FINAL, Refused, Study, load_json, match_key, norm, now_iso, slug, write_json
 from .detect import _compare, _describe
@@ -147,7 +147,8 @@ def payload(root, key, models_file, saved_file=None, runs_file=None):
     study = folder.study
     project = _project_of(study, key)
     is_snapshot = study.get("kind") == "snapshot"
-    problems, _ = (snapshot if is_snapshot else design).problems_of(study, set(schema.models(models_file)))
+    problems, _ = (snapshot if is_snapshot else design).problems_of(study, set(schema.models(models_file)),
+                                                                     demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so it is not set up in Sentl:\n  - " + "\n  - ".join(problems))
     binding = _binding(folder, study)

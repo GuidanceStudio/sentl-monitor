@@ -5,8 +5,9 @@ import copy
 import re
 from pathlib import Path
 
-from . import design, schema
-from .common import FINAL, Refused, Study, load_json, match_key, now_iso, public_name, write_json, write_text
+from . import demand, design, schema
+from .common import (FINAL, Refused, Study, folded, load_json, match_key, now_iso, public_name, write_json,
+                     write_text)
 
 CATALOGUE = Path(__file__).resolve().parents[2] / "design" / "catalogue.md"
 DIMENSIONS = (4, 5)
@@ -88,8 +89,23 @@ def _project_problems(project, model_ids, rationale, ids, aliases, problems):
         _dimension_problems(d, rationale, ids, aliases, problems)
 
 
-def problems_of(study, model_ids, ids=None):
-    """(refusals, warnings) of a snapshot study."""
+def _suggestion_problems(dims, given):
+    """A question's suggestion must be one its dimension's seed gave (`given`: the folded suggestions per
+    dimension key), and a dimension whose seed gave some needs one on its question."""
+    out = []
+    for d in dims:
+        found = given.get(d.get("key"), set())
+        for q in d.get("questions") or []:
+            if design._text(q.get("suggestion")) and folded(q["suggestion"]) not in found:
+                out.append(design.unrecorded(q))
+            elif "suggestion" not in q and found:
+                out.append(f"{q.get('key')}: suggestion is missing: search-demand.json holds Google's suggestions "
+                           f"for dimension {d.get('key')}, and the question starts from one of them")
+    return out
+
+
+def problems_of(study, model_ids, recorded, ids=None):
+    """(refusals, warnings) of a snapshot study. `recorded` is what `demand.recorded` reads from the folder."""
     ids = catalogue_ids() if ids is None else ids
     problems, warnings = [], []
     narrative = study.get("narrative") or {}
@@ -107,6 +123,7 @@ def problems_of(study, model_ids, ids=None):
     for project in projects[:1]:
         _project_problems(project, model_ids, rationale, ids, aliases, problems)
         dims = project.get("dimensions") or []
+        problems += _suggestion_problems(dims, recorded[0])
         keys = [d.get("key") for d in dims] + [q.get("key") for d in dims for q in d.get("questions") or []]
         problems += [f"duplicate key {k}" for k in sorted({k for k in keys if keys.count(k) > 1}, key=str)]
         asked = [q for d in dims for q in d.get("questions") or []]
@@ -119,7 +136,7 @@ def problems_of(study, model_ids, ids=None):
 def validate(root, models_file):
     """(text, ok): every refusal, then every warning."""
     study = _load(root)
-    problems, warnings = problems_of(study, set(schema.models(models_file)))
+    problems, warnings = problems_of(study, set(schema.models(models_file)), demand.recorded(root))
     lines = [f"validate failed: {len(problems)} problem(s)"] if problems else [
         f"validate passed: {design._count(len(warnings), 'warning', 'warnings')}"]
     lines += [f"  - {p}" for p in problems] + [f"  warning: {w}" for w in warnings]
@@ -148,7 +165,7 @@ def review_text(study, models_file):
 
 def review(root, models_file):
     study = _load(root)
-    problems, _ = problems_of(study, set(schema.models(models_file)))
+    problems, _ = problems_of(study, set(schema.models(models_file)), demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so there is nothing to review yet:\n  - " + "\n  - ".join(problems))
     text = "\n".join(review_text(study, models_file)).rstrip() + "\n"
@@ -302,7 +319,7 @@ def promote(root, answers_file, models_file):
                            "origins": [{"kind": "probe", "detail": f"the snapshot of {when} asked this dimension "
                                                                    f"({d['catalogue']} in the catalogue)"}]}
                           for d in promoted["projects"][0]["dimensions"]]
-    problems, _ = design.problems_of(promoted, set(schema.models(models_file)))
+    problems, _ = design.problems_of(promoted, set(schema.models(models_file)), demand.recorded(root))
     if problems:
         raise Refused("the promoted study fails validate:\n  - " + "\n  - ".join(problems))
     write_json(folder.path("study.json"), promoted)

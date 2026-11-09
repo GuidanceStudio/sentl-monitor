@@ -372,6 +372,15 @@ def distinct(block):
     return found
 
 
+def recorded(root):
+    """The suggestions the folder's search-demand.json holds, folded: ({theme: set}, {persona: set}), both
+    empty when the folder has none."""
+    path = Study(root).path("search-demand.json")
+    data = load_json(path) if path.exists() else {}
+    return tuple({key: set(distinct(block)) for key, block in (data.get(kind) or {}).items()}
+                 for kind in ("themes", "personas"))
+
+
 def summarize(data):
     """Per theme: distinct suggestions, prefixes, volume per class (None without volumes) and the top queries."""
     out = {}

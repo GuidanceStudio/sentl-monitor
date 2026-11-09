@@ -109,8 +109,10 @@ python3 <skill>/scripts/monitor.py demand summary --study "$S"
 
 The first of each dimension's `top queries` is the top suggestion. The dimension's question
 starts from it and from the persona's situation; write the suggestion, as Google gave it, in
-the question's `"suggestion"`. When `autocomplete` exits 1, run it again: it fetches only the
-prefixes still missing. A host with no network fails on every prefix: leave `suggestion` out of
+the question's `"suggestion"`.
+`validate` refuses a `suggestion` that is not recorded in `search-demand.json` under the
+question's dimension, and a question without one when its dimension has suggestions there.
+When `autocomplete` exits 1, run it again: it fetches only the prefixes still missing. A host with no network fails on every prefix: leave `suggestion` out of
 every question and write them from the catalogue's pattern alone. The report's method section
 then says that Google's suggestions could not be collected.
 

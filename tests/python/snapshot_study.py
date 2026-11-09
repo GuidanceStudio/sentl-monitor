@@ -38,6 +38,24 @@ ASKED_BY = {"reputation": "a shopper who saw Avenello on the shelf and wants oth
             "health": "a parent who read that oat milk has too much sugar"}
 READER = "the marketing manager of Avenello, deciding whether to monitor the brand"
 
+
+def seeds_file():
+    """The seeds.json SNAPSHOT.md step 4 writes: one seed per dimension, keyed by the dimension."""
+    return {"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
+            "subject": {"aliases": ["Avenello"]}, "foils": [{"aliases": ["Avoria"]}],
+            "components": [{"terms": ["oat milk"]}], "themes": {key: [seed] for key, seed in SEEDS.items()}}
+
+
+def search_demand(found=True):
+    """What `demand autocomplete` records for SEEDS: each dimension's top suggestion first, or, on a host with
+    no network, the seeds with no suggestion at all."""
+    def block(key, seed):
+        entry = {"prefix": seed, "suggestions": [SUGGESTIONS[key], seed + " near me"],
+                 "source": "google autocomplete hl=en gl=US", "collected": "2026-10-21"}
+        return {"seeds": [seed], "volumes": [], "autocomplete": [entry] if found else []}
+    return {"schema": "sentl-monitor/search-demand@1", "market": {"country": "US", "language": "en"},
+            "themes": {key: block(key, seed) for key, seed in SEEDS.items()}, "volume_source": None}
+
 # (dimension key, model) -> score; the project mean, 3.375, is not the mean of any dimension.
 SCORES = {("reputation", GPT): 4, ("reputation", GEM): 4, ("recommendation", GPT): 3, ("recommendation", GEM): 2,
           ("price", GPT): 5, ("price", GEM): 3, ("health", GPT): 3, ("health", GEM): 3}

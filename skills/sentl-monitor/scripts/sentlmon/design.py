@@ -7,7 +7,7 @@ import json
 
 from . import demand, schema
 from .adopt import AUDIENCES, ORIGIN_KINDS, criteria_hash, _terms
-from .common import Refused, Study, fold, first_mention, match_key, public_name, write_json, write_text
+from .common import Refused, Study, fold, first_mention, folded, match_key, public_name, write_json, write_text
 
 DIMENSION_NAME, LABEL, QUESTION, ANCHOR, INSTRUCTIONS = 100, 100, 500, 300, 500
 SCHEDULES = ("daily", "weekly", "monthly")
@@ -79,6 +79,12 @@ def persona_ids(study):
     if not isinstance(personas, list):
         return None
     return [p["id"] for p in personas if isinstance(p, dict) and _text(p.get("id"))]
+
+
+def unrecorded(q):
+    """The refusal of a question whose suggestion is not one search-demand.json records."""
+    return (f"{q.get('key')}: suggestion «{q['suggestion']}» is not in search-demand.json: a question starts from a "
+            "suggestion Google gave")
 
 
 def _check_question(q, dim, audience, subject_aliases, problems, personas=None):
@@ -193,8 +199,9 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
                         f"report period ({ANSWERS_PER_PERIOD} or more are expected)")
 
 
-def problems_of(study, model_ids):
-    """(refusals, warnings) of a designed study."""
+def problems_of(study, model_ids, recorded):
+    """(refusals, warnings) of a designed study. `recorded` is what `demand.recorded` reads from the folder:
+    a question's suggestion must be one of a theme's or a persona's."""
     problems, warnings = [], []
     narrative = study.get("narrative") or {}
     for field in ("research_question", "purpose"):
@@ -214,6 +221,9 @@ def problems_of(study, model_ids):
         problems.append("the study has no project")
     for project in projects:
         _check_project(project, study, model_ids, audience.get("choice"), aliases, problems, warnings)
+    known = set().union(*recorded[0].values(), *recorded[1].values())
+    problems += [unrecorded(q) for p in projects for _, q in _questions(p)
+                 if _text(q.get("suggestion")) and folded(q["suggestion"]) not in known]
 
     keys = {"project": [], "dimension": [], "question": [], "theme": []}
     for p in projects:
@@ -266,7 +276,7 @@ def _model_ids(models_file):
 def validate(root, models_file):
     """(text, ok): every refusal, then every warning."""
     study = _load(root)
-    problems, warnings = problems_of(study, set(_model_ids(models_file)))
+    problems, warnings = problems_of(study, set(_model_ids(models_file)), demand.recorded(root))
     lines = [f"validate failed: {len(problems)} problem(s)"] if problems else [
         f"validate passed: {_count(len(warnings), 'warning', 'warnings')}"]
     lines += [f"  - {p}" for p in problems] + [f"  warning: {w}" for w in warnings]
@@ -400,7 +410,7 @@ def review_text(study, root, models_file):
 
 def review(root, models_file):
     study = _load(root)
-    problems, _ = problems_of(study, set(_model_ids(models_file)))
+    problems, _ = problems_of(study, set(_model_ids(models_file)), demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so there is nothing to review yet:\n  - " + "\n  - ".join(problems))
     text = review_text(study, root, models_file)
