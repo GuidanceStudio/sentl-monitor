@@ -26,6 +26,18 @@ DIMENSIONS = [
      "whether the assistants raise a health concern about Avenello"),
 ]
 
+# Each dimension's one seed for Google's suggestions, the top suggestion its question starts from, and the
+# person who asks it, as the operator named them in one line each.
+SEEDS = {"reputation": "avenello oat milk", "recommendation": "best oat milk", "price": "avenello oat milk price",
+         "health": "is oat milk bad"}
+SUGGESTIONS = {"reputation": "avenello oat milk reviews", "recommendation": "best oat milk to buy",
+               "price": "avenello oat milk price per litre", "health": "is oat milk bad for you"}
+ASKED_BY = {"reputation": "a shopper who saw Avenello on the shelf and wants other people's opinion",
+            "recommendation": "a shopper moving off dairy who has not picked a brand yet",
+            "price": "a regular buyer who noticed the price on the shelf changed",
+            "health": "a parent who read that oat milk has too much sugar"}
+READER = "the marketing manager of Avenello, deciding whether to monitor the brand"
+
 # (dimension key, model) -> score; the project mean, 3.375, is not the mean of any dimension.
 SCORES = {("reputation", GPT): 4, ("reputation", GEM): 4, ("recommendation", GPT): 3, ("recommendation", GEM): 2,
           ("price", GPT): 5, ("price", GEM): 3, ("health", GPT): 3, ("health", GEM): 3}
@@ -45,7 +57,10 @@ ANSWERS = {
 def dimension(key, name, catalogue, text, branded=True, axis="stance", measures="what it measures"):
     facts = [dict(PRICE_FACT)] if catalogue == "price" else None
     instructions = "Score 1 when the answer states an outdated price." if facts else "Score the subject, not the category."
-    item = question(f"{key}-1", text, "neutral", branded, None, facts, instructions)
+    item = question(f"{key}-1", text, "neutral", branded, None, facts, instructions,
+                    ASKED_BY.get(key, "a shopper comparing plant drinks"))
+    if key in SUGGESTIONS:
+        item["suggestion"] = SUGGESTIONS[key]
     return {"key": key, "catalogue": catalogue, "name": name, "axis": axis, "measures": measures, "questions": [item]}
 
 
@@ -63,6 +78,7 @@ def clean_snapshot():
             "criteria": {"by": "the Avenello marketing team", "date": "2026-10-22"},
             "research_question": "What does an AI assistant tell a shopper about Avenello oat milk?",
             "purpose": "A first look at what assistants say about Avenello, before deciding on a monitoring study.",
+            "reader": READER,
             "design_rationale": [{"choice": d["name"], "reason": f"the reader decides on {d['name'].lower()} pages"}
                                  for d in dims]},
         "themes": [],

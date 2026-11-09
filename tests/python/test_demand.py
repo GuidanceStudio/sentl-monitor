@@ -440,6 +440,166 @@ class SummaryTest(DemandCase, unittest.TestCase):
         self.assertIn("demand autocomplete", proc.stderr)
 
 
+PERSONAS = [
+    {"id": "genitore", "label": "Un genitore che sceglie per i figli", "group": "chooses",
+     "situation": "cerca una bevanda vegetale per un figlio intollerante al lattosio",
+     "decision": "quale bevanda all'avena comprare", "asks": ["il latte d'avena va bene per i bambini?"],
+     "seeds": ["latte d'avena bambini"]},
+    {"id": "bar", "label": "Chi compra per un bar", "group": "buys_for_others",
+     "situation": "rifornisce un bar e confronta i fornitori", "decision": "quale marca ordinare",
+     "asks": ["qual è il miglior latte d'avena per il cappuccino?"], "seeds": ["latte d'avena per bar"]},
+    {"id": "candidato", "label": "Chi cerca lavoro da Avenello", "group": "works_there",
+     "situation": "valuta un'offerta di lavoro in azienda", "decision": "se candidarsi",
+     "asks": ["com'è lavorare da Avenello?"], "seeds": ["avenello lavora con noi"]},
+]
+SOURCES = [{"label": "Associazione dei consumatori", "domains": ["consumatori.example"]}]
+
+
+def silent_for(seed):
+    """A suggestion endpoint that gives no suggestion for the prefixes of `seed`, and echoes the others."""
+    def fetch(url):
+        prefix, _ = asked(url)
+        return json.dumps([prefix, []]) if prefix.startswith(seed) else echo(url)
+    return fetch
+
+
+class PersonaDemandTest(DemandCase, unittest.TestCase):
+    """The persona inventory of `brief`: each persona's seeds go to Google as the themes' do, and the
+    bodies the assistants cite stay apart from the personas."""
+
+    def seeds(self, **changes):
+        return super().seeds(**{"personas": PERSONAS, "sources_to_watch": SOURCES, **changes})
+
+    def prefixes(self):
+        return [asked(call.args[0])[0] for call in self.get.call_args_list]
+
+    def test_each_persona_seed_is_sent_as_typed_and_with_each_stem(self):
+        self.autocomplete()
+        sent = self.prefixes()
+        self.assertEqual(len(sent), (3 + 3) * 8)
+        for seed in ("latte d'avena bambini", "latte d'avena per bar", "avenello lavora con noi"):
+            self.assertIn(seed, sent)
+            for stem in IT_STEMS:
+                self.assertIn(f"{seed} {stem}", sent)
+
+    def test_a_persona_records_its_suggestions_under_its_id_and_not_among_the_themes(self):
+        self.autocomplete()
+        data = self.demand_file()
+        self.assertEqual(sorted(data["personas"]), ["bar", "candidato", "genitore"])
+        self.assertEqual(sorted(data["themes"]), ["prezzo", "salute"])
+        block = data["personas"]["genitore"]
+        self.assertEqual(block["seeds"], ["latte d'avena bambini"])
+        entry = next(e for e in block["autocomplete"] if e["prefix"] == "latte d'avena bambini quale")
+        self.assertEqual(entry["suggestions"], ["latte d'avena bambini quale opinioni",
+                                                "latte d'avena bambini quale ogni giorno"])
+        self.assertEqual((entry["source"], entry["collected"]), ("google autocomplete hl=it gl=IT", "2026-10-16"))
+
+    def test_a_persona_without_suggestions_or_seeds_stays_in_the_file(self):
+        personas = [*PERSONAS[:2], {**PERSONAS[2], "seeds": []}]
+        self.seeds(personas=personas)
+        with mock.patch.object(demand, "_get", side_effect=silent_for("latte d'avena per bar")) as get:
+            self.cli("demand", "autocomplete", "--study", self.study, "--seeds", self.study / "seeds.json",
+                     "--hl", "it", "--gl", "IT", check=0, at=AT)
+        data = self.demand_file()["personas"]
+        self.assertEqual(data["candidato"], {"seeds": [], "autocomplete": []})
+        self.assertEqual(len(data["bar"]["autocomplete"]), 8)
+        self.assertTrue(all(e["suggestions"] == [] for e in data["bar"]["autocomplete"]))
+        self.assertEqual(get.call_count, (3 + 2) * 8)
+
+    def test_a_persona_prefix_that_fails_is_fetched_again_on_the_next_run(self):
+        def flaky(url):
+            if asked(url)[0] == "latte d'avena per bar come":
+                raise OSError("timed out")
+            return echo(url)
+        proc = self.autocomplete(flaky, 1)
+        self.assertIn("latte d'avena per bar come", proc.stdout)
+        self.autocomplete(echo, 0)
+        self.assertEqual(self.prefixes(), ["latte d'avena per bar come"])
+        self.assertEqual(len(self.demand_file()["personas"]["bar"]["autocomplete"]), 8)
+
+    def test_sources_to_watch_are_never_sent_to_google_and_never_become_personas(self):
+        self.autocomplete()
+        self.assertFalse(any("consumatori" in p.casefold() for p in self.prefixes()))
+        data = self.demand_file()
+        self.assertNotIn("Associazione dei consumatori", json.dumps(data["personas"], ensure_ascii=False))
+        self.assertNotIn("sources_to_watch", data)
+
+    def test_a_body_listed_both_as_a_persona_and_as_a_source_to_watch_is_refused(self):
+        cited = {**PERSONAS[0], "id": "associazione", "label": "Associazione dei consumatori"}
+        self.seeds(personas=[*PERSONAS, cited])
+        with mock.patch.object(demand, "_get", side_effect=echo) as get:
+            proc = self.cli("demand", "autocomplete", "--study", self.study, "--seeds", self.study / "seeds.json",
+                            "--hl", "it", "--gl", "IT", check=2)
+        self.assertIn("Associazione dei consumatori", proc.stderr)
+        self.assertIn("sources_to_watch", proc.stderr)
+        self.assertEqual(get.call_count, 0)
+
+    def test_a_source_to_watch_whose_domains_are_not_a_list_of_texts_is_refused(self):
+        for domains in ("consumatori.example", [3]):
+            with self.subTest(domains=domains):
+                self.seeds(sources_to_watch=[{"label": "Associazione dei consumatori", "domains": domains}])
+                with mock.patch.object(demand, "_get", side_effect=echo) as get:
+                    proc = self.cli("demand", "autocomplete", "--study", self.study, "--seeds",
+                                    self.study / "seeds.json", "--hl", "it", "--gl", "IT", check=2)
+                self.assertIn("domains", proc.stderr)
+                self.assertEqual(get.call_count, 0)
+
+    def test_a_persona_without_one_of_its_fields_is_refused_and_nothing_is_fetched(self):
+        for field in ("id", "label", "group", "situation", "decision", "asks", "seeds"):
+            with self.subTest(field=field):
+                broken = {k: v for k, v in PERSONAS[0].items() if k != field}
+                self.seeds(personas=[broken, *PERSONAS[1:]])
+                with mock.patch.object(demand, "_get", side_effect=echo) as get:
+                    proc = self.cli("demand", "autocomplete", "--study", self.study, "--seeds",
+                                    self.study / "seeds.json", "--hl", "it", "--gl", "IT", check=2)
+                self.assertIn(field, proc.stderr)
+                self.assertEqual(get.call_count, 0)
+        self.assertFalse((self.study / "search-demand.json").exists())
+
+    def test_two_personas_with_one_id_are_refused(self):
+        self.seeds(personas=[*PERSONAS, {**PERSONAS[1], "id": "genitore"}])
+        with mock.patch.object(demand, "_get", side_effect=echo):
+            proc = self.cli("demand", "autocomplete", "--study", self.study, "--seeds", self.study / "seeds.json",
+                            "--hl", "it", "--gl", "IT", check=2)
+        self.assertIn("genitore", proc.stderr)
+
+    def test_a_seeds_file_without_personas_writes_no_persona_block(self):
+        super().seeds()
+        with mock.patch.object(demand, "_get", side_effect=echo):
+            self.cli("demand", "autocomplete", "--study", self.study, "--seeds", self.study / "seeds.json",
+                     "--hl", "it", "--gl", "IT", check=0, at=AT)
+        self.assertNotIn("personas", self.demand_file())
+
+    def summary(self):
+        return self.cli("demand", "summary", "--study", self.study, check=0).stdout
+
+    def test_the_summary_prints_each_persona_with_its_label_and_suggestions(self):
+        self.autocomplete()
+        out = self.summary()
+        self.assertIn("persona genitore (Un genitore che sceglie per i figli): 16 distinct suggestions from 8 prefixes",
+                      out)
+        self.assertIn("latte d'avena bambini opinioni", out)
+        self.assertNotIn("without search evidence", out)
+
+    def test_a_persona_with_no_suggestion_is_marked_without_search_evidence(self):
+        self.seeds()
+        with mock.patch.object(demand, "_get", side_effect=silent_for("avenello lavora con noi")):
+            self.cli("demand", "autocomplete", "--study", self.study, "--seeds", self.study / "seeds.json",
+                     "--hl", "it", "--gl", "IT", check=0, at=AT)
+        lines = self.summary().splitlines()
+        marked = [line for line in lines if "without search evidence" in line]
+        self.assertEqual(len(marked), 1, lines)
+        self.assertTrue(marked[0].startswith("persona candidato"), marked)
+
+    def test_the_summary_lists_the_sources_to_watch_apart_from_the_personas(self):
+        self.autocomplete()
+        lines = self.summary().splitlines()
+        watch = [line for line in lines if "Associazione dei consumatori" in line]
+        self.assertEqual(len(watch), 1, lines)
+        self.assertTrue(watch[0].startswith("sources to watch"), watch)
+        self.assertIn("consumatori.example", watch[0])
+
+
 class ThemesSectionTest(DemandCase, unittest.TestCase):
     """The themes section of the report, fed from search-demand.json."""
 

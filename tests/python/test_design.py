@@ -120,6 +120,12 @@ REFUSALS = {
     "an audience that is not one of the four": (set_(["narrative", "audience", "choice"], "everyone"),
                                                 "narrative.audience"),
     "a persona missing when personas ask": (lambda s: q(s, "price-1").pop("persona"), "price-1: persona"),
+    "a persona outside the study's personas": (lambda s: q(s, "price-1").update(persona="runner"),
+                                               "price-1: persona runner is not in personas"),
+    "a persona of the list without its situation": (lambda s: s["personas"][0].pop("situation"),
+                                                    "persona parent: situation"),
+    "two personas with one id": (lambda s: s["personas"][1].update(id="parent"), "duplicate persona id parent"),
+    "personas that are not a list": (set_(["personas"], {"parent": {}}), "personas must be a list"),
     "a project without its question": (lambda s: s["projects"][0].pop("question"), "project brand has no question"),
     "a project without its decision": (set_(["projects", 1, "decision"], ""), "project category has no decision"),
 }
@@ -158,6 +164,30 @@ class ValidateTest(DesignCase, unittest.TestCase):
                 proc = self.validate(mutated(change))
                 self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
                 self.assertIn(f"warning: {expected}", proc.stdout)
+
+    def test_a_study_written_before_personas_keeps_its_free_text_personas(self):
+        def before(study):
+            study.pop("personas")
+            for item in (x for p in study["projects"] for d in p["dimensions"] for x in d["questions"]):
+                item["persona"] = "a shopper comparing plant drinks"
+        proc = self.validate(mutated(before))
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("  warning:", proc.stdout)
+
+    def test_with_a_mixed_audience_a_persona_must_be_in_the_list_and_may_be_left_out(self):
+        def mixed(study):
+            study["narrative"]["audience"]["choice"] = "mixed"
+            q(study, "price-2").pop("persona")
+        self.assertEqual(self.validate(mutated(mixed)).returncode, 0)
+        proc = self.validate(mutated(lambda s: (mixed(s), q(s, "price-1").update(persona="runner"))))
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("price-1: persona runner is not in personas", proc.stdout)
+
+    def test_with_a_generic_audience_a_persona_is_not_read_against_the_list(self):
+        def generic(study):
+            study["narrative"]["audience"]["choice"] = "generic_consumer"
+            q(study, "price-1").update(persona="runner")
+        self.assertEqual(self.validate(mutated(generic)).returncode, 0)
 
     def test_a_question_with_facts_and_no_instructions_passes(self):
         study = clean_study()
@@ -269,10 +299,38 @@ class ReviewTest(DesignCase, unittest.TestCase):
             for d in project["dimensions"]:
                 for item in d["questions"]:
                     self.assertIn(item["text"], out)
-        for part in ("a shopper comparing plant drinks", "framing: negative", "names the brand: no",
+        for part in ("persona: parent", "framing: negative", "names the brand: no",
                      "5. Favourable, with grounds from a named source", "Gives a doubtful or mixed account",
                      "Avenello Original costs 2.10 USD per litre", "Score 1 when the answer states an outdated price."):
             self.assertIn(part, out)
+
+    def persona_blocks(self, out):
+        """The review's Personas section, one block per persona, keyed by the persona's label."""
+        section = out.split("## Personas", 1)[1].split("\n## ", 1)[0]
+        return {b.split(" (", 1)[0]: b for b in re.split(r"^- ", section, flags=re.M)[1:]}
+
+    def test_it_prints_each_persona_with_its_situation_and_its_questions(self):
+        blocks = self.persona_blocks(self.review().stdout)
+        self.assertEqual(list(blocks), ["A parent choosing for a child", "An amateur athlete",
+                                        "A café owner buying for the bar"])
+        parent = blocks["A parent choosing for a child"]
+        for part in ("buys a plant drink for a child with a lactose intolerance", "which oat drink to put in the cart",
+                     "health-1: Is Avenello oat milk bad for you?", "c-health-1: Is oat milk bad for you?",
+                     "availability-2: Is Avenello oat milk sold in my supermarket?"):
+            self.assertIn(part, parent)
+        self.assertNotIn("price-1", parent)
+        self.assertIn("price-1: How much does Avenello oat milk cost?", blocks["A café owner buying for the bar"])
+
+    def test_each_persona_shows_its_search_evidence_or_says_it_has_none(self):
+        blocks = self.persona_blocks(self.review().stdout)
+        self.assertIn("2 distinct suggestions", blocks["A parent choosing for a child"])
+        self.assertIn("without search evidence", blocks["An amateur athlete"])
+        self.assertIn("without search evidence", blocks["A café owner buying for the bar"])
+        self.assertNotIn("without search evidence", blocks["A parent choosing for a child"])
+
+    def test_a_study_without_a_personas_list_has_no_personas_section(self):
+        out = self.review(mutated(lambda s: s.pop("personas"))).stdout
+        self.assertNotIn("## Personas", out)
 
     def test_the_credit_estimate_comes_from_the_models_tariffs(self):
         out = self.review().stdout

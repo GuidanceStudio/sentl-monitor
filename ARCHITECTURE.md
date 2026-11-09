@@ -26,8 +26,8 @@ is a new version inside the same folder, so the history stays in one place.
 
 ```
 <study>/
-  brief.md                       themes, origins, search demand, who asks: the first gate
-  seeds.json                     seed queries per theme
+  brief.md                       themes, origins, search demand, who asks, personas: the first gate
+  seeds.json                     seed queries per theme and per persona, the personas, the sources to watch
   volumes.json                   volumes and related searches from a keyword-data source (optional)
   search-demand.json             merged search demand, every figure dated with its source
   study.json                     the design; source of truth for what the study should ask
@@ -50,8 +50,9 @@ is a new version inside the same folder, so the history stays in one place.
   reports/<YYYY-MM-DD>.deck.json the deck's text; .deck.html and .deck.pdf, the deck drawn from it (§The deck)
 ```
 
-A snapshot folder has the same layout without `brief.md`, `seeds.json`, `volumes.json` and
-`search-demand.json`, and holds one run and one report.
+A snapshot folder has the same layout without `brief.md` and `volumes.json`, and holds one run
+and one report. Its `seeds.json` holds one seed per dimension and its `search-demand.json` their
+Google suggestions; on a host with no network neither is written.
 
 On a host that deletes its files when the conversation ends, the folder travels between
 conversations as a pack (§Hosts without a lasting folder).
@@ -114,9 +115,18 @@ All JSON files carry `"schema": "sentl-monitor/<name>@<n>"`. Dates are ISO 8601.
                    "related_dropped": 14}]
     }
   },
+  "personas": {
+    "genitore": {"seeds": ["latte d'avena bambini"],
+                 "autocomplete": [{"prefix": "latte d'avena bambini", "suggestions": ["latte d'avena bambini 1 anno"],
+                                   "source": "google autocomplete hl=it gl=it", "collected": "2026-10-16"}]}
+  },
   "volume_source": {"providers": ["<server or file>"], "from": "2026-10-16", "to": "2026-10-16"}
 }
 ```
+
+`personas` is present only when `seeds.json` lists personas: one block per persona id, with its
+seeds and their suggestions in the shape of a theme's. A persona whose seeds gave no suggestion
+keeps its block with empty lists of suggestions; `brief.md` marks it as without search evidence.
 
 `class` is `subject` (the keyword contains an alias of the subject), `foil`, `component` (it
 contains a component term and no subject alias) or `generic`; a keyword that fits several is
@@ -132,9 +142,26 @@ and the first and last collection dates, or `null` when no keyword-data source w
   "subject": {"aliases": ["Avenello"]},
   "foils": [{"aliases": ["Avoria"]}],
   "components": [{"terms": ["latte d'avena", "bevanda all'avena"]}],
-  "themes": {"health": ["latte d'avena fa male", "avenello zuccheri"]}
+  "themes": {"health": ["latte d'avena fa male", "avenello zuccheri"]},
+  "personas": [
+    {"id": "genitore", "label": "Un genitore che sceglie per i figli", "group": "chooses",
+     "situation": "cerca una bevanda vegetale per un figlio intollerante al lattosio",
+     "decision": "quale bevanda all'avena comprare",
+     "asks": ["il latte d'avena va bene per i bambini?"],
+     "seeds": ["latte d'avena bambini"]}
+  ],
+  "sources_to_watch": [{"label": "Un'associazione dei consumatori", "domains": ["consumatori.example"]}]
 }
 ```
+
+`personas` and `sources_to_watch` are optional. Every persona needs a unique `id` and a non-empty
+`label`, `group`, `situation` and `decision`, one or more `asks` (the questions as the persona
+types them) and `seeds` (the searches the persona types; an empty list when there is none).
+`group` is `chooses`, `customer`, `buys_for_others`, `works_there`, or a group the operator
+names. `sources_to_watch` lists the bodies the assistants cite and nobody asks as (regulators,
+consumer associations, the press), each with a `label` and optional `domains`; their names are
+never sent to Google. `demand` refuses a seeds file whose personas lack a field, repeat an id, or
+share a label with a source to watch (exit 2).
 
 `volumes.json` is what the assistant saves from a keyword-data server: `provider`, `tool` and
 `collected` (a date) for the whole file, and `keywords`, each with its `theme`, `keyword`,
@@ -166,6 +193,11 @@ and the first and last collection dates, or `null` when no keyword-data source w
                           "reason": "Il primo si legge dal punteggio medio, il secondo da quante risposte nominano Avenello."}],
     "score_axis": "stance"
   },
+  "personas": [
+    {"id": "genitore", "label": "Un genitore che sceglie per i figli", "group": "chooses",
+     "situation": "cerca una bevanda vegetale per un figlio intollerante al lattosio",
+     "decision": "quale bevanda all'avena comprare", "asks": ["il latte d'avena va bene per i bambini?"]}
+  ],
   "themes": [
     {"id": "health", "label": "Bevande all'avena e salute",
      "origins": [{"kind": "client_issue", "detail": "Domande al servizio clienti, 2026"},
@@ -183,7 +215,7 @@ and the first and last collection dates, or `null` when no keyword-data source w
           {"key": "health-1", "label": "Avenello fa male", "branded": true,
            "text": "Il latte d'avena Avenello fa male?",
            "framing": "negative", "pair": "health-a",
-           "persona": "chi beve latte d'avena ogni mattina e ha letto che fa male",
+           "persona": "genitore",
            "rubric": {"1": "...", "2": "...", "3": "...", "4": "...", "5": "..."},
            "instructions": "...",
            "facts": [{"fact": "...", "source": "https://avenello.example/...", "date": "2026-10-01",
@@ -201,6 +233,14 @@ and the first and last collection dates, or `null` when no keyword-data source w
   `measures`, one sentence on what it measures for the subject. A snapshot needs no `audience`
   and no `report_every`; `design_rationale` holds one entry per dimension, whose `choice` is the
   dimension's name.
+- `personas` is copied from the brief's `seeds.json` (`seeds` may stay behind). With an audience
+  of `personas`, `stakeholders` or `mixed`, a question's `persona` is an id of that list; with
+  `mixed` it may be left out. A study written before the list existed has no `personas` and a
+  `persona` in plain words on each question, and validates as before.
+- A snapshot's `narrative.reader` names who will read the report and the decision it feeds;
+  `review` prints it. A snapshot's `persona` is one line in plain words: who types the question and
+  in what situation. `suggestion` is the Google suggestion a question starts from, as Google gave
+  it; a snapshot designed with no network has none.
 - `report_every` is `weekly` or `monthly`: how often a report is written. With each
   project's `schedule` it sets how many runs a period pools. A snapshot has none.
 - `kind` of a theme origin is `client_material`, `client_issue`, `client_analysis`, `search`
@@ -460,12 +500,17 @@ halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `o
    analysis the client ran). Summarise back in three lines, then ask only about the gaps.
 2. **Define the subject.** Label, kind (brand, category, method, organisation), aliases, the
    foils it is measured against with their aliases, the components (an ingredient, a
-   material, a technology) with their terms, owned domains, market and language.
+   material, a technology) with their terms, owned domains, market and language. Then the
+   personas, each with its group, situation, decision, the questions it types and its search
+   seeds, and the sources to watch: regulators, consumer associations, the press and other
+   bodies the assistants cite and nobody asks as.
 3. **Collect search demand** (next section). A theme that only search surfaced joins the
    inventory with origin `search`.
 4. **Write `brief.md`**: the subject, the theme inventory (theme, origin, detail, search
    demand), the search-demand table with its source and date or the no-volume statement, a
-   proposal for who asks with the reason, and the documents read.
+   proposal for who asks with the reason, the persona table (`| id | label | group | situation |
+   decision | asks | search evidence |`, a persona with no suggestion marked *without search
+   evidence*), the sources to watch, and the documents read.
 5. **Stop.** Say which themes came from documents, which from the operator, which from search.
 
 ### Search demand
@@ -475,7 +520,9 @@ halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `o
 country, as typed and followed by each question stem (Italian: *è, fa, come, perché, quanto,
 quale, si può*; English: *is, does, how, why, can, which, vs*; `--stems` for any other
 language). Every prefix is recorded with its source and date. Prefixes that could not be
-fetched are listed and the command exits 1; running it again fills them.
+fetched are listed and the command exits 1; running it again fills them. Each persona's seeds
+are sent the same way and recorded under `personas` in `search-demand.json`; the sources to watch
+are never sent.
 
 **With a keyword-data source.** The playbook asks for a capability: monthly volume and
 related searches for a keyword, a location and a language. It reads the tool names from the
@@ -505,7 +552,9 @@ refused file changes nothing.
 `monitor.py demand summary` prints, per theme, the distinct suggestions, the volume per
 class or none, and the top queries (by volume when there is one, else the first suggestions).
 A keyword that appears twice in a theme counts once. `design` copies it into each theme's
-`search` block.
+`search` block. With `seeds.json` in the folder, `summary` then prints each persona by id and
+label with its distinct suggestions and top suggestions, or `without search evidence`, and the
+sources to watch on a line of their own.
 
 ### `design`
 
@@ -519,9 +568,11 @@ The steps run in the order the report tells them:
    study project is one Sentl project**, because Sentl computes one score per run per
    project: a project that mixes questions naming the subject (read by mean score) with
    questions naming no brand (read by presence) produces a score nobody can read. Projects
-   also differ in models, rounds and schedule.
+   also differ in models, rounds and schedule. When the brief lists personas, projects are
+   grouped by the personas they serve, with branded and unbranded questions still apart.
 4. **Who asks.** `generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason.
-   With personas or stakeholders, each question carries the `persona` in plain words.
+   The brief's personas are copied into `study.json`; with personas, stakeholders or mixed,
+   each question's `persona` is an id of that list.
 5. **Questions.** Written as the person types them, in the market's language, starting from
    the top queries of the theme. A question that names no brand contains no alias of the
    subject or of a foil. Where a dimension's searches lean one way, the opposite question is
@@ -554,7 +605,10 @@ answers per question and model per report period.
 per problem, exit 1, or `validate passed` and one `warning:` line per warning, exit 0. Beyond
 the list above it refuses a pair with other than two questions or whose framings are not one
 positive and one negative, a missing `persona` when the audience is `personas` or
-`stakeholders`, and a dimension with no question. A question's judge instructions are counted
+`stakeholders`, a `persona` absent from the study's `personas` list when the audience is
+`personas`, `stakeholders` or `mixed` and the list exists, a `personas` value of another type
+than a list, a persona that lacks a field or repeats an id, a blank `suggestion`, and a
+dimension with no question. A question's judge instructions are counted
 as Sentl receives them: the instructions followed by the dated facts with their `current` and
 `outdated` terms (`compose_instructions`). A snapshot `study.json` is checked by the snapshot
 mode of `validate` and `review` (§`snapshot <subject>`); any other `kind` is refused with exit 2. Answers per question and model per report period is
@@ -562,8 +616,10 @@ mode of `validate` and `review` (§`snapshot <subject>`); any other `kind` is re
 monthly 0.25 or 1.
 
 `monitor.py review` writes `study-review.md`: the narrative, the theme inventory with
-origins and search demand, projects and dimensions with question counts, every question with
-its persona, framing and rubric, and the credit estimate from the models' tariffs. The
+origins and search demand, the personas (each with its group, situation, decision, the questions
+it types, its search evidence and the study's questions asked as it), projects and dimensions
+with question counts, every question with its persona, framing and rubric, and the credit
+estimate from the models' tariffs. The
 estimate for a project is its questions times `rounds` times the sum of its models' `credits`
 (the tariff per call in `list-ai-models`), for one run and for a report period; judging costs no
 credits, and `estimate-run-tool` gives the total before a run starts. `review` refuses a
@@ -734,8 +790,14 @@ stay in `history/`, so the first `report` of the study compares its period with 
    decide and by the catalogue's rules: at least one dimension naming no brand unless the
    operator wants reputation only; a dimension whose facts cannot be found is replaced by
    another. Each dimension records its catalogue id, and the reason it was picked goes in
-   `design_rationale`.
-4. **Questions and rubrics.** One question per dimension, written as the person types it,
+   `design_rationale`. The operator then names who will read the report (`narrative.reader`)
+   and the persona behind each question, one line each.
+4. **Questions and rubrics.** One seed per dimension goes to `monitor.py demand autocomplete`,
+   keyed by the dimension in `seeds.json`; `demand summary` gives each dimension's top
+   suggestion. The question starts from it and from the persona's situation, and records it in
+   `suggestion`. A host with no network skips the suggestions: the questions come from the
+   catalogue entry's pattern alone, and the report's questions section says the suggestions
+   could not be collected. One question per dimension, written as the person types it,
    from the catalogue entry's pattern, in the market's language. Five anchors per question,
    adapted from the entry; judge instructions carry the dated facts. Researcher models are
    the operator's choice from a saved `list-ai-models` response, with each model's tariff
@@ -773,8 +835,8 @@ dimension with more or fewer than one question; a dimension without a catalogue 
 an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a question marked
 as naming no brand; a model id absent from `list-ai-models`; rounds other than 1; a
 schedule; a narrative without research question and purpose; a study with other than one
-project; a dimension without `measures` or without an entry in `design_rationale`; duplicate
-keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
+project; a dimension without `measures` or without an entry in `design_rationale`; a question
+without a `persona`; duplicate keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
 period do not apply.
 
 **Reading a snapshot.** Its one project mixes questions that name the subject with questions
@@ -1062,8 +1124,8 @@ the order they appear.
 | — | Title: the research question; subject, period, date | `method` |
 | `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired, in one sentence, or one line per project (its questions, assistants, times each question is asked per run, how often it runs) when the projects differ in any of these; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
 | `themes` | Where the themes came from: themes grouped by origin, the themes that share an identical origin (kind and detail) on one line; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
-| `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
-| `questions` | The questions: per dimension, verbatim, paired questions side by side | `method` |
+| `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why, and each persona of the study's list with its situation and its questions. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
+| `questions` | The questions: per dimension, verbatim, paired questions side by side, each with who asks it (a persona of the list by its label) and the Google suggestion it started from. A snapshot whose questions have no suggestion says that Google's suggestions could not be collected | `method` |
 | `scoring` | How the answers are scored: a rubric that several questions share stated once for them with all five anchors, and per dimension what a 5, a 3 and a 1 mean for the other questions; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
 | `summary` | In short: three to five plain sentences, a bulleted list, each stating one point with its figure | the agent, written last, from the findings and changes |
 | `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |

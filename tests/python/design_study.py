@@ -14,9 +14,10 @@ def rubric(branded):
 
 
 def question(key, text, framing="neutral", branded=True, pair=None, facts=None,
-             instructions="Score how the answer treats the subject, not the category."):
+             instructions="Score how the answer treats the subject, not the category.",
+             persona="a shopper comparing plant drinks"):
     item = {"key": key, "label": text[:40], "text": text, "branded": branded, "framing": framing,
-            "persona": "a shopper comparing plant drinks", "rubric": rubric(branded),
+            "persona": persona, "rubric": rubric(branded),
             "instructions": instructions, "lineage": [{"version": 1, "change": "created"}]}
     if pair:
         item["pair"] = pair
@@ -24,6 +25,22 @@ def question(key, text, framing="neutral", branded=True, pair=None, facts=None,
         item["facts"] = facts
     return item
 
+
+# The study's personas, as `brief` writes them to seeds.json and `design` copies them; each question's
+# persona is one of these ids.
+PERSONAS = [
+    {"id": "parent", "label": "A parent choosing for a child", "group": "chooses",
+     "situation": "buys a plant drink for a child with a lactose intolerance",
+     "decision": "which oat drink to put in the cart", "asks": ["Is oat milk safe for toddlers?"]},
+    {"id": "athlete", "label": "An amateur athlete", "group": "chooses",
+     "situation": "trains most days and reads the protein and sugar on every label",
+     "decision": "whether oat milk fits the diet", "asks": ["Is oat milk good after a workout?"]},
+    {"id": "cafe-buyer", "label": "A café owner buying for the bar", "group": "buys_for_others",
+     "situation": "orders milk for a coffee bar and compares suppliers by the case",
+     "decision": "which brand to order", "asks": ["Which oat milk foams best for lattes?"]},
+]
+ASKED_BY = {"health": "parent", "price": "cafe-buyer", "taste": "cafe-buyer", "environment": "athlete",
+            "availability": "parent"}
 
 PRICE_FACT = {"fact": "Avenello Original costs 2.10 USD per litre", "source": "https://avenello.example/prices",
               "date": "2026-10-01", "current": ["2.10"], "outdated": ["1.90"]}
@@ -69,10 +86,11 @@ def clean_study():
         for n, (text, framing, pair) in enumerate(items, 1):
             facts = [dict(PRICE_FACT)] if dkey == "price" and n == 1 else None
             instr = "Score 1 when the answer states an outdated price." if facts else "Score the subject, not the category."
-            qs.append(question(f"{dkey}-{n}", text, framing, True, pair, facts, instr))
+            qs.append(question(f"{dkey}-{n}", text, framing, True, pair, facts, instr, ASKED_BY[dkey]))
         brand_dims.append({"key": dkey, "name": name, "search_lean": lean, "axis": "stance", "questions": qs})
     category_dims = [{"key": dkey, "name": name, "search_lean": "none", "axis": "stance",
-                      "questions": [question(f"{dkey}-{n}", text, framing, False)
+                      "questions": [question(f"{dkey}-{n}", text, framing, False,
+                                             persona=ASKED_BY[dkey.removeprefix("c-")])
                                     for n, (text, framing) in enumerate(items, 1)]}
                      for dkey, name, items in CATEGORY]
     themes = [{"id": d["key"], "label": d["name"], "dimension": d["key"],
@@ -95,6 +113,7 @@ def clean_study():
             "design_rationale": [{"choice": "Two projects: with the brand and without it",
                                   "reason": "The first is read by mean score, the second by how often Avenello is named."}],
             "score_axis": "stance"},
+        "personas": copy.deepcopy(PERSONAS),
         "themes": themes,
         "projects": [
             _project("brand", "Avenello · With the brand", "What do people hear about Avenello once they name it?",
@@ -110,9 +129,18 @@ def mutated(change):
     return study
 
 
+def _auto(prefix, *suggestions):
+    return {"prefix": prefix, "suggestions": list(suggestions), "source": "google autocomplete hl=en gl=US",
+            "collected": "2026-10-16"}
+
+
 def search_demand():
+    """The theme health and two personas: the parent with suggestions, the athlete with none."""
     return {"schema": "sentl-monitor/search-demand@1", "market": {"country": "US", "language": "en"},
             "themes": {"health": {"seeds": ["oat milk bad for you"], "volumes": [], "autocomplete": [
-                {"prefix": "oat milk bad", "suggestions": ["oat milk bad for you", "oat milk bad for kidneys"],
-                 "source": "google autocomplete hl=en gl=US", "collected": "2026-10-16"}]}},
+                _auto("oat milk bad", "oat milk bad for you", "oat milk bad for kidneys")]}},
+            "personas": {"parent": {"seeds": ["oat milk for toddlers"], "autocomplete": [
+                             _auto("oat milk for toddlers", "oat milk for toddlers safe", "oat milk for toddlers age")]},
+                         "athlete": {"seeds": ["oat milk after workout"],
+                                     "autocomplete": [_auto("oat milk after workout")]}},
             "volume_source": None}

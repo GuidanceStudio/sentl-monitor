@@ -41,7 +41,10 @@ Ask for, and write to `$S/seeds.json`:
 - the components (an ingredient, a material, a technology), each with the terms people use for
   it;
 - the market: country and language;
-- for each theme, the seed queries: how a person would type the theme into a search box.
+- for each theme, the seed queries: how a person would type the theme into a search box;
+- the personas: the kinds of people who ask the assistants about the subject, each in a
+  situation that leads to a decision;
+- the sources to watch: bodies the assistants cite and nobody asks as.
 
 ```json
 {
@@ -50,11 +53,40 @@ Ask for, and write to `$S/seeds.json`:
   "subject": {"aliases": ["Avenello"]},
   "foils": [{"aliases": ["Avoria"]}],
   "components": [{"terms": ["oat milk", "oat drink"]}],
-  "themes": {"health": ["oat milk bad for you", "avenello sugar"]}
+  "themes": {"health": ["oat milk bad for you", "avenello sugar"]},
+  "personas": [
+    {"id": "parent", "label": "A parent choosing for a child", "group": "chooses",
+     "situation": "buys a plant drink for a child with a lactose intolerance",
+     "decision": "which oat drink to put in the cart",
+     "asks": ["Is oat milk safe for toddlers?"],
+     "seeds": ["oat milk for toddlers"]}
+  ],
+  "sources_to_watch": [{"label": "A consumer association", "domains": ["consumers.example"]}]
 }
 ```
 
 The theme ids are the keys of `themes`; they stay the same in the study.
+
+Each persona has:
+
+- `id`: a short key the study's questions use;
+- `label`: who the persona is, as the report names them;
+- `group`: `chooses` (picks the product for themselves or their family), `customer` (already
+  buys or uses it), `buys_for_others` (buys for a business, an office, a school), `works_there`
+  (works for the subject or wants to), or a group the operator names;
+- `situation`: what is happening when the persona asks;
+- `decision`: what the answer helps the persona decide;
+- `asks`: one or two questions as the persona types them;
+- `seeds`: the searches the persona would type, or an empty list when the operator knows of none.
+
+Look for personas in the client's documents first: who the complaints come from, who the sales
+team sells to, who applies for jobs. Each group above holds at least one persona of most
+subjects; ask the operator about a group with none.
+
+Bodies such as regulators, consumer associations, the press and review sites go in
+`sources_to_watch`, with the domains they publish on. The assistants cite them; they do not ask the assistants about
+the subject, so they are never personas. `demand` refuses a label that is both a persona and a
+source to watch.
 
 ## 4. Collect search demand
 
@@ -65,6 +97,9 @@ does, how, why, can, which, vs). For another language, pass the stems with `--st
 ```bash
 python3 <skill>/scripts/monitor.py demand autocomplete --study "$S" --hl en --gl US
 ```
+
+Each persona's seeds are sent the same way, and their suggestions are recorded under the
+persona in `search-demand.json`. Sources to watch are never sent.
 
 Exit 1: some prefixes could not be fetched, and the command lists them. Run it again; it
 fetches only the prefixes still missing. Exit 2: the seeds file or the stems are not usable;
@@ -118,6 +153,11 @@ another: searches that name the subject stay apart from searches about a compone
 theme that only search surfaced joins the inventory with the origin `search`, and the detail
 names the source and the month, such as `Google autocomplete, United States, October 2026`.
 
+After the themes it prints each persona's distinct suggestions and top suggestions, or marks
+the persona as without search evidence, and then the sources to watch on a line of their own.
+A persona without search evidence stays in the inventory: some people ask an assistant what
+they never type into a search box. Tell the operator which personas have none.
+
 ## 6. Write `$S/brief.md`
 
 In the operator's language, with these sections:
@@ -130,7 +170,15 @@ In the operator's language, with these sections:
    this line follows it: *The counts are Google suggestions: they measure how many ways a theme
    is phrased, not how many people search it.*
 4. Who asks: `generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason.
-5. The documents read.
+5. Personas: one row for each persona of `seeds.json`.
+
+   | id | label | group | situation | decision | asks | search evidence |
+   |----|-------|-------|-----------|----------|------|-----------------|
+
+   The search evidence is the persona's count of distinct suggestions and its top suggestion,
+   or the words *without search evidence* when Google gave none.
+6. Sources to watch: each body with its domains, under its own heading, apart from the personas.
+7. The documents read.
 
 ## 7. Stop
 

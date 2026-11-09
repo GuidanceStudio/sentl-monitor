@@ -82,7 +82,37 @@ replaced by another entry. For each, write in `$S/study.json`:
 - an entry in `narrative.design_rationale` whose `choice` is the dimension's name and whose
   `reason` says why it was picked for this subject.
 
+Then ask the operator two things, one line each:
+
+- who will read the report: their role and the decision the report feeds. Write it in
+  `narrative.reader`.
+- the persona behind each dimension's question: who types it and in what situation, such as *a
+  parent who read that oat milk has too much sugar*. Write it in the question's `persona`
+  (step 4). Propose one per dimension from what the operator said about the subject; the
+  operator corrects them.
+
 ## 4. Questions and rubrics
+
+Before writing the questions, write one seed per dimension to `$S/seeds.json`, keyed by the
+dimension's key: the first words the persona would type into a search box about that topic.
+
+```json
+{"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
+ "subject": {"aliases": ["<subject alias>"]},
+ "themes": {"<dimension key>": ["<seed>"]}}
+```
+
+```bash
+python3 <skill>/scripts/monitor.py demand autocomplete --study "$S" --hl en --gl US
+python3 <skill>/scripts/monitor.py demand summary --study "$S"
+```
+
+The first of each dimension's `top queries` is the top suggestion. The dimension's question
+starts from it and from the persona's situation; write the suggestion, as Google gave it, in
+the question's `"suggestion"`. When `autocomplete` exits 1, run it again: it fetches only the
+prefixes still missing. A host with no network fails on every prefix: leave `suggestion` out of
+every question and write them from the catalogue's pattern alone. The report's method section
+then says that Google's suggestions could not be collected.
 
 One question per dimension, written as the person types it, in the market's language, from the
 catalogue entry's pattern. A question that names no brand contains no alias of the subject or of
@@ -94,13 +124,13 @@ refuses a question whose instructions are empty. Write `study.json` with `"kind"
 {"schema": "sentl-monitor/study@1", "kind": "snapshot", "subject": {}, "foils": [],
  "market": {"country": "US", "language": "en"}, "report_language": "en",
  "organization": "<Sentl organization slug>", "themes": [],
- "narrative": {"research_question": "", "purpose": "", "criteria": {"by": "", "date": ""},
+ "narrative": {"research_question": "", "purpose": "", "reader": "", "criteria": {"by": "", "date": ""},
                "design_rationale": [{"choice": "<dimension name>", "reason": ""}]},
  "projects": [{"key": "snapshot", "name": "Snapshot · <subject> · <D>", "question": "", "decision": "",
                "models": ["<id from list-ai-models>"], "rounds": 1,
                "dimensions": [{"key": "", "catalogue": "", "name": "", "measures": "", "axis": "stance",
                                "questions": [{"key": "", "label": "", "text": "", "branded": true,
-                                              "framing": "neutral", "rubric": {"1": "", "2": "", "3": "", "4": "", "5": ""},
+                                              "persona": "", "suggestion": "", "framing": "neutral", "rubric": {"1": "", "2": "", "3": "", "4": "", "5": ""},
                                               "instructions": "<how the judge applies the anchors>", "facts": []}]}]}]}
 ```
 
@@ -115,7 +145,8 @@ python3 <skill>/scripts/monitor.py validate --study "$S" --models "$S/inbox/mode
 python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json"
 ```
 
-`validate` exit 1 lists the problems: correct `study.json` and run it again. It warns when every
+`validate` exit 1 lists the problems: correct `study.json` and run it again. It refuses a
+question with no `persona`. It warns when every
 dimension names the subject; tell the operator what that costs the report. `review` writes
 `$S/study-review.md`: the narrative, the dimensions, every question with its rubric and judge
 instructions, and the credits of one run from the tariffs, without judging. Show it and stop for

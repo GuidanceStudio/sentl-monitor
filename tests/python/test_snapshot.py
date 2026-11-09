@@ -5,9 +5,16 @@ import json
 import re
 import unittest
 
+import socket
+from unittest import mock
+from urllib.parse import parse_qs, urlparse
+
 from fixtures import GEM, GPT, StudyCase, listing, models
-from snapshot_study import (BOUND_AT, DATE, KEY, PROJECT_ID, RUN_ID, RUN_STARTED, SCORES, clean_snapshot,
-                            extra_dimension, mutated, run_results, saved_project)
+from snapshot_study import (ASKED_BY, BOUND_AT, DATE, KEY, PROJECT_ID, READER, RUN_ID, RUN_STARTED, SCORES, SEEDS,
+                            SUGGESTIONS, clean_snapshot, extra_dimension, mutated, run_results, saved_project)
+
+from sentlmon import demand
+from sentlmon.i18n import TEXT
 
 TOOLS = ("create-project-tool", "create-snapshot-tool", "update-project-settings-tool", "save-project-questions-tool")
 SNAPSHOT_ORDER = ["What we did and to what end", "The dimensions and how we reached them", "The questions",
@@ -173,6 +180,10 @@ REFUSALS = {
         lambda s: s["narrative"].update(design_rationale=s["narrative"]["design_rationale"][1:]),
         "Reputation has no entry in design_rationale"),
     "two dimensions with one name": (lambda s: dim(s, "price").update(name="Health"), "two dimensions named Health"),
+    "a question with no persona": (lambda s: q(s, "price-1").pop("persona"), "price-1: persona is missing"),
+    "a question whose persona is blank": (lambda s: q(s, "health-1").update(persona=" "),
+                                          "health-1: persona is missing"),
+    "a suggestion that is not a text": (lambda s: q(s, "price-1").update(suggestion=""), "price-1: suggestion"),
 }
 
 
@@ -228,6 +239,13 @@ class ReviewSnapshotTest(SnapshotCase):
         for part in ("## Questions", "5. Favourable, with grounds from a named source", "2.10 USD per litre",
                      "names the brand: no"):
             self.assertIn(part, out)
+
+    def test_it_shows_the_reader_and_each_question_with_its_persona_and_suggestion(self):
+        out = self.review().stdout
+        self.assertIn(f"- Reader: {READER}", out)
+        for key in ("reputation", "recommendation", "price", "health"):
+            self.assertIn(f"persona: {ASKED_BY[key]}", out)
+            self.assertIn(f"- Google suggestion: {SUGGESTIONS[key]}", out)
 
     def test_it_shows_the_cost_of_the_one_run_from_the_tariffs(self):
         out = self.review().stdout
@@ -375,6 +393,37 @@ class SnapshotReportTest(SnapshotCase):
         self.period()
         self.method(check=0)
 
+    def test_the_questions_section_names_who_asks_each_question_and_the_suggestion_it_started_from(self):
+        self.period()
+        self.method()
+        body = sections(self.report())["The questions"]
+        self.assertIn("- Is Avenello oat milk bad for you? (asked by: a parent who read that oat milk has too much sugar; "
+                      "from the Google suggestion “is oat milk bad for you”)", body)
+        for key in ("reputation", "recommendation", "price"):
+            self.assertIn(f"“{SUGGESTIONS[key]}”", body)
+        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
+
+    def test_a_snapshot_designed_without_network_says_its_questions_have_no_suggestion(self):
+        study = self.read("study.json")
+        for d in study["projects"][0]["dimensions"]:
+            d["questions"][0].pop("suggestion")
+        self.put(study)
+        self.write_report()
+        body = sections(self.report())["The questions"]
+        self.assertIn(TEXT["en"]["no_suggestions"], body)
+        self.assertNotIn("Google suggestion “", body)
+        self.check(check=0)
+
+    def test_the_italian_report_says_so_in_italian(self):
+        study = self.read("study.json")
+        study["report_language"] = "it"
+        for d in study["projects"][0]["dimensions"]:
+            d["questions"][0].pop("suggestion")
+        self.put(study)
+        self.period()
+        self.method()
+        self.assertIn(TEXT["it"]["no_suggestions"], self.report())
+
     def test_a_filled_snapshot_report_passes_check(self):
         self.write_report()
         proc = self.check(check=0)
@@ -418,6 +467,54 @@ class SnapshotReportTest(SnapshotCase):
         self.forget_run()
         self.ingest_run(scores={k: v for k, v in SCORES.items() if k != ("price", GEM)})
         self.assertIn("1 of 2 answers judged, under 80%", self.period().stdout)
+
+
+# --- the questions start from Google's suggestions ------------------------------
+
+class SuggestionStepTest(SnapshotCase):
+    """SNAPSHOT.md step 4: one seed per dimension goes to `demand autocomplete`, and each question starts
+    from its dimension's top suggestion. No test reaches Google."""
+
+    def setUp(self):
+        super().setUp()
+        for patch in (mock.patch.object(socket, "getaddrinfo", side_effect=AssertionError("a hostname was resolved")),
+                      mock.patch.object(demand, "DELAY", 0)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    @staticmethod
+    def google(url):
+        """The seed itself gets its dimension's suggestion first; a seed followed by a stem gets an echo."""
+        prefix = parse_qs(urlparse(url).query)["q"][0]
+        first = {seed: SUGGESTIONS[key] for key, seed in SEEDS.items()}.get(prefix)
+        return json.dumps([prefix, [first, prefix + " near me"] if first else [prefix + " near me"]])
+
+    def write_seeds(self):
+        seeds = {"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
+                 "subject": {"aliases": ["Avenello"]}, "foils": [{"aliases": ["Avoria"]}],
+                 "components": [{"terms": ["oat milk"]}],
+                 "themes": {key: [seed] for key, seed in SEEDS.items()}}
+        (self.study / "seeds.json").write_text(json.dumps(seeds), encoding="utf-8")
+
+    def test_each_dimension_gets_one_seed_and_its_question_starts_from_the_top_suggestion(self):
+        self.write_seeds()
+        with mock.patch.object(demand, "_get", side_effect=self.google) as get:
+            self.cli("demand", "autocomplete", "--study", self.study, "--hl", "en", "--gl", "US", check=0)
+        self.assertEqual(get.call_count, len(SEEDS) * 8)
+        out = self.cli("demand", "summary", "--study", self.study, check=0).stdout
+        tops = dict(re.findall(r"^(\S+): .*\n.*\n  top queries: ([^;\n]+)", out, flags=re.M))
+        for d in clean_snapshot()["projects"][0]["dimensions"]:
+            item = d["questions"][0]
+            self.assertEqual(item["suggestion"], tops[d["key"]], d["key"])
+            self.assertTrue(item["persona"].strip(), d["key"])
+        self.assertEqual(self.validate(clean_snapshot()).returncode, 0)
+
+    def test_without_network_every_prefix_is_listed_and_nothing_is_suggested(self):
+        self.write_seeds()
+        with mock.patch.object(demand, "_get", side_effect=OSError("network is unreachable")):
+            proc = self.cli("demand", "autocomplete", "--study", self.study, "--hl", "en", "--gl", "US", check=1)
+        self.assertIn(f"{len(SEEDS) * 8} prefixes could not be fetched", proc.stdout)
+        self.assertTrue(all(not b["autocomplete"] for b in self.read("search-demand.json")["themes"].values()))
 
 
 # --- resume and close -----------------------------------------------------------

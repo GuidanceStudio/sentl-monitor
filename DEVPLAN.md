@@ -1130,11 +1130,11 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - Files written before M27 read as before: `seeds@1` and `study@1` gain optional fields, and a study with no `personas` list keeps its free-text personas.
 
 **Tasks:**
-- [ ] Test: unit — `seeds.json` with personas: `demand autocomplete` records each persona's suggestions, `summary` prints them, a persona with none is marked; `sources_to_watch` is kept apart
-- [ ] Test: unit — `validate` refuses a question whose persona is not in `personas`; a study written before M27, with free-text personas and no list, still passes; snapshot mode refuses a question with no persona
-- [ ] Test: unit — `review` and `method` print the personas with their situations and questions
-- [ ] Test: structure — BRIEF.md holds the persona inventory and `sources_to_watch`; DESIGN.md the grouping of projects by persona; SNAPSHOT.md the persona line and the suggestion step
-- [ ] Implement in `demand.py`, `design.py`, `snapshot.py`, `method.py`, `schema.py`; BRIEF.md, DESIGN.md, SNAPSHOT.md; the fictional example study gains three personas; ARCHITECTURE, README, CHANGELOG
+- [x] Test: unit — `seeds.json` with personas: `demand autocomplete` records each persona's suggestions, `summary` prints them, a persona with none is marked; `sources_to_watch` is kept apart
+- [x] Test: unit — `validate` refuses a question whose persona is not in `personas`; a study written before M27, with free-text personas and no list, still passes; snapshot mode refuses a question with no persona
+- [x] Test: unit — `review` and `method` print the personas with their situations and questions
+- [x] Test: structure — BRIEF.md holds the persona inventory and `sources_to_watch`; DESIGN.md the grouping of projects by persona; SNAPSHOT.md the persona line and the suggestion step
+- [x] Implement in `demand.py`, `design.py`, `snapshot.py`, `method.py`, `schema.py`; BRIEF.md, DESIGN.md, SNAPSHOT.md; the fictional example study gains three personas; ARCHITECTURE, README, CHANGELOG
 - [ ] Commit and push
 
 **Done when:** the suite passes; a fictional brief with three personas writes their suggestions to `search-demand.json` and a persona table to `brief.md`; a fictional study with a question whose persona is outside the list is refused; a fictional snapshot carries a persona and a question built from a suggestion on every dimension.

@@ -53,6 +53,8 @@ def _dimension_problems(d, rationale, ids, aliases, problems):
         problems.append(f"dimension {key} has {len(questions)} questions (a snapshot dimension has one)")
     for q in questions:
         design._check_question(q, d, None, aliases, problems)
+        if not design._text(q.get("persona")):
+            problems.append(f"{q.get('key')}: persona is missing (a snapshot names who asks each question)")
 
 
 def _project_problems(project, model_ids, rationale, ids, aliases, problems):
@@ -129,6 +131,8 @@ def review_text(study, models_file):
     narrative, project = study["narrative"], study["projects"][0]
     out = [f"# Snapshot review: {study['subject']['label']}", "", "## Narrative", "",
            f"- Research question: {narrative['research_question']}", f"- Purpose: {narrative['purpose']}"]
+    if narrative.get("reader"):
+        out.append(f"- Reader: {narrative['reader']}")
     if narrative.get("criteria"):
         out.append(f"- Rubrics written by: {narrative['criteria'].get('by')} ({narrative['criteria'].get('date')})")
     out += ["", "## Project", "", f"- {project['name']}",

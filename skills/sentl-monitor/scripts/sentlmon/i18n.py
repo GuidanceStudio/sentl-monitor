@@ -119,6 +119,11 @@ TEXT = {
         "from_origins": "da {origins}",
         "who_asks": "Chi pone le domande: {audience}. {reason}",
         "persona_beside": "Il profilo di chi chiede è indicato accanto a ogni domanda.",
+        "personas_title": "Chi pone ciascuna domanda, e in quale situazione:",
+        "from_suggestion": "dal suggerimento di Google «{suggestion}»",
+        "no_suggestions": "Non è stato possibile raccogliere i suggerimenti di Google per questa rilevazione, quindi "
+                          "ogni domanda è stata scritta dalla formulazione abituale del suo tema e dalla situazione di "
+                          "chi la pone.",
         "project_question": "Domanda del progetto: {question}",
         "project_decision": "Decisione che informa: {decision}",
         "asked_by": "chi chiede: {persona}",
@@ -222,6 +227,10 @@ TEXT = {
         "from_origins": "from {origins}",
         "who_asks": "Who asks: {audience}. {reason}",
         "persona_beside": "The profile of who asks is given beside each question.",
+        "personas_title": "Who asks each question, and in what situation:",
+        "from_suggestion": "from the Google suggestion “{suggestion}”",
+        "no_suggestions": "Google's suggestions could not be collected for this snapshot, so each question was "
+                          "written from the usual wording of its topic and the situation of the person who asks it.",
         "project_question": "The project's question: {question}",
         "project_decision": "The decision it informs: {decision}",
         "asked_by": "asked by: {persona}",

@@ -174,7 +174,8 @@ def _parser():
     di.add_argument("--theme", help="the theme of the file's keywords (CSV)")
     di.add_argument("--date", help="when the volumes were collected, YYYY-MM-DD (default: today)")
     di.add_argument("file", help="the export file")
-    action("summary", "print each theme's suggestions, volume per class and top queries")
+    action("summary", "print each theme's suggestions, volume per class and top queries, then each persona's "
+                      "suggestions and the sources to watch")
 
     v = command("validate", "check a designed study.json against Sentl's limits and the design rules")
     v.add_argument("--study", default=".")
@@ -317,7 +318,7 @@ def main(argv=None):
             elif args.demand_command == "import":
                 print(demand.import_export(study, args.file, seeds, args.provider, args.tool, args.theme, args.date))
             else:
-                print(demand.summary(study))
+                print(demand.summary(study, seeds))
         elif args.command == "validate":
             text, ok = (snapshot if snapshot.is_snapshot(args.study) else design).validate(args.study, args.models)
             print(text)

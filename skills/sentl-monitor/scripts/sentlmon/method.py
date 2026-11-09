@@ -121,7 +121,20 @@ def _dimensions(study, projects, lang):
     lines.append(t["who_asks"].format(audience=AUDIENCE[lang][audience["choice"]], reason=audience["reason"]))
     if any(q.get("persona") for _, dims in projects for d in dims for q in d["questions"]):
         lines.append(t["persona_beside"])
-    return lines
+    return lines + _persona_rows(study, projects, lang)
+
+
+def _persona_rows(study, projects, lang):
+    """Each persona of the study's list that asked a question of the period: its label, its situation and
+    its questions as the period asked them."""
+    rows = []
+    for persona in study.get("personas") or []:
+        asked = dict.fromkeys(q["text"] for _, dims in projects for d in dims for q in d["questions"]
+                              if q.get("persona") == persona["id"])
+        if asked:
+            rows.append(f"- **{persona['label']}** ({persona['situation']}): "
+                        + join(("«" + text + "»" for text in asked), lang) + ".")
+    return ["", TEXT[lang]["personas_title"], ""] + rows if rows else []
 
 
 def _snapshot_dimensions(study, projects, lang):
@@ -147,8 +160,15 @@ def _limits(period, lang):
     return [first.format(date=fmt_date(period["from"], lang)), "", second]
 
 
-def _questions(projects, lang):
+def _questions(study, projects, lang):
+    """Each question with who asks it (a persona of the list by its label) and the Google suggestion it
+    started from. A snapshot whose questions have no suggestion says so first."""
+    t = TEXT[lang]
+    labels = {p["id"]: p["label"] for p in study.get("personas") or []}
+    asked = [q for _, dims in projects for d in dims for q in d["questions"]]
     lines = []
+    if study.get("kind") == "snapshot" and not any(q.get("suggestion") for q in asked):
+        lines += [t["no_suggestions"], ""]
     for _, dims in projects:
         for d in dims:
             lines += [f"**{d['name']}**", ""]
@@ -160,8 +180,12 @@ def _questions(projects, lang):
                                 and o.get("pair") == q.get("pair")), None)
                 text = q["text"] if partner is None else f"{q['text']} / {partner['text']}"
                 shown.update({q["key"]} | ({partner["key"]} if partner else set()))
-                persona = f" ({TEXT[lang]['asked_by'].format(persona=q['persona'])})" if q.get("persona") else ""
-                lines.append(f"- {text}{persona}")
+                notes = []
+                if q.get("persona"):
+                    notes.append(t["asked_by"].format(persona=labels.get(q["persona"], q["persona"])))
+                if q.get("suggestion"):
+                    notes.append(t["from_suggestion"].format(suggestion=q["suggestion"]))
+                lines.append(f"- {text}" + (f" ({'; '.join(notes)})" if notes else ""))
             lines.append("")
     return lines
 
@@ -317,7 +341,7 @@ def write(root, date, models_file, force=False):
         "themes": lambda: _themes(study, projects, folder, lang),
         "dimensions": lambda: (_snapshot_dimensions if study.get("kind") == "snapshot" else _dimensions)(
             study, projects, lang),
-        "questions": lambda: _questions(projects, lang),
+        "questions": lambda: _questions(study, projects, lang),
         "scoring": lambda: _scoring(study, projects, lang),
         "findings": lambda: _findings(projects, lang),
         "changes": lambda: _changes(period, lang, study["projects"]),

@@ -302,6 +302,39 @@ else
 fi
 
 echo ""
+echo "=== The playbooks say who asks (M27) ==="
+# The text of a playbook's section whose heading starts with $2, up to the next section.
+section() { awk -v h="$2" 'index($0, h) == 1 {on=1; next} on && /^## / {exit} on' "$1"; }
+holds() { if grep -qF -- "$2" <<<"$1"; then ok "$3"; else bad "$3"; fi; }
+
+BRIEF_SEEDS=$(section "$PAYLOAD/brief/BRIEF.md" "## 3. ")
+for field in '"personas"' '"group"' '"situation"' '"decision"' '"asks"' '"seeds"' '"sources_to_watch"'; do
+    holds "$BRIEF_SEEDS" "$field" "BRIEF.md step 3 writes $field to seeds.json"
+done
+for group in '`chooses`' '`customer`' '`buys_for_others`' '`works_there`'; do
+    holds "$BRIEF_SEEDS" "$group" "BRIEF.md names the persona group $group"
+done
+holds "$BRIEF_SEEDS" "regulators" "BRIEF.md puts the bodies the assistants cite in sources_to_watch"
+BRIEF_FILE=$(section "$PAYLOAD/brief/BRIEF.md" "## 6. ")
+holds "$BRIEF_FILE" "without search evidence" "brief.md marks a persona with no Google suggestion"
+holds "$BRIEF_FILE" "Sources to watch" "brief.md lists the sources to watch apart from the personas"
+holds "$BRIEF_FILE" "| id | label | group | situation | decision | asks | search evidence |" "brief.md holds the persona table"
+
+DESIGN_PROJECTS=$(section "$PAYLOAD/design/DESIGN.md" "## 4. ")
+holds "$DESIGN_PROJECTS" "personas they serve" "DESIGN.md groups the projects by the personas they serve"
+DESIGN_WHO=$(section "$PAYLOAD/design/DESIGN.md" "## 5. ")
+holds "$DESIGN_WHO" "the brief's personas" "DESIGN.md copies the brief's personas into study.json"
+holds "$DESIGN_WHO" "an id of" "DESIGN.md makes each question's persona an id of the list"
+
+SNAPSHOT_DIMS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 3. ")
+holds "$SNAPSHOT_DIMS" "who will read the report" "SNAPSHOT.md asks who will read the report"
+holds "$SNAPSHOT_DIMS" "one line each" "SNAPSHOT.md asks for the persona behind each question, one line each"
+SNAPSHOT_QUESTIONS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")
+holds "$SNAPSHOT_QUESTIONS" "demand autocomplete" "SNAPSHOT.md sends one seed per dimension to Google's suggestions"
+holds "$SNAPSHOT_QUESTIONS" '"suggestion"' "SNAPSHOT.md records the suggestion a question starts from"
+holds "$SNAPSHOT_QUESTIONS" "no network" "SNAPSHOT.md says what a host with no network does"
+
+echo ""
 echo "=== Scripts import only the standard library ==="
 if [ -f "$PAYLOAD/scripts/monitor.py" ]; then
     NONSTD=$(python3 - "$PAYLOAD/scripts" <<'PY'

@@ -170,6 +170,35 @@ class MethodTest(StudyCase, unittest.TestCase):
         self.method()
         self.assertNotIn("accanto a ogni domanda", self.report())
 
+    def test_personas_are_named_by_label_with_their_situation_and_their_questions(self):
+        self.ready()
+        study = self.read("study.json")
+        study["narrative"]["audience"] = {"choice": "personas", "reason": "Genitori e baristi chiedono cose diverse."}
+        study["personas"] = [
+            {"id": "genitore", "label": "Un genitore che sceglie per i figli", "group": "chooses",
+             "situation": "cerca una bevanda vegetale per un figlio intollerante al lattosio",
+             "decision": "quale bevanda all'avena comprare", "asks": ["il latte d'avena va bene per i bambini?"]},
+            {"id": "bar", "label": "Chi compra per un bar", "group": "buys_for_others",
+             "situation": "rifornisce un bar e confronta i fornitori", "decision": "quale marca ordinare",
+             "asks": ["qual è il miglior latte d'avena per il cappuccino?"]}]
+        asked_by = {"salute-1": "genitore", "salute-2": "genitore", "prezzo-1": "bar"}
+        for item in (x for p in study["projects"] for d in p["dimensions"] for x in d["questions"]):
+            if item["key"] in asked_by:
+                item["persona"] = asked_by[item["key"]]
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.method()
+        body = sections(self.report())
+        lines = body[DIMENSIONS].splitlines()
+        parent = next(line for line in lines if "Un genitore che sceglie per i figli" in line)
+        self.assertIn("cerca una bevanda vegetale per un figlio intollerante al lattosio", parent)
+        self.assertIn("«Il latte d’avena Avenello fa male?»", parent)
+        self.assertIn("«Il latte d'avena Avenello fa bene alla salute?»", parent)
+        self.assertNotIn("costa", parent)
+        bar = next(line for line in lines if "Chi compra per un bar" in line)
+        self.assertIn("«Quanto costa il latte d'avena Avenello rispetto al latte vaccino?»", bar)
+        self.assertIn("(chi chiede: Un genitore che sceglie per i figli)", body[QUESTIONS])
+        self.assertNotIn("chi chiede: genitore", body[QUESTIONS])
+
     def test_english_headings_follow_the_report_language(self):
         self.adopt()
         self.answer_operator(report_language="en")

@@ -16,6 +16,8 @@ LEANS = ("positive", "negative", "none")
 AXES = ("stance", "fidelity")
 OPPOSITE = {"positive": "negative", "negative": "positive"}
 DIMENSIONS_PER_PROJECT = (5, 7)
+# Audiences whose questions name a persona of the study's list (mixed may also leave it out).
+PERSONA_AUDIENCES = ("personas", "stakeholders", "mixed")
 ANSWERS_PER_PERIOD = 3
 
 # Runs of a project that fall in one report period, by schedule and report cadence.
@@ -71,7 +73,16 @@ def _questions(project):
     return [(d, q) for d in project.get("dimensions") or [] for q in d.get("questions") or []]
 
 
-def _check_question(q, dim, audience, subject_aliases, problems):
+def persona_ids(study):
+    """The ids of the study's personas, or None for a study that lists none and keeps free-text personas."""
+    personas = study.get("personas")
+    if not isinstance(personas, list):
+        return None
+    return [p["id"] for p in personas if isinstance(p, dict) and _text(p.get("id"))]
+
+
+def _check_question(q, dim, audience, subject_aliases, problems, personas=None):
+    """`personas` holds the ids a question's persona must come from, or None when the study lists none."""
     qid = q.get("key") or "a question of dimension " + str(dim.get("key"))
     for field in ("key", "text", "label"):
         if not _text(q.get(field)):
@@ -80,8 +91,13 @@ def _check_question(q, dim, audience, subject_aliases, problems):
         problems.append(f"{qid}: branded must be true or false")
     if q.get("framing") not in FRAMINGS:
         problems.append(f"{qid}: framing must be one of {', '.join(FRAMINGS)}")
-    if audience in ("personas", "stakeholders") and not _text(q.get("persona")):
+    persona = q.get("persona")
+    if audience in ("personas", "stakeholders") and not _text(persona):
         problems.append(f"{qid}: persona is missing (the audience is {audience})")
+    elif audience in PERSONA_AUDIENCES and personas is not None and _text(persona) and persona not in personas:
+        problems.append(f"{qid}: persona {persona} is not in personas ({', '.join(personas) or 'none'})")
+    if "suggestion" in q and not _text(q["suggestion"]):
+        problems.append(f"{qid}: suggestion must be the text of the Google suggestion the question starts from")
     for field, limit in (("label", LABEL), ("text", QUESTION)):
         if _text(q.get(field)) and len(q[field]) > limit:
             problems.append(f"{qid}: {field} is {len(q[field])} characters, over Sentl's limit of {limit}")
@@ -135,7 +151,7 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
     low, high = DIMENSIONS_PER_PROJECT
     if not low <= len(dims) <= high:
         warnings.append(f"{where} has {len(dims)} dimensions ({low} to {high} are expected)")
-    names = {}
+    names, personas = {}, persona_ids(study)
     for d in dims:
         dkey = d.get("key")
         if not _text(d.get("name")):
@@ -162,7 +178,7 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
             problems.append(f"dimension {dkey} leans {lean} but has no question with {OPPOSITE[lean]} framing")
         seen = set()
         for q in questions:
-            _check_question(q, d, audience, aliases, problems)
+            _check_question(q, d, audience, aliases, problems, personas)
             if _text(q.get("text")):
                 if match_key(q["text"]) in seen:
                     problems.append(f"dimension {dkey} has two questions with the same text: {q['text']}")
@@ -191,6 +207,8 @@ def problems_of(study, model_ids):
     aliases = list(subject.get("aliases") or [])
     for foil in study.get("foils") or []:
         aliases += foil.get("aliases") or []
+    if "personas" in study:
+        problems += demand.persona_problems(study["personas"])
     projects = study.get("projects") or []
     if not projects:
         problems.append("the study has no project")
@@ -261,9 +279,12 @@ def _origin(o):
     return f"{o['kind'].replace('_', ' ')}, {o['detail']}"
 
 
-def _inventory(study, root):
+def _search_demand(root):
     path = Study(root).path("search-demand.json")
-    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def _inventory(study, data):
     summary = demand.summarize(data) if data else {}
     lines = ["## Theme inventory", ""]
     if not data:
@@ -278,6 +299,25 @@ def _inventory(study, root):
                          f"{volume} a month; top queries: {top}")
         elif data:
             lines.append("  - search: nothing collected for this theme")
+    return lines + [""]
+
+
+def _personas(study, data):
+    """The review's Personas section: each persona with its situation, its decision, the questions it types,
+    its search evidence and the study's questions asked as it."""
+    if not study.get("personas"):
+        return []
+    found = (data or {}).get("personas") or {}
+    lines = ["## Personas", ""]
+    for persona in study["personas"]:
+        block = found.get(persona["id"])
+        count = len(demand.distinct(block)) if block else 0
+        evidence = _count(count, "distinct suggestion", "distinct suggestions") if count else demand.WITHOUT_EVIDENCE
+        lines.append(f"- {persona['label']} ({persona['id']}, group {persona['group']}): {persona['situation']}. "
+                     f"Decides {persona['decision']}. Types: {'; '.join(persona['asks'])}. Search: {evidence}.")
+        asked = [f"  - {q['key']}: {q['text']}" for p in study["projects"] for _, q in _questions(p)
+                 if q.get("persona") == persona["id"]]
+        lines += asked or ["  - no question of the study is asked as this persona"]
     return lines + [""]
 
 
@@ -319,8 +359,10 @@ def question_lines(study):
             for q in d["questions"]:
                 out += [f"**{q['key']}** {q['text']}", "",
                         f"- persona: {q.get('persona') or 'none'}; framing: {q['framing']}; names the brand: "
-                        f"{'yes' if q['branded'] else 'no'}" + (f"; pair: {q['pair']}" if q.get("pair") else ""),
-                        "- rubric:"]
+                        f"{'yes' if q['branded'] else 'no'}" + (f"; pair: {q['pair']}" if q.get("pair") else "")]
+                if q.get("suggestion"):
+                    out.append(f"- Google suggestion: {q['suggestion']}")
+                out.append("- rubric:")
                 out += [f"  {a}. {q['rubric'][a]}" for a in "12345"]
                 text = compose_instructions(q.get("instructions"), q.get("facts"))
                 out += [f"- judge instructions as Sentl receives them: {text or 'none'}", ""]
@@ -340,7 +382,8 @@ def review_text(study, root, models_file):
         out.append(f"- Score axis: {narrative['score_axis']}")
     out += [f"- Design choice: {c['choice']}. {c['reason']}" for c in narrative.get("design_rationale") or []]
     out.append("")
-    out += _inventory(study, root)
+    data = _search_demand(root)
+    out += _inventory(study, data) + _personas(study, data)
     out += ["## Projects and dimensions", ""]
     for p in study["projects"]:
         out += [f"### {p['name']} ({p['key']})", "", f"- Question: {p['question']}", f"- Decision: {p['decision']}",

@@ -47,12 +47,28 @@ nobody can read, so they go in two projects. Projects also differ in models, rou
 schedule. Each project carries `question` (what it answers) and `decision` (what the client
 decides with it).
 
+When the brief lists personas, group the projects by the personas they serve: a project for the
+people who choose the product, another for the businesses that buy it for others, another for
+job seekers, each with the decision that group makes. Inside each group, questions that name the
+brand and questions that name none still go in different projects. A project that mixes them
+passes `validate` with a warning.
+
 ## 5. Who asks
 
 Choose `generic_consumer`, `personas`, `stakeholders` or `mixed` and write the reason in
-`narrative.audience`. With `personas` or `stakeholders`, every question carries a `persona` in
-plain words: who types it and in what situation. Ask the operator when the choice is not clear
-from the brief.
+`narrative.audience`. Ask the operator when the choice is not clear from the brief.
+
+Copy the brief's personas into `study.json` as the top-level list `personas`, with the same
+`id`, `label`, `group`, `situation`, `decision` and `asks` (their `seeds` may stay behind). With
+`personas` or `stakeholders`, every question carries a `persona`, and that persona is an id of
+the list. With `mixed`, a question may leave `persona` out; when it has one, it is an id of the
+list. `validate` refuses a persona that is not in the list. A question written from a persona
+starts from its `asks` and its search suggestions, in the persona's situation.
+
+A study designed before the list existed has no `personas` and a `persona` in plain words on
+each question. It still validates. To add the list, write `personas` and replace each
+question's `persona` with an id; `revise` keeps every question's key, since the persona is not
+part of a question's wording.
 
 ## 6. Questions
 

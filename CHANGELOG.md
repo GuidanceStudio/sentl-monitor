@@ -5,6 +5,20 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 
 ## Unreleased
 
+- `brief` builds a persona inventory beside the theme inventory. `seeds.json` may list `personas` (id, label, group, situation,
+  decision, the questions each types and its search seeds) and `sources_to_watch` (regulators, consumer associations, the
+  press: cited by the assistants, never asked as). `demand autocomplete` sends persona seeds as it sends theme seeds and
+  records the suggestions under `personas` in `search-demand.json`; `demand summary` prints them and marks a persona with no
+  suggestion as without search evidence. `brief.md` gains a persona table and a list of sources to watch.
+- `design` copies the brief's personas into `study.json`. With an audience of `personas`, `stakeholders` or `mixed`, a
+  question's `persona` is an id of that list, and `validate` refuses one that is not. `review` prints each persona with its
+  situation, its search evidence and its questions; the report's dimensions section names each persona with its situation
+  and its questions, and the questions section names who asks each question by label. DESIGN.md groups projects by the
+  personas they serve. A study with no `personas` list keeps its free-text personas and validates as before.
+- `snapshot` asks who will read the report (`narrative.reader`) and the persona behind each question, and sends one seed per
+  dimension to `demand autocomplete`; each question starts from the top suggestion and records it in `suggestion`. The
+  report's questions section gives the suggestion beside each question, or says that Google's suggestions could not be
+  collected when the host had no network. `validate` in snapshot mode refuses a question with no persona.
 - `snapshot`, `setup`, `adopt` and `report` ran on Sentl on a test organization with 0.6.0: a snapshot, its run and report,
   then a project for the same subject, its run and the report on opencode and on Codex. The README's support table says so
   for opencode and Codex. Codex run with `codex exec` needs `--approve-for-me` and network access in its sandbox.

@@ -1,5 +1,5 @@
-"""Search demand: Google's suggestions for a theme's seeds, volumes from a keyword-data source,
-keyword classes, and the lines the report's themes section prints.
+"""Search demand: Google's suggestions for the seeds of a theme or of a persona, volumes from a keyword-data
+source, keyword classes, and the lines the report's themes section prints.
 
 The suggestion endpoint is the only network call the skill makes. Volumes are never fetched:
 they come from a file the assistant saved from a keyword-data server, or from an export file.
@@ -40,6 +40,11 @@ STOPWORDS = frozenset("""
 
 NO_VOLUME = ("The counts are Google suggestions: they measure how many ways a theme is phrased, "
              "not how many people search it.")
+WITHOUT_EVIDENCE = "without search evidence"
+
+# A persona's texts. Its group is one of the four built in (who chooses, who is already a customer, who
+# buys for others, who works there) or a group the operator names.
+PERSONA_FIELDS = ("id", "label", "group", "situation", "decision")
 
 
 class Incomplete(Exception):
@@ -72,6 +77,55 @@ def _plural(n, one, many):
     return f"{n} {one if n == 1 else many}"
 
 
+def _filled(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
+def persona_problems(personas):
+    """What makes a list of personas unusable, one line each: every persona needs an id of its own, a
+    label, a group, a situation, a decision and the questions it types (`asks`)."""
+    if not isinstance(personas, list):
+        return ["personas must be a list of personas"]
+    problems, seen = [], set()
+    for n, persona in enumerate(personas):
+        if not isinstance(persona, dict):
+            problems.append(f"personas[{n}] must be an object")
+            continue
+        pid = persona.get("id")
+        name = f"persona {pid}" if _filled(pid) else f"personas[{n}]"
+        problems += [f"{name}: {field} must be a non-empty text" for field in PERSONA_FIELDS
+                     if not _filled(persona.get(field))]
+        asks = persona.get("asks")
+        if not (isinstance(asks, list) and asks and all(_filled(a) for a in asks)):
+            problems.append(f"{name}: asks must list the questions the persona types")
+        if _filled(pid):
+            if pid in seen:
+                problems.append(f"duplicate persona id {pid}")
+            seen.add(pid)
+    return problems
+
+
+def _seeds_problems(seeds):
+    """The personas of a seeds file, their seeds, and the sources to watch kept apart from them."""
+    personas = seeds.get("personas", [])
+    problems = persona_problems(personas)
+    personas = [p for p in personas if isinstance(p, dict)] if isinstance(personas, list) else []
+    for persona in personas:
+        found = persona.get("seeds")
+        if not (isinstance(found, list) and all(_filled(x) for x in found)):
+            problems.append(f"persona {persona.get('id')}: seeds must list the searches the persona types "
+                            "(an empty list when there is none)")
+    watch = seeds.get("sources_to_watch", [])
+    if not (isinstance(watch, list) and all(
+            isinstance(w, dict) and _filled(w.get("label")) and isinstance(w.get("domains", []), list)
+            and all(_filled(d) for d in w.get("domains", [])) for w in watch)):
+        return problems + ["sources_to_watch must list objects, each with a label and, optionally, a list of domains"]
+    named = {folded(x) for p in personas for x in (p.get("id"), p.get("label")) if _filled(x)}
+    problems += [f"{w['label']} is both a persona and in sources_to_watch: a body the assistants cite and nobody "
+                 "asks as goes in sources_to_watch only" for w in watch if folded(w["label"]) in named]
+    return problems
+
+
 def _load_seeds(path):
     try:
         seeds = load_json(path)
@@ -81,8 +135,11 @@ def _load_seeds(path):
         raise Refused(f"{path} is not a seeds file: its schema must be {SEEDS_SCHEMA!r}")
     themes = seeds.get("themes")
     if not (isinstance(themes, dict) and themes and all(
-            isinstance(v, list) and v and all(isinstance(s, str) and s.strip() for s in v) for v in themes.values())):
+            isinstance(v, list) and v and all(_filled(s) for s in v) for v in themes.values())):
         raise Refused(f"{path}: themes must map each theme id to a non-empty list of seed queries")
+    problems = _seeds_problems(seeds)
+    if problems:
+        raise Refused(f"{path}:\n  - " + "\n  - ".join(problems))
     return seeds
 
 
@@ -116,6 +173,32 @@ def _theme(data, theme):
     return data["themes"].setdefault(theme, {"seeds": [], "autocomplete": [], "volumes": []})
 
 
+def _collect(block, seeds, stems, hl, gl, failed):
+    """Send each seed of `block`, as typed and with each stem, and record the suggestions of every prefix
+    it does not hold yet; a prefix that fails joins `failed`. The count fetched."""
+    source = f"google autocomplete hl={hl} gl={gl}"
+    today = now_iso()[:10]
+    block["seeds"] = list(seeds)
+    done = {e["prefix"] for e in block["autocomplete"] if e["source"] == source}
+    fetched = 0
+    for seed in seeds:
+        for prefix in [seed] + [f"{seed} {stem}" for stem in stems]:
+            if prefix in done:
+                continue
+            try:
+                suggestions = parse_suggestions(_get(suggest_url(prefix, hl, gl)))
+            except (OSError, ValueError):
+                failed.append(prefix)
+            else:
+                block["autocomplete"].append({"prefix": prefix, "suggestions": suggestions,
+                                              "source": source, "collected": today})
+                done.add(prefix)
+                fetched += 1
+            if DELAY:
+                time.sleep(DELAY)
+    return fetched
+
+
 def autocomplete(root, seeds_file, hl, gl, stems=None):
     seeds = _load_seeds(seeds_file)
     stems = stems if stems is not None else STEMS.get(hl)
@@ -123,28 +206,13 @@ def autocomplete(root, seeds_file, hl, gl, stems=None):
         raise Refused(f"no question stems for language {hl!r}: pass --stems with the question words of the "
                       f"language, separated by commas (built in: {', '.join(sorted(STEMS))})")
     data = _load_demand(root, {**seeds, "market": {"country": gl.upper(), "language": hl.lower()}})
-    source = f"google autocomplete hl={hl} gl={gl}"
-    today = now_iso()[:10]
     failed, fetched = [], 0
     for theme, theme_seeds in seeds["themes"].items():
-        block = _theme(data, theme)
-        block["seeds"] = list(theme_seeds)
-        done = {e["prefix"] for e in block["autocomplete"] if e["source"] == source}
-        for seed in theme_seeds:
-            for prefix in [seed] + [f"{seed} {stem}" for stem in stems]:
-                if prefix in done:
-                    continue
-                try:
-                    suggestions = parse_suggestions(_get(suggest_url(prefix, hl, gl)))
-                except (OSError, ValueError):
-                    failed.append(prefix)
-                else:
-                    block["autocomplete"].append({"prefix": prefix, "suggestions": suggestions,
-                                                  "source": source, "collected": today})
-                    done.add(prefix)
-                    fetched += 1
-                if DELAY:
-                    time.sleep(DELAY)
+        fetched += _collect(_theme(data, theme), theme_seeds, stems, hl, gl, failed)
+    # A persona is recorded even with no seed or no suggestion: brief.md marks it as without search evidence.
+    for persona in seeds.get("personas") or []:
+        block = data.setdefault("personas", {}).setdefault(persona["id"], {"seeds": [], "autocomplete": []})
+        fetched += _collect(block, persona["seeds"], stems, hl, gl, failed)
     write_json(Study(root).path("search-demand.json"), data)
     if failed:
         raise Incomplete(f"{_plural(len(failed), 'prefix', 'prefixes')} could not be fetched; the others are "
@@ -295,14 +363,20 @@ def import_export(root, file, seeds_file, provider=None, tool=None, theme=None, 
 
 # --- summary ------------------------------------------------------------------
 
+def distinct(block):
+    """The distinct suggestions of a theme's or a persona's block, each as first written, in the order found."""
+    found = {}
+    for entry in block["autocomplete"]:
+        for s in entry["suggestions"]:
+            found.setdefault(folded(s), s)
+    return found
+
+
 def summarize(data):
     """Per theme: distinct suggestions, prefixes, volume per class (None without volumes) and the top queries."""
     out = {}
     for theme, block in data["themes"].items():
-        suggestions = {}
-        for entry in block["autocomplete"]:
-            for s in entry["suggestions"]:
-                suggestions.setdefault(folded(s), s)
+        suggestions = distinct(block)
         keywords = {}
         for entry in block["volumes"]:
             for item in [entry, *entry.get("related", [])]:
@@ -323,11 +397,29 @@ def summarize(data):
     return out
 
 
-def summary(root):
+def _persona_lines(data, seeds):
+    """Each persona's suggestions, or the mark that it has none, then the sources to watch on a line apart."""
+    labels = {p["id"]: p["label"] for p in seeds.get("personas") or []}
+    lines = []
+    for pid, block in (data.get("personas") or {}).items():
+        found = list(distinct(block).values())
+        line = (f"persona {pid}" + (f" ({labels[pid]})" if pid in labels else "") + ": "
+                f"{_plural(len(found), 'distinct suggestion', 'distinct suggestions')} from "
+                f"{_plural(len(block['autocomplete']), 'prefix', 'prefixes')}")
+        lines += [line, "  top suggestions: " + "; ".join(found[:TOP])] if found else [f"{line}: {WITHOUT_EVIDENCE}"]
+    watch = [w["label"] + (f" ({', '.join(w['domains'])})" if w.get("domains") else "")
+             for w in seeds.get("sources_to_watch") or []]
+    if watch:
+        lines.append("sources to watch, cited by the assistants and asked by nobody: " + "; ".join(watch))
+    return [""] + lines if lines else []
+
+
+def summary(root, seeds_file=None):
     path = Study(root).path("search-demand.json")
     if not path.exists():
         raise Refused(f"{path} not found: run demand autocomplete first")
     data = load_json(path)
+    seeds = _load_seeds(seeds_file) if seeds_file and Path(seeds_file).exists() else {}
     lines = []
     for theme, s in summarize(data).items():
         lines.append(f"{theme}: {_plural(s['suggestions'], 'distinct suggestion', 'distinct suggestions')} from "
@@ -339,7 +431,7 @@ def summary(root):
     lines.append("")
     lines.append(NO_VOLUME if not source else
                  f"volume source: {', '.join(source['providers'])}, {source['from']} to {source['to']}")
-    return "\n".join(lines)
+    return "\n".join(lines + _persona_lines(data, seeds))
 
 
 # --- the report ---------------------------------------------------------------
