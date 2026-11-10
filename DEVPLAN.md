@@ -1226,6 +1226,8 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 - [x] Fixes from the independent review (2026-11-10): table cells and growing flex items lay out with their padding; lines also break where the browser breaks them (after a hyphen or dash followed by a letter); a theme's `line-height: normal` or percentage, and `rem` sizes, do not crash; a deck checked after an unattended draft report records what it says. Test: unit for each; the estimate stays within a few pixels of Chrome on the trial decks; commit and push
 
+- [x] CI: the print test names the overflowing slide only where `pdftotext` is installed (GitHub's runner has none, so CI has been red since `14cce3f`); the test and release workflows install poppler-utils
+
 **Done when:** the suite passes, a deck `check` keeps the report path, and an overflowing slide is refused by `check`.
 
 **Deviations:**

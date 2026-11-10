@@ -4,6 +4,7 @@ import copy
 import json
 import re
 import os
+import shutil
 import unittest
 from collections import Counter
 from unittest import mock
@@ -1894,7 +1895,9 @@ class OverflowTest(DeckCase, unittest.TestCase):
         if not browser:
             self.skipTest("no browser prints with its sandbox on this machine")
         self.save_doc(self.crowded())
-        with self.assertRaisesRegex(deck.Refused, r"11 pages for 10 slides \(slide 5 runs over\)"):
+        # The slide is named from the pages' feet, read with pdftotext where it is installed.
+        named = r" \(slide 5 runs over\)" if shutil.which("pdftotext") else ""
+        with self.assertRaisesRegex(deck.Refused, r"11 pages for 10 slides" + named + ":"):
             deck.render(self.study, DATE, skip_check=True,
                         printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
 
