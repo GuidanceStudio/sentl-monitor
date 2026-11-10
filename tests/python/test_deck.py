@@ -1832,6 +1832,65 @@ class ReaderWordsTest(DeckCase, unittest.TestCase):
         self.assertIn("appears 4 times", self.problems(doc))
 
 
+def fullest(doc):
+    """Every text of the deck at the length its slide holds."""
+    longest = "parola " * 22
+    doc["found"] = {"title": ("parola " * 16).strip(), "answers": {b: longest.strip() for b in deck.BLOCKS}}
+    doc["actions"] = [{"class": "named_with_warning", "what": ("parola " * 24).strip(),
+                       "why": ("parola " * 24).strip() + " 2", "read_next": ("parola " * 9).strip() + " 2",
+                       "block": "reach"}] * 5
+    for slides in doc["blocks"].values():
+        slides[0].update(title=("parola " * 16).strip(), read=("parola " * 29).strip())
+    return doc
+
+
+class OverflowTest(DeckCase, unittest.TestCase):
+    """A slide running over its page was found only by pdf --deck, after check had passed."""
+
+    def crowded(self):
+        """The reach slide with its title and read at their limits, two excerpts of forty long words and its action."""
+        doc = self.filled()
+        excerpt = {"text": ("precipitevolissimevolmente " * 40).strip(), "question": PRICE_Q, "assistant": "Acme Chat"}
+        doc["blocks"]["reach"][0].update(title=("parola " * 16).strip(), read=("parola " * 29).strip(),
+                                         excerpts=[excerpt, {**excerpt, "assistant": "Orbit Reason"}])
+        doc["actions"][0]["what"] = ("parola " * 24).strip()
+        return doc
+
+    def overflows(self, doc):
+        return [p for p in self.problems(doc).splitlines() if "runs over its page" in p]
+
+    def test_a_slide_running_over_its_page_is_refused_before_the_pdf(self):
+        found = self.overflows(self.crowded())
+        self.assertEqual(len(found), 1, found)
+        self.assertTrue(found[0].startswith("slide 5 runs over its page by about "), found[0])
+
+    def test_the_refusal_names_the_texts_of_that_slide(self):
+        found = self.overflows(self.crowded())[0]
+        self.assertIn("title, read or excerpts of reach slide 1", found)
+        self.assertIn("what of action 1", found)
+
+    def test_the_fullest_texts_a_slide_holds_pass(self):
+        # Five actions on one evidence slide fail check on their structure, which leaves the slides unmeasured there.
+        doc = fullest(self.filled())
+        folder, study, period, _ = self.model_args(doc)
+        self.assertEqual(deck._overflowing(folder, study, period, doc, deck.build_model(folder, study, period, doc)), [])
+
+    def test_the_print_runs_over_where_check_refuses(self):
+        browser = report_pdf.sandboxed_browser()
+        if not browser:
+            self.skipTest("no browser prints with its sandbox on this machine")
+        self.save_doc(self.crowded())
+        with self.assertRaisesRegex(deck.Refused, r"11 pages for 10 slides \(slide 5 runs over\)"):
+            deck.render(self.study, DATE, skip_check=True,
+                        printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
+
+    def test_pdf_deck_leaves_the_height_to_its_page_count(self):
+        self.save_doc(self.filled())
+        with mock.patch.object(deck.fit, "heights", lambda page, css: [900.0] * page.count("<section")):
+            self.assertTrue(self.overflows(self.filled()))
+            self.assertIn("10 slides", deck.render(self.study, DATE, printer=fake_pdf(10)))
+
+
 class RenderTest(DeckCase, unittest.TestCase):
 
     def page(self, doc=None):
@@ -1944,15 +2003,7 @@ class RenderTest(DeckCase, unittest.TestCase):
         browser = report_pdf.sandboxed_browser()
         if not browser:
             self.skipTest("no browser prints with its sandbox on this machine")
-        longest = "parola " * 22
-        doc = self.filled()
-        doc["found"] = {"title": ("parola " * 16).strip(), "answers": {b: longest.strip() for b in deck.BLOCKS}}
-        doc["actions"] = [{"class": "named_with_warning", "what": ("parola " * 24).strip(),
-                           "why": ("parola " * 24).strip() + " 2", "read_next": ("parola " * 9).strip() + " 2",
-                           "block": "reach"}] * 5
-        for slides in doc["blocks"].values():
-            slides[0].update(title=("parola " * 16).strip(), read=("parola " * 29).strip())
-        self.save_doc(doc)
+        self.save_doc(fullest(self.filled()))
         deck.render(self.study, DATE, skip_check=True,
                     printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
         self.assertTrue((self.study / "reports" / f"{DATE}.deck.pdf").exists())

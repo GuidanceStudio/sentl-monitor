@@ -9,6 +9,7 @@ the period; the writer fills only the text of `reports/<date>.deck.json`, which 
 
 import html
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -16,6 +17,7 @@ from collections import Counter
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import fit
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .charts import span
@@ -39,6 +41,7 @@ MAX_ACTIONS, MAX_SLIDES, MAX_BLOCK_SLIDES, MAX_EXCERPTS, MAX_EXAMPLES, MAX_ROWS,
 MAX_TITLE_FIGURES, MAX_READ_FIGURES, MAX_REPEATS = 2, 3, 2
 # The list of questions: lines a column holds, and the characters of one line.
 COLUMN_LINES, TIGHT_LINES, LINE_CHARS = 27, 31, 80
+READ_LINE = 19 * 1.35  # one line of a slide's read, in px: .read in STYLE
 # The pages a facts row shows behind the old term, per kind of author, and what makes a page one of them: answers with the
 # old term cite it this many times as often as those with today's, and at least this many answers do.
 SITES_SHOWN = 3
@@ -1805,7 +1808,8 @@ def _left(value, path=""):
     return [path] if isinstance(value, str) and "[[" in value else []
 
 
-def problems_of(folder, study, period, doc):
+def problems_of(folder, study, period, doc, layout=True):
+    """What check refuses; `layout` adds the slides the estimate finds taller than their page."""
     if doc.get("schema") != SCHEMA:
         return [f"schema is not {SCHEMA}"]
     if "[[" in json.dumps(doc, ensure_ascii=False):
@@ -1814,7 +1818,8 @@ def problems_of(folder, study, period, doc):
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
     allowed = _allowed_figures(m, period)
-    problems = _structure(doc, m) + _second_edition(doc, m) + _competitor_sites(doc, study) + _undrawn(doc, m) + _compared(doc, m) + _listed_already(doc, m)
+    structure = _structure(doc, m)
+    problems = structure + _second_edition(doc, m) + _competitor_sites(doc, study) + _undrawn(doc, m) + _compared(doc, m) + _listed_already(doc, m)
     problems += _why_drawn(doc, m) + _named_sites(doc, study, folder, period) + _voices(doc, m) + _too_few(doc, m)
     problems += _read_on_its_slide(doc, study, folder, period, m) + _own_action(doc, study, folder, period) + _same_rows(doc, m)
     problems += _weak_sites(doc, m) + _worst_shown(doc, m) + _same_examples(doc, m) + _doubts(doc, m) + _amounts(doc, study)
@@ -1851,7 +1856,8 @@ def problems_of(folder, study, period, doc):
     tied, read = _tied_counts(doc, m, lambda t: _unquote(t, quotable, answers))
     problems += tied + _most_cited(doc, m)
     problems += _figures(_unquote(text, quotable, answers, shown), lang, (*allowed[:2], allowed[2] | read), every_count=True)
-    return problems
+    # A deck missing a part of its structure is not laid out: its slides would be drawn from what is missing.
+    return problems + (_overflowing(folder, study, period, doc, m) if layout and not structure else [])
 
 
 def check(root, path, date=None):
@@ -2470,15 +2476,10 @@ def _tight_units(text):
     return re.sub(r"(?<=\d) (?=[€£$%])", "\u00a0", text)
 
 
-def page_of(root, date=None, option=None):
-    """(the deck as one HTML page, its slides)."""
-    folder, date, study, period, doc = load(root, date)
-    if doc is None:
-        raise Refused(f"no deck for {date}: run deck --date {date} and write its text first")
-    chosen, _ = sentl_theme.resolve(folder, option)
+def _slides(study, period, doc, m, chosen):
+    """(the slides in reading order, each slide's <section>)."""
     lang = study["report_language"]
     t = DECK[lang]
-    m = build_model(folder, study, period, doc)
     order = _order(doc, m, t)
     subject = m["subject"]
     days = span(period["from"], period["to"], lang)
@@ -2495,11 +2496,52 @@ def page_of(root, date=None, option=None):
         actions = len(doc.get("actions") or [])
         extra = (" few-actions" if actions <= 3 else " many-actions" if actions == MAX_ACTIONS else "") if kind == "actions" else ""
         slides.append(f'<section class="slide {kind}{extra}">{_slide_html(kind, key, slide, doc, m, order, t, lang)}{foot}</section>')
+    return order, [_tight_units(s) for s in slides]
+
+
+def page_of(root, date=None, option=None):
+    """(the deck as one HTML page, its slides)."""
+    folder, date, study, period, doc = load(root, date)
+    if doc is None:
+        raise Refused(f"no deck for {date}: run deck --date {date} and write its text first")
+    chosen, _ = sentl_theme.resolve(folder, option)
+    lang = study["report_language"]
+    m = build_model(folder, study, period, doc)
+    _, slides = _slides(study, period, doc, m, chosen)
+    days = span(period["from"], period["to"], lang)
     font = f'<link rel="stylesheet" href="{html.escape(chosen["font_url"], quote=True)}">' if chosen.get("font_url") else ""
     style = sentl_theme.variables(chosen) + STYLE + (chosen.get("css") or "")
-    text = (f'<!doctype html>\n<html lang="{html.escape(lang)}"><head><meta charset="utf-8"><title>{esc(subject)} · {esc(days)}</title>'
+    text = (f'<!doctype html>\n<html lang="{html.escape(lang)}"><head><meta charset="utf-8"><title>{esc(m["subject"])} · {esc(days)}</title>'
             f"{font}<style>{style}</style></head><body>\n" + "\n".join(slides) + "\n</body></html>\n")
-    return _tight_units(text), len(order)
+    return _tight_units(text), len(slides)
+
+
+def _on_slide(kind, key, n, slide, doc):
+    """The writer's texts a slide prints, as `check` names them."""
+    if kind in BLOCKS:
+        action = slide.get("action")
+        strip = f", or the what of action {action}" if isinstance(action, int) and 1 <= action <= len(doc.get("actions") or []) else ""
+        return f"the title, read or excerpts of {key} slide {n}{strip}"
+    return {"cover": "the opening's who", "opening": "the opening's questions or examples, or the purpose in study.json",
+            "found": "the found title or answers", "changed": "the earlier title or read",
+            "earlier": "the earlier actions_title or now", "actions": "the actions title, or the what and why of the actions",
+            "sources": "the sources title or read", "method": "the method limits or ask"}.get(kind, "its texts")
+
+
+def _overflowing(folder, study, period, doc, m):
+    """The slides the estimate finds taller than their page, which the print would carry onto one more. A deck that
+    passes here still prints with `pdf --deck`, whose page count is the final word. The lists of questions are flowed
+    by the code, never by the writer."""
+    chosen = sentl_theme.resolve(folder)[0]
+    order, slides = _slides(study, period, doc, m, chosen)
+    seen, out = Counter(), []
+    for n, ((kind, key, slide), height) in enumerate(zip(order, fit.heights("".join(slides), STYLE + (chosen.get("css") or ""))), 1):
+        seen[key] += 1
+        if kind != "questions" and height > fit.PAGE_HEIGHT:
+            lines = math.ceil((height - fit.PAGE_HEIGHT) / READ_LINE)
+            out.append(f"slide {n} runs over its page by about {lines} line{'s' * (lines > 1)} of text: shorten "
+                       f"{_on_slide(kind, key, seen[key], slide, doc)}")
+    return out
 
 
 def pages(path):
@@ -2535,7 +2577,8 @@ def render(root, date=None, option=None, printer=None, skip_check=False):
     if doc is None:
         raise Refused(f"no deck for {date}: run deck --date {date} and write its text first")
     if not skip_check:
-        found = problems_of(folder, study, period, doc)
+        # The estimate of each slide's height is left to the print, whose page count is the final word.
+        found = problems_of(folder, study, period, doc, layout=False)
         if found:
             raise Refused(f"the deck fails check on {len(found)} point(s): run check on it, then pdf --deck again")
     text, slides = page_of(root, date, option)

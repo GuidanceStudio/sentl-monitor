@@ -1361,7 +1361,14 @@ out. It can run alone on a deck that passes, so a fault found late costs one sen
 less well than a stronger model does, so `history/deck/D.audit.md` lets the operator run the audit elsewhere and hand the writer the report.
 
 **The pages.** 13.333 x 7.5 inches. A slide has a minimum height and no fixed one, so too much text runs onto a new
-page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. The theme of
+page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. That came after `check`
+had passed, so `check` also estimates each slide's height (`fit.py`): it parses the slide's HTML, applies the deck's style
+sheet over the browser's own rules, and lays the boxes out as the browser does (blocks with collapsed margins, flex rows
+and columns, grids, tables with fixed and automatic column widths, balanced columns), wrapping text word by word in
+Arial's advance widths, which Liberation Sans and Helvetica share. On the test fixture's slides it lands within a pixel
+of Chrome printing in Liberation Sans. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out. Inter, SF and Segoe UI come first in the font stack
+and are wider, so a host that has them can still run over: `pdf --deck` does not run the estimate, and its page count is
+the final word. The theme of
 §Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all,
 for the deck and the report alike. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and
 later) and the only browser has no profile that allows them, its print fails with "No usable sandbox". The next engine is

@@ -11,6 +11,10 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 - REPORT.md says how to redo the latest report of its date: copy it aside, run `period` and `method --force` with the same
   date, write the text again and run `check`. It lists what stays (the runs, the versions, the earlier reports, the deck's
   text) and what is written again (the period, the material, the report and its entry in `history/reports.json`).
+- The deck's `check` refuses a slide whose text runs over its page, before any PDF: "slide 5 runs over its page by about
+  3 lines of text: shorten the title, read or excerpts of reach slide 1, or the what of action 1". It lays each slide out
+  with the deck's style sheet and Arial's widths (`fit.py`); the lists of questions are left out, since the code flows
+  them. `pdf --deck` no longer runs that estimate, and its page count stays the final word.
 
 ## 0.7.1 (2026-11-10)
 

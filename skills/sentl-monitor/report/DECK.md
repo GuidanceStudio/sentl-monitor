@@ -385,8 +385,13 @@ figure repeated on the first slides, a presence figure with no comparison, a sub
 the study, a project's name, a topic as the subject of a sentence, an excerpt not verbatim, attributed to another question or
 assistant, or cut inside a sentence with no mark, a text longer than its slide holds, a claim of all or nothing the figures
 do not bear out, an address no answer cites, a slide with an action and no excerpt, a term a later record replaces, a count
-on as many answers as a row of its slide that the slide's chart does not draw, and a question holding two facts. Fix
-the text and run it again until it passes. Never fix a failure by changing a figure drawn by the code.
+on as many answers as a row of its slide that the slide's chart does not draw, a question holding two facts, and a slide
+whose text runs over its page. Fix the text and run it again until it passes. Never fix a failure by changing a figure
+drawn by the code.
+
+`check` lays each slide out with the deck's style before any PDF, its text in Arial: "slide 5 runs over its page by about
+3 lines of text: shorten the title, read or excerpts of reach slide 1, or the what of action 1". Shorten one of the texts it
+names by at least that much. The lists of questions are flowed by the code and never refused.
 
 `check` reads a count in digits in any form: "9 of 12", "9 of the 12", "9 delle 12". A count beside a site, a page, an assistant
 or a competitor must be that name's, on the period, a block, the questions of its slide, a topic or one question: the refusal
@@ -398,7 +403,8 @@ first, alone, among the sites the sentence speaks of: write "among third parties
 sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
 
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
-text. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. A browser prints with its sandbox only:
+text. Its page count is the final word: a face wider than Arial can run over where `check` passed, and a slide `check`
+estimates over its page still prints when it fits. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. A browser prints with its sandbox only:
 where none can start it, `pdf --deck` exits 1 and says what to install. On a host without a lasting folder,
 end as SKILL.md says, with the deck's PDF in place of the report.
 
