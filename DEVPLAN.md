@@ -1207,7 +1207,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.1.
 
-## M29: Redo a report of the same date, and catch an overflowing slide before the PDF ✅
+## M29: Redo a report of the same date, and catch an overflowing slide before the PDF 🔄
 
 **Why:** rebuilding a period report and deck with 0.7.1 on 2026-11-10 showed three faults. None changes a figure; each cost the writer a detour.
 1. REPORT.md does not say how to redo a report of the same date. The writer had to work it out from the code.
@@ -1223,6 +1223,8 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Test: unit — a deck `check` leaves the report path in `history/reports.json` unchanged and records the deck beside it; a report `check` after it keeps the deck; implement in `deck.py` and `common.py`; ARCHITECTURE, CHANGELOG; commit and push
 - [x] Test: structure — REPORT.md holds the redo section; write it; CHANGELOG; commit and push
 - [x] Test: unit — a slide whose text exceeds its box is refused by `check`; implement in `deck.py`; DECK.md, ARCHITECTURE, CHANGELOG; commit and push
+
+- [~] Fixes from the independent review (2026-11-10): table cells and growing flex items lay out with their padding; lines also break where the browser breaks them (after a hyphen or dash followed by a letter); a theme's `line-height: normal` or percentage, and `rem` sizes, do not crash; a deck checked after an unattended draft report records what it says. Test: unit for each; the estimate stays within a few pixels of Chrome on the trial decks; commit and push
 
 **Done when:** the suite passes, a deck `check` keeps the report path, and an overflowing slide is refused by `check`.
 
