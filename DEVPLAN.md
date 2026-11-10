@@ -1207,23 +1207,22 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.1.
 
-## M29: Redo a report of the same date, and catch an overflowing slide before the PDF
+## M29: Redo a report of the same date, and catch an overflowing slide before the PDF 🔄
 
 **Why:** rebuilding a period report and deck with 0.7.1 on 2026-11-10 showed three faults. None changes a figure; each cost the writer a detour.
 1. REPORT.md does not say how to redo a report of the same date. The writer had to work it out from the code.
 2. The deck's `check` overwrites the report's path in `history/reports.json` with the deck's.
 3. A slide that runs over its page is found only by `pdf --deck`. `check` passes a deck that then prints more pages than it has slides.
 
-**Approach (to confirm):**
+**Approach (confirmed 2026-11-10):**
 - REPORT.md gains a short section on redoing the latest report: which command, what it keeps, and what it rewrites.
 - `check` on a deck records the deck beside the report and never in its place.
 - `check` on a deck estimates each slide's text against its box with the same measures the print uses, and refuses an overflow before the PDF. `pdf --deck` keeps its page count as the final word.
 
 **Tasks:**
-- [ ] Test: unit — a deck `check` leaves the report path in `history/reports.json` unchanged; a slide whose text exceeds its box is refused by `check`
-- [ ] Test: structure — REPORT.md holds the redo section
-- [ ] Implement in `deck.py` and `check.py`; REPORT.md, DECK.md, CHANGELOG
-- [ ] Commit and push
+- [x] Test: unit — a deck `check` leaves the report path in `history/reports.json` unchanged and records the deck beside it; a report `check` after it keeps the deck; implement in `deck.py` and `common.py`; ARCHITECTURE, CHANGELOG; commit and push
+- [ ] Test: structure — REPORT.md holds the redo section; write it; CHANGELOG; commit and push
+- [ ] Test: unit — a slide whose text exceeds its box is refused by `check`; implement in `deck.py`; DECK.md, ARCHITECTURE, CHANGELOG; commit and push
 
 **Done when:** the suite passes, a deck `check` keeps the report path, and an overflowing slide is refused by `check`.
 

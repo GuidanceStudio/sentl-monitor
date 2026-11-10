@@ -1864,9 +1864,13 @@ def check(root, path, date=None):
         raise Refused(f"{path} cannot be read ({exc})") from None
     problems = problems_of(folder, study, period, doc)
     if not problems:
-        folder.record_report({"date": day, "status": "final", "period": {"from": period["from"], "to": period["to"]},
-                              "runs": period["runs"], "previous": (period.get("comparison") or {}).get("previous"),
-                              "file": _shown(folder, path)})
+        # The deck goes beside the report of its date, never in its place.
+        entry = next((e for e in folder.reports() if e["date"] == day), None) or {
+            "date": day, "status": "final", "period": {"from": period["from"], "to": period["to"]},
+            "runs": period["runs"], "previous": (period.get("comparison") or {}).get("previous")}
+        if entry.get("file", "").endswith(".deck.json"):  # an earlier version recorded the deck as the report
+            entry = {k: v for k, v in entry.items() if k != "file"}
+        folder.record_report({**entry, "deck": _shown(folder, path)})
         folder.record_outcome("written", f"deck of {day} passed check")
     return problems
 

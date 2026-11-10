@@ -579,6 +579,37 @@ class CheckTest(DeckCase, unittest.TestCase):
         self.assertIn("Lavoro", self.problems(doc))
 
 
+class ReportsIndexTest(DeckCase, unittest.TestCase):
+    """The deck's check wrote the deck's path over the report's in history/reports.json."""
+
+    def deck_check(self):
+        self.save_doc(self.filled())
+        return self.cli("check", "--study", self.study, self.path, check=0)
+
+    def test_a_deck_check_keeps_the_report_and_records_the_deck_beside_it(self):
+        self.publish(DATE)
+        report = self.read("history/reports.json")
+        self.deck_check()
+        self.assertEqual(self.read("history/reports.json"), [{**report[0], "deck": f"reports/{DATE}.deck.json"}])
+
+    def test_a_report_check_after_the_deck_keeps_the_deck(self):
+        self.deck_check()
+        self.publish(DATE)
+        entries = self.read("history/reports.json")
+        self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
+                         [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
+
+    def test_a_deck_recorded_in_the_report_s_place_moves_beside_it(self):
+        self.deck_check()
+        entry = self.read("history/reports.json")[0]
+        entry.pop("deck", None)
+        entry["file"] = f"reports/{DATE}.deck.json"
+        (self.study / "history" / "reports.json").write_text(json.dumps([entry]), encoding="utf-8")
+        self.deck_check()
+        entry = self.read("history/reports.json")[0]
+        self.assertEqual((entry.get("file"), entry["deck"]), (None, f"reports/{DATE}.deck.json"))
+
+
 class OpeningTest(DeckCase, unittest.TestCase):
     """The deck says what it shows before any figure."""
 

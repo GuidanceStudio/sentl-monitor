@@ -3,6 +3,12 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- The deck's `check` records the deck as `deck` in the entry of its date in `history/reports.json`, beside the report's
+  `file`, where it used to write the deck's path over the report's. A report's `check` keeps the deck. An entry an earlier
+  version left with the deck in `file` loses that `file` at the deck's next `check`.
+
 ## 0.7.1 (2026-11-10)
 
 - The engines that ran chromium and google-chrome with `--no-sandbox` are gone, so a browser prints only with its sandbox.

@@ -487,9 +487,12 @@ computes a run's score (A4). A period rebuilt from a project's history carries
 
 ### `history/reports.json`
 
-A list of `{date, file, status, period: {from, to}, runs, previous}`, in date order.
+A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in date order.
 `monitor.py check` adds the report as `final` when it passes; `check --unattended` adds a
-report that fails as `draft`, and a draft counts as the previous report. `previous` is the date of the period the report compared with, a
+report that fails as `draft`, and a draft counts as the previous report. `deck` is the deck's
+text, `reports/<date>.deck.json`, set when the deck passes its `check`; a report's `check` keeps
+it. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
+deck's next `check`, and the report's `check` writes it again. `previous` is the date of the period the report compared with, a
 rebuilt one included; it is null on a first report, including one that compares the two
 halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
@@ -1339,7 +1342,7 @@ questions, and draws no row and no excerpt: one answer of two is no finding. A d
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
 rating printed beside it contradicts it. An
-excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json`, as the period's report.
+excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, beside the report's `file` and never in its place; with no entry for the date, it writes one with the period and no `file`.
 
 **The reader's test.** `check` knows whether a sentence is allowed, never whether it is understood. The playbook ends with a
 fresh reader who sees only the PDF's text and must say, from the first four slides, what was done, what the numbers count,

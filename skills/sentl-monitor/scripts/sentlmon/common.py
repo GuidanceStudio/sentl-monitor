@@ -169,6 +169,10 @@ class Study:
                           f"To build or check the report of {date} again, unpack a pack written with --full")
 
     def record_report(self, entry):
+        """One entry per date. A report's check keeps the deck an earlier check recorded beside it."""
+        old = next((e for e in self.reports() if e["date"] == entry["date"]), {})
+        if "deck" in old and "deck" not in entry:
+            entry = {**entry, "deck": old["deck"]}
         entries = [e for e in self.reports() if e["date"] != entry["date"]] + [entry]
         write_json(self.path("history", "reports.json"), sorted(entries, key=lambda e: e["date"]))
 
