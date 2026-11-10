@@ -491,7 +491,8 @@ A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in d
 `monitor.py check` adds the report as `final` when it passes; `check --unattended` adds a
 report that fails as `draft`, and a draft counts as the previous report. `deck` is the deck's
 text, `reports/<date>.deck.json`, set when the deck passes its `check`; a report's `check` keeps
-it. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
+it. A draft stays a draft when its deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the
+latest earlier entry with a `deck`, and a pack holds that deck's text. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
 deck's next `check`, and the report's `check` writes it again. `previous` is the date of the period the report compared with, a
 rebuilt one included; it is null on a first report, including one that compares the two
 halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
@@ -1364,8 +1365,13 @@ less well than a stronger model does, so `history/deck/D.audit.md` lets the oper
 page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. That came after `check`
 had passed, so `check` also estimates each slide's height (`fit.py`): it parses the slide's HTML, applies the deck's style
 sheet over the browser's own rules, and lays the boxes out as the browser does (blocks with collapsed margins, flex rows
-and columns, grids, tables with fixed and automatic column widths, balanced columns), wrapping text word by word in
-Arial's advance widths, which Liberation Sans and Helvetica share. On the test fixture's slides it lands within a pixel
+and columns, grids, tables with fixed and automatic column widths, balanced columns), wrapping text in Arial's advance
+widths, which Liberation Sans and Helvetica share. A box's padding and border count beside its width: a fixed table's
+cell and a growing flex item take them before the room left is shared. A line breaks at a space and where Chrome breaks
+between two characters (after a hyphen or a dash before a letter, on both sides of an em dash and of an inline block),
+never inside a minus sign's number. Line heights are read as a theme may set them: a number, a length, a percentage, `em`,
+`rem` or `normal`, which is Liberation Sans's ascent, descent and gap; a value the estimate cannot read (`var()`,
+`calc()`) leaves the inherited one standing. On the test fixture's slides and on trial decks it lands within half a pixel
 of Chrome printing in Liberation Sans. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out. Inter, SF and Segoe UI come first in the font stack
 and are wider, so a host that has them can still run over: `pdf --deck` does not run the estimate, and its page count is
 the final word. The theme of
@@ -1453,7 +1459,7 @@ next report reads:
 | `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
 | `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
 | the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
-| `reports/<date>.deck.json` of each final report, when it has one | the next deck's second edition |
+| `reports/<date>.deck.json` of each entry whose deck passed `check`, a draft's included | the next deck's second edition |
 | the runs of the latest report's period, as `reports.json` and its period file list them, those it left out under the judged floor included, and every run started after its last run | the previous period's answers (verdict changes, episodes, presence sources) and the runs of the next period |
 
 Before the first final report the pack holds every run, since the first report rebuilds the

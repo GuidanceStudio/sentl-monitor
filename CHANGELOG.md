@@ -15,6 +15,13 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   3 lines of text: shorten the title, read or excerpts of reach slide 1, or the what of action 1". It lays each slide out
   with the deck's style sheet and Arial's widths (`fit.py`); the lists of questions are left out, since the code flows
   them. `pdf --deck` no longer runs that estimate, and its page count stays the final word.
+- The slide estimate counts a fixed table cell's and a growing flex item's padding, breaks lines where Chrome breaks them
+  (after a hyphen or a dash before a letter, around an em dash or an inline block), balances columns as Chrome does, and
+  reads `line-height: normal`, percentages, `rem` and other units without stopping. On sixteen trial decks it lands within
+  half a pixel of Chrome on every slide.
+- A deck that passes `check` beside a report saved as a draft says it is recorded in the entry of its date, where it used
+  to say "recorded as final": the report stays a draft, and `last-report.json` keeps saying so. The next deck finds it as
+  the deck before, and a pack holds its text.
 
 ## 0.7.1 (2026-11-10)
 

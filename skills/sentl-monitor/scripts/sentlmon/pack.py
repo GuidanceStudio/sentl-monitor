@@ -17,7 +17,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from .common import Refused, Study, load_json, parse_time, read_gz
+from .common import Refused, Study, load_json, parse_time, passed_deck, read_gz
 from .compare import K
 from .period import previous_cut
 
@@ -126,7 +126,7 @@ def select(folder, full=False):
         paths += [f"history/runs/{key}/{name}" for name in _runs(folder, key, reports, latest_ids, full)]
     paths += [f"history/periods/{name}" for name in _periods(folder, reports, full)]
     # The next deck reads the text of the one before it.
-    paths += [rel for rel in (f"reports/{e['date']}.deck.json" for e in _finals(reports)) if folder.path(rel).is_file()]
+    paths += [rel for rel in (f"reports/{e['date']}.deck.json" for e in reports if passed_deck(e)) if folder.path(rel).is_file()]
     return sorted(set(paths))
 
 

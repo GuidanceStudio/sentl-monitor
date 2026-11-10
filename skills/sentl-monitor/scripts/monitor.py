@@ -278,7 +278,8 @@ def main(argv=None):
                     print(f"  - {problem}")
                 return 1
             print("check passed: the deck has its actions and their evidence, excerpts are verbatim, figures are the "
-                  "period's and each text fits its slide. The deck is recorded as final in history/reports.json.")
+                  "period's and each text fits its slide. The deck is recorded in history/reports.json, in the entry of its "
+                  "date; a draft report there stays a draft until its own check passes.")
         elif args.command == "check":
             problems = check.check(args.study, args.report, args.date, args.unattended)
             if problems:

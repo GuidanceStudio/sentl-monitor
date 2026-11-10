@@ -7,6 +7,7 @@ and Helvetica share: the face the deck's font stack falls to where Inter, SF and
 those. A wider face can run over where the estimate fits, so `pdf --deck` keeps the page count as the final word.
 """
 
+import math
 import re
 import unicodedata
 from html.parser import HTMLParser
@@ -115,17 +116,24 @@ def _matches(parts, node):
 
 
 class Style:
-    """What the estimate reads of a node's computed style."""
+    """What the estimate reads of a node's computed style. `line` is the line-height a child inherits: ("ratio", 1.4),
+    ("px", 30.0) for a length or a percentage, which inherit as computed, or ("normal", 0)."""
 
-    def __init__(self, props, size, height, bold):
-        self.props, self.size, self.line, self.bold = props, size, height, bold
+    def __init__(self, props, size, line, bold):
+        self.props, self.size, self.line, self.bold = props, size, line, bold
+
+    @property
+    def leading(self):
+        """The height of one line of text, in px."""
+        kind, value = self.line
+        return value if kind == "px" else value * self.size if kind == "ratio" else _normal(self.size)
 
     def length(self, name, of=0.0):
         return _length(self.props.get(name), self.size, of)
 
     def sides(self, name):
         """(top, right, bottom, left) of margin or padding, shorthand and longhands."""
-        values = (self.props.get(name) or "0").split()
+        values = (self.props.get(name) or "0").split() or ["0"]
         values = (values * 4)[:4] if len(values) == 1 else values + values[1:2] if len(values) == 3 else (values * 2)[:4]
         sides = [_length(v, self.size) for v in values]
         for i, side in enumerate(("top", "right", "bottom", "left")):
@@ -134,27 +142,89 @@ class Style:
         return sides
 
     def border(self, side):
-        value = self.props.get(f"border-{side}") or ""
-        found = re.match(r"([\d.]+)px", value)
+        value = self.props.get(f"border-{side}") or self.props.get("border") or ""
+        found = re.match(r"(\d*\.?\d+)px", value)
         return float(found.group(1)) if found else 0.0
+
+    def across(self):
+        """Padding and border left and right."""
+        return sum(self.sides("padding")[1::2]) + self.border("left") + self.border("right")
 
     @property
     def display(self):
         return self.props.get("display") or ""
 
 
-def _length(value, size, of=0.0):
-    if not value:
-        return 0.0
-    found = re.match(r"(-?[\d.]+)(px|em|%)?$", value.strip())
+# px in each absolute unit; `rem` is the html element's size, which the deck leaves at the browser's 16 px.
+UNITS = {"px": 1.0, "pt": 96 / 72, "pc": 16.0, "in": 96.0, "cm": 96 / 2.54, "mm": 96 / 25.4}
+ROOT_SIZE = 16.0
+SIZES = {"xx-small": 9.0, "x-small": 10.0, "small": 13.0, "medium": 16.0, "large": 18.0, "x-large": 24.0, "xx-large": 32.0}
+# Liberation Sans, as Arial: ascent, descent and line gap in em, each rounded to whole px for `line-height: normal`.
+NORMAL = (1854 / 2048, 434 / 2048, 67 / 2048)
+
+
+def _measure(value, size, of=0.0):
+    """A length in px, or None for what the estimate does not read: var(), calc(), auto, a keyword."""
+    found = re.fullmatch(r"(-?\d*\.?\d+)([a-z%]*)", (value or "").strip().lower())
     if not found:
-        return 0.0
+        return None
     number, unit = float(found.group(1)), found.group(2)
-    return number * size if unit == "em" else number * of / 100 if unit == "%" else number
+    factor = UNITS.get(unit or "px") or {"em": size, "rem": ROOT_SIZE, "%": of / 100, "vw": PAGE_WIDTH / 100,
+                                          "vh": PAGE_HEIGHT / 100}.get(unit)
+    return None if factor is None else number * factor
+
+
+def _length(value, size, of=0.0):
+    measured = _measure(value, size, of)
+    return 0.0 if measured is None else measured
+
+
+def _normal(size):
+    return float(sum(math.floor(part * size + 0.5) for part in NORMAL))
+
+
+def _font_size(value, parent):
+    value = value.strip().lower()
+    if value in SIZES:
+        return SIZES[value]
+    if value in ("larger", "smaller"):
+        return parent * 1.2 if value == "larger" else parent / 1.2
+    measured = _length(value, parent, parent)
+    return measured if measured > 0 else parent
+
+
+def _line(value, size):
+    """The line-height `value` sets at font size `size`, or None when the estimate does not read it."""
+    value = value.strip().lower()
+    if value == "normal":
+        return "normal", 0.0
+    if re.fullmatch(r"\d*\.?\d+", value):
+        return "ratio", float(value)
+    measured = _measure(value, size, size)
+    return None if measured is None else ("px", measured)
+
+
+FONT = re.compile(r"(?:^|\s)(\d*\.?\d+[a-z%]+|xx?-small|xx?-large|small|medium|large|larger|smaller)(?:\s*/\s*([^\s/]+))?(?=\s|$)")
+
+
+def _font(value, parent_size):
+    """(size, line, bold) of the `font` shorthand, which sets line-height to normal and the weight to 400 unless it
+    names them, or None."""
+    found = FONT.search(value.lower())
+    if not found:
+        return None
+    size = _font_size(found.group(1), parent_size)
+    line = (_line(found.group(2), size) if found.group(2) else None) or ("normal", 0.0)
+    return size, line, _bold(value[:found.start(1)])
+
+
+def _bold(weight):
+    return any(w in ("bold", "bolder") or w.isdigit() and int(w) >= 600 for w in weight.lower().split())
 
 
 # A shorthand resets the longhands an earlier rule set: `padding: 0` after the agent's `padding-left: 40px`.
 LONGHANDS = {**{box: tuple(f"{box}-{side}" for side in ("top", "right", "bottom", "left")) for box in ("margin", "padding")},
+             "border": tuple(f"border-{side}" for side in ("top", "right", "bottom", "left")),
              "gap": ("row-gap", "column-gap"), "flex": ("flex-grow", "flex-shrink", "flex-basis"),
              "font": ("font-size", "line-height", "font-weight")}
 
@@ -169,20 +239,19 @@ def _style(node, sheet):
                 for longhand in LONGHANDS.get(name, ()):
                     props.pop(longhand, None)
                 props[name] = value
-    parent = _style(node.parent, sheet) if node.parent else Style({}, 16.0, 1.2, False)
+    parent = _style(node.parent, sheet) if node.parent else Style({}, 16.0, ("normal", 0.0), False)
     if "white-space" in parent.props:
         props.setdefault("white-space", parent.props["white-space"])
     size, line, bold = parent.size, parent.line, parent.bold
-    font = re.match(r"(?:(\d+)\s+)?([\d.]+)px(?:/([\d.]+))?", props.get("font", ""))
+    font = _font(props["font"], parent.size) if "font" in props else None
     if font:
-        size, line, bold = float(font.group(2)), float(font.group(3) or line), int(font.group(1) or 400) >= 600
+        size, line, bold = font
     if "font-size" in props:
-        size = _length(props["font-size"], parent.size)
+        size = _font_size(props["font-size"], parent.size)
     if "line-height" in props:
-        value = props["line-height"]
-        line = _length(value, size) / size if value.endswith("px") else float(value)
+        line = _line(props["line-height"], size) or line
     if "font-weight" in props:
-        bold = props["font-weight"] in ("bold", "bolder") or props["font-weight"].isdigit() and int(props["font-weight"]) >= 600
+        bold = _bold(props["font-weight"])
     node.style = Style(props, size, line, bold)
     return node.style
 
@@ -245,7 +314,7 @@ class Layout:
                 run.append(kid)
                 continue
             if run and "".join(_text(k) for k in run).strip():
-                total += max(below, 0) + self.lines(node, run, width) * self.style(node).size * self.style(node).line
+                total += max(below, 0) + self.lines(node, run, width) * self.style(node).leading
                 below = 0.0
             run = []
             if kid is None:
@@ -272,21 +341,33 @@ class Layout:
         return count
 
     def tokens(self, run, parent):
-        """("word", width), ("space", width) and ("break", 0) of a run of inline content, in reading order."""
-        word = 0.0
-        for kind, w in self.atoms(run, parent):
-            if kind == "ink":
-                word += w
-                continue
-            if word:
-                yield "word", word
+        """("word", width), ("space", width) and ("break", 0) of a run of inline content, in reading order. A word also
+        ends where the browser may break between two characters, after a hyphen or a dash, and on both sides of an
+        inline block: there a space of no width stands between."""
+        word, before, last = 0.0, " ", (" ", "space")
+        for kind, w, ch in self.atoms(run, parent):
+            if kind == "box":
+                yield from (("word", word), ("space", 0.0)) if word else ()
+                yield from (("word", w), ("space", 0.0))
                 word = 0.0
-            yield kind, w
+            elif kind in ("ink", "glue"):
+                if word and kind == last[1] == "ink" and _breaks(before, last[0], ch):
+                    yield "word", word
+                    yield "space", 0.0
+                    word = 0.0
+                word += w
+            else:
+                if word:
+                    yield "word", word
+                    word = 0.0
+                yield kind, w
+            before, last = last[0], (ch, kind)
         if word:
             yield "word", word
 
     def atoms(self, run, parent):
-        """("ink", width) of each character, ("space", width) where a line may break, ("break", 0) at a <br>."""
+        """(kind, width, character) in reading order: "ink" for a character, "glue" for one where no line may break,
+        "space" where one may, "break" at a <br>, "box" for an inline block."""
         s = self.style(parent)
         nowrap = s.props.get("white-space") == "nowrap"
         for kid in run:
@@ -294,11 +375,13 @@ class Layout:
                 table = BOLD if s.bold else REGULAR
                 for ch in kid:
                     space = ch in " \t\r\n"
-                    yield ("space" if space and not nowrap else "ink", _advance(" " if space else ch, table) * s.size / 1000)
+                    kind = "glue" if nowrap else "space" if space else "ink"
+                    yield kind, _advance(" " if space else ch, table) * s.size / 1000, " " if space else ch
             elif kid.tag == "br":
-                yield "break", 0.0
+                yield "break", 0.0, "\n"
             elif self.style(kid).display == "inline-block" and "width" in self.style(kid).props:
-                yield "ink", self.style(kid).length("width") + self.style(kid).sides("margin")[1]
+                width = self.style(kid).length("width") + self.style(kid).sides("margin")[1]
+                yield "glue" if nowrap else "box", width, "\ufffc"
             else:
                 yield from self.atoms(kid.kids, kid)
 
@@ -306,18 +389,36 @@ class Layout:
         return sum(self.outer(k, width) for k in kids) + gap * (len(kids) - 1)
 
     def row(self, kids, width, gap, wrap):
+        """Items side by side, each from its flex basis with its padding and margins, the growing ones sharing the room
+        left; as tall as the tallest."""
+        gaps = gap * (len(kids) - 1)
         grows = [self.grow(k) for k in kids]
-        fixed = [self.style(k).length("width", width) if "width" in self.style(k).props else None if g else self.widest(k)
-                 for k, g in zip(kids, grows)]
-        free = width - gap * (len(kids) - 1) - sum(f for f in fixed if f is not None)
+        bases = [self.basis(k, width) for k in kids]
         if any(grows):
-            widths = [f if f is not None else max(free, 0) * g / sum(grows) for f, g in zip(fixed, grows)]
-        elif sum(fixed) + gap * (len(kids) - 1) > width and wrap:
-            return self.wrapped(kids, fixed, width, gap)
+            free = max(width - gaps - sum(bases), 0.0)
+            widths = [b + free * g / sum(grows) for b, g in zip(bases, grows)]
+        elif sum(bases) + gaps > width and wrap:
+            return self.wrapped(kids, bases, width, gap)
         else:
-            scale = min(1.0, (width - gap * (len(kids) - 1)) / sum(fixed)) if sum(fixed) else 1.0
-            widths = [f * scale for f in fixed]
+            scale = min(1.0, (width - gaps) / sum(bases)) if sum(bases) else 1.0
+            widths = [b * scale for b in bases]
         return max(self.outer(k, w) for k, w in zip(kids, widths))
+
+    def basis(self, node, width):
+        """The width an item takes in its row before the room left is shared, its margins included."""
+        s = self.style(node)
+        basis = _flex(s.props)[1]
+        if basis == "auto":
+            taken = self.border_box(s, s.length("width", width)) if "width" in s.props else self.widest(node)
+        else:
+            taken = self.border_box(s, _length(basis, s.size, width))
+        return taken + sum(s.sides("margin")[1::2])
+
+    def border_box(self, s, width):
+        """The width of the border box whose `width` is `width`; the padding and border are never squeezed out."""
+        if s.props.get("box-sizing") == "border-box":
+            return max(width, s.across())
+        return width + s.across()
 
     def wrapped(self, kids, widths, width, gap):
         heights, line, used = [], [], 0.0
@@ -331,19 +432,14 @@ class Layout:
         return sum(heights) + gap * (len(heights) - 1)
 
     def grow(self, node):
-        props = self.style(node).props
-        value = props.get("flex-grow") or (props.get("flex") or "0").split()[0]
-        try:
-            return float(value)
-        except ValueError:
-            return 0.0
+        return _flex(self.style(node).props)[0]
 
     def widest(self, node):
         """The width a node takes with no line wrapped: its max-content width."""
         s = self.style(node)
         if "width" in s.props:
-            return s.length("width")
-        pad = sum(s.sides("padding")[1::2]) + s.border("left") + s.border("right")
+            return self.border_box(s, s.length("width"))
+        pad = s.across()
         kids = node.elements()
         if kids and not all(self.inline(k) for k in kids):
             return pad + max(self.widest(k) + sum(self.style(k).sides("margin")[1::2]) for k in kids)
@@ -361,7 +457,7 @@ class Layout:
         """The width of its longest word: its min-content width."""
         s = self.style(node)
         words = [w for kind, w in self.tokens(node.kids, node) if kind == "word"]
-        return sum(s.sides("padding")[1::2]) + max(words, default=0.0)
+        return s.across() + max(words, default=0.0)
 
     def grid(self, node, kids, width):
         s = self.style(node)
@@ -399,7 +495,8 @@ class Layout:
         if not n:
             return 0.0
         if self.style(node).props.get("table-layout") == "fixed":
-            set_widths = [self.style(c).length("width", width) if "width" in self.style(c).props else None for c in cells[0]]
+            set_widths = [self.border_box(self.style(c), self.style(c).length("width", width)) if "width" in self.style(c).props
+                          else None for c in cells[0]]
             set_widths += [None] * (n - len(set_widths))
             left = width - sum(w for w in set_widths if w is not None)
             share = left / max(1, sum(w is None for w in set_widths))
@@ -410,20 +507,26 @@ class Layout:
         return sum(max(self.box(c, w) for c, w in zip(r, widths)) for r in cells if r)
 
     def columns(self, kids, width, count, gap):
-        """Items flowed into `count` balanced columns, none split; the margin under a column's last item is cut."""
+        """Items flowed into `count` columns, none split, balanced as the browser balances them: it starts from an even
+        share of the whole height and grows the columns until they hold every item, the margin under a column's last
+        item cut."""
         each = (width - gap * (count - 1)) / count
         heights = [self.outer(k, each) for k in kids]
         cut = [self.style(k).sides("margin")[2] for k in kids]
-        targets = {sum(heights[i:j]) - cut[j - 1] for i in range(len(kids)) for j in range(i + 1, len(kids) + 1)}
-        for target in sorted(targets):
+        even = sum(heights) / count
+
+        def holds(target):
             used, column = 0.0, 1
             for h, c in zip(heights, cut):
+                if h - c > target + 0.01:
+                    return False
                 if used and used + h - c > target + 0.01:
                     column, used = column + 1, 0.0
                 used += h
-            if column <= count:
-                return target
-        return sum(heights)
+            return column <= count
+
+        targets = {even} | {sum(heights[i:j]) - cut[j - 1] for i in range(len(kids)) for j in range(i + 1, len(kids) + 1)}
+        return next((t for t in sorted(targets) if t >= even and holds(t)), sum(heights))
 
 
 def _auto_columns(narrow, wide, n, width):
@@ -435,6 +538,44 @@ def _auto_columns(narrow, wide, n, width):
     room = max(width - sum(least), 0)
     spread = sum(m - l for m, l in zip(most, least)) or 1
     return [l + room * (m - l) / spread for m, l in zip(most, least)]
+
+
+def _flex(props):
+    """(grow, basis) of a flex item: `flex: 1` grows from a basis of 0, `flex: auto` from its own width."""
+    parts = (props.get("flex") or "").split()
+    numbers = [float(p) for p in parts if re.fullmatch(r"\d*\.?\d+", p)]
+    if parts in (["auto"], ["none"]):
+        grow, basis = float(parts == ["auto"]), "auto"
+    else:
+        lengths = [p for p in parts if not re.fullmatch(r"\d*\.?\d+", p)]
+        grow, basis = (numbers[0] if numbers else 1.0 if lengths else 0.0), (lengths[0] if lengths else "0" if numbers else "auto")
+    if "flex-grow" in props:
+        grow = _length(props["flex-grow"], 0.0)
+    return grow, props.get("flex-basis", basis)
+
+
+# Characters after which a line may break before "(", as Chrome breaks them.
+BEFORE_OPENING = set(".,:;)]}%+=\"&#€|\\*~>!-–…?")
+
+
+def _breaks(before, last, ch):
+    """Whether the browser may end a line between `last` and `ch`, two characters with no space between them: the
+    rules of UAX #14 as Chrome applies them to the characters a deck holds. `before` is the character before `last`."""
+    if "—" in (last, ch):
+        return True
+    if ch == "(":
+        return last in BEFORE_OPENING
+    if last == ch == "-":
+        return True
+    if not ch.isalnum():
+        return False
+    if last == "-":  # a minus sign keeps its number
+        return not (ch.isdigit() and before in " \n(")
+    if last == "–":  # a dash after a space keeps its word
+        return not (ch.isalpha() and before in " \n")
+    if last in ("…", "?"):
+        return True
+    return last in ("/", "!", "}", "|") and ch.isalpha() and not ch.isascii()
 
 
 def _descendants(node):

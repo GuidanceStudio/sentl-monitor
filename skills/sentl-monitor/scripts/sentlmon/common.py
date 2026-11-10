@@ -184,6 +184,12 @@ class Study:
                    {"at": now_iso(), "outcome": outcome, "detail": " ".join(detail.split())})
 
 
+def passed_deck(entry):
+    """Whether the reports.json entry has a deck that passed check: one recorded in `deck`, beside a
+    final or a draft report, or one an earlier version recorded as a final report of its own."""
+    return bool(entry.get("deck")) or entry.get("status") == "final"
+
+
 # --- text -------------------------------------------------------------------
 
 _QUOTES = str.maketrans({

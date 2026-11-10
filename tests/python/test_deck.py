@@ -8,8 +8,8 @@ import unittest
 from collections import Counter
 from unittest import mock
 
-from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q
-from sentlmon import deck, livepage
+from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, models
+from sentlmon import deck, livepage, pack
 from sentlmon import pdf as report_pdf
 from test_insights_period import CURRENT, OCT, OUTDATED, InsightCase, rows
 from test_pdf import sandboxless
@@ -606,6 +606,20 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         entries = self.read("history/reports.json")
         self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
                          [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
+
+    def test_a_deck_checked_beside_a_draft_report_leaves_it_a_draft_and_is_found_later(self):
+        self.cli("method", "--study", self.study, "--date", DATE, "--models", self.save("models.json", models()), check=0)
+        self.cli("check", "--study", self.study, self.study / "reports" / f"{DATE}.md", "--unattended", check=1)
+        said = self.deck_check().stdout
+        entry = self.read("history/reports.json")[0]
+        self.assertEqual((entry["status"], entry["file"], entry["deck"]),
+                         ("draft", f"reports/{DATE}.draft.md", f"reports/{DATE}.deck.json"))
+        self.assertNotIn("as final", said)
+        self.assertIn("in the entry of its date", said)
+        self.assertEqual(self.read("history/last-report.json")["outcome"], "draft")
+        folder = deck.load(self.study, DATE)[0]
+        self.assertEqual(deck._earlier(folder, "2026-11-30")[0], DATE)
+        self.assertIn(f"reports/{DATE}.deck.json", pack.select(folder, False))
 
     def test_a_deck_recorded_in_the_report_s_place_moves_beside_it(self):
         self.deck_check()

@@ -23,7 +23,8 @@ from . import theme as sentl_theme
 from .charts import span
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
-from .common import REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, write_json, write_text
+from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, passed_deck, write_json,
+                     write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
@@ -458,7 +459,7 @@ def _makers(models, names):
 
 def _earlier(folder, date):
     """(date, text) of the latest deck before `date` that passed check and still has its period."""
-    days = {e["date"] for e in folder.reports() if e.get("status") == "final" and e["date"] < date}
+    days = {e["date"] for e in folder.reports() if passed_deck(e) and e["date"] < date}
     for day in sorted(days, reverse=True):
         path = folder.path("reports", f"{day}.deck.json")
         if path.is_file() and folder.path("history", "periods", f"{day}.json").is_file():
@@ -1877,7 +1878,8 @@ def check(root, path, date=None):
         if entry.get("file", "").endswith(".deck.json"):  # an earlier version recorded the deck as the report
             entry = {k: v for k, v in entry.items() if k != "file"}
         folder.record_report({**entry, "deck": _shown(folder, path)})
-        folder.record_outcome("written", f"deck of {day} passed check")
+        if entry.get("status") != "draft":  # a draft report stays the invocation's outcome until its own check
+            folder.record_outcome("written", f"deck of {day} passed check")
     return problems
 
 
