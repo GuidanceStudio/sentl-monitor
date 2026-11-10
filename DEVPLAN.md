@@ -1236,3 +1236,11 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - The lists of questions are not estimated: the code flows them into columns.
 - Review fixes: an inline block (a legend's swatch) is a break opportunity on both sides, as in Chrome, and balanced columns start from an even share of the height and grow until every item fits; both were found while comparing with Chrome. A draft report stays a draft when its deck passes: REPORT.md makes a draft final only through its own `check`, so the deck is found by its `deck` field and the draft outcome in `last-report.json` is kept.
 
+## R10: Release 0.7.2 🔄
+
+**Why:** M29 changes what `check` refuses on a deck and what `history/reports.json` records. Operator's go on 2026-11-10.
+
+**Tasks:**
+- [~] Version 0.7.2 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+
+**Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.2.

@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.7.2 (2026-11-10)
 
 - The deck's `check` records the deck as `deck` in the entry of its date in `history/reports.json`, beside the report's
   `file`, where it used to write the deck's path over the report's. A report's `check` keeps the deck. An entry an earlier
