@@ -136,6 +136,7 @@ PROJECT = _Object({
             "label": (TEXT_OR_NULL, False),
             "grading_rubric": (RUBRIC, True),
             "additional_instructions": (TEXT_OR_NULL, False),
+            "updated_at": (TIME_OR_NULL, False),
         }), "a list of questions"), True),
     }), "a list of dimensions"), True),
 })
@@ -160,6 +161,9 @@ RUN = _Object({
         "judge_score": (SCORE, True),
         "sources": (_List(_Object({"url": (STRING, True), "title": (TEXT_OR_NULL, False)}),
                           "a list of sources, or null", nullable=True), True),
+        # The rubric and instructions the answer was judged under, when Sentl returns them.
+        "grading_rubric": (RUBRIC, False),
+        "additional_instructions": (TEXT_OR_NULL, False),
     }), "a list of responses"), True),
 })
 

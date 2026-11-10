@@ -124,6 +124,76 @@ class CommandTest(CommandBase, unittest.TestCase):
         self.run_pdf("--date", "2026-01-01", check=2)
 
 
+# What a Chromium build without an AppArmor profile prints where the system restricts unprivileged user namespaces.
+NO_SANDBOX = ("[0:0:FATAL:zygote_host_impl_linux.cc(132)] No usable sandbox! If you are running on Ubuntu 23.10+ or "
+              "another Linux distro that has disabled unprivileged user namespaces with AppArmor, see the docs.")
+
+
+def sandboxless(folder, name):
+    """A browser in `folder` that cannot start its sandbox here, and would print if told to run without it."""
+    exe = Path(folder) / name
+    exe.write_text("#!/bin/sh\nfor a; do case \"$a\" in --print-to-pdf=*) out=\"${a#--print-to-pdf=}\";; "
+                   "--no-sandbox) free=1;; esac; done\n"
+                   "if [ -n \"$free\" ]; then printf '%%PDF-1.4' > \"$out\"; exit 0; fi\n"
+                   f"echo '{NO_SANDBOX}' >&2\nexit 134\n", encoding="utf-8")
+    exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
+
+
+class SandboxTest(CommandBase, unittest.TestCase):
+    """A browser prints with its sandbox, or the PDF is not printed."""
+
+    def sandboxless(self, name):
+        sandboxless(self.bin, name)
+
+    def test_no_engine_prints_without_the_sandbox(self):
+        from sentlmon import deck
+        for name, template in pdf.ENGINES + deck.ENGINES:
+            self.assertNotIn("--no-sandbox", template, name)
+
+    def test_a_browser_without_its_sandbox_stops_the_print_with_the_cause_and_the_fix(self):
+        self.sandboxless("chromium")
+        proc = self.run_pdf(check=1)
+        self.assertIn("chromium", proc.stderr)
+        self.assertIn("sandbox", proc.stderr)
+        self.assertIn("Google Chrome", proc.stderr)
+        self.assertIn("AppArmor", proc.stderr)
+        self.assertIn("weasyprint", proc.stderr)
+        self.assertTrue((self.study / "reports" / "2026-10-14.html").exists())
+        self.assertFalse((self.study / "reports" / "2026-10-14.pdf").exists())
+
+    def test_a_sandboxed_browser_after_one_without_its_sandbox_prints(self):
+        self.sandboxless("chromium")
+        self.fake_engine("google-chrome")
+        self.assertIn("(engine: google-chrome)", self.run_pdf().stdout)
+
+    def test_a_sandboxed_browser_after_one_failing_for_another_reason_prints(self):
+        broken = self.bin / "chromium"
+        broken.write_text("#!/bin/sh\necho 'cannot open display' >&2\nexit 1\n", encoding="utf-8")
+        broken.chmod(broken.stat().st_mode | stat.S_IEXEC)
+        self.fake_engine("google-chrome")
+        self.assertIn("(engine: google-chrome)", self.run_pdf().stdout)
+
+    def test_doctor_says_which_browser_prints_with_its_sandbox(self):
+        self.fake_engine("google-chrome")
+        with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
+            out = self.cli("doctor", check=0).stdout
+        self.assertIn("PDF: google-chrome prints with its sandbox", out)
+
+    def test_doctor_names_a_browser_without_its_sandbox_and_the_fix(self):
+        self.sandboxless("chromium")
+        with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
+            out = self.cli("doctor", check=0).stdout
+        line = next(ln for ln in out.splitlines() if ln.startswith("PDF:"))
+        self.assertIn("chromium cannot start its sandbox", line)
+        self.assertIn("Google Chrome", line)
+        self.assertIn("weasyprint", line)
+
+    def test_doctor_says_when_no_engine_is_installed(self):
+        with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
+            out = self.cli("doctor", check=0).stdout
+        self.assertIn("PDF: no PDF engine is installed", out)
+
+
 if __name__ == "__main__":
     unittest.main()
 

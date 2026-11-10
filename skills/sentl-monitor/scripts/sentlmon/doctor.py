@@ -81,9 +81,10 @@ def _study_lines(study, roots, host_roots):
     return lines, ok
 
 
-def report(study=None, version_info=None, skill_version=None, roots=SANDBOX_ROOTS):
+def report(study=None, version_info=None, skill_version=None, roots=SANDBOX_ROOTS, printer=None):
     """The doctor's lines and whether the scripts can run here. A sandbox host is reported, not
-    counted as a problem: on a web client the study is carried between conversations instead."""
+    counted as a problem: on a web client the study is carried between conversations instead.
+    `printer` gives the line on PDF engines; a PDF is optional, so that line never counts as one."""
     version_info = sys.version_info if version_info is None else version_info
     lines, ok = [], True
     if skill_version:
@@ -104,4 +105,6 @@ def report(study=None, version_info=None, skill_version=None, roots=SANDBOX_ROOT
         study_lines, study_ok = _study_lines(study, roots, host_roots)
         lines += study_lines
         ok = ok and study_ok
+    if printer is not None:
+        lines.append(printer())
     return lines, ok

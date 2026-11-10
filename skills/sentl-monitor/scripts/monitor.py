@@ -2,7 +2,8 @@
 """sentl-monitor's deterministic steps. It reads the Sentl MCP responses the
 assistant saved into a study folder and never calls Sentl.
 
-Exit codes: 0 done; 1 check, validate or doctor found problems, or demand autocomplete could not fetch every prefix; 2 input refused; 3 run not
+Exit codes: 0 done; 1 check, validate or doctor found problems, demand autocomplete could not fetch every prefix, or pdf
+found only a browser that cannot start its sandbox; 2 input refused; 3 run not
 final; 4 no run left in the period; 5 a Sentl response, an export, or a pack's manifest, does not
 have the shape the skill reads; 6 unexpected error; 7 a download link that does not answer.
 """
@@ -141,7 +142,8 @@ def _parser():
     f.add_argument("--deck", action="store_true", help="write the deck of the period, which must pass check")
     f.add_argument("--theme", help="a theme file (.json or .css) in place of the study's, the user's or Sentl's")
 
-    h = command("doctor", "report the Python version, the system, and whether a study folder is writable and lasts")
+    h = command("doctor", "report the Python version, the system, whether a study folder is writable and lasts, "
+                "and which PDF engine prints here")
     h.add_argument("--study", help="study folder to check (optional)")
 
     k = command("pack", "write the state the next report needs as one zip, to carry a study between web "
@@ -302,7 +304,7 @@ def main(argv=None):
         elif args.command == "pdf":
             print(pdf.write(args.study, args.date, args.theme))
         elif args.command == "doctor":
-            lines, ok = doctor.report(args.study, skill_version=_skill_version())
+            lines, ok = doctor.report(args.study, skill_version=_skill_version(), printer=pdf.probe)
             print("\n".join(lines))
             return 0 if ok else 1
         elif args.command == "pack":
@@ -341,6 +343,9 @@ def main(argv=None):
             print(pack.unpack(args.study, args.pack, skill_version=_skill_version()))
     except demand.Incomplete as exc:
         print(str(exc))
+        return 1
+    except pdf.NoSandbox as exc:
+        print(str(exc), file=sys.stderr)
         return 1
     except Refused as exc:
         print(f"refused: {exc}", file=sys.stderr)

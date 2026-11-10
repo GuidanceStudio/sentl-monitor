@@ -28,6 +28,20 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(classify("Avenello costa 2,10€ al litro.", TERMS), "current_only")
         self.assertEqual(classify("It costs £ 4.20 a litre.", {"current": ["£4.20"], "outdated": []}), "current_only")
 
+    def test_a_phone_number_matches_whatever_separates_its_digits(self):
+        phone = {"current": ["800 123 456"], "outdated": []}
+        for written in ("800 123 456", "800123456", "800.123.456", "800-123-456", "800 12 34 56"):
+            self.assertEqual(classify(f"Il numero verde è {written}, gratuito.", phone), "current_only", written)
+        self.assertEqual(classify("Chiama il +39 800 123 456.", {"current": ["+39 800 123 456"], "outdated": []}),
+                         "current_only")
+        self.assertIsNone(classify("Il numero è 1800 123 456.", phone))
+        self.assertIsNone(classify("Il numero è 800 123 4567.", phone))
+        self.assertIsNone(classify("Il numero è 800 123 465.", phone))
+
+    def test_a_short_number_still_matches_as_written(self):
+        self.assertIsNone(classify("Ci sono 2 2 sportelli.", {"current": ["22"], "outdated": []}))
+        self.assertIsNone(classify("Costa 2 10 € al litro.", TERMS))
+
     def test_terms_are_folded_and_matched_on_word_boundaries(self):
         self.assertEqual(classify("Il prezzo è 2,10 €.", TERMS), "current_only")
         self.assertIsNone(classify("La confezione da sei costa 12,10 €.", TERMS))

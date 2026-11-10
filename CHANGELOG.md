@@ -3,6 +3,28 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- The engines that ran chromium and google-chrome with `--no-sandbox` are gone, so a browser prints only with its sandbox.
+  Where a browser cannot start its sandbox ("No usable sandbox", as on hosts where AppArmor restricts unprivileged user
+  namespaces), the next engine is tried, and when none prints, `pdf` and `pdf --deck` exit 1 naming the cause and what to
+  install: Google Chrome from Google's package, or weasyprint. `doctor` prints which engine prints a test page here.
+- A question whose criteria changed in a detection window is no longer lost from a run that can be placed. `ingest` settles
+  it by the rubric and instructions the run's answers carry, when they are one version's, or by the project read saved in
+  the inbox when the question was last edited (`updated_at`) before the run started. The run records it in
+  `criteria_settled`; `period` settles runs on file the same way and names a question no run of the period keeps.
+- A phone number or another code is matched on its digits, whatever separates them: "800 123 456" now counts "800123456"
+  and "800-123-456".
+- The deck's `check` refuses a count in a slide's text on as many answers as a row its chart draws, when the chart does not
+  draw that count, and a question holding two facts. "un'altra azienda" is no longer read as one answer, and a quoted
+  label such as «Lavora con noi» is no longer read as the writer speaking.
+- The deck's labels say what they count: the cover's total names its two parts; a name close to the subject's says how many
+  answers it has more or fewer; a site's count beside an action takes the base of the action's reason and names the row;
+  a site named like the subject that the study does not own is labelled as another organisation; the method table says
+  how many times each project ran in the period, beside its schedule.
+- `method` writes every dimension heading at `###`, as REPORT.md asks, with several projects too. The figures file gives no
+  sources line for the facts block, and `deck` prints the facts block's real number of questions.
+
 ## 0.7.0 (2026-11-09)
 
 - `brief` builds a persona inventory beside the theme inventory. `seeds.json` may list `personas` (id, label, group, situation,

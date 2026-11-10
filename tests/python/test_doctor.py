@@ -7,10 +7,21 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from fixtures import REPO, StudyCase, monitor
 
 SKILL_MD = REPO / "skills" / "sentl-monitor" / "SKILL.md"
+
+
+def setUpModule():
+    """doctor prints a test page with the PDF engines on the path; here the path holds none, so no browser starts.
+    test_pdf.SandboxTest gives doctor engines of its own."""
+    empty = tempfile.TemporaryDirectory()
+    unittest.addModuleCleanup(empty.cleanup)
+    path = mock.patch.dict(os.environ, {"PATH": empty.name})
+    path.start()
+    unittest.addModuleCleanup(path.stop)
 
 
 def skill_md_version():

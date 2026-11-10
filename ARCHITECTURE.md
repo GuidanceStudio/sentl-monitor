@@ -341,7 +341,9 @@ is a transcription, not an edit. Schedule and activation are recorded and not co
 
 - `plan` is the questions, models and rounds of the version in force, and `expected` their
   product; `received` and `judged` are counted from the response. `criteria_unknown` lists
-  the questions whose rubric the run cannot be placed under (§Matching).
+  the questions whose rubric the run cannot be placed under (§Matching). `criteria_settled`,
+  present when it is not empty, holds each question placed after all, with its version and
+  how it was placed: `rubric` or `updated_at`.
 - A run that started before the first recorded version (a run read from a project's history
   when it is adopted) has no known configuration (gap G2): `version` is `null`, and
   `plan` holds the distinct questions answered, the distinct models and the largest number
@@ -891,9 +893,16 @@ one with fewer questions that the run asked and the version does not hold, or th
 version holds and the run never asked, so a run made before a question or a dimension was
 added keeps the earlier version; the later one on a tie. A response that matches only the
 other version's text is `version`. A tie leaves the rubric of the run's answers unknown for
-every question whose criteria changed between the two versions: the run lists them in
-`criteria_unknown`, and `period` leaves them out of it, so such a question's new baseline
-starts from the first run known to be under the new criteria. A run older than the first recorded version is matched
+every question whose criteria changed between the two versions, unless the run settles it. It
+does when every answer to the question carries the rubric and instructions it was judged under
+and they are one version's. It also does when the project read saved in the inbox
+(`project-<Sentl id>.json`) says the question was last edited (`updated_at`) before the run
+started and holds the later version's criteria: the run was then judged under the later version.
+A question settled either way is recorded in `criteria_settled`; the others stay in
+`criteria_unknown`, and `period` leaves them out of the run, so such a question's new baseline
+starts from the first run known to be under the new criteria. `period` settles a run on file
+again with the run's results and the project read the inbox holds then, without rewriting the
+run's file, and names to the operator a question that no run of the period keeps. A run older than the first recorded version is matched
 against that version alone, so a question reworded before it was recorded leaves that run's
 answers to the earlier wording `unmatched`. Texts are compared after normalization: Unicode
 NFKC, typographic quotes and apostrophes folded to plain ones, whitespace collapsed. A
@@ -932,9 +941,9 @@ is refused with exit 2: it is to be saved again.
 
 | Tool | What the skill reads |
 |---|---|
-| `get-project-tool` | under `project`: `id`, `name`, `schedule_frequency` (text or null), `rounds` (1 or more), `is_active` (optional), `researcher_model_ids`; `dimensions` with `id`, `name`, `archived` (optional) and `questions`, each `id`, `question`, `label` (optional, text or null), `grading_rubric` (null, or an object whose keys are anchors from `1` to `5`, each a text or null: Sentl does not require every anchor), `additional_instructions` (optional, text or null) |
+| `get-project-tool` | under `project`: `id`, `name`, `schedule_frequency` (text or null), `rounds` (1 or more), `is_active` (optional), `researcher_model_ids`; `dimensions` with `id`, `name`, `archived` (optional) and `questions`, each `id`, `question`, `label` (optional, text or null), `grading_rubric` (null, or an object whose keys are anchors from `1` to `5`, each a text or null: Sentl does not require every anchor), `additional_instructions` (optional, text or null), `updated_at` (optional, time or null) |
 | `list-runs-tool` | `project_id`, `total` and `next_page` (optional); `runs`, each `id`, `status` (any text), `started_at` (null only on a run that is not completed), `expected` and `judged` (optional, a count or null) |
-| `get-run-results-tool` | under `run`: `id`, `project_id`, `status` (a known status), `started_at`, `reputation_score` (1 to 5, or null); `responses`, each `id`, `model_id`, `dimension`, `question`, `answer` (text or null), `judge_score` (an integer from 1 to 5, or null), `sources` (a list, or null for none), each `url` and `title` (optional, text or null). The results of a run not final yet are read for `id` and `status` only |
+| `get-run-results-tool` | under `run`: `id`, `project_id`, `status` (a known status), `started_at`, `reputation_score` (1 to 5, or null); `responses`, each `id`, `model_id`, `dimension`, `question`, `answer` (text or null), `judge_score` (an integer from 1 to 5, or null), `sources` (a list, or null for none), each `url` and `title` (optional, text or null), `grading_rubric` and `additional_instructions` (optional, as on the project: what the answer was judged under). The results of a run not final yet are read for `id` and `status` only |
 | `list-ai-models` | under `researcher_models`: each model id with its public `name`, and `credits` (the tariff per call; optional here, required by `review`) |
 
 Times are ISO 8601; a time written without a time zone is read as UTC. The nine statuses are
@@ -1061,7 +1070,10 @@ describes.
 
 - **Fact currency.** An answer states a term when the term, folded like an alias, appears on
   word boundaries and not inside a longer number ("10 €" is not in "12,10 €", "£2" not in
-  "£2.10"); a space between a number and a currency sign is optional on both sides. Answers are counted as stating a current term only, an outdated term only,
+  "£2.10"); a space between a number and a currency sign is optional on both sides. A phone
+  number or another code, six digits or more with only spaces, dots, dashes, slashes or brackets
+  between them, is matched on its digits: "800 123 456" is stated by "800123456" and
+  "800-123-456", never by a longer number. Answers are counted as stating a current term only, an outdated term only,
   both, or neither; the current share is the answers stating a current term out of those
   stating any.
 - **Sources behind a fact or a score.** Four groups of a question's answers: those stating
@@ -1292,6 +1304,10 @@ has, so that any writer can correct it. A site's count beside a page is refused,
 grounding redirect hides the page, so a page's count is a range. A site said to be cited most comes first, alone, among the sites
 the sentence speaks of. A bare name ties a count only through brackets or a page, because "citare" also means naming in the text.
 What a count of a word in the answers says, and a count written in words, stay with the reader and the audit.
+A count in a slide's text on as many answers as a row its chart draws must be one that chart draws: "all 14" beside a row
+drawn at 8 of 14 was accepted because 14 of 14 was a figure elsewhere in the period. A facts row counts the answers stating
+any fact of its question, so a question holding two facts is refused: the row could be drawn as carried on a claim no
+answer states.
 It keeps the reader in mind where a rule can: a figure over a chart must be on that chart; a title holds at most two figures;
 the first slides repeat a figure at most twice; a presence figure comes with a competitor, and a subject among the first two
 is not played down; words of the study, project names and a topic as the subject of a sentence are refused; "none" and "all"
@@ -1312,7 +1328,13 @@ domains its `what` names, as work on the subject's own pages or a request to a t
 put the largest gap of one study, 0 answers of 18, third. The labels the code draws say what their numbers count: the sources
 slide is headed by how many answers cite each source; a note under its table says that an answer can cite more than one kind
 of source when its columns overlap, since they then add up past the answers citing; a cell under a count of answers with
-nothing to count prints 0, never a word. A question with fewer than three answers counts in its topic and in the list of
+nothing to count prints 0, never a word. The cover's total names the answers to the questions without the subject's name
+and to those about it, which the next slide counts apart. A name close to the subject's on the chart of names says how many
+answers it has more or fewer. Beside an action, a site's count takes the base of the action's reason when that reason gives
+the site a count on one row of its slide, and names the row; otherwise it counts the slide's questions. A third party's site
+whose name is the subject's or an alias, and which `study.json` does not own, is labelled as another organisation of that
+name. The method table says how many times each project's questions were asked in the period, beside how often they are
+scheduled. A question with fewer than three answers counts in its topic and in the list of
 questions, and draws no row and no excerpt: one answer of two is no finding. A deck with unfavourable answers shows one, and its
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
@@ -1337,7 +1359,11 @@ less well than a stronger model does, so `history/deck/D.audit.md` lets the oper
 
 **The pages.** 13.333 x 7.5 inches. A slide has a minimum height and no fixed one, so too much text runs onto a new
 page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. The theme of
-§Theme applies. wkhtmltopdf is not used: it does not read flex or grid.
+§Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all,
+for the deck and the report alike. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and
+later) and the only browser has no profile that allows them, its print fails with "No usable sandbox". The next engine is
+tried, and when none prints, `pdf` exits 1, naming the cause and what to install. `doctor` prints which engine prints a
+test page here.
 
 **Later editions.** `reports/<date>.deck.json` keeps each action with its `read_next` figure, for the next deck to read
 them; they are not printed. The slide of what changed is not written yet (DEVPLAN M18).

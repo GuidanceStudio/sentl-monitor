@@ -39,10 +39,19 @@ def _as_terms(answer):
     return tight(folded(answer))
 
 
+# A phone number or another code: digits with spaces, dots, dashes, slashes or brackets between them, six digits or more.
+IDENTIFIER = re.compile(r"\+?[\d\s./()-]+")
+IDENTIFIER_DIGITS = 6
+
+
 @functools.lru_cache(maxsize=None)
 def _term(term):
     """A fact term matched on word boundaries and never inside a longer number: "10 €" is not
-    stated by "12,10 €", nor "£2" by "£2.10"."""
+    stated by "12,10 €", nor "£2" by "£2.10". A phone number or another code is matched on its
+    digits, whatever separates them: "800 123 456" is stated by "800123456" and "800-123-456"."""
+    digits = re.sub(r"\D", "", term)
+    if IDENTIFIER.fullmatch(term.strip()) and len(digits) >= IDENTIFIER_DIGITS:
+        return re.compile(r"(?<![\d,])" + r"[\s./()-]*".join(digits) + r"(?![.,]?\d)")
     return re.compile(r"(?<!\w)(?<!\d[.,])" + re.escape(tight(folded(term))) + r"(?![.,]?\d)(?!\w)")
 
 

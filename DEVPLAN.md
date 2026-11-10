@@ -118,7 +118,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - R6: Release 0.2.0 — the routes of Phases B to E in the zip Sentl users download.
 - R7: Release 0.3.0 — the deck route in the zip Sentl users download. Done 2026-11-05.
 - R8: Release 0.7.0 — M27 in the zip Sentl users download. Done 2026-11-09.
-- M28: Fixes from a three-project period deck — no print without the browser sandbox, a question kept when Sentl dates its change, facts matched on digits, labels with their base.
+- M28: Fixes from a three-project period deck — no print without the browser sandbox, a question kept when Sentl dates its change, facts matched on digits, labels with their base. Done 2026-11-10.
 - R9: Release 0.7.1 — M28 in the zip.
 - R3e: Each host tested before the README says it is supported — claude.ai first; the announcement to Sentl users waits for it.
 
@@ -1150,7 +1150,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.0.
 
-## M28: Fixes from a three-project period deck 🔄
+## M28: Fixes from a three-project period deck ✅
 
 **Why:** on 2026-11-09 a period report and deck on a three-project study, eleven runs and 790 answers, showed six faults. Each fault cost the reader something or broke one of the operator's rules.
 1. **PDF without the browser sandbox, silently.** Since M13 (`13ce3c9`, 2026-10-29), `pdf.ENGINES` falls back to `--no-sandbox` whenever a sandboxed print fails, and `deck.py` reuses the list. Some hosts restrict unprivileged user namespaces with AppArmor, and the only Chromium on them is a build with no AppArmor profile, such as Playwright's. On such a host every PDF goes through the fallback, and `pdf` prints only "engine: chromium". The operator's rule: a browser never runs without its sandbox.
@@ -1169,8 +1169,8 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
    - `deck` prints "facts (0 questions)" while drawing four.
 
 **Approach:**
-- **PDF:** the `--no-sandbox` engines go. When a sandboxed print fails with "No usable sandbox", `pdf` and `pdf --deck` stop with exit 1. The message names the cause and the fix: a browser whose sandbox works on this host, or weasyprint. `doctor` reports whether a sandboxed print works. REPORT.md and DECK.md say the same in one line.
-- **Period:** a run inside a detection window is first settled with the question's `updated_at` from the project read saved in the inbox. When `updated_at` lies before the run's start, the run takes the later version. The rubric stays unknown only when nothing settles it. `period` names a question that no run keeps, in place of "the runs of the latest version are used".
+- **PDF:** the `--no-sandbox` engines go. When a sandboxed print fails with "No usable sandbox", the next engine is tried, and when none prints `pdf` and `pdf --deck` stop with exit 1. The message names the cause and the fix: a browser whose sandbox works on this host, or weasyprint. `doctor` reports whether a sandboxed print works. REPORT.md and DECK.md say the same in one line.
+- **Period:** a run inside a detection window is first settled by the rubric and instructions its answers carry, when Sentl returns them and they are one version's. Then it is settled with the question's `updated_at` from the project read saved in the inbox. When `updated_at` lies before the run's start and the read holds the later criteria, the run takes the later version. `ingest` records the result, and `period` settles again a run on file with what the inbox holds. The rubric stays unknown only when nothing settles it. `period` names a question that no run keeps, in place of "the runs of the latest version are used".
 - **Facts:** a phone number or other numeric identifier is matched on its digits. `check` refuses a fact row holding two claims. It also refuses a count in the text that differs from the count drawn in the figure beside it.
 - **`check` patterns:** `ONE_ANSWER` matches only phrases about answers. Text inside « » or quotation marks is not read as first person.
 - **Labels:**
@@ -1182,13 +1182,18 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - **Out of scope:** a figure that measures answers confusing the subject with a namesake. As it stands, an action against that confusion has no measure of progress. Logged for a later milestone.
 
 **Tasks:**
-- [ ] Test: unit — no engine in `pdf.ENGINES` or `deck.ENGINES` carries `--no-sandbox`; a print failing with "No usable sandbox" exits 1 with the cause and the fix; `doctor` reports the sandboxed print
-- [ ] Test: unit — a run inside a detection window, with the question's `updated_at` before the run's start, keeps the question; with no `updated_at` the question is dropped as before; `period` names a question no run keeps
-- [ ] Test: unit — a phone number with spaces or a dash matches the fact; a fact with two claims refused; a count in the text that differs from its figure refused
-- [ ] Test: unit — "un'altra azienda" passes; «Lavora con noi» passes; "un'altra risposta" still refused
-- [ ] Test: unit — the cover total names its parts; a site's count states its base; a namesake site labelled; `method` headings `###`; facts block and `deck` print their real counts
-- [ ] Implement in `pdf.py`, `deck.py`, `period.py`, `ingest.py`, `check.py`, `insights.py`, `method.py`, `doctor.py`; REPORT.md, DECK.md, ARCHITECTURE, CHANGELOG
-- [ ] Commit and push
+- [x] Test: unit — no engine in `pdf.ENGINES` or `deck.ENGINES` carries `--no-sandbox`; a print failing with "No usable sandbox" exits 1 with the cause and the fix; `doctor` reports the sandboxed print
+- [x] Test: unit — a run inside a detection window, with the question's `updated_at` before the run's start, keeps the question; with no `updated_at` the question is dropped as before; `period` names a question no run keeps
+- [x] Test: unit — a phone number with spaces or a dash matches the fact; a fact with two claims refused; a count in the text that differs from its figure refused
+- [x] Test: unit — "un'altra azienda" passes; «Lavora con noi» passes; "un'altra risposta" still refused
+- [x] Test: unit — the cover total names its parts; a site's count states its base; a namesake site labelled; `method` headings `###`; facts block and `deck` print their real counts
+- [x] Implement in `pdf.py`, `deck.py`, `period.py`, `ingest.py`, `check.py`, `insights.py`, `method.py`, `doctor.py`; REPORT.md, DECK.md, ARCHITECTURE, CHANGELOG
+- [x] Commit and push
+
+**Deviations:**
+- A sandbox failure does not stop `pdf` at once: the next engine prints, and exit 1 comes only when none does, so a host with weasyprint or a second browser still gets its PDF.
+- The rubric each answer carries settles a run before `updated_at` does: Sentl's results return it, and it names the version directly.
+- `check.py` needed no change: the new refusals live in `deck.py`, beside the deck's other checks.
 
 **Done when:** the suite passes. No engine in the code prints without the sandbox. The 2026-11-09 period of the study that showed the faults, rebuilt with 0.7.1, keeps the lost question in the run that `updated_at` settles. Its deck passes `check` and prints with the sandbox on a host whose browser has a working sandbox.
 

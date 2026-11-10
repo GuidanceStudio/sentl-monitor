@@ -9,6 +9,7 @@ from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_p
                      is_owned, load_json, mean, parse_time, prose, public_name, require_language, write_json,
                      write_text)
 from . import schema
+from .ingest import resettle
 from .compare import K, compare, dimension_entries
 from .insights import (EPS, TOP_SOURCES, classify, episodes, fact_cell, fact_terms, page_of, readings, reset,
                        says_missing, top_sources)
@@ -79,6 +80,15 @@ def select_runs(runs, start=None, end=None, after=None, floor=RUN_FLOOR):
     return chosen, excluded
 
 
+def judged_under(run, question, first):
+    """The version whose criteria a run's answers to `question` were judged under: the one its question was settled to
+    (`criteria_settled`), else the run's, else `first`, the first recorded version, for a run that predates them all."""
+    settled = (run.get("criteria_settled") or {}).get(question)
+    if settled:
+        return settled["version"]
+    return run["version"] if run["version"] is not None else first
+
+
 def latest_criteria(runs, versions):
     """A period that holds two versions of a question whose criteria changed uses the runs
     of the latest version only: the earlier runs lose that question. A run with no version
@@ -89,10 +99,11 @@ def latest_criteria(runs, versions):
     hashes = {v["version"]: {q["key"]: q["criteria_hash"] for d in v["dimensions"] for q in d["questions"]}
               for v in versions}
     latest = hashes[max(numbers)] if numbers else {}
+    first = versions[0]["version"]
     out, dropped = [], {}
     for r in runs:
-        mine = hashes.get(r["version"] if r["version"] is not None else versions[0]["version"], {})
-        gone = {q for q in r["plan"]["questions"] if q in mine and q in latest and mine[q] != latest[q]}
+        gone = {q for q in r["plan"]["questions"] if q in latest
+                and hashes.get(judged_under(r, q, first), {}).get(q, latest[q]) != latest[q]}
         gone |= set(r.get("criteria_unknown") or ()) & set(r["plan"]["questions"])
         if gone:
             dropped[str(r["run_id"])] = sorted(gone)
@@ -398,8 +409,10 @@ def build(root, date, models_file=None):
     reader = Reader(study)
     names = schema.models(models_file) if models_file else {}
     keys = [p["key"] for p in study["projects"]]
-    runs = {k: folder.runs(k) for k in keys}
     versions = {k: folder.versions(k) for k in keys}
+    # A run ingested before its results carried their rubric, or before the project read that dates the edit, is settled
+    # again with what the inbox holds now.
+    runs = {k: [resettle(folder, k, r, versions[k]) for r in folder.runs(k)] for k in keys}
     reports = [] if snapshot else [e for e in folder.reports() if e["date"] < date]
     bounds = None if snapshot else intervals(date, every)
     periods_dir = folder.path("history", "periods")
@@ -472,8 +485,14 @@ def build(root, date, models_file=None):
         lines.append(f"Unavailable, left out until Sentl returns its results: run {e['run_id']} of {e['project']} "
                      f"({e['reason']}) (tell the operator).")
     for k, dropped in current["dropped"].items():
-        lines += [f"The criteria of {', '.join(qs)} changed in the period: run {run_id} of {k} is left out for them, "
-                  "and the runs of the latest version are used (tell the operator)." for run_id, qs in dropped.items()]
+        kept = {q for r in chosen[k][0] for q in r["plan"]["questions"]}
+        lost = sorted({q for qs in dropped.values() for q in qs} - kept)
+        lines += [f"The criteria of {', '.join(shown)} changed in the period: run {run_id} of {k} is left out for them, "
+                  "and the runs of the latest version are used (tell the operator)." for run_id, qs in dropped.items()
+                  for shown in [[q for q in qs if q in kept]] if shown]
+        text = {q["key"]: q["text"] for v in versions[k] for d in v["dimensions"] for q in d["questions"]}
+        lines += [f"No run of {k} in the period is known to be judged under the latest criteria of {q} («{text.get(q, q)}»): "
+                  "the question is left out of the period (tell the operator)." for q in lost]
 
     dates = {e["date"] for e in reports}
     dates |= {p.stem for p in periods_dir.glob("*.json") if p.stem < date and load_json(p).get("rebuilt")}
@@ -486,7 +505,7 @@ def build(root, date, models_file=None):
         lines.append(f"The period{'s' if len(older) > 1 else ''} of {', '.join(older)} counted the names in the whole answer, "
                      "links included, and this one counts them in the answers' text, without link addresses: presence can "
                      "differ by a few answers for that alone (tell the operator).")
-    cache = {}
+    cache = {(k, r["run_id"]): r for k in keys for r in runs[k]}
 
     def run_of(key, run_id):
         if (key, run_id) not in cache:
@@ -587,7 +606,7 @@ def _add_episodes(study, period, earlier, now, versions):
         latest = max((v for v in period["versions"].get(key, []) if v is not None), default=first)
 
         def criteria(run, q):
-            return hashes.get(run["version"] if run["version"] is not None else first, {}).get(q)
+            return hashes.get(judged_under(run, q, first), {}).get(q)
         for dim in block["dimensions"].values():
             for q, scope in dim["questions"].items():
                 terms = fact_terms(studied.get(q) or {})

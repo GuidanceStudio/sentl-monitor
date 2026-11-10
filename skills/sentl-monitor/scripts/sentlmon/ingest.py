@@ -3,6 +3,7 @@
 from collections import Counter, defaultdict
 
 from . import schema
+from .adopt import criteria_hash
 from .common import (FINAL, Refused, Study, domain_of, load_json, match_key, mean, now_iso, parse_time,
                      write_gz, write_json)
 
@@ -91,6 +92,77 @@ def _criteria(version):
     return {q["key"]: q["criteria_hash"] for d in version["dimensions"] for q in d["questions"]}
 
 
+def _project_read(folder, key):
+    """{question id: question} of the project read saved in the inbox (`project-<Sentl id>.json`, else
+    `project-<key>.json`), or {} when none of this project is there or it cannot be read."""
+    project_id = ((folder.binding.get("projects") or {}).get(key) or {}).get("project_id")
+    for name in (f"project-{project_id}.json", f"project-{key}.json"):
+        path = folder.path("inbox", name)
+        if not path.exists():
+            continue
+        try:
+            read = schema.project(path)
+        except (Refused, schema.Mismatch):
+            continue
+        if read["id"] == project_id:
+            return {q["id"]: q for d in read["dimensions"] for q in d["questions"]}
+    return {}
+
+
+def settle(folder, key, started_at, unknown, tried, answers):
+    """{question: {"version": n, "by": how}} for the questions of `unknown` whose criteria are known after all. `tried` is
+    the later version, then the earlier; `answers` is (question key, response as Sentl returned it) of the run.
+    By "rubric": every answer to the question carries the rubric and instructions it was judged under, and they are one
+    version's. By "updated_at": the project read says the question was last edited before the run started, with the
+    later version's criteria, so the run was judged under them. Nothing else settles a question."""
+    hashes = {v["version"]: _criteria(v) for v in tried}
+    later = tried[0]
+    ids = {q["key"]: q.get("id") for d in later["dimensions"] for q in d["questions"]}
+    read, out = None, {}
+    for q in unknown:
+        mine = [r for k, r in answers if k == q]
+        if mine and all("grading_rubric" in r for r in mine):
+            judged = {criteria_hash(r.get("grading_rubric"), r.get("additional_instructions")) for r in mine}
+            match = [n for n, h in hashes.items() if judged == {h.get(q)}]
+            if len(match) == 1:
+                out[q] = {"version": match[0], "by": "rubric"}
+                continue
+        read = _project_read(folder, key) if read is None else read
+        asked = read.get(ids.get(q))
+        if (asked and asked.get("updated_at") and parse_time(asked["updated_at"]) < parse_time(started_at)
+                and criteria_hash(asked.get("grading_rubric"), asked.get("additional_instructions")) == hashes[later["version"]].get(q)):
+            out[q] = {"version": later["version"], "by": "updated_at"}
+    return out
+
+
+def _saved_results(folder, run_id):
+    """{response id: response} of the run's results saved in the inbox, or {} when they are not there."""
+    path = folder.path("inbox", f"run-{run_id}.json")
+    if not path.exists():
+        return {}
+    try:
+        run = schema.run_results(path)
+    except (Refused, schema.Mismatch):
+        return {}
+    return {r["id"]: r for r in run.get("responses") or []} if run.get("id") == run_id else {}
+
+
+def resettle(folder, key, snapshot, versions):
+    """A run snapshot whose questions of unknown criteria are settled again with what the inbox holds now: the run's
+    saved results, whose answers may carry their rubric, and the latest project read. The file on disk is not changed."""
+    unknown = snapshot.get("criteria_unknown") or []
+    tried = candidates(versions, snapshot["started_at"]) if unknown else []
+    if len(tried) != 2:
+        return snapshot
+    raw = _saved_results(folder, snapshot["run_id"])
+    answers = [(e["question"], raw[e["response_id"]]) for e in snapshot["responses"] if e.get("response_id") in raw]
+    found = settle(folder, key, snapshot["started_at"], unknown, tried, answers)
+    if not found:
+        return snapshot
+    return {**snapshot, "criteria_unknown": [q for q in unknown if q not in found],
+            "criteria_settled": {**(snapshot.get("criteria_settled") or {}), **found}}
+
+
 def _unavailable(folder):
     path = folder.path("history", "unavailable.json")
     data = load_json(path) if path.exists() else {"schema": "sentl-monitor/unavailable@1", "runs": []}
@@ -168,9 +240,11 @@ def ingest(root, key, results_file):
     # Sentl orders the answers by id: a run read in another order gives the same snapshot.
     given = run["responses"]
     answers = sorted(given, key=lambda r: r["id"]) if any("round" in r for r in given) else given
-    responses, unmatched = [], []
+    responses, unmatched, asked = [], [], []
     for r in answers:
         found, how = _find(r, maps)
+        if found:
+            asked.append((found[1], r))
         score = r.get("judge_score")
         entry = {
             "response_id": r.get("id"), "question": found[1] if found else None,
@@ -205,6 +279,8 @@ def ingest(root, key, results_file):
                 "rounds": _rounds(run["responses"])}
         expected = len(asked) * len(plan["models"]) * plan["rounds"]
     judged = sum(1 for r in matched if r["score"] is not None)
+    settled = settle(folder, key, run["started_at"], unknown, tried, asked) if unknown else {}
+    unknown = [q for q in unknown if q not in settled]
 
     snapshot = {
         "schema": "sentl-monitor/run@1", "run_id": run_id, "project": key, "status": status,
@@ -212,7 +288,7 @@ def ingest(root, key, results_file):
         "sentl_score": run.get("reputation_score"), "error": run.get("error"),
         "version": version["version"] if version else None, "ingested_at": now_iso(),
         "plan": plan, "expected": expected, "received": len(responses), "judged": judged,
-        "criteria_unknown": unknown, "responses": responses,
+        "criteria_unknown": unknown, **({"criteria_settled": settled} if settled else {}), "responses": responses,
     }
     write_gz(target, snapshot)
     _clear_unavailable(folder, key, run_id)

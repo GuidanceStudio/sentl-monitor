@@ -259,8 +259,8 @@ class TwoProjectsTest(StudyCase, unittest.TestCase):
     def cite(self, first, second):
         """Write `first` into the first project's Salute entry and `second` into the second's."""
         text = self.path.read_text(encoding="utf-8")
-        head, one, two = re.split(r"^#### Salute: .*$", text, flags=re.M)
-        marks = re.findall(r"^#### Salute: .*$", text, flags=re.M)
+        head, one, two = re.split(r"^### Salute: .*$", text, flags=re.M)
+        marks = re.findall(r"^### Salute: .*$", text, flags=re.M)
         self.path.write_text(f"{head}{marks[0]}\n\nPunteggio medio {first}.{one}{marks[1]}\n\n"
                              f"Punteggio medio {second}.{two}", encoding="utf-8")
 

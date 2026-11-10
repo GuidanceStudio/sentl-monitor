@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .charts import span
-from .check import (COUNT, ELLIPSIS, OTHER_UNIT, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
+from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
 from .common import REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, write_json, write_text
 from .compare import STEPS, called
@@ -88,7 +88,7 @@ ACTION_NUMBER = re.compile(r"\b(?:azion[ei]|actions?) \d", re.I)
 NAMING_FAVOURABLE = re.compile(r"(?:risposte che (?:l[ao] |\S+ )?nomin\w+|answers (?:that )?nam\w+)[^.;]*\b(?:favorevol|favourabl)", re.I)
 CHECK_FIRST = re.compile(r"^\s*(?:verific|controll|check\b|verify\b)", re.I)
 ADDS = re.compile(r"\b(?:includ\w*|aggiung\w*|inser\w*|add\b|list\b)", re.I)
-ONE_ANSWER = re.compile(r"\b(?:un['’]altra|una(?: sola)? (?:risposta|descrive|dice|riporta|racconta|segnala|cita|avverte)|"
+ONE_ANSWER = re.compile(r"\b(?:(?:un['’]altra|una(?: sola)?) (?:risposta|descrive|dice|riporta|racconta|segnala|cita|avverte)|"
                         r"one (?:answer|describes|says|reports|warns))\b(?! (?:su|in|of|out of) (?:\d|due|tre|quattro|cinque|dieci|two|three|four|five|ten))", re.I)
 ASKER_JUDGES = re.compile(r"\b(?:giudizio|opinione|parere) di chi\b|\b(?:verdict|opinion|view) of (?:those|people|anyone|whoever)\b", re.I)
 REACTION = re.compile(r"\b(convinc\w*|conquist\w*|persuad\w*|win\w* over|won over)\b", re.I)
@@ -359,7 +359,8 @@ def _fact_row(project, dimension, question, scope, responses=()):
     return {"project": project, "dimension": dimension, "key": question["key"], "label": question["text"],
             "fact": _fact_name(question), "source": last.get("source"), "date": last.get("date"), "given": c["given"],
             "current": c["current_only"] + c["both"], "both": c["both"], "outdated": c["outdated_only"], "silent": c["given"] - c["stating"],
-            "judged": total["judged"], "bands": dict(total["bands"]), "sites": _sites_by_term(question, responses)}
+            "judged": total["judged"], "bands": dict(total["bands"]), "sites": _sites_by_term(question, responses),
+            "claims": len(question.get("facts") or [])}
 
 
 def _by_fact(questions, same_audience):
@@ -518,7 +519,7 @@ def build_model(folder, study, period, doc=None):
     narrative = study.get("narrative") or {}
     blocks = {b: {"rows": [], "questions": [], "placed": [], "responses": []} for b in BLOCKS}
     answers_of = {}
-    method, cache, replaced, models, counted = [], {}, [], [], {}
+    method, cache, replaced, models, counted, by_block = [], {}, [], [], {}, Counter()
 
     def run_of(key, run_id):
         if (key, run_id) not in cache:
@@ -549,6 +550,7 @@ def build_model(folder, study, period, doc=None):
                 # One base everywhere the reader can add up: an answer counts in a block as its block's figure counts it.
                 reach = block == "reach"
                 counted[q["key"]] = scope["total"]["presence"]["given"] if reach else scope["total"]["judged"]
+                by_block[block] += counted[q["key"]]
                 answers_of[q["key"]] = _answers_to(runs, q["key"])
                 blocks[block]["responses"] += [r for r in answers_of[q["key"]] if reach or r["score"] is not None]
                 if facts and (block == "description" or facts["total"]["stating"]):
@@ -564,7 +566,7 @@ def build_model(folder, study, period, doc=None):
         method.append({"name": name, "questions": sum(len(d["questions"]) for d in dims),
                        "assistants": [_assistant(m, names) for m in asked],
                        "answers": sum(counted[q["key"]] for d in dims for q in d["questions"]),
-                       "schedule": settings.get("schedule")})
+                       "runs": len(period["runs"].get(key, [])), "schedule": settings.get("schedule")})
     blocks["facts"]["rows"] = _by_fact(blocks["facts"]["questions"], doc.get("same_audience"))
     for row in blocks["facts"]["rows"]:
         row["telling"] = _telling(row, reader.author)
@@ -583,8 +585,10 @@ def build_model(folder, study, period, doc=None):
             "repeated": any(r["answers"] > r["questions"] * len(r["assistants"]) for r in method),
             "by": (narrative.get("criteria") or {}).get("by"), "first": not (period.get("comparison") or {}).get("previous"),
             "fidelity": narrative.get("score_axis") == "fidelity", "second": _second(folder, study, period, doc),
+            "aliases": (study.get("subject") or {}).get("aliases") or [],
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
-                       "answers": sum(r["answers"] for r in method)}}
+                       "answers": sum(r["answers"] for r in method),
+                       "by_block": {b: by_block[b] for b in ("reach", "description")}}}
 
 
 def present(m):
@@ -695,14 +699,23 @@ def _plan(m, study, date, lang):
             out.append(f"- {q['key']} ({q['dimension']}): «{q['text']}»{shown}")
         s = block["sources"]
 
-        def listed(domains):
-            return ", ".join(f"{d['domain']} ({d['answers']})" for d in domains) or "none"
+        def other(d):
+            name = _namesake(d["domain"], m)
+            return f"; another organisation named {name}, not the subject" if name else ""
+
+        def listed(domains, others=False):
+            return ", ".join(f"{d['domain']} ({d['answers']}{other(d) if others else ''})" for d in domains) or "none"
 
         def counted(domains):
-            return ", ".join(f"{d['domain']} ({d['answers']}, of which {d['naming']} name the subject)" for d in domains) or "none"
+            return ", ".join(f"{d['domain']} ({d['answers']}, of which {d['naming']} name the subject{other(d)})"
+                             for d in domains) or "none"
+        if key == "facts":
+            # The facts block counts the answers stating a fact, which its questions' blocks already count by source.
+            out.append("")
+            continue
         out += ["", f"Sources: of {s['answers']} answers, {s['owned']} cite the subject's pages, {s['foil']} competitors' "
                     f"pages, {s['third']} other sites.",
-                f"other sites cited most: {(counted if key == 'reach' else listed)(s['third_domains'])}",
+                f"other sites cited most: {counted(s['third_domains']) if key == 'reach' else listed(s['third_domains'], True)}",
                 "other pages cited most: " + ", ".join(f"{p} ({n})" for p, n in s["third_pages"]),
                 f"competitors' domains cited most: {listed(s['foil_domains'])}", ""]
     if m["replaced"]:
@@ -759,7 +772,7 @@ def write(root, date=None):
     figures = folder.path("history", "deck", f"{date}.figures.md")
     figures.parent.mkdir(exist_ok=True)
     write_text(figures, "\n".join(_plan(m, study, date, lang) + _without_answers(material.read_text(encoding="utf-8"))) + "\n")
-    blocks = ", ".join(f"{b} ({len(m['blocks'][b]['placed'])} questions)" for b in present(m))
+    blocks = ", ".join(f"{b} ({len(m['blocks'][b]['questions' if b == 'facts' else 'placed'])} questions)" for b in present(m))
     notes = folder.path("history", "deck", f"{date}.notes.md")
     earlier = f" Notes of an earlier session: {notes}. Read them first." if notes.exists() else ""
     return f"Blocks: {blocks}. Figures: {figures}. To fill: {path}, {path.read_text(encoding='utf-8').count(TODO)} texts left.{earlier}"
@@ -1197,7 +1210,8 @@ def _weak_sites(doc, m):
     """A site few answers read earns "why that one?", and the slide prints how few."""
     return [f"action {n} names {site}, cited by {citing} of the {total} answers on its slide: choose a site the assistants "
             "read more" for n, action in enumerate(doc.get("actions") or [], 1)
-            for site, citing, total, _ in _site_counts(action, n, doc, m) if citing and citing < max(MIN_SITE_ANSWERS, MIN_SITE_SHARE * total)]
+            for site, citing, total, *_ in _site_counts(action, n, doc, m, by_row=False)
+            if citing and citing < max(MIN_SITE_ANSWERS, MIN_SITE_SHARE * total)]
 
 
 def _worst_shown(doc, m):
@@ -1412,7 +1426,8 @@ def _reader_words(doc, m, study):
                   for w in JARGON.finditer(text)]
         found += [f"{field} says {w.group(0)!r}: the chart says neutre" for w in BAND_WORD.finditer(text)]
         if limit != "ask":
-            found += [f"{field} says {w.group(0)!r}: name the subject, the deck is written about it" for w in FIRST_PERSON.finditer(text)]
+            found += [f"{field} says {w.group(0)!r}: name the subject, the deck is written about it"
+                      for w in FIRST_PERSON.finditer(QUOTED.sub("", text))]
         if limit == "what":
             found += [f"{field} says {w.group(0)!r}: say what to write and on which page" for w in VAGUE.finditer(text)]
         if limit in ("title", "answer", "read"):
@@ -1540,6 +1555,64 @@ def _beside(part, start, end, names):
         return name, False
     name = next((n for n in reversed(names) if n[1] <= start), None)
     return (name, True) if name and PAGE_WORD.search(part, cue.end(), cue.end() + 15) else None
+
+
+def _one_fact(m):
+    """A facts row counts the answers stating any fact its question holds: with two, a row drawn as carried can rest on a
+    claim no answer states."""
+    return [f"the question «{q['label']}» holds {q['claims']} facts in study.json, and its facts row counts the answers stating "
+            "any of them: keep one fact on the question" for q in m["blocks"]["facts"]["questions"] if q.get("claims", 1) > 1]
+
+
+def _drawn_pairs(key, rows):
+    """The x of y a chart of rows draws: each row's measure and what it leaves, its bands and, for a fact, the answers with
+    the old term and those stating neither."""
+    pairs = set()
+    for r in rows:
+        a, b = _measure(key, r)
+        if a is not None and b:
+            pairs |= {(a, b), (b - a, b)}
+        pairs |= {(n, r["judged"]) for n in (r.get("bands") or {}).values() if r.get("judged")}
+        if key == "facts":
+            pairs |= {(r["outdated"], r["given"]), (r["silent"], r["given"])}
+        elif key == "reach":
+            pairs |= {(n, r["given"]) for _, n in r.get("foils") or []}
+    return pairs
+
+
+def _beside_figure(doc, m):
+    """A count in a slide's text on as many answers as its chart counts must be one the chart draws: "tutte le 14" beside a
+    row drawn at 8 of 14 tells the reader two things. A count beside a competitor or a site has rules of its own."""
+    labels, rivals = _site_labels(m), m.get("monitored") or []
+
+    def named(part, start):
+        before = part[:start]
+        return (any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before) for n in rivals) or bool(DOMAIN.search(before))
+                or any(n[0] < start for n in _names_in(part, labels)))
+
+    def held(field, text, drawn):
+        out, bases = [], {b for _, b in drawn}
+        for part in SENTENCE.split(text):
+            for start, _, a, b in _spans(part):
+                if b in bases and (a, b) not in drawn and not named(part, start):
+                    shown = ", ".join(f"{x} of {y}" for x, y in sorted(drawn) if y == b)
+                    out.append(f"{field} says {a} of {b}, and the chart beside it draws {shown}: write a count it draws")
+        return out
+
+    problems = []
+    for key in present(m):
+        block = m["blocks"][key]
+        for slide in (doc.get("blocks") or {}).get(key) or []:
+            drawn = _drawn_pairs(key, rows_of(key, block, slide))
+            for field in ("title", "read"):
+                problems += held(f"{key} {field}", slide.get(field) or "", drawn)
+        drawn = set()
+        for f in block.get("figures") or []:
+            if f["b"]:
+                drawn |= {(f["a"], f["b"]), (f["b"] - f["a"], f["b"])} | {(n, f["b"]) for n, _ in f.get("parts") or []}
+                drawn |= {(n, f["b"]) for _, n in f.get("rivals") or []}
+        problems += held(f"found answer {key}", ((doc.get("found") or {}).get("answers") or {}).get(key) or "", drawn)
+    return problems
 
 
 def _tied_to_sites(text, m):
@@ -1746,6 +1819,7 @@ def problems_of(folder, study, period, doc):
     problems += _read_on_its_slide(doc, study, folder, period, m) + _own_action(doc, study, folder, period) + _same_rows(doc, m)
     problems += _weak_sites(doc, m) + _worst_shown(doc, m) + _same_examples(doc, m) + _doubts(doc, m) + _amounts(doc, study)
     problems += _sites_compared(doc) + _top_site(doc, m) + _third_pages(doc, study, folder, period, m) + _one_answer(doc)
+    problems += _one_fact(m) + _beside_figure(doc, m)
     problems += [f"{field} gives the judgement to who asks: people ask and the answers judge"
                  for field, _, claim in _texts(doc) if ASKER_JUDGES.search(claim)]
     names = period.get("names") or {}
@@ -2014,14 +2088,19 @@ def _only_assistant(key, m):
 
 
 def _close(f, subject, t):
-    """Names a few answers from the subject: a position they could swap with it says less than its number."""
+    """Names a few answers from the subject, each with how many it has more or fewer: a position they could swap with it
+    says less than its number."""
     margin = max(2, round(f["b"] * CLOSE_SHARE))
     near = [(n, c) for n, c in f["rivals"] if abs(c - f["a"]) <= margin]
     if not near or not f["a"]:
         return ""
-    names = f' {t["and"]} '.join(filter(None, [", ".join(n for n, _ in near[:-1]), near[-1][0]]))
-    return t["close" if len(near) > 1 else "close_one"].format(names=names, subject=subject,
-                                                             gap=max(abs(c - f["a"]) for _, c in near))
+    gaps = []
+    for i, (name, c) in enumerate(near):
+        way = "more" if c > f["a"] else "fewer" if c < f["a"] else "same"
+        n = abs(c - f["a"])
+        gaps.append(t["close_first" if i == 0 else "close_next"][way].format(name=name, n=n, answers=t["close_answers"][n != 1]))
+    names = f' {t["and"]} '.join(filter(None, [", ".join(gaps[:-1]), gaps[-1]]))
+    return t["close"].format(names=names, subject=subject)
 
 
 def _versus(f, subject, t, only=None):
@@ -2141,23 +2220,49 @@ def _slide_answers(key, slide, m):
             for r in m["answers_of"].get(q.get("key"), []) if r["answer"] is not None]
 
 
-def _site_counts(action, n, doc, m):
-    """Each third party an action names, with the answers to the questions of its slide that cite it and those answers'
-    total. On the facts slide the pages say it."""
+def _row_answers(key, row, m):
+    """The answers a row of a slide counts."""
+    keys = [row["key"]] if row.get("key") else [q.get("key") for q in m["blocks"][key]["questions"]
+                                                 if q.get("project") == row.get("project") and set(_dimensions(q)) & set(_dimensions(row))]
+    return [r for k in keys for r in m["answers_of"].get(k, []) if r["answer"] is not None]
+
+
+def _on_site(source, site):
+    return bool(source.get("domain")) and is_owned(source["domain"], [site])
+
+
+def _citing(answers, site):
+    return sum(any(_on_site(s, site) for s in r["sources"]) for r in answers)
+
+
+def _row_base(action, key, slide, site, m):
+    """The row of the slide whose answers the action's reason counts for the site, so that the site's count stands on the
+    same base: a count in a sentence of the reason that names the site, on as many answers as a row holds, the row
+    where the site has that count first. None when the reason gives the site no count on a row."""
+    rows = [(r, _row_answers(key, r, m)) for r in rows_of(key, m["blocks"][key], slide)]
+    name = re.compile(rf"(?<![\w.-])(?:{re.escape(site)}|{re.escape(_site_name(site))})(?![\w-])", re.I)
+    said = [(int(c.group(1)), int(c.group(4))) for part in SENTENCE.split(action.get("why") or "") if name.search(part)
+            for c in COUNT.finditer(part)]
+    fits = [(a, r, answers) for a, b in said for r, answers in rows if len(answers) == b]
+    best = next(((r, answers) for a, r, answers in fits if _citing(answers, site) == a), None)
+    return best or next(((r, answers) for _, r, answers in fits), None)
+
+
+def _site_counts(action, n, doc, m, by_row=True):
+    """Each third party an action names, with the answers that cite it, those answers' total and the row they belong to:
+    with `by_row`, the row whose answers the action's reason counts; else, or when the reason counts none, the questions
+    of its slide (row None). On the facts slide the pages say it."""
     key = action.get("block")
     slide = next((s for s in (doc.get("blocks") or {}).get(key) or [] if s.get("action") == n), None)
     if slide is None or key not in m["blocks"] or key == "facts":
         return []
-    answers = _slide_answers(key, slide, m)
-    def on_site(source, site):
-        return bool(source.get("domain")) and is_owned(source["domain"], [site])
-
     found = []
     for site in dict.fromkeys(map(str.lower, DOMAIN.findall(action.get("what") or ""))):
         if m["author"](site) != "owned":
-            pages = Counter(p for r in answers for p in {cited_page(s) for s in r["sources"] if on_site(s, site)} if "/" in p)
-            found.append((site, sum(any(on_site(s, site) for s in r["sources"]) for r in answers), len(answers),
-                          min(pages.items(), key=lambda kv: (-kv[1], kv[0])) if pages else None))
+            row, answers = (by_row and _row_base(action, key, slide, site, m)) or (None, _slide_answers(key, slide, m))
+            pages = Counter(p for r in answers for p in {cited_page(s) for s in r["sources"] if _on_site(s, site)} if "/" in p)
+            found.append((site, _citing(answers, site), len(answers),
+                          min(pages.items(), key=lambda kv: (-kv[1], kv[0])) if pages else None, row and row["label"]))
     return found
 
 
@@ -2176,8 +2281,9 @@ def _why_site(action, n, doc, m, t, slide=None, page=False):
     where = t["action_there"].format(slide=slide) if slide else t["action_here"]
     seen = [p for p in action.get("pages") or [] if p.get("shows")]
     lines = []
-    for site, citing, total, top in _site_counts(action, n, doc, m):
-        lines.append(t["action_site"].format(site=site, n=citing, y=total, where=where))
+    for site, citing, total, top, label in _site_counts(action, n, doc, m):
+        lines.append(t["action_site_row"].format(site=site, n=citing, y=total, label=label) if label else
+                     t["action_site"].format(site=site, n=citing, y=total, where=where))
         if page and top and not any(site in _address(p.get("url") or "") for p in seen):
             lines.append(t["action_page"].format(page=top[0], n=top[1]))
     if page:
@@ -2200,6 +2306,24 @@ def _actions_table(doc, order, m, t):
     return f"<table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>"
 
 
+def _namesake(domain, m, subject=None):
+    """The name a third party's site shares with the subject, or None: avenello.it beside a subject called Avenello that does
+    not own it is another organisation, which a reader takes for the subject's own site."""
+    name = _site_name(domain)
+    names = {re.sub(r"[\s-]", "", n).casefold() for n in [subject or m.get("subject"), *(m.get("aliases") or [])] if n}
+    return name if re.sub(r"[\s-]", "", name).casefold() in names else None
+
+
+def _site_cell(domain, n, naming, m, t, subject):
+    """A third party's site in the sources table: its answers and, on the questions without the name, those naming the
+    subject; a site named like the subject says it is another organisation."""
+    name = _namesake(domain, m, subject)
+    other = f", {t['namesake'].format(name=name)}" if name else ""
+    if domain in naming:
+        return t["site_naming"].format(domain=domain, n=n, k=naming[domain], subject=subject)[:-1] + other + ")"
+    return f"{domain} ({n}{other})"
+
+
 def _sources_table(doc, m, t, subject):
     head = "".join(f"<th>{esc(c.format(subject=subject))}</th>" for c in t["sources_head"])
     named = " ".join(a.get("what") or "" for a in doc.get("actions") or [])
@@ -2216,8 +2340,7 @@ def _sources_table(doc, m, t, subject):
         shown.update({d: n for d, n in s["third_all"].items() if d in named})
         naming = (s.get("third_naming") or {}) if key == "reach" else {}
         told = told or bool(naming)
-        domains = ", ".join(t["site_naming"].format(domain=d, n=n, k=naming[d], subject=subject) if d in naming else f"{d} ({n})"
-                            for d, n in shown.items()) or "0"
+        domains = ", ".join(_site_cell(d, n, naming, m, t, subject) for d, n in shown.items()) or "0"
         rows.append(f'<tr><td class="class">{esc(t["groups"][key].format(subject=subject))}</td>{cells}<td>{esc(domains)}</td></tr>')
     table = f'<table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
     pages = Counter()
@@ -2230,11 +2353,18 @@ def _sources_table(doc, m, t, subject):
     return table + (f'<p class="note">{esc(note.strip())}</p>' if note else "")
 
 
+def _ran(row, t):
+    """How many times the project's questions were asked in the period, and how often they are scheduled: a schedule alone
+    reads as what ran."""
+    planned = t["frequency"].get(row.get("schedule"))
+    return f"{row.get('runs', '')}, {planned}" if planned else str(row.get("runs", ""))
+
+
 def _method(doc, m, t):
     head = "".join(f"<th>{esc(c)}</th>" for c in t["method_head"])
     rows = "".join(f'<tr><td class="class">{esc(r["name"])}</td><td class="num">{r["questions"]}</td>'
                    f'<td>{esc(", ".join(r["assistants"]))}</td><td class="num">{r["answers"]}</td>'
-                   f'<td>{esc(t["frequency"].get(r["schedule"], ""))}</td></tr>' for r in m["method"])
+                   f'<td>{esc(_ran(r, t))}</td></tr>' for r in m["method"])
     method = doc.get("method") or {}
     limits = [t["limit_versions"]] + (method.get("limits") or [])
     scores = t["scores"].format(line=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=m["subject"]))
@@ -2320,10 +2450,15 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
 
 
 def _cover_line(m, who, t):
+    """What was asked and the answers collected; with questions of both kinds, the answers to each, which the next slide
+    shows apart."""
     totals = m["totals"]
     assistants = t["assistant_one"] if totals["assistants"] == 1 else t["assistant_many"]
+    by_block = totals.get("by_block") or {}
+    parts = (t["cover_parts"].format(reach=by_block["reach"], description=by_block["description"], subject=m["subject"])
+             if by_block.get("reach") and by_block.get("description") else "")
     return t["cover_what_repeated" if m["repeated"] else "cover_what"].format(questions=totals["questions"], assistants=assistants,
-                                                                              who=who, answers=totals["answers"])
+                                                                              who=who, answers=totals["answers"], parts=parts)
 
 
 def _tight_units(text):

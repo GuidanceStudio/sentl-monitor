@@ -3,14 +3,16 @@
 import copy
 import json
 import re
-import shutil
+import os
 import unittest
 from collections import Counter
 from unittest import mock
 
 from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q
 from sentlmon import deck, livepage
+from sentlmon import pdf as report_pdf
 from test_insights_period import CURRENT, OCT, OUTDATED, InsightCase, rows
+from test_pdf import sandboxless
 
 DATE = "2026-10-31"
 LONG = "Avenello costa 2,10 € al litro, mentre Avoria è la scelta più lineare se vuoi un prezzo semplice. Il resto dipende."
@@ -81,6 +83,30 @@ class DeckCase(InsightCase):
     def problems(self, doc):
         self.save_doc(doc)
         return "\n".join(deck.check(self.study, self.path, DATE))
+
+
+class OneFactTest(DeckCase, unittest.TestCase):
+    """A fact row bundled a second claim no answer states: the row reads as one fact carried or missed."""
+
+    def test_a_question_holding_two_facts_is_refused(self):
+        study = self.read("study.json")
+        for d in (d for p in study["projects"] for d in p["dimensions"]):
+            for q in d["questions"]:
+                if q.get("facts"):
+                    q["facts"].append({**q["facts"][0], "fact": "Avenello ha 22 punti vendita", "current": ["22 punti vendita"],
+                                       "outdated": []})
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.assertIn("holds 2 facts", self.problems(self.filled()))
+
+    def test_a_question_holding_one_fact_passes(self):
+        self.assertNotIn("holds 2 facts", self.problems(self.filled()))
+
+    def test_the_facts_block_counts_its_questions(self):
+        self.assertIn("facts (1 questions)", self.made.stdout)
+
+    def test_the_figures_file_gives_no_sources_line_for_facts(self):
+        text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
+        self.assertNotIn("Sources: of 0 answers", text)
 
 
 class LaterRecordTest(DeckCase, unittest.TestCase):
@@ -282,7 +308,20 @@ class BlocksTest(DeckCase, unittest.TestCase):
 
     def test_the_method_table_shows_what_ran_and_not_a_setting(self):
         row = self.model()["method"][0]
-        self.assertEqual((row["name"], row["questions"], row["answers"]), ("Mercato", 3, 6))
+        self.assertEqual((row["name"], row["questions"], row["answers"], row["runs"]), ("Mercato", 3, 6, 1))
+
+    def test_the_method_table_says_how_often_each_project_ran(self):
+        m = {"method": [{"name": "Mercato", "questions": 3, "assistants": ["Acme Chat"], "answers": 6, "runs": 7, "schedule": "daily"},
+                        {"name": "Marca", "questions": 2, "assistants": ["Acme Chat"], "answers": 4, "runs": 2, "schedule": None}],
+             "fidelity": False, "subject": "Avenello", "monitored": []}
+        it = deck._method({}, m, deck.DECK["it"])
+        self.assertIn("<th>Rilevazioni nel periodo</th>", it)
+        self.assertIn("<td>7, in programma ogni giorno</td>", it)
+        self.assertIn("<td>2</td></tr>", it)
+        self.assertNotIn("Frequenza prevista", it)
+        en = deck._method({}, m, deck.DECK["en"])
+        self.assertIn("<th>Times asked in the period</th>", en)
+        self.assertIn("<td>7, scheduled every day</td>", en)
 
 
 class SkeletonTest(DeckCase, unittest.TestCase):
@@ -602,6 +641,21 @@ class OpeningTest(DeckCase, unittest.TestCase):
         one = deck._cover_line({"totals": {"questions": 3, "assistants": 1, "answers": 3}, "repeated": False}, "giovani", deck.DECK["it"])
         self.assertIn("3 domande a un assistente AI, come", one)
 
+    def test_the_cover_total_names_its_parts(self):
+        m = {"totals": {"questions": 38, "assistants": 4, "answers": 790, "by_block": {"reach": 270, "description": 520}},
+             "repeated": True, "subject": "Avenello"}
+        self.assertIn("le 790 risposte: 270 alle domande senza il nome di Avenello e 520 a quelle su Avenello.",
+                      deck._cover_line(m, "giovani", deck.DECK["it"]))
+        self.assertIn("the 790 answers: 270 to the questions without Avenello's name and 520 to those about Avenello.",
+                      deck._cover_line(m, "young people", deck.DECK["en"]))
+        one = {**m, "totals": {**m["totals"], "answers": 520, "by_block": {"reach": 0, "description": 520}}}
+        self.assertTrue(deck._cover_line(one, "giovani", deck.DECK["it"]).endswith("le 520 risposte."))
+
+    def test_the_cover_parts_add_up_to_its_total(self):
+        m = deck.build_model(*self.model_args({}))
+        self.assertEqual(sum(m["totals"]["by_block"].values()), m["totals"]["answers"])
+        self.assertIn("le 6 risposte: 2 alle domande senza il nome di Avenello e 4 a quelle su Avenello", self.slide("cover"))
+
     def test_the_list_of_questions_on_two_slides_is_said_as_two(self):
         m = deck.build_model(*self.model_args({}))
         html_page = deck._opening_slide(self.filled(), m, deck.DECK["it"], "it", (12, 13))
@@ -632,14 +686,26 @@ class OpeningTest(DeckCase, unittest.TestCase):
         t = deck.DECK["it"]
         f = {"a": 39, "b": 180, "rivals": [("Avoria", 62), ("Oatfield", 37), ("Nordic", 36), ("Altro", 25)], "rank": 2,
              "names": 5, "left_out": False, "project": None}
-        self.assertIn("Oatfield e Nordic sono a 3 risposte o meno da Avenello", deck._versus(f, "Avenello", t))
+        self.assertIn("Nel confronto con Avenello, Oatfield ha 2 risposte in meno e Nordic 3 in meno: il prossimo report "
+                      "può invertire l'ordine.", deck._versus(f, "Avenello", t))
         far = {**f, "rivals": [("Avoria", 62), ("Altro", 25)]}
-        self.assertNotIn("risposte o meno", deck._versus(far, "Avenello", t))
+        self.assertNotIn("Nel confronto con", deck._versus(far, "Avenello", t))
+
+    def test_each_close_name_says_whether_it_has_more_answers_or_fewer(self):
+        f = {"a": 39, "b": 180, "rivals": [("Avoria", 41), ("Oatfield", 38), ("Nordic", 39)], "rank": 2,
+             "names": 4, "left_out": False, "project": None}
+        self.assertIn("Nel confronto con Avenello, Avoria ha 2 risposte in più, Oatfield 1 in meno e Nordic lo stesso numero:",
+                      deck._versus(f, "Avenello", deck.DECK["it"]))
+        self.assertIn("Compared with Avenello, Avoria has 2 more answers, Oatfield 1 fewer and Nordic the same number:",
+                      deck._versus(f, "Avenello", deck.DECK["en"]))
+        one = {**f, "rivals": [("Oatfield", 38), ("Altro", 5)]}
+        self.assertIn("Nel confronto con Avenello, Oatfield ha 1 risposta in meno:", deck._versus(one, "Avenello", deck.DECK["it"]))
+        self.assertIn("Compared with Avenello, Oatfield has 1 fewer answer:", deck._versus(one, "Avenello", deck.DECK["en"]))
 
     def test_a_subject_named_in_no_answer_has_nobody_close_to_report(self):
         t = deck.DECK["it"]
         f = {"a": 0, "b": 90, "rivals": [("Avoria", 1)], "rank": 2, "names": 2, "left_out": False, "project": None}
-        self.assertNotIn("risposte o meno", deck._versus(f, "Avenello", t))
+        self.assertNotIn("Nel confronto con", deck._versus(f, "Avenello", t))
 
     def test_every_count_stands_beside_its_bar(self):
         """A thin part of a bar has no room for its number: 12, 5 and 1 must all be readable."""
@@ -1044,6 +1110,62 @@ class DrawnLabelsTest(unittest.TestCase):
                 self.assertNotIn(note, deck._sources_table({"actions": []}, apart, t, "Avenello"))
 
 
+class NamesakeTest(unittest.TestCase):
+    """A site sharing the subject's name, which the subject does not own, read as the subject's own."""
+
+    def test_a_site_named_like_the_subject_is_labelled_as_another_organisation(self):
+        m = {**_model(_sources(0, 0, 2, 2, [("avenello.it", 2), ("guida.example", 1)])), "aliases": ["Avenello", "Avenello Spa"]}
+        it = deck._sources_table({"actions": []}, m, deck.DECK["it"], "Avenello")
+        self.assertIn("avenello.it (2, un'altra organizzazione di nome Avenello)", it)
+        self.assertIn("guida.example (1)", it)
+        en = deck._sources_table({"actions": []}, m, deck.DECK["en"], "Avenello")
+        self.assertIn("avenello.it (2, another organisation named Avenello)", en)
+
+    def test_an_alias_names_the_namesake_too(self):
+        m = {**_model(_sources(0, 0, 1, 1, [("oat-co.example", 1)])), "subject": "Avenello", "aliases": ["Oat Co"]}
+        self.assertIn("oat-co.example (1, un'altra organizzazione di nome Oat-co)",
+                      deck._sources_table({"actions": []}, m, deck.DECK["it"], "Avenello"))
+
+
+class FigureBesideTest(unittest.TestCase):
+    """A count in the text and the chart beside it: "tutte le 14" stood beside a row drawn at 8 of 14."""
+
+    ROW = {"project": "P", "dimension": "Contatti", "dimensions": ["Contatti"], "label": "Il numero verde è 800 123 456",
+           "given": 14, "current": 8, "outdated": 0, "both": 0, "silent": 6, "judged": 14,
+           "bands": {"1-2": 2, "3": 4, "4-5": 8}, "asked": 1}
+
+    def model(self):
+        return {"subject": "Avenello", "monitored": ["Avoria"], "answers_of": {}, "author": lambda d: "third",
+                "blocks": {"reach": {"rows": [], "questions": [], "figures": []},
+                           "description": {"rows": [], "questions": [], "figures": []},
+                           "facts": {"rows": [self.ROW], "questions": [self.ROW],
+                                     "figures": [{"a": 8, "b": 14, "parts": [(8, "good"), (0, "low"), (6, "mid")],
+                                                  "rivals": [], "project": None}]}}}
+
+    def problems(self, title, found=None):
+        doc = {"blocks": {"facts": [{"title": title, "read": "Una frase."}]},
+               "found": {"answers": {"facts": found or "Una frase."}}}
+        return "\n".join(deck._beside_figure(doc, self.model()))
+
+    def test_a_count_the_chart_beside_it_does_not_draw_is_refused(self):
+        self.assertIn("14 of 14", self.problems("Il numero verde è riportato in tutte le 14 risposte"))
+        self.assertIn("10 of 14", self.problems("Il numero verde è riportato in 10 delle 14 risposte"))
+
+    def test_the_count_the_chart_draws_passes(self):
+        self.assertEqual(self.problems("Il numero verde è riportato in 8 delle 14 risposte"), "")
+        self.assertEqual(self.problems("Il numero verde manca in 6 delle 14 risposte"), "")
+
+    def test_a_count_of_another_base_is_left_to_the_other_rules(self):
+        self.assertEqual(self.problems("Il numero verde è riportato in 20 delle 30 risposte"), "")
+
+    def test_a_count_beside_a_competitor_is_left_to_its_own_rule(self):
+        self.assertEqual(self.problems("Avoria compare in 3 delle 14 risposte"), "")
+
+    def test_the_found_slide_is_held_to_the_block_figure(self):
+        self.assertIn("14 of 14", self.problems("Il numero verde è riportato in 8 delle 14 risposte",
+                                                found="Il numero verde è riportato in tutte le 14 risposte."))
+
+
 class LivePageTest(unittest.TestCase):
     """A rate in a tooltip and an answer in a closed FAQ were written as missing: a web tool had not seen them."""
 
@@ -1112,6 +1234,13 @@ class OneAnswerActionTest(unittest.TestCase):
     def test_a_reason_resting_on_one_answer_is_refused(self):
         for why in ("Sette risposte su nove sono favorevoli, ma una descrive una penale.",
                     "Una risposta avverte di una penale.", "One answer says the fee is wrong."):
+            self.assertTrue(deck._one_answer({"actions": [{"why": why}]}), why)
+
+    def test_another_organisation_is_not_one_answer(self):
+        for why in ("Le risposte confondono Avenello con un'altra azienda.", "Su avenello.it scrive un’altra organizzazione."):
+            self.assertEqual(deck._one_answer({"actions": [{"why": why}]}), [], why)
+        for why in ("Una risposta su tre è sfavorevole e un'altra risposta riporta il prezzo vecchio.",
+                    "Un'altra descrive una penale."):
             self.assertTrue(deck._one_answer({"actions": [{"why": why}]}), why)
 
     def test_a_ratio_and_a_count_pass(self):
@@ -1305,6 +1434,22 @@ class WhyThatSiteTest(DeckCase, unittest.TestCase):
         m = deck.build_model(*self.model_args(doc))
         line = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"])
         self.assertIn("prezzi.example: citato da 1 delle", line)
+
+    def test_a_site_count_takes_the_base_of_the_reason_beside_it(self):
+        doc = self.doc()
+        doc["actions"][0]["why"] = "prezzi.example è citato da 1 delle 2 risposte sul prezzo."
+        m = deck.build_model(*self.model_args(doc))
+        line = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"])
+        self.assertIn("prezzi.example: citato da 1 delle 2 risposte su «Quanto costa un litro di latte d'avena Avenello?».", line)
+        en = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["en"])
+        self.assertIn("prezzi.example: cited by 1 of the 2 answers on «Quanto costa un litro di latte d'avena Avenello?».", en)
+
+    def test_a_reason_with_another_base_keeps_the_slide_count(self):
+        doc = self.doc()
+        doc["actions"][0]["why"] = "prezzi.example è citato da 1 delle 4 risposte."
+        m = deck.build_model(*self.model_args(doc))
+        self.assertIn("prezzi.example: citato da 1 delle 4 risposte alle domande di questa slide.",
+                      deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"]))
 
     def test_the_slide_names_the_page_most_cited(self):
         doc = self.doc()
@@ -1605,6 +1750,14 @@ class ReaderWordsTest(DeckCase, unittest.TestCase):
         doc["blocks"]["reach"][0]["read"] = "Le risposte citano molti siti US."
         self.assertNotIn("name the subject", self.problems(doc))
 
+    def test_a_quoted_label_is_not_the_writer_speaking(self):
+        for text in ("Le risposte rimandano alla pagina «Lavora con noi» di Avenello.",
+                     "Le risposte rimandano alla pagina “Chi siamo e i nostri valori” di Avenello.",
+                     'The answers point to the "About us" page of Avenello.'):
+            doc = self.filled()
+            doc["blocks"]["reach"][0]["read"] = text
+            self.assertNotIn("name the subject", self.problems(doc), text)
+
     def test_a_listing_on_a_site_already_cited_on_the_subject_is_refused(self):
         m = {"blocks": {"description": {"sources": {"third_all": {"capterra.com": 3}}}}}
         doc = {"actions": [{"what": "Chiedere la scheda a capterra.com"}]}
@@ -1724,6 +1877,16 @@ class RenderTest(DeckCase, unittest.TestCase):
         proc = self.cli("pdf", "--study", self.study, "--deck", "--date", DATE, check=2)
         self.assertIn("check", proc.stderr)
 
+    def test_a_browser_without_its_sandbox_stops_the_deck_with_exit_1(self):
+        self.save_doc(self.filled())
+        browsers = self.study.parent / "bin"
+        browsers.mkdir()
+        sandboxless(browsers, "chromium")
+        with mock.patch.dict(os.environ, {"PATH": str(browsers)}):
+            proc = self.cli("pdf", "--study", self.study, "--deck", "--date", DATE, check=1)
+        self.assertIn("chromium cannot start its sandbox", proc.stderr)
+        self.assertFalse((self.study / "reports" / f"{DATE}.deck.pdf").exists())
+
     def test_pages_that_are_not_the_slides_are_refused(self):
         self.save_doc(self.filled())
         with self.assertRaisesRegex(deck.Refused, "11 pages for 10 slides"):
@@ -1738,8 +1901,10 @@ class RenderTest(DeckCase, unittest.TestCase):
         self.assertIn("Avenello + Sentl.ai - monitoring deck", shared[0].name)
         self.assertIn(str(shared[0]), message)
 
-    @unittest.skipUnless(shutil.which("chromium"), "no chromium on this machine")
     def test_the_fullest_slides_stay_on_one_page_each(self):
+        browser = report_pdf.sandboxed_browser()
+        if not browser:
+            self.skipTest("no browser prints with its sandbox on this machine")
         longest = "parola " * 22
         doc = self.filled()
         doc["found"] = {"title": ("parola " * 16).strip(), "answers": {b: longest.strip() for b in deck.BLOCKS}}
@@ -1749,7 +1914,8 @@ class RenderTest(DeckCase, unittest.TestCase):
         for slides in doc["blocks"].values():
             slides[0].update(title=("parola " * 16).strip(), read=("parola " * 29).strip())
         self.save_doc(doc)
-        deck.render(self.study, DATE, skip_check=True)
+        deck.render(self.study, DATE, skip_check=True,
+                    printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
         self.assertTrue((self.study / "reports" / f"{DATE}.deck.pdf").exists())
 
 

@@ -2,13 +2,15 @@
 
 The renderer reads the markdown the reports use (headings, paragraphs, lists, tables, quotes, bold, italic,
 code spans, links, rules) and nothing else. The engine is whichever of chromium, google-chrome, weasyprint
-or wkhtmltopdf that is installed and writes the file; the skill installs none.
+or wkhtmltopdf that is installed and writes the file; the skill installs none. A browser prints with its
+sandbox or not at all.
 """
 
 import html
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from . import theme as sentl_theme
@@ -20,12 +22,17 @@ ENGINES = (
     ("chromium-browser", ["--headless", "--disable-gpu", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
     ("google-chrome", ["--headless", "--disable-gpu", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
     ("wkhtmltopdf", ["{html}", "{pdf}"]),
-    # Where the browser's sandbox is unavailable (a container, a restricted user namespace), the same page,
-    # which holds no script, is printed without it.
-    ("chromium", ["--headless", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
-    ("chromium-browser", ["--headless", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
-    ("google-chrome", ["--headless", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
 )
+BROWSERS = ("chromium", "chromium-browser", "google-chrome")
+# What Chromium prints when it cannot start its sandbox: on Ubuntu 23.10 and later AppArmor restricts unprivileged user
+# namespaces, and a build without an AppArmor profile of its own (Playwright's, a snap's copy run from elsewhere) fails.
+NO_SANDBOX = re.compile(r"No usable sandbox", re.I)
+FIX = ("Install a browser whose sandbox works here, such as Google Chrome from Google's .deb package, which brings its "
+       "AppArmor profile, or install weasyprint")
+
+
+class NoSandbox(Exception):
+    """Every engine that could print failed, and a browser among them could not start its sandbox; exit code 1."""
 
 STYLE = """
 @page { size: A4; margin: 18mm 16mm; }
@@ -166,8 +173,24 @@ def _share(folder, study, source, target, pdf):
     return shared / f"{name}{'.pdf' if pdf.exists() else '.html'}"
 
 
+def _no_sandbox(failures):
+    return [f.split(":", 1)[0] for f in failures if NO_SANDBOX.search(f)]
+
+
 def print_pdf(target, pdf, engines):
-    """The page at `target` printed to `pdf` by the first engine that writes it: (engine, failures)."""
+    """The page at `target` printed to `pdf` by the first engine that writes it: (engine, failures). A browser runs
+    with its sandbox only: when none prints and one could not start its sandbox, NoSandbox says why and what to install."""
+    engine, failures = _print(target, pdf, engines)
+    stuck = _no_sandbox(failures)
+    if not engine and stuck:
+        raise NoSandbox(f"{' and '.join(dict.fromkeys(stuck))} cannot start its sandbox on this machine: the system restricts "
+                        "unprivileged user namespaces (AppArmor, on Ubuntu 23.10 and later), and this browser build has no "
+                        f"profile that allows them. The skill never prints without the sandbox. Wrote {target}, and no PDF. "
+                        f"{FIX}, then run this command again.")
+    return engine, failures
+
+
+def _print(target, pdf, engines):
     failures = []
     for name, template in engines:
         exe = shutil.which(name)
@@ -184,6 +207,49 @@ def print_pdf(target, pdf, engines):
         pdf.unlink(missing_ok=True)
         failures.append(f"{name}: {' '.join((done.stderr or done.stdout).split())[:160]}")
     return None, failures
+
+
+def _test_page(folder):
+    page_path = Path(folder) / "test.html"
+    page_path.write_text("<!doctype html><html><body><p>sentl-monitor</p></body></html>", encoding="utf-8")
+    return page_path
+
+
+def sandboxed_browser():
+    """The first browser on this machine that prints a test page with its sandbox, or None."""
+    with tempfile.TemporaryDirectory(prefix="sentl-pdf-") as folder:
+        target = _test_page(folder)
+        for name, template in ENGINES:
+            if name in BROWSERS and shutil.which(name):
+                engine, _ = _print(target, Path(folder) / f"{name}.pdf", [(name, template)])
+                if engine:
+                    return engine
+    return None
+
+
+def probe():
+    """One line for `doctor`: which engine prints a test page here, a browser first, and with its sandbox."""
+    order = [e for e in ENGINES if e[0] in BROWSERS] + [e for e in ENGINES if e[0] not in BROWSERS]
+    installed = [e for e in order if shutil.which(e[0])]
+    if not installed:
+        return ("PDF: no PDF engine is installed (chromium, google-chrome, weasyprint, wkhtmltopdf): pdf writes the page "
+                "only. Install Google Chrome or weasyprint to print it.")
+    with tempfile.TemporaryDirectory(prefix="sentl-pdf-") as folder:
+        target = _test_page(folder)
+        failures = []
+        for name, template in installed:
+            engine, failed = _print(target, Path(folder) / f"{name}.pdf", [(name, template)])
+            failures += failed
+            if engine:
+                stuck = _no_sandbox(failures)
+                after = f"; {' and '.join(stuck)} cannot start its sandbox here" if stuck else ""
+                kind = "prints with its sandbox" if name in BROWSERS else "prints"
+                return f"PDF: {name} {kind}{after}."
+    stuck = _no_sandbox(failures)
+    if stuck:
+        return (f"PDF: {' and '.join(stuck)} cannot start its sandbox here (AppArmor restricts unprivileged user namespaces), "
+                f"and the skill never prints without it. {FIX}.")
+    return f"PDF: no installed engine printed a test page ({'; '.join(failures)})."
 
 
 def write(root, date=None, option=None, engines=ENGINES):

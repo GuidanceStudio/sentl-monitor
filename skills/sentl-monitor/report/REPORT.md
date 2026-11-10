@@ -274,7 +274,9 @@ and the next report compares with it.
 
 Offer the report as a PDF: `python3 <skill>/scripts/monitor.py pdf --study "$S"` writes
 `reports/D.html` and, when chromium, google-chrome, weasyprint or wkhtmltopdf is installed,
-`reports/D.pdf`; without one it says how to print the page to PDF. The page is in Sentl's colours with
+`reports/D.pdf`; without one it says how to print the page to PDF. A browser prints with its sandbox
+only: where none can start it, `pdf` exits 1 and says what to install, and `doctor` says which engine
+prints here. The page is in Sentl's colours with
 Sentl's mark unless the operator has a theme (`--theme <file>`, `theme.json` or `theme.css` in the study
 folder or in `~/.config/sentl-monitor/`; README, "Make it yours"); the skill sends no file anywhere, and the
 operator's own connectors move it to a drive or a mailbox. It also writes the copy to send,

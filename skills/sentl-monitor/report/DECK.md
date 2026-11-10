@@ -384,7 +384,8 @@ slides, a figure missing from the period, a figure over a chart that does not dr
 figure repeated on the first slides, a presence figure with no comparison, a subject among the first played down, a word of
 the study, a project's name, a topic as the subject of a sentence, an excerpt not verbatim, attributed to another question or
 assistant, or cut inside a sentence with no mark, a text longer than its slide holds, a claim of all or nothing the figures
-do not bear out, an address no answer cites, a slide with an action and no excerpt, and a term a later record replaces. Fix
+do not bear out, an address no answer cites, a slide with an action and no excerpt, a term a later record replaces, a count
+on as many answers as a row of its slide that the slide's chart does not draw, and a question holding two facts. Fix
 the text and run it again until it passes. Never fix a failure by changing a figure drawn by the code.
 
 `check` reads a count in digits in any form: "9 of 12", "9 of the 12", "9 delle 12". A count beside a site, a page, an assistant
@@ -397,7 +398,8 @@ first, alone, among the sites the sentence speaks of: write "among third parties
 sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
 
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
-text. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. On a host without a lasting folder,
+text. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. A browser prints with its sandbox only:
+where none can start it, `pdf --deck` exits 1 and says what to install. On a host without a lasting folder,
 end as SKILL.md says, with the deck's PDF in place of the report.
 
 ## 7. The reader's test

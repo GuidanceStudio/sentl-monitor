@@ -305,14 +305,15 @@ def _changes(period, lang, projects):
 
 
 def _findings(projects, lang):
+    """One `###` entry per dimension, as REPORT.md asks; with several projects a `### <project>` line opens each project's
+    entries, and `check` tells it apart by the project's name."""
     t = TEXT[lang]
-    level = "###" if len(projects) == 1 else "####"
     lines = []
     for proj, dims in projects:
         if len(projects) > 1:
             lines += [f"### {proj['name']}", ""]
         for d in dims:
-            lines += [f"{level} {d['name']}: {t['finding_title']}", "",
+            lines += [f"### {d['name']}: {t['finding_title']}", "",
                       t["finding_body"].format(dimension=d["name"]), ""]
     return lines
 

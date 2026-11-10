@@ -120,6 +120,92 @@ class CriteriaWindowTest(StudyCase, unittest.TestCase):
         self.assertEqual(p["projects"]["brand"]["dimensions"]["prezzo"]["total"]["expected"], 4)
 
 
+NEW_RUBRIC = "Prezzo corretto, con la fonte del listino"
+
+
+def judged_under(data, project_data):
+    """A run's answers as Sentl returns them: each with the rubric and instructions it was judged under, those of
+    `project_data` for its question."""
+    asked = {q["question"].replace("’", "'"): q for d in project_data["project"]["dimensions"] for q in d["questions"]}
+    for r in data["run"]["responses"]:
+        q = asked[r["question"].replace("’", "'")]
+        r["grading_rubric"], r["additional_instructions"] = q["grading_rubric"], q.get("additional_instructions")
+    return data
+
+
+def read_at(updated_at):
+    """The project read saved under inbox/, its price question last edited at `updated_at`."""
+    data = edited(rubric=NEW_RUBRIC)
+    for d in data["project"]["dimensions"]:
+        for q in d["questions"]:
+            q["updated_at"] = updated_at if q["id"] == 103 else "2026-09-01T00:00:00Z"
+    return data
+
+
+class CriteriaSettledTest(StudyCase, unittest.TestCase):
+    """A run inside a detection window, settled by the rubric its answers carry or by when the question was last edited:
+    the 5 and 12 October runs lie inside the window of the edit recorded on 15 October."""
+
+    def setUp(self):
+        super().setUp()
+        self.adopt(at=ADOPTED)
+        self.answer_operator()
+        self.detect(edited(rubric=NEW_RUBRIC), "2026-10-15T12:00:00Z")
+
+    def prezzo_expected(self):
+        self.build("2026-10-31")
+        return self.period_file("2026-10-31")["projects"]["brand"]["dimensions"]["prezzo"]["total"]["expected"]
+
+    def test_answers_judged_under_the_new_rubric_keep_the_question(self):
+        self.ingest_all([judged_under(r, edited(rubric=NEW_RUBRIC)) for r in runs(OCT, 9101)])
+        self.assertEqual(self.read_run("brand", 9101)["criteria_unknown"], [])
+        self.assertEqual(self.read_run("brand", 9101)["criteria_settled"], {"prezzo-1": {"version": 2, "by": "rubric"}})
+        self.assertEqual(self.prezzo_expected(), 8)
+
+    def test_answers_judged_under_the_old_rubric_lose_the_question(self):
+        self.ingest_all([judged_under(r, project()) for r in runs(OCT[:2], 9101)]
+                        + [judged_under(r, edited(rubric=NEW_RUBRIC)) for r in runs(OCT[2:], 9103)])
+        self.assertEqual(self.read_run("brand", 9101)["criteria_settled"], {"prezzo-1": {"version": 1, "by": "rubric"}})
+        self.assertEqual(self.prezzo_expected(), 4)
+
+    def test_a_question_last_edited_before_the_run_started_keeps_it(self):
+        self.save("project-501.json", read_at("2026-10-03T08:00:00Z"))
+        self.ingest_all(runs(OCT, 9101))
+        self.assertEqual(self.read_run("brand", 9101)["criteria_settled"], {"prezzo-1": {"version": 2, "by": "updated_at"}})
+        self.assertEqual(self.prezzo_expected(), 8)
+
+    def test_a_question_edited_after_the_run_started_stays_unknown(self):
+        self.save("project-501.json", read_at("2026-10-14T08:00:00Z"))
+        self.ingest_all(runs(OCT, 9101))
+        self.assertEqual(self.read_run("brand", 9101)["criteria_unknown"], ["prezzo-1"])
+        self.assertEqual(self.prezzo_expected(), 4)
+
+    def test_without_rubric_or_edit_time_the_question_is_dropped_as_before(self):
+        self.ingest_all(runs(OCT, 9101))
+        self.assertEqual(self.read_run("brand", 9101)["criteria_unknown"], ["prezzo-1"])
+        self.assertNotIn("criteria_settled", self.read_run("brand", 9101))
+        self.assertEqual(self.prezzo_expected(), 4)
+
+    def test_a_run_ingested_before_the_project_read_is_settled_by_the_period(self):
+        self.ingest_all(runs(OCT, 9101))
+        self.save("project-501.json", read_at("2026-10-03T08:00:00Z"))
+        self.assertEqual(self.prezzo_expected(), 8)
+
+    def test_a_run_ingested_without_its_rubric_is_settled_from_the_saved_results(self):
+        self.ingest_all(runs(OCT, 9101))
+        for data in runs(OCT, 9101):
+            self.save(f"run-{data['run']['id']}.json", judged_under(data, edited(rubric=NEW_RUBRIC)))
+        self.assertEqual(self.prezzo_expected(), 8)
+
+    def test_the_period_names_a_question_no_run_keeps(self):
+        self.ingest_all(runs(OCT[:2], 9101))
+        out = self.build("2026-10-31").stdout
+        line = next(ln for ln in out.splitlines() if "prezzo-1" in ln)
+        self.assertIn("no run", line.lower())
+        self.assertIn("Quanto costa il latte d'avena Avenello", line)
+        self.assertNotIn("latest version are used", line)
+
+
 class LaterPeriodTest(StudyCase, unittest.TestCase):
     """A report on 31 October, then the November runs compared with it."""
 
