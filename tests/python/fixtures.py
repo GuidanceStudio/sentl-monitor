@@ -320,12 +320,12 @@ class StudyCase:
         return self.cli("period", "--study", self.study, "--date", date,
                         "--models", self.save("models.json", models()), check=check)
 
-    def publish(self, date, fill="le risposte descrivono Avenello", changes=None):
+    def publish(self, date, fill="le risposte descrivono Avenello", changes=None, force=False):
         """period, method, the changes in the answers written as `changes` and every other
-        [[...]] marker filled with plain text, check: the report is final."""
+        [[...]] marker filled with plain text, check: the report is final. `force` writes it again over its file."""
         self.build(date)
         self.cli("method", "--study", self.study, "--date", date,
-                 "--models", self.save("models.json", models()), check=0)
+                 "--models", self.save("models.json", models()), *(["--force"] if force else []), check=0)
         path = self.study / "reports" / f"{date}.md"
         text = path.read_text(encoding="utf-8")
         if changes:

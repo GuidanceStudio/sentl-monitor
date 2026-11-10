@@ -217,6 +217,15 @@ else
     bad "REPORT.md step 7 puts the insights before the line for the client"
 fi
 has "summary is written last" "$PAYLOAD/report/REPORT.md" "REPORT.md writes the summary last, from the findings and changes"
+
+echo ""
+echo "=== The report playbook says how to redo the latest report of its date ==="
+REDO=$(awk '/^## Redo the latest report/ {on=1; print; next} on && /^## / {exit} on' "$PAYLOAD/report/REPORT.md")
+if [ -n "$REDO" ]; then ok "REPORT.md has a section on redoing the latest report"; else bad "REPORT.md has a section on redoing the latest report"; fi
+for phrase in "monitor.py period" "monitor.py method" "--force" "monitor.py check" "Keeps" "Rewrites" \
+              "history/reports.json" "reports/D.deck.json"; do
+    if grep -qF -- "$phrase" <<<"$REDO"; then ok "the redo section names $phrase"; else bad "the redo section names $phrase"; fi
+done
 has "In short|summary" "$REPO_ROOT/ARCHITECTURE.md" "ARCHITECTURE.md names the summary section"
 has "five domains cited by most answers of the group" "$PAYLOAD/report/INSIGHTS.md" \
     "INSIGHTS.md states the sources rule as the five domains cited most in each group"

@@ -1221,7 +1221,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Tasks:**
 - [x] Test: unit — a deck `check` leaves the report path in `history/reports.json` unchanged and records the deck beside it; a report `check` after it keeps the deck; implement in `deck.py` and `common.py`; ARCHITECTURE, CHANGELOG; commit and push
-- [ ] Test: structure — REPORT.md holds the redo section; write it; CHANGELOG; commit and push
+- [x] Test: structure — REPORT.md holds the redo section; write it; CHANGELOG; commit and push
 - [ ] Test: unit — a slide whose text exceeds its box is refused by `check`; implement in `deck.py`; DECK.md, ARCHITECTURE, CHANGELOG; commit and push
 
 **Done when:** the suite passes, a deck `check` keeps the report path, and an overflowing slide is refused by `check`.

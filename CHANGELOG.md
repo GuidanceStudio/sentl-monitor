@@ -8,6 +8,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 - The deck's `check` records the deck as `deck` in the entry of its date in `history/reports.json`, beside the report's
   `file`, where it used to write the deck's path over the report's. A report's `check` keeps the deck. An entry an earlier
   version left with the deck in `file` loses that `file` at the deck's next `check`.
+- REPORT.md says how to redo the latest report of its date: copy it aside, run `period` and `method --force` with the same
+  date, write the text again and run `check`. It lists what stays (the runs, the versions, the earlier reports, the deck's
+  text) and what is written again (the period, the material, the report and its entry in `history/reports.json`).
 
 ## 0.7.1 (2026-11-10)
 

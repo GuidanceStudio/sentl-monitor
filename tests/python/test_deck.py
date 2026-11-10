@@ -599,6 +599,14 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
                          [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
 
+    def test_a_report_redone_for_its_date_keeps_the_deck(self):
+        self.publish(DATE)
+        self.deck_check()
+        self.publish(DATE, force=True)
+        entries = self.read("history/reports.json")
+        self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
+                         [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
+
     def test_a_deck_recorded_in_the_report_s_place_moves_beside_it(self):
         self.deck_check()
         entry = self.read("history/reports.json")[0]

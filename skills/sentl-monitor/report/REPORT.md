@@ -326,6 +326,32 @@ or a score. Give the operator the file's path and the charts the output lists as
 report itself does not change. On a host without a lasting folder, also offer
 `reports/D.charts.md` for download, copied to the folder of step 10.
 
+## Redo the latest report of its date
+
+When the latest report must be built again for its own date `D` (a new version of the skill, a fact corrected in
+`study.json`, a run ingested since), copy the report aside, then run steps 5 and 6 with the same `D`:
+
+```bash
+cp "$S/reports/D.md" "$S/history/D.before.md"
+python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
+python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inbox/models.json" --force
+```
+
+Then steps 7 to 11 as for a new report: step 10's `monitor.py check` makes `reports/D.md` final again.
+
+- **Keeps:** the runs in `history/runs/`, the versions, the earlier reports and their periods, the deck's text
+  `reports/D.deck.json` and its notes `history/deck/D.notes.md`. Only the reports before `D` set the period's window, so
+  `period` pools the same runs as the first time and any run of that window ingested since.
+- **Rewrites:** `history/periods/D.json` and `history/material/D.md` (on a first report, the rebuilt periods and the
+  halves as well); `reports/D.md`, with the method sections and `[[...]]` markers in place of the findings, the changes
+  and the summary; and, when `check` passes, the entry of `D` in `history/reports.json`, which keeps the deck recorded
+  beside the report.
+
+Write the findings, the changes and the summary from the new material. Take a sentence from the copy only when its
+figures are still the period's, since `check` refuses the others, and delete the copy once `check` passes. Redo only
+the latest report: a later one has compared its period with this one. A deck of `D` keeps its text: run `deck --date D`,
+which writes the figures file from the new period, then the deck's `check` and `pdf --deck` (`report/DECK.md`, step 6).
+
 ## Unattended mode
 
 A scheduler starts the route with no operator to answer (README, "Scheduled reports"). Read this
