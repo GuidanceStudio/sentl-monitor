@@ -119,7 +119,7 @@ the operator gets a report before the design routes exist. Files, schemas and ru
 - R7: Release 0.3.0 — the deck route in the zip Sentl users download. Done 2026-11-05.
 - R8: Release 0.7.0 — M27 in the zip Sentl users download. Done 2026-11-09.
 - M28: Fixes from a three-project period deck — no print without the browser sandbox, a question kept when Sentl dates its change, facts matched on digits, labels with their base. Done 2026-11-10.
-- R9: Release 0.7.1 — M28 in the zip.
+- R9: Release 0.7.1 — M28 in the zip. Done 2026-11-10.
 - R3e: Each host tested before the README says it is supported — claude.ai first; the announcement to Sentl users waits for it.
 
 ## Out of scope
@@ -1197,11 +1197,11 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the suite passes. No engine in the code prints without the sandbox. The 2026-11-09 period of the study that showed the faults, rebuilt with 0.7.1, keeps the lost question in the run that `updated_at` settles. Its deck passes `check` and prints with the sandbox on a host whose browser has a working sandbox.
 
-## R9: Release 0.7.1 🔄
+## R9: Release 0.7.1 ✅
 
 **Why:** M28 changes what Sentl users print and what `check` accepts.
 
 **Tasks:**
-- [ ] Version 0.7.1 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+- [x] Version 0.7.1 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.1.
