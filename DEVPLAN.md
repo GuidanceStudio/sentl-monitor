@@ -1197,7 +1197,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the suite passes. No engine in the code prints without the sandbox. The 2026-11-09 period of the study that showed the faults, rebuilt with 0.7.1, keeps the lost question in the run that `updated_at` settles. Its deck passes `check` and prints with the sandbox on a host whose browser has a working sandbox.
 
-## R9: Release 0.7.1
+## R9: Release 0.7.1 🔄
 
 **Why:** M28 changes what Sentl users print and what `check` accepts.
 

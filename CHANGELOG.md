@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.7.1 (2026-11-10)
 
 - The engines that ran chromium and google-chrome with `--no-sandbox` are gone, so a browser prints only with its sandbox.
   Where a browser cannot start its sandbox ("No usable sandbox", as on hosts where AppArmor restricts unprivileged user
