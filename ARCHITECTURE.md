@@ -437,7 +437,7 @@ domain and presence changes each name their project and dimension, because two p
 may share a dimension key: `adopt` and `detect` keep keys unique across the study, except for a
 dimension archived when its project was adopted and restored after another project took its key.
 A period file of schema `period@1` keys them by dimension key alone, each entry naming its project;
-`check` and `charts` read both shapes, and `period` writes the current one whenever it builds a
+`period` reads both shapes when it compares with an earlier period, and writes the current one whenever it builds a
 period.
 
 The comparison also carries `projects`: per project, the `dimensions` compared and the
@@ -455,14 +455,14 @@ comparison.
 of the latest version among its runs, or, for runs older than every version, the rounds and
 the schedule the runs show (the largest number of answers of one question–model pair, and
 the median gap between their starts), falling back on the first version's schedule for a
-single run. `method` states them when the projects differ.
+single run. The deck's method table states them per project.
 
 `excluded` lists the runs left out under the run floor, `dropped` the questions a run lost
 because their criteria changed later in the period or are unknown for it (§Comparability,
 §Matching), and `starts` the runs' start times beside `runs` and `versions`. `asked` holds,
 per project, the dimensions and questions of the period with the names and wordings its
 runs had: those of the latest version among its runs (the first version for runs older than
-every version), less any with no answer expected. `method` and `check` read the period's
+every version), less any with no answer expected. The deck reads the period's
 dimensions and questions from it, so an edit made after the period's last run belongs to the
 next period. A comparison entry's `status` is `compared`, `new`
 (nothing to compare with), `new_baseline` (with the `reason` for a question: `criteria` or
@@ -478,8 +478,8 @@ than 80% of the expected answers were judged), `received`, `judged`, `expected`,
 their `rate`, and the mean `position`), `unstable_pairs` (question–model pairs whose answers
 in the period differ by two points or more), `domains` (domain → answers citing it) and
 `owned` (answers citing an owned domain out of the answers citing any). `names` maps each
-model of the period and of the periods compared with it to its public name, which `check`
-needs to tell a name from a figure. A question's or a dimension's `mean` is the mean of its
+model of the period and of the periods compared with it to its public name, which the deck
+prints and its `check` needs to tell a name from a figure. A question's or a dimension's `mean` is the mean of its
 judged answers; a project's `mean` is the mean of its dimension means, the way Sentl
 computes a run's score (A4). A period rebuilt from a project's history carries
 `"rebuilt": true` and no comparison (see Periods).
@@ -490,13 +490,13 @@ A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in d
 The deck's `check` writes the entry of its period when it passes, with the period's `runs`, as `final`, and `deck`, the
 deck's text `reports/<date>.deck.json`; `check --unattended` on a deck that fails writes the period as `draft` when the
 date has no entry yet, and the same deck passing later makes it `final`. The next period starts after the runs of the
-latest entry, a draft included. `monitor.py check` on a report adds it as `final` when it passes, with its `file`;
-`check --unattended` adds a report that fails as `draft`, and a draft counts as the previous report. A deck checked beside
-a report keeps that entry and adds `deck`; a report's `check` keeps it. A draft stays a draft when its deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the
-latest earlier entry with a `deck`, and a pack holds that deck's text. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
-deck's next `check`, and the report's `check` writes it again. `previous` is the date of the period the report compared with, a
-rebuilt one included; it is null on a first report, including one that compares the two
-halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
+latest entry, a draft included, and a draft counts as the previous period. An entry an earlier version wrote for its long
+report carries `file`, `reports/<date>.md` or `.draft.md`, and is read like any other: its period bounds the next one and
+it is the previous period. A deck checked beside such an entry keeps it and adds `deck`. A draft stays a draft when its
+deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the latest earlier entry with a `deck`, and
+a pack holds that deck's text. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
+deck's next `check`. `previous` is the date of the period the entry's period compared with, a rebuilt one included; it is
+null on a first period, including one that compares the two halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
 
 ## The stages
@@ -549,7 +549,7 @@ same shape. `monitor.py demand volumes volumes.json` merges it and then:
   searches that name the subject stay apart from the searches about a component alone.
 
 **Without a volume source.** The agent says so to the operator when the step runs. `brief.md`
-carries the line, and the report's themes section says: *the counts are Google suggestions:
+carries the line, and `monitor.py demand summary` prints it: *the counts are Google suggestions:
 they measure how many ways a theme is phrased, not how many people search it.*
 
 `monitor.py demand import --provider P --tool T --theme X file.csv` reads an export of a
@@ -757,7 +757,7 @@ project and by text otherwise, and a question on one side only is refused by nam
 two dimensions of the other side. The figures are the periods', pooled on the assistants both sides asked; the limits name
 them when the two differ. A change follows §What counts as a change with a single previous period. The report takes the
 later date and the order purpose, changes, limits, and its rows are written by the script. `check` on a `.compare.md`
-reads the order, the rows and the limits against `history/compare/<date>.json` and the leaks of §The report. It calls no
+reads the order, the rows and the limits against `history/compare/<date>.json` and the leaks of §The deck. It calls no
 tool and spends nothing.
 
 ### `snapshot <subject>`
@@ -929,7 +929,7 @@ which can alter a character. Three rules contain it:
 
 `scripts/sentlmon/schema.py` states the fields, types and ranges the skill reads from each
 tool's response. `adopt`, `detect`, `runs` and `ingest` check a saved response against it, and
-`period` and `method` check the saved `list-ai-models`, before anything is written. A field
+`period` checks the saved `list-ai-models`, before anything is written. A field
 that is missing, renamed, of another type or out of range is refused with exit 5, naming the
 tool, the field, what was expected and what was found; the same change in many items is
 listed once with their count. Fields the skill does not read, or only copies into the run
@@ -997,7 +997,7 @@ the whole period; an episode is given beside a change between the halves, with i
 date, when it lies on the side of the range the change moves to and its last run starts after
 the split; the material notes it once, under its question.
 When the runs span less than 14 days, `period` tells the operator there is no earlier period
-and the report's `changes` section says this is the first measurement. Building the first
+and the material says this period is the first measurement. Building the first
 period again replaces the rebuilt periods and that date's halves; the halves of another date
 stay with its report.
 
@@ -1008,7 +1008,7 @@ The second report compares with the whole first period, never with its halves.
 
 ### Comparability
 
-| Change between the two periods | Score and presence deltas | Verdict changes | The report says |
+| Change between the two periods | Score and presence deltas | Verdict changes | The material notes |
 |---|---|---|---|
 | none | shown | listed | — |
 | question reworded, same key | shown | listed | the question was reworded on that date |
@@ -1127,136 +1127,9 @@ web panel show the same number for a run. Sentl's run score is recorded in the r
 beside the figure computed for that run; when the two differ by more than 0.05, the
 operator is told.
 
-## The report
-
-`reports/<YYYY-MM-DD>.md`, in `report_language`, self-contained: a reader who never saw an
-earlier report understands it. The method sections are regenerated from `study.json` each
-time, so they describe the questions actually asked in the period. Sections are numbered in
-the order they appear.
-
-### Sections
-
-| Key | Section | Written by |
-|---|---|---|
-| — | Title: the research question; subject, period, date | `method` |
-| `purpose` | What we did and to what end: the purpose; the assistants by public name; the questions asked, in positive and negative where paired, in one sentence, or one line per project (its questions, assistants, times each question is asked per run, how often it runs) when the projects differ in any of these; the answers collected and scored in the period; that each answer's cited sources were recorded | `method` |
-| `themes` | Where the themes came from: themes grouped by origin, the themes that share an identical origin (kind and detail) on one line; search demand per theme with its source and period, volumes per class, or the no-volume statement. A study adopted without a brief: the themes with the origins the operator gave, and one line saying no search data was collected | `method` |
-| `dimensions` | The dimensions and how we reached them: projects with their question and decision, the dimensions of each with the themes they come from, who asks and why, and each persona of the study's list with its situation and its questions. In a snapshot: each dimension, what it measures and why it was chosen for the subject | `method` |
-| `questions` | The questions: per dimension, verbatim, paired questions side by side, each with who asks it (a persona of the list by its label) and the Google suggestion it started from. A snapshot whose folder holds `seeds.json` and whose `search-demand.json` is missing or holds no suggestion says that Google's suggestions could not be collected | `method` |
-| `scoring` | How the answers are scored: a rubric that several questions share stated once for them with all five anchors, and per dimension what a 5, a 3 and a 1 mean for the other questions; who wrote the criteria and when; that an independent model in Sentl applied them; what counts as a change between periods and the verdict bands; the score axis; what a high or a low score does not mean | `method` |
-| `summary` | In short: three to five plain sentences, a bulleted list, each stating one point with its figure | the agent, written last, from the findings and changes |
-| `findings` | What the assistants say, dimension by dimension, in chapters by project | the agent |
-| `changes` | What changed since the last report: the period compared with, changes in the answers, then changes in the design and how they affect the comparison | `method` writes the period compared with and the design changes; the agent writes the changes in the answers, from the output of `period` |
-| `limits` | Snapshot only: one question per dimension and one answer from each assistant, on one date; what a monitoring study adds (several questions per dimension, paired questions, repeated runs compared period by period) | `method` |
-
-### Order
-
-| Report | Sections after the title |
-|---|---|
-| First report on a study: `history/reports.json` holds no final report before its date | `purpose`, `themes`, `dimensions`, `questions`, `scoring`, `summary`, `findings`, `changes` |
-| Every later report | `summary`, `changes`, `findings`, `purpose`, `themes`, `dimensions`, `questions`, `scoring` |
-| Snapshot | `purpose`, `dimensions`, `questions`, `scoring`, `findings`, `limits` |
-
-The first report tells how the study was built before what it found, because the reader
-meets the method there for the first time, and the summary stands between the method and
-the findings. From the second report on, the reader opens it for what moved: `summary`,
-`changes` and `findings` come first, and the five method sections close the report, with the same content they would have in a first report, so each report still
-stands on its own. `method` takes the order from `history/reports.json`. A first report on
-an adopted project keeps the first-report order even when it compares with rebuilt periods.
-
-**`findings`, per dimension:** a title that states what the person asking is told, never a
-score; one or two verbatim excerpts, each with its question and assistant; the domains those
-answers cite, the subject's own first, then the most cited, five in all; the
-dimension's figure with its coverage in the body; the insights the material
-holds for it (§Insights), each in one sentence with its figure; last, one line on what it means
-for the client. Every dimension gets its section, including those where nothing moved.
-
-**`changes`, on the first report:** one line saying this is the first measurement and the
-next report compares against it. When periods were rebuilt from the project's history, the
-section compares with them instead, as a later report does. When there is no earlier period
-and the runs span at least 14 days, the section opens with a line, written by `method`,
-naming the two halves of the period and their dates and, for each project, the runs and the
-answers in each half; the changes in the answers compare the second half with the first.
-
-**`changes`, when it compares:** a line naming the period compared with (and, when it was
-rebuilt, that no earlier report exists), or the two halves; the changes in the answers,
-written by the agent: the project, dimensions and questions whose change is called, with the
-first date of an episode that explains one, the facts whose current share changed, each
-verdict change with its two answers quoted, the domains new or lost, the domains that came or
-went with the subject where its presence changed, and one line saying the rest is unchanged;
-then one
-line per design change, written by `method` as the Comparability table says: a reworded
-question with both wordings and the date, a new intent, new criteria, assistants added or
-removed with the assistants the comparison rests on, a dimension new or no longer
-measured.
-
-**Never in a report:** credits or any price; run, project or question ids; question keys;
-file names; model ids (the public name is used); the skill's own steps or checks.
-
-**`monitor.py check`** fails the report when: a quoted excerpt is not a verbatim substring
-of an answer in the period's runs; a figure is not in the period metrics; a dimension of the
-study has no `findings` entry; an id, a key, a model id, a file name or a credit figure
-appears; a section is missing, or the sections are not in the order the table above sets for
-the report (first, later or snapshot); a snapshot report carries a section outside its order, a
-changes section included, or a figure for the whole project. The rules it applies:
-
-- **Excerpts** are Markdown blockquote lines in `findings` and `changes`. An excerpt may
-  skip text with `[…]`; each piece, after the normalization of §Matching (dashes folded to a
-  hyphen as well) and with Markdown emphasis and citation markers such as `[1]` dropped, must
-  be a substring of one answer in the period's runs, or, in `changes`, of the period compared
-  with, where a verdict change starts. A failure says where the excerpt stops matching its
-  closest answer.
-- **Figures** are the numbers in `findings` and `changes` written with a decimal separator
-  and the percentages. A decimal uses the report language's separator (a point in English, a
-  comma in Italian) and has one decimal; a percentage is whole. Each must equal a value of
-  the period file rounded the same way: its cells and, for a change, its comparison (the
-  values now and before, the move, the range, the pair means of a verdict change); `changes`
-  may also cite the overall figures of the period compared with, or of both halves. The insights' counts and
-  shares of answers may be cited whatever the coverage; their means only where the question
-  has a figure; the material prints no mean for a question without one. A fact term of the
-  study quoted in «» is read as text, not as a figure. A dimension's entry may cite its own
-  dimension's figures, its questions'
-  insights and its project's overall figure, never another dimension's; a dimension shown
-  without a figure has no mean to cite. A count of answers written "N su M" or "N of M" must be
-  a pair of the period (judged of expected, named of given, and the like). Other integers are
-  not checked: they are dates and points of the scale. Text inside «» that quotes a question
-  or an answer, and the assistants' public names (which can carry a version number), are not
-  read as figures.
-- **Findings headings** carry no figure.
-- **An episode's close.** A sentence fails when a word for "only" (only, solely, exclusively,
-  just; solo, soltanto, solamente, unicamente, esclusivamente) comes before a closed episode's
-  span or its first, last or close date in the same clause (no `, ; : . ! ?` between them, the
-  date within about 40 characters), later runs of the period lie on the episode's side, and the
-  sentence does not name all of them. A date is read as the report writes it, day and month with
-  the year optional ("14 October", "October 14"), and a span as "14–16", "dal 2 all'8", "from 2
-  to 8" or "tra il 2 e l'8"; quoted text is not read, and a paragraph's lines are joined first.
-  A finding is read against its own dimension's episodes, the summary and the changes against all
-  of them. The later runs' values may be cited. A period whose closed episodes do not record their
-  later runs was built before this rule and is refused (exit 2) until `period` builds it again.
-- **The halves.** A report whose period compares its two halves must keep, in `changes`, the
-  line `method` wrote naming them, their dates and each project's runs and answers. `check`
-  refuses the report when a half's file is missing, since the figures it allows come from it.
-- **The summary** may cite any figure of the period, any dimension's or question's included,
-  and in a later report the figures of its comparison; it holds no excerpt, and its
-  `[[summary]]` marker left in place fails like any other.
-- **Counts** "N of M", "N of the M" and "N delle M" are checked when a word for answer, or for
-  citing (cite, cites, citing, cita, citano), follows within the sentence. A deck reads them all,
-  unless the words beside them say they count something else (questions, assistants, names).
-- **Ids** are integers that look like counts, so a Sentl id of the study is refused only
-  where a word names it (`run`, `id`, `#`, and the words for project, question and dimension
-  in the report's language). Question keys, model ids and file names are distinctive strings
-  and are refused anywhere; dimension and project keys are ordinary words and are not
-  checked. A credit figure is a number next to the word for credit.
-- **Findings entries** are headed `### <dimension name>: <what the person asking is told>`
-  (`####` under a `### <project name>` heading when the study has several projects, so two
-  projects may have dimensions of the same name: each entry cites its own project's
-  figures, and each project needs an entry for each of its dimensions). `method` leaves a
-  `[[...]]` marker for each, and a report that still holds one fails.
-
 ## The deck
 
-`report/DECK.md` turns one period into one slide deck, the only thing a client reads. The report stays as the
-operator's record of the same period. The reader is the client's marketing manager: they know the market and the
+`report/DECK.md` turns one period into one slide deck, the only thing a client reads. The reader is the client's marketing manager: they know the market and the
 competitors, and have never seen the questions, the ratings or the project names. So the slides run: cover, what this
 report shows, what was found, what to do, the evidence block by block, the sources, the method, the list of questions.
 The first four must be enough to decide. The second gives the two or three questions the report answers, in the reader's
@@ -1294,7 +1167,7 @@ over all the block's answers, so one base serves the whole deck.
 **The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one or two real
 questions per block, one answer per block, one to five actions, each with a class, a block, an evidence slide and a reason
 carrying a figure), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
-own question and assistant, the figures against the period and the figures the deck draws, and the same leaks as a report.
+own question and assistant, the figures against the period and the figures the deck draws, and the leaks below.
 A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
 the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
 its figures, rows and questions. Such a count needs no place in the period's figures, and the refusal prints the counts the name
@@ -1337,7 +1210,17 @@ questions, and draws no row and no excerpt: one answer of two is no finding. A d
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
 rating printed beside it contradicts it. An
-excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, beside the report's `file` and never in its place; with no entry for the date, it writes one with the period and no `file`.
+excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, beside the `file` of a long report an earlier version wrote and never in its place; with no entry for the date, it writes one with the period and no `file`.
+
+**Leaks, excerpts and numbers.** Question keys, model ids and file names are distinctive strings and are refused anywhere
+in the deck's text. A Sentl id of the study is an integer that looks like a count, so it is refused only where a word names
+it (`run`, `id`, `#`, and the words for project, question and dimension in the deck's language); dimension and project
+keys are ordinary words and are not checked. A credit figure is a number next to the word for credit. An excerpt may skip
+text with `[…]`; each piece, after the normalization of §Matching (dashes folded to a hyphen as well) and with Markdown
+emphasis and citation markers such as `[1]` dropped, must be found in one answer, in order, and a failure says where the
+excerpt stops matching its closest answer. A decimal uses the language's separator (a point in English, a comma in
+Italian) and has one decimal; a percentage is whole. Text inside «» that quotes a question, a fact term of the study or an
+answer, and the assistants' public names (which can carry a version number), are not read as figures.
 
 **The reader's test.** `check` knows whether a sentence is allowed, never whether it is understood. The playbook ends with a
 fresh reader who sees only the PDF's text and must say, from the first four slides, what was done, what the numbers count,
@@ -1369,44 +1252,13 @@ never inside a minus sign's number. Line heights are read as a theme may set the
 of Chrome printing in Liberation Sans. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out. Inter, SF and Segoe UI come first in the font stack
 and are wider, so a host that has them can still run over: `pdf --deck` does not run the estimate, and its page count is
 the final word. The theme of
-§Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all,
-for the deck and the report alike. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and
+§Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and
 later) and the only browser has no profile that allows them, its print fails with "No usable sandbox". The next engine is
 tried, and when none prints, `pdf` exits 1, naming the cause and what to install. `doctor` prints which engine prints a
 test page here.
 
 **Later editions.** `reports/<date>.deck.json` keeps each action with its `read_next` figure, for the next deck to read
 them; they are not printed. The slide of what changed is not written yet (DEVPLAN M18).
-
-## Charts for a deck
-
-`monitor.py charts --date D` writes `reports/<D>.charts.md` from the period file of `D`, for an
-operator who presents the report as a deck. The report does not include the file, and `check`
-does not read it. Each chart is an md2 `:::chart` block (a Markdown table under a
-`:::chart <type> --title "…"` line, closed by `:::`) under a `##` heading that says, in the
-report's language, what the chart shows and the period or the halves it covers, with the bounds
-the report prints for them; a project whose own runs start or end on other days than the period's
-has its first and last run days after its name. The first column holds the labels and each further
-column a series; a series is labelled with the report's bounds, never a project's own days. Values are bare numbers with a point, rounded
-as `check` rounds them: a mean with one decimal, a share in whole percent; the title carries the
-unit.
-
-| Chart | md2 type | Rows | Series | Values |
-|---|---|---|---|---|
-| Profile, per project | `radar` and `bar` | the dimensions | the previous period and this one, or the two halves; this period alone on a first measurement or when no dimension of the project is compared | each compared dimension's `mean` in the comparison, `previous` and `now`, on the questions and assistants both sides share; when those differ from either side's own (an assistant added or removed, a question not comparable), the heading names the assistants and the questions left out; on one series, each dimension's figure |
-| By assistant, per project with more than one assistant | `bar` | the dimensions | the assistants, by public name | each dimension's mean by assistant over the period |
-| Fact currency, per question with current terms | `line` | the project's runs in the period, by start day in UTC, with the start time in UTC where two runs share a day | one | the share of the answers stating a current term, of those stating a term |
-| Presence by run, per question whose text does not name the subject | `column` | the runs, labelled as for fact currency | one | the share of the answers naming the subject |
-| Sources behind a fact or a score, per pair of groups the period lists | `bar` | the five domains of the first group, then those of the second not already listed | the two groups | each group's share of its answers citing a source that cite the domain |
-
-md2 reads an empty cell as 0, so a value that does not exist is left out, never written. Left
-out, and listed to the operator on stdout: a chart with no row; from the profile's two series, a
-dimension not compared, and from one series a dimension without a figure; from the chart by
-assistant, a dimension on which an assistant has no figure; from the fact line, a run with no
-answer stating a term; from the presence columns, a run with no answer; a chart by run with fewer
-than two runs left (the fact stated in one run only), since md2 draws a line between two runs or
-more; the radar of a profile with fewer than
-3 or more than 12 dimensions, which md2 does not draw (the bar keeps them).
 
 ## Scheduling
 
@@ -1435,7 +1287,7 @@ of a route and attaches to the next conversation, or keeps in the Project's file
 host has Projects, replacing the previous pack. A conversation unpacks the pack with the latest
 date before its next command and packs the study again once the deck's last `check` and `pdf`
 have run (in `adopt`, once the operator's answers are written; in `snapshot`, after `close`);
-`check` passing in a sandbox prints a reminder to do so. The deck's copy to send, in
+`pdf`, once the deck prints in a sandbox, prints a reminder naming `monitor.py pack` and the deck's copy to send. The deck's copy to send, in
 `reports/share/`, and the pack are copied to the folder the host offers for download. Claude Code, opencode and Codex keep the folder on disk and pack only to move or
 archive a study.
 
@@ -1450,7 +1302,7 @@ next report reads:
 | Held | What the next report reads it for |
 |---|---|
 | `study.json`, `sentl.json` | the operator's answers and the ids |
-| `search-demand.json`, when the study has one | `method` states whether search demand was collected |
+| `search-demand.json`, when the study has one | `validate` checks each question's Google suggestion against it |
 | `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
 | `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
 | the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
@@ -1464,9 +1316,10 @@ inbox and the material are built again, and each report is downloaded on its own
 without `--full` serves the next report. Building the latest report's period again from it
 gives the same file when that report was the first one compared on the two halves of its
 period; any other latest report also reads the runs of the period before it, or rebuilds the
-periods before a first report from their runs, which only `--full` holds. `period` and `check`
-refuse such a report (exit 2) when a run they read, or a rebuilt period they would replace
-lists, is missing from `history/runs/`, and say to unpack a pack written with `--full`. A pack
+periods before a first report from their runs, which only `--full` holds. `period` refuses to
+build such a period again (exit 2) when a run it reads, or a rebuilt period it would replace
+lists, is missing from `history/runs/`, and says to unpack a pack written with `--full`. The
+deck's `check` reads the runs of its own period only, which the pack holds for the latest period. A pack
 holding 30 runs is about 2.4 MB.
 
 The manifest:
@@ -1512,15 +1365,15 @@ report.
 
 ## Theme
 
-`monitor.py pdf` renders the page with `sentlmon/theme.py`. The page's rules read `--sl-*` variables only; a
-theme sets the variables, the logo (an `<img>` with a data URI) and the footer, and never the structure.
+`monitor.py pdf` renders the deck's page with `sentlmon/theme.py`. The page's rules read `--sl-*` variables only; a
+theme sets the variables and the logo (an `<img>` with a data URI, on the cover and in each slide's foot), and never the structure.
 Resolution, first hit wins: `--theme <file>`; the `theme` key of `study.json`; `theme.json` or `theme.css`
 in the study folder; `theme.json` or `theme.css` in `$XDG_CONFIG_HOME/sentl-monitor` (default
 `~/.config/sentl-monitor`); the built-in Sentl theme. A JSON theme is read over the built-in one, so what it
 leaves out stays Sentl's; a CSS theme is appended after the page's own rules. Values that could leave the
 stylesheet (`;`, braces, `<`) are refused. A logo that cannot be read falls back to Sentl's mark and the
 command prints why. The page needs no network: the font is a stack and `font_url` is a link only when the
-user sets it. `reports/share/` receives the themed page and PDF.
+user sets it. `reports/share/` receives the themed PDF.
 
 Where the built-in values come from (read 2026-10-29):
 
@@ -1555,7 +1408,7 @@ Where the built-in values come from (read 2026-10-29):
 | A folder the unpack writes into that cannot be written | `unpack` refuses it (exit 2) before any file moves |
 | A write or a move that fails while unpacking | the files moved aside are put back, the new files and folders and the staging folder are removed, and the study folder is left as it was (exit 6) |
 | A state over the size caps | `pack` refuses it (exit 2), naming the largest files |
-| A report built or checked again in a folder unpacked from a pack without `--full` | `period` or `check` refuses it (exit 2) when a run it reads is missing, and says to unpack a pack written with `--full` |
+| A period built again in a folder unpacked from a pack without `--full` | `period` refuses it (exit 2) when a run it reads is missing, and says to unpack a pack written with `--full` |
 | A pack whose manifest schema the skill does not read | `unpack` refuses it (exit 5): a later version wrote it, and the skill needs an update |
 | Run `completed_with_warnings` with enough judged answers | included; unscored answers excluded and counted in coverage |
 | Unscored answer | `score` and `sentiment` set to `null` (Sentl returns `neutral` on it) |
@@ -1567,8 +1420,8 @@ Where the built-in values come from (read 2026-10-29):
 | Google autocomplete blocked or rate-limited | missing prefixes listed, exit 1; the step is re-run; the brief does not pass its gate with themes lacking search data unless the operator waives it |
 | Keyword-data source rate-limited | waits and retries as the server says |
 | Keyword-data quota exhausted | stops; themes without volumes show none, and no total mixes themes with and without |
-| No keyword-data source | autocomplete only; the no-volume statement in the brief and the report |
-| `check` fails | interactive: the agent fixes the report; unattended: saved as draft |
+| No keyword-data source | autocomplete only; the no-volume statement in the brief and in `demand summary` |
+| `check` fails | interactive: the agent fixes the deck; unattended: the period is recorded as a draft |
 | Facts older than 90 days | listed to the operator after the report; the report is unaffected |
 | Snapshot run still open when the session ends | the next `snapshot` invocation in the folder follows the same run and starts nothing |
 | Snapshot left in the account | kept, or deleted with `delete-snapshot-tool` on the operator's go; it takes no project slot |

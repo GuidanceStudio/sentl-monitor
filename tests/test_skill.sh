@@ -375,11 +375,19 @@ has "pack's manifest" "$SKILL" "SKILL.md names exit 5 for a pack's manifest it c
 
 echo ""
 echo "=== monitor.py --help, commands ==="
-for cmd in adopt detect runs ingest period method check charts doctor pack unpack resume close; do
+for cmd in adopt detect runs ingest period check deck pdf doctor pack unpack resume close; do
     if grep -qw -- "$cmd" <<<"$HELP_TEXT"; then
         ok "--help lists the '$cmd' subcommand"
     else
         bad "--help lists the '$cmd' subcommand"
+    fi
+done
+# The long report's commands are gone: a command is listed as an indented name at the start of a line.
+for cmd in method charts; do
+    if grep -qE "^ {4}$cmd( |$)" <<<"$HELP_TEXT"; then
+        bad "--help lists no '$cmd' subcommand"
+    else
+        ok "--help lists no '$cmd' subcommand"
     fi
 done
 

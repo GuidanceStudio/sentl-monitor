@@ -1,6 +1,6 @@
 """Live tier for the insights (DEVPLAN M2b): the first report on a real adopted project with
-several weeks of runs passes `check`, its material holds the insight sections the study's
-patterns call for (fact terms, foil domains), and the report states them.
+several weeks of runs has a deck that passes `check`, and its material holds the insight sections
+the study's patterns call for (fact terms, foil domains).
 
 The assistant runs the adopt and report routes with read-only tools; this test verifies what
 they left. Opt in with RUN_LIVE=1, SENTL_LIVE_STUDY (the study folder, outside this
@@ -11,7 +11,6 @@ import datetime as dt
 import gzip
 import json
 import os
-import re
 import subprocess
 import sys
 import unittest
@@ -40,7 +39,6 @@ class LiveInsightsTest(unittest.TestCase):
         self.first = load(reports)[0]
         self.period = load(self.study / "history" / "periods" / f"{self.first['date']}.json")
         self.material = (self.study / "history" / "material" / f"{self.first['date']}.md").read_text(encoding="utf-8")
-        self.report = (self.study / self.first["file"]).read_text(encoding="utf-8")
         self.config = load(self.study / "study.json")
 
     def scopes(self):
@@ -58,9 +56,10 @@ class LiveInsightsTest(unittest.TestCase):
                 starts.append(dt.datetime.fromisoformat(json.load(fh)["started_at"].replace("Z", "+00:00")))
         self.assertGreaterEqual((max(starts) - min(starts)).days, 14, "fewer than two weeks of runs ingested")
 
-    def test_the_first_report_passes_check(self):
+    def test_the_first_deck_passes_check(self):
+        self.assertIn("deck", self.first, "the first period has no deck recorded in history/reports.json")
         proc = subprocess.run([sys.executable, str(MONITOR), "check", "--study", str(self.study),
-                               "--date", self.first["date"], str(self.study / self.first["file"])],
+                               "--date", self.first["date"], str(self.study / self.first["deck"])],
                               capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
@@ -76,20 +75,6 @@ class LiveInsightsTest(unittest.TestCase):
         foil_cited = any(d["total"]["authors"]["foil"] for d in self.period["projects"][self.key]["dimensions"].values())
         if has_foil_domains and foil_cited:
             self.assertIn("##### Who wrote the sources", self.material)
-
-    def test_the_report_states_the_fact_currency_it_has(self):
-        stated = []
-        for scope in self.scopes():
-            c = scope.get("facts", {}).get("total")
-            if not c or not c["stating"]:
-                continue
-            counts = {(c["outdated_only"], c["stating"]), (c["current_only"] + c["both"], c["stating"]),
-                      (c["current_only"], c["stating"])}
-            shares = {round(100 * n / m) for n, m in counts}
-            text = re.sub(r"\s+", " ", self.report)
-            stated.append(any(re.search(rf"\b{n} (?:su|of) {m}\b", text) for n, m in counts)
-                          or any(f"{p}%" in text for p in shares))
-        self.assertTrue(all(stated), "a question with fact terms has no fact-currency figure in the report")
 
 
 if __name__ == "__main__":

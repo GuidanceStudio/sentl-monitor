@@ -1,14 +1,13 @@
-"""The look of a report: Sentl's by default, replaced by a theme the user points at.
+"""The look of the deck: Sentl's by default, replaced by a theme the user points at.
 
-A theme is a small JSON file (`colors`, `font`, `font_url`, `logo`, `footer`) or a CSS file that overrides the
-page's `--sl-*` variables. The page's structure uses variables only, so a theme changes colours, font, logo and
-footer and nothing else. Nothing here reads the network: `font_url` is a link the user chose, written into the
+A theme is a small JSON file (`colors`, `font`, `font_url`, `logo`) or a CSS file that overrides the
+page's `--sl-*` variables. The page's structure uses variables only, so a theme changes colours, font and logo
+and nothing else. Nothing here reads the network: `font_url` is a link the user chose, written into the
 page and fetched by whoever opens it.
 """
 
 import base64
 import json
-import mimetypes
 import os
 import re
 from pathlib import Path
@@ -31,7 +30,6 @@ COLORS = {
 }
 FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
-FOOTER = "Sentl.AI"
 MARK_FILE = Path(__file__).resolve().parents[2] / "assets" / "sentl-mark.png"
 
 SAFE = re.compile(r"^[#\w\s(),.%'\"-]+$")
@@ -49,7 +47,7 @@ def _mark():
 
 
 def builtin():
-    return {"colors": dict(COLORS), "font": FONT, "font_url": None, "logo": _mark(), "footer": FOOTER, "css": ""}
+    return {"colors": dict(COLORS), "font": FONT, "font_url": None, "logo": _mark(), "css": ""}
 
 
 def _safe(value, what):
@@ -104,8 +102,6 @@ def load(path):
         if not re.fullmatch(r"https?://[^\s\"'<>]+", str(data["font_url"])):
             raise Refused(f"theme file {path}: font_url must be an http(s) address")
         result["font_url"] = str(data["font_url"])
-    if data.get("footer") is not None:
-        result["footer"] = str(data["footer"])
     if data.get("logo"):
         logo, note = _logo(str(data["logo"]), path.parent)
         if note:
@@ -116,7 +112,7 @@ def load(path):
 
 
 def resolve(folder, option=None):
-    """The theme a report is written with: (theme, notes). First hit wins: the option, the `theme` key of
+    """The theme the deck is printed with: (theme, notes). First hit wins: the option, the `theme` key of
     study.json, theme.json or theme.css in the study folder, the user's folder, Sentl's."""
     if option:
         return load(option)

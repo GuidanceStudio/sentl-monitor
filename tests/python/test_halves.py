@@ -1,6 +1,7 @@
-"""A first report on a monitor younger than its report interval compares the second half of
-its period with the first (ARCHITECTURE.md §Periods); the rules every comparison shares with
-it: a verdict change needs a move of the pair's mean, and the domain lists keep five each."""
+"""A first period on a monitor younger than its report interval compares its second half with
+the first (ARCHITECTURE.md §Periods), in the period file and in its material; the rules every
+comparison shares with it: a verdict change needs a move of the pair's mean, and the domain
+lists keep five each."""
 
 import datetime as dt
 import re
@@ -8,12 +9,9 @@ import unittest
 from unittest import mock
 
 import fixtures
-from fixtures import CHOICE_Q, GEM, GPT, NEW, PRICE_Q, REPO, WORK_Q, StudyCase, market_project, models, run
-from sentlmon.common import fmt_date, fmt_decimal, fmt_percent
-from sentlmon.i18n import TEXT, phrase
+from fixtures import CHOICE_Q, GEM, GPT, NEW, PRICE_Q, REPO, WORK_Q, StudyCase, market_project, run
+from sentlmon.common import fmt_date
 from sentlmon.period import episodes_behind
-from test_method import CHANGES, IT_ORDER, sections
-from test_order import headings
 
 OLD_PRICE = ("Un litro di Avenello costa 1,90 €.", 3, ["https://prezzi.example/avena"])
 OLD_PRICE_FAIR = ("Un litro di Avenello costa 1,90 €, meno di altre marche.", 4, ["https://prezzi.example/avena"])
@@ -59,10 +57,6 @@ def rows_of(n):
     return [(q, m, *a) for q, m, a in answers]
 
 
-def it(value):
-    return fmt_decimal(value, "it")
-
-
 class HalvesCase(StudyCase):
 
     def history(self, days=range(1, 25), extra=()):
@@ -89,11 +83,6 @@ class HalvesCase(StudyCase):
     def half_files(self):
         return sorted(p.name for p in (self.study / "history/periods").glob("*.json")
                       if self.read(f"history/periods/{p.name}").get("half"))
-
-    def method(self, date=REPORT):
-        self.cli("method", "--study", self.study, "--date", date, "--models", self.save("models.json", models()),
-                 check=0)
-        return self.study / "reports" / f"{date}.md"
 
 
 class HalvesTest(HalvesCase, unittest.TestCase):
@@ -208,7 +197,6 @@ class HalvesTest(HalvesCase, unittest.TestCase):
         self.assertNotIn("halves", c)
         self.assertIn("first measurement", proc.stdout)
         self.assertIn("13 days", proc.stdout)
-        self.assertIn("prima misurazione", sections(self.method().read_text(encoding="utf-8"))[CHANGES])
 
     def test_with_a_run_before_the_interval_the_rebuilt_period_is_compared_and_no_half_is_built(self):
         self.history(extra=[(9050, "2026-09-25T06:00:00Z")])
@@ -290,44 +278,21 @@ class HalvesTest(HalvesCase, unittest.TestCase):
                                + [(CHOICE_Q, NEW, *NOT_CHOSEN), (WORK_Q, NEW, *EMPLOYER)])
         self.build(REPORT)
         changes = [d for d in self.comparison()["design_changes"] if d["change"] == "models"]
-        self.assertEqual([(d["added"], d["removed"]) for d in changes], [([NEW], [])])
-        report = sections(self.method().read_text(encoding="utf-8"))[CHANGES]
-        self.assertIn("In questo periodo risponde anche Zenith Answer. I confronti sono calcolati sulle risposte degli "
-                      "assistenti presenti in entrambe le metà: Acme Chat, Orbit Reason e Zenith Answer.", report)
+        self.assertEqual([(d["added"], d["removed"], d["basis"]) for d in changes], [([NEW], [], [GPT, GEM, NEW])])
 
 
-class HalvesReportTest(HalvesCase, unittest.TestCase):
+class HalvesMaterialTest(HalvesCase, unittest.TestCase):
+    """The material of a period compared by halves: what the deck is written from."""
 
     def setUp(self):
         super().setUp()
         self.history()
         self.build(REPORT)
-        self.path = self.method()
-        self.text = self.path.read_text(encoding="utf-8")
         self.material = (self.study / f"history/material/{REPORT}.md").read_text(encoding="utf-8")
-
-    def write_changes(self, changes, halves_line=None):
-        text = self.text.replace(TEXT["it"]["changes_marker_halves"], changes)
-        if halves_line is not None:
-            text = text.replace(self.halves_line(), halves_line)
-        self.path.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello", text), encoding="utf-8")
-        return self.cli("check", "--study", self.study, self.path)
-
-    def halves_line(self):
-        return next(line for line in sections(self.text)[CHANGES].splitlines() if "metà" in line)
 
     def material_block(self, dimension):
         changes = self.material.split("## Changes between the two halves of the period", 1)[1]
         return changes.split(f"### Dimension {dimension}:", 1)[1].split("\n### ", 1)[0]
-
-    def test_the_changes_section_names_the_two_halves_their_dates_runs_and_answers(self):
-        self.assertEqual(headings(self.text), IT_ORDER)
-        changes = sections(self.text)[CHANGES]
-        self.assertIn("la seconda metà di questo periodo, dal 20 ottobre 2026 al 31 ottobre 2026, è confrontata con "
-                      "la prima, dall'8 ottobre 2026 al 19 ottobre 2026. Avenello · Mercato: 12 rilevazioni e 72 "
-                      "risposte nella prima metà, 12 rilevazioni e 72 nella seconda.", changes)
-        self.assertIn(TEXT["it"]["changes_marker_halves"], changes)
-        self.assertNotIn("prima misurazione", changes)
 
     def test_the_material_states_an_episode_s_first_date_beside_the_change_it_explains(self):
         self.assertIn("episode", self.material_block("Prezzo"))
@@ -343,10 +308,6 @@ class HalvesReportTest(HalvesCase, unittest.TestCase):
         self.assertIn("split at 2026-10-20 03:00 UTC", header)
         self.assertIn("Avenello · Mercato: 12 runs and 72 answers in the first half, 12 runs and 72 in the second", header)
         self.assertNotIn("T06:00", header)
-
-    def test_the_scoring_section_says_a_verdict_change_needs_the_mean_to_move(self):
-        self.assertIn("un cambio di giudizio è riportato solo quando la media dell'assistente sulla domanda si sposta "
-                      "anche di almeno 0,3 punti, 0,5 con un solo periodo precedente", self.text)
 
     def test_an_episode_note_is_printed_once_under_its_question(self):
         block = self.material_block("Lavoro")
@@ -368,47 +329,9 @@ class HalvesReportTest(HalvesCase, unittest.TestCase):
         for later in ("previous period", "Previous period", "This period", "this one"):
             self.assertNotIn(later, changes)
 
-    def test_check_refuses_a_report_whose_half_file_is_missing(self):
-        (self.study / f"history/periods/{REPORT}.first.json").unlink()
-        proc = self.write_changes("Le dimensioni sono invariate.")
-        self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
-        self.assertIn("first half", proc.stderr)
-        self.assertIn("run period", proc.stderr)
-        self.assertFalse((self.study / "history/reports.json").exists())
-
     def test_a_domain_cited_by_one_answer_is_written_as_one_answer(self):
         self.assertIn("voto20.example (1 answer)", self.material)
         self.assertNotRegex(self.material, r"(?<![\d])1 answers")
-
-    def test_a_report_with_the_figures_of_both_halves_passes_check(self):
-        c = self.period_file(REPORT)["comparison"]
-        first, second = (self.read(f"history/periods/{REPORT}.{h}.json")["projects"]["market"] for h in ("first", "second"))
-        project, lavoro = c["projects"]["market"]["mean"], c["dimensions"]["market"]["lavoro"]["mean"]
-        presence, share = self.question("scelta")["presence"], self.question("prezzo")["current_share"]
-        changes = (f"Il punteggio complessivo passa da {it(project['previous'])} a {it(project['now'])}. Lavoro passa da "
-                   f"{it(lavoro['previous'])} a {it(lavoro['now'])}, dal 20 ottobre. Avenello è nominato nel "
-                   f"{fmt_percent(presence['now'])} delle risposte alla domanda sulla scelta, contro il "
-                   f"{fmt_percent(presence['previous'])} della prima metà. Le risposte con il prezzo attuale passano dal "
-                   f"{fmt_percent(share['previous'])} al {fmt_percent(share['now'])}, dal 22 ottobre. In ciascuna metà "
-                   f"sono state valutate {first['total']['judged']} su {first['total']['expected']} risposte; Orbit "
-                   f"Reason ha una media di {it(first['by_model'][GEM]['mean'])} nella prima metà e di "
-                   f"{it(second['by_model'][GEM]['mean'])} nella seconda.")
-        self.assertIn("4,2", changes)
-        proc = self.write_changes(changes)
-        self.assertEqual(proc.returncode, 0, proc.stdout)
-        [entry] = self.read("history/reports.json")
-        self.assertEqual((entry["date"], entry["previous"]), (REPORT, None))
-
-    def test_check_refuses_a_figure_of_neither_half(self):
-        proc = self.write_changes("Il punteggio complessivo passa a 9,9.")
-        self.assertEqual(proc.returncode, 1, proc.stdout)
-        self.assertIn("9,9", proc.stdout)
-
-    def test_check_refuses_a_halves_report_whose_changes_section_names_no_halves(self):
-        proc = self.write_changes("Lavoro passa da 3,0 a 3,5.", halves_line=TEXT["it"]["first"])
-        self.assertEqual(proc.returncode, 1, proc.stdout)
-        self.assertIn("halves", proc.stdout)
-        self.assertFalse((self.study / "history/reports.json").exists())
 
 
 def plain(work):
@@ -465,9 +388,6 @@ class OneHalfProjectTest(HalvesCase, unittest.TestCase):
         self.assertNotIn("brand", c["halves"]["second"]["projects"])
         self.assertNotIn("brand", c["projects"])
         self.assertRegex(proc.stdout, r"brand has runs in the first half only")
-        changes = sections(self.method().read_text(encoding="utf-8"))[CHANGES]
-        self.assertIn("Avenello · Con il marchio: 2 rilevazioni e 12 risposte solo nella prima metà, quindi non è "
-                      "confrontato.", changes)
 
     def test_one_run_in_each_half_is_counted_as_one_run(self):
         self.history()
@@ -478,9 +398,6 @@ class OneHalfProjectTest(HalvesCase, unittest.TestCase):
         self.assertIn("Avenello · Con il marchio: 1 run and 6 answers in the first half, 1 run and 6 in the second.",
                       material)
         self.assertNotIn("1 runs", material)
-        changes = sections(self.method().read_text(encoding="utf-8"))[CHANGES]
-        self.assertIn("Avenello · Con il marchio: 1 rilevazione e 6 risposte nella prima metà, 1 rilevazione e 6 nella "
-                      "seconda.", changes)
 
     def test_with_no_project_in_both_halves_the_report_is_the_first_measurement(self):
         self.history(days=SECOND_HALF)
@@ -512,24 +429,14 @@ class EpisodesBehindTest(unittest.TestCase):
                          ["2026-10-23"])
 
 
-class ItalianDatesTest(unittest.TestCase):
+class DatesTest(unittest.TestCase):
 
-    def test_a_preposition_elides_before_8_and_11_and_the_first_of_the_month_is_1st(self):
-        it = [fmt_date(d, "it") for d in ("2026-10-01", "2026-10-08", "2026-10-11", "2026-10-21")]
-        self.assertEqual(it[0], "1° ottobre 2026")
-        self.assertEqual(phrase("it", "compared_period", start=it[1], end=it[2]),
-                         "Il confronto è con il periodo precedente, dall'8 ottobre 2026 all'11 ottobre 2026.")
-        self.assertEqual(phrase("it", "compared_period", start=it[0], end=it[3]),
-                         "Il confronto è con il periodo precedente, dal 1° ottobre 2026 al 21 ottobre 2026.")
-        self.assertEqual(phrase("it", "span_day", start=it[1]), "l'8 ottobre 2026")
-        self.assertEqual(phrase("it", "compared_day", start=it[2]), "Il confronto è con la rilevazione precedente, "
-                                                                  "dell'11 ottobre 2026.")
-        self.assertTrue(phrase("it", "reworded", since=it[1], previous="a", text="b").startswith("Dall'8 ottobre"))
+    def test_italian_writes_the_first_of_the_month_as_1st(self):
+        self.assertEqual([fmt_date(d, "it") for d in ("2026-10-01", "2026-10-08", "2026-10-21T06:00:00Z")],
+                         ["1° ottobre 2026", "8 ottobre 2026", "21 ottobre 2026"])
 
     def test_english_dates_are_unchanged(self):
-        self.assertEqual(phrase("en", "compared_period", start=fmt_date("2026-10-08", "en"),
-                                end=fmt_date("2026-10-01", "en")),
-                         "The comparison is with the previous period, from 8 October 2026 to 1 October 2026.")
+        self.assertEqual([fmt_date(d, "en") for d in ("2026-10-01", "2026-10-08")], ["1 October 2026", "8 October 2026"])
 
 
 class DocsTest(unittest.TestCase):

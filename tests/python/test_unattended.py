@@ -1,16 +1,16 @@
-"""The unattended report: `pending` decides whether any completed run is new, `period` and
-`check` record why a report was not written, and history/last-report.json holds the outcome
-of the latest invocation (ARCHITECTURE.md §`report`, §Scheduling, §Coverage)."""
+"""The unattended report: `pending` decides whether any completed run is new, `period` and the
+deck's `check` record why a report was not written, and history/last-report.json holds the
+outcome of the latest invocation (ARCHITECTURE.md §`report`, §Scheduling, §Coverage)."""
 
-import re
 import unittest
 
-from fixtures import GEM, StudyCase, listing, run, weekly
+from fixtures import GEM, StudyCase, clock, listing, run, weekly
 from test_detect import ADOPTED
 
 OCT = weekly("2026-10-05", 4)
 NOV = weekly("2026-11-02", 4)
 OUTCOMES = {"written", "draft", "nothing_new", "below_floor"}
+PROBLEM = "found title cites a figure the period does not hold"
 
 
 class UnattendedCase(StudyCase):
@@ -32,31 +32,18 @@ class UnattendedCase(StudyCase):
     def pending(self, date, check=0):
         return self.cli("pending", "--study", self.study, "--date", date, check=check)
 
-    def fill(self, date):
-        """method run, every [[...]] marker replaced by plain text."""
-        self.cli("method", "--study", self.study, "--date", date, "--models", self.save("models.json", self.models()),
-                 check=0)
-        path = self.study / "reports" / f"{date}.md"
-        path.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello",
-                               path.read_text(encoding="utf-8")), encoding="utf-8")
-        return path
+    def entries(self):
+        return [(e["date"], e["status"]) for e in self.read("history/reports.json")]
 
-    @staticmethod
-    def models():
-        from fixtures import models
-        return models()
-
-    def invocation(self, date, rows, runs, unattended=True):
+    def invocation(self, date, rows, runs):
         """What the scheduled assistant does: save the listing, ask `pending`, and only when a
-        run is new ingest, build the period and check the report. Returns the check result, or
+        run is new ingest, build the period and check its deck. Returns the check result, or
         None when pending stopped it."""
         self.save_listing(rows)
         if self.pending(date).stdout.startswith("nothing_new"):
             return None
         self.ingest_all([r for r in runs if not (self.study / "history/runs/brand" / f"{r['run']['id']}.json.gz").exists()])
-        self.build(date)
-        path = self.fill(date)
-        return self.cli("check", "--study", self.study, path, *(["--unattended"] if unattended else []))
+        return self.publish(date, unattended=True)
 
 
 def october():
@@ -69,7 +56,7 @@ def october_rows():
 
 class OutcomeTest(UnattendedCase, unittest.TestCase):
 
-    def test_a_report_that_passes_check_records_written(self):
+    def test_a_deck_that_passes_check_records_written(self):
         self.ingest_all(october())
         self.publish("2026-10-31")
         self.assertEqual(self.last()["outcome"], "written")
@@ -77,55 +64,38 @@ class OutcomeTest(UnattendedCase, unittest.TestCase):
 
     def test_the_record_holds_the_time_the_outcome_and_a_detail(self):
         self.ingest_all(october())
-        self.build("2026-10-31", check=0)
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models",
-                 self.save("models.json", self.models()), check=0)
-        self.cli("check", "--study", self.study, self.study / "reports/2026-10-31.md", "--unattended", check=1,
-                 at="2026-11-01T05:00:00Z")
+        with clock("2026-11-01T05:00:00Z"):
+            self.publish("2026-10-31", problems=[PROBLEM], unattended=True)
         record = self.last()
         self.assertEqual(sorted(record), ["at", "detail", "outcome"])
         self.assertEqual(record["at"], "2026-11-01T05:00:00Z")
         self.assertIn(record["outcome"], OUTCOMES)
 
-    def test_a_report_that_fails_check_unattended_is_saved_as_a_draft(self):
+    def test_a_deck_that_fails_check_unattended_records_its_period_as_a_draft(self):
         self.ingest_all(october())
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models",
-                 self.save("models.json", self.models()), check=0)
-        proc = self.cli("check", "--study", self.study, self.study / "reports/2026-10-31.md", "--unattended", check=1)
-        self.assertIn("reports/2026-10-31.draft.md", proc.stdout)
-        self.assertTrue((self.study / "reports/2026-10-31.draft.md").is_file())
-        self.assertFalse((self.study / "reports/2026-10-31.md").exists())
-        entry = self.read("history/reports.json")[0]
-        self.assertEqual((entry["status"], entry["file"]), ("draft", "reports/2026-10-31.draft.md"))
+        proc = self.publish("2026-10-31", problems=[PROBLEM], unattended=True)
+        self.assertIn("recorded as a draft", proc.stdout)
+        self.assertTrue((self.study / "reports/2026-10-31.deck.json").is_file())
+        self.assertEqual(sorted(p.name for p in (self.study / "reports").iterdir()), ["2026-10-31.deck.json"])
+        [entry] = self.read("history/reports.json")
+        self.assertEqual(entry["status"], "draft")
+        self.assertNotIn("file", entry)
         self.assertEqual(entry["runs"], {"brand": [9101, 9102, 9103, 9104]})
         self.assertEqual(self.last()["outcome"], "draft")
-        self.assertIn("left to write", self.last()["detail"])
+        self.assertIn(PROBLEM, self.last()["detail"])
 
-    def test_a_report_that_fails_check_with_the_operator_present_stays_where_it_is(self):
+    def test_a_deck_that_fails_check_with_the_operator_present_records_nothing(self):
         self.ingest_all(october())
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models",
-                 self.save("models.json", self.models()), check=0)
-        self.cli("check", "--study", self.study, self.study / "reports/2026-10-31.md", check=1)
-        self.assertTrue((self.study / "reports/2026-10-31.md").is_file())
-        self.assertFalse((self.study / "reports/2026-10-31.draft.md").exists())
+        self.publish("2026-10-31", problems=[PROBLEM])
+        self.assertTrue((self.study / "reports/2026-10-31.deck.json").is_file())
         self.assertFalse((self.study / "history/reports.json").exists())
         self.assertFalse(self.has_last())
 
-    def test_a_draft_that_is_fixed_and_checked_again_becomes_the_final_report(self):
+    def test_a_draft_that_is_fixed_and_checked_again_becomes_final(self):
         self.ingest_all(october())
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models",
-                 self.save("models.json", self.models()), check=0)
-        self.cli("check", "--study", self.study, self.study / "reports/2026-10-31.md", "--unattended", check=1)
-        draft = self.study / "reports/2026-10-31.draft.md"
-        fixed = self.study / "reports/2026-10-31.md"
-        fixed.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello",
-                                draft.read_text(encoding="utf-8")), encoding="utf-8")
-        self.cli("check", "--study", self.study, fixed, check=0)
-        self.assertEqual([(e["date"], e["status"]) for e in self.read("history/reports.json")],
-                         [("2026-10-31", "final")])
+        self.publish("2026-10-31", problems=[PROBLEM], unattended=True)
+        self.publish("2026-10-31")
+        self.assertEqual(self.entries(), [("2026-10-31", "final")])
         self.assertEqual(self.last()["outcome"], "written")
 
     def test_runs_under_ninety_percent_judged_record_below_floor(self):
@@ -134,7 +104,7 @@ class OutcomeTest(UnattendedCase, unittest.TestCase):
         self.assertEqual(self.last()["outcome"], "below_floor")
         self.assertIn("83%", self.last()["detail"])
         self.assertIn("83%", proc.stdout + proc.stderr)
-        self.assertFalse((self.study / "reports").exists() and list((self.study / "reports").glob("*.md")))
+        self.assertFalse((self.study / "reports").exists())
 
     def test_a_period_with_no_run_records_below_floor(self):
         self.build("2026-10-31", check=4)
@@ -186,43 +156,37 @@ class OutcomeTest(UnattendedCase, unittest.TestCase):
 
 class IdempotenceTest(UnattendedCase, unittest.TestCase):
 
-    def reports(self):
-        return sorted(p.name for p in (self.study / "reports").glob("*.md"))
-
-    def test_two_invocations_on_the_same_runs_write_one_report(self):
+    def test_two_invocations_on_the_same_runs_record_one_period(self):
         first = self.invocation("2026-10-31", october_rows(), october())
         self.assertEqual(first.returncode, 0, first.stdout)
-        before = (self.study / "reports/2026-10-31.md").read_bytes()
+        deck = self.study / "reports/2026-10-31.deck.json"
+        before = deck.read_bytes()
         again = self.invocation("2026-10-31", october_rows(), october())
         self.assertIsNone(again)
-        self.assertEqual(self.reports(), ["2026-10-31.md"])
-        self.assertEqual((self.study / "reports/2026-10-31.md").read_bytes(), before)
-        self.assertEqual(len(self.read("history/reports.json")), 1)
+        self.assertEqual(self.entries(), [("2026-10-31", "final")])
+        self.assertEqual(deck.read_bytes(), before)
         self.assertEqual(self.last()["outcome"], "nothing_new")
 
-    def test_a_later_day_with_the_same_runs_still_writes_nothing(self):
+    def test_a_later_day_with_the_same_runs_still_records_nothing(self):
         self.invocation("2026-10-31", october_rows(), october())
         self.assertIsNone(self.invocation("2026-11-03", october_rows(), october()))
-        self.assertEqual(self.reports(), ["2026-10-31.md"])
+        self.assertEqual(self.entries(), [("2026-10-31", "final")])
 
     def test_a_draft_is_not_written_again_by_the_next_invocation(self):
         self.save_listing(october_rows())
         self.ingest_all(october())
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--models",
-                 self.save("models.json", self.models()), check=0)
-        self.cli("check", "--study", self.study, self.study / "reports/2026-10-31.md", "--unattended", check=1)
+        self.publish("2026-10-31", problems=[PROBLEM], unattended=True)
         self.assertIsNone(self.invocation("2026-11-02", october_rows(), october()))
-        self.assertEqual(self.reports(), ["2026-10-31.draft.md"])
+        self.assertEqual(self.entries(), [("2026-10-31", "draft")])
         self.assertEqual(self.last()["outcome"], "nothing_new")
 
-    def test_a_new_run_after_a_report_writes_the_next_one(self):
+    def test_a_new_run_after_a_report_records_the_next_period(self):
         self.invocation("2026-10-31", october_rows(), october())
         november = [run(run_id=9201 + n, started=s) for n, s in enumerate(NOV)]
         rows = october_rows() + [(9201 + n, "completed", s) for n, s in enumerate(NOV)]
         later = self.invocation("2026-11-30", rows, october() + november)
         self.assertEqual(later.returncode, 0, later.stdout)
-        self.assertEqual(self.reports(), ["2026-10-31.md", "2026-11-30.md"])
+        self.assertEqual(self.entries(), [("2026-10-31", "final"), ("2026-11-30", "final")])
         self.assertEqual(self.last()["outcome"], "written")
 
 

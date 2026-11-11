@@ -1,10 +1,9 @@
-"""The first report on an adopted project rebuilds the periods before it from the
+"""The first period on an adopted project rebuilds the periods before it from the
 project's earlier runs (ARCHITECTURE.md §Periods)."""
 
-import re
 import unittest
 
-from fixtures import StudyCase, models, run, weekly
+from fixtures import StudyCase, run, weekly
 
 ADOPTED = "2026-10-16T09:00:00Z"
 TEN_WEEKS = weekly("2026-08-10", 10)  # 10 August to 12 October, ids 9101 to 9110
@@ -85,27 +84,12 @@ class RebuildTest(StudyCase, unittest.TestCase):
         self.assertEqual(self.period_dates(), ["2026-10-16"])
         self.assertIn("no earlier period", proc.stdout)
         self.assertIsNone(self.period_file("2026-10-16")["comparison"]["previous"])
-        self.cli("method", "--study", self.study, "--date", "2026-10-16",
-                 "--models", self.save("models.json", models()), check=0)
-        report = (self.study / "reports/2026-10-16.md").read_text(encoding="utf-8")
-        self.assertIn("prima misurazione", report)
-        self.assertNotIn("no earlier period", report)
 
-    def test_the_first_report_keeps_the_first_order_and_compares_with_the_rebuilt_weeks(self):
+    def test_the_first_period_is_recorded_compared_with_the_latest_rebuilt_week(self):
         self.history(TEN_WEEKS)
-        self.build("2026-10-16")
-        self.cli("method", "--study", self.study, "--date", "2026-10-16",
-                 "--models", self.save("models.json", models()), check=0)
-        report = (self.study / "reports/2026-10-16.md").read_text(encoding="utf-8")
-        headings = re.findall(r"^## \d+\. (.+)$", report, flags=re.M)
-        self.assertEqual(headings[0], "Cosa abbiamo fatto e a che scopo")
-        self.assertEqual(headings[-1], "Cosa è cambiato")
-        changes = report.split("Cosa è cambiato", 1)[1]
-        self.assertNotIn("prima misurazione", changes)
-        self.assertIn("5 ottobre 2026", changes)
-        self.assertIn("[[", changes)
-        (self.study / "reports/2026-10-16.md").unlink()
         self.publish("2026-10-16")
+        previous = self.period_file("2026-10-16")["comparison"]["previous_period"]
+        self.assertEqual((previous["from"], previous["to"]), (TEN_WEEKS[8], TEN_WEEKS[8]))
         self.assertEqual([e["date"] for e in self.read("history/reports.json")], ["2026-10-16"])
         self.assertEqual(self.read("history/reports.json")[0]["previous"], "2026-10-09")
 

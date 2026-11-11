@@ -24,8 +24,8 @@ if doctor.python_problem():
     print(doctor.python_problem(), file=sys.stderr)
     sys.exit(2)
 
-from sentlmon import (adopt, charts, check, deck, demand, design, detect, exportfile, frontmatter, ingest, livepage, method, pack,  # noqa: E402
-                      pdf, period, runs, schema, setup, snapcompare, snapshot)
+from sentlmon import (adopt, deck, demand, design, detect, exportfile, frontmatter, ingest, livepage, pack, pdf,  # noqa: E402
+                      period, runs, schema, setup, snapcompare, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -111,23 +111,13 @@ def _parser():
     j.add_argument("--study", default=".")
     j.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
 
-    m = command("method", "write the report's method sections and its outline")
-    m.add_argument("--study", default=".")
-    m.add_argument("--date", default=today)
-    m.add_argument("--models", required=True, help="saved list-ai-models response")
-    m.add_argument("--force", action="store_true", help="overwrite an existing report")
-
-    c = command("check", "verify a report before it is final")
+    c = command("check", "verify a deck, reports/<date>.deck.json, or a comparison, <date>.compare.md, before it "
+                         "is final")
     c.add_argument("--study", default=".")
-    c.add_argument("--date", help="period date (default: from the report's file name)")
+    c.add_argument("--date", help="period date (default: from the file's name)")
     c.add_argument("--unattended", action="store_true",
-                   help="no operator to fix the report or the deck: when check fails, record it as a draft, "
-                        "keeping a report as reports/<date>.draft.md")
-    c.add_argument("report", help="the report file")
-
-    g = command("charts", "write a report's figures as Markdown chart tables for a deck")
-    g.add_argument("--study", default=".")
-    g.add_argument("--date", default=today, help="period date, YYYY-MM-DD (default: today)")
+                   help="no operator to fix the deck: when check fails, record the deck and its period as a draft")
+    c.add_argument("report", help="the deck or the comparison")
 
     e = command("deck", "place the period's questions in the deck's blocks and write what the deck's writer fills")
     e.add_argument("--study", default=".")
@@ -136,10 +126,11 @@ def _parser():
     w = command("page", "print what a page's HTML holds: title, description, tooltips and closed answers included")
     w.add_argument("--url", required=True, help="the page, with or without https://")
 
-    f = command("pdf", "write a report as a print-ready page and, when a PDF engine is installed, as a PDF")
+    f = command("pdf", "print the period's deck, which must pass check, as a page and, when a PDF engine is "
+                       "installed, as a PDF, with a copy to send in reports/share/")
     f.add_argument("--study", default=".")
-    f.add_argument("--date", help="report date, YYYY-MM-DD (default: the latest report)")
-    f.add_argument("--deck", action="store_true", help="write the deck of the period, which must pass check")
+    f.add_argument("--date", help="period date, YYYY-MM-DD (default: the latest period)")
+    f.add_argument("--deck", action="store_true", help="accepted as before: pdf prints the deck with or without it")
     f.add_argument("--theme", help="a theme file (.json or .css) in place of the study's, the user's or Sentl's")
 
     h = command("doctor", "report the Python version, the system, whether a study folder is writable and lasts, "
@@ -256,8 +247,6 @@ def main(argv=None):
             print(snapcompare.write(args.first, args.second))
         elif args.command == "period":
             print(period.build(args.study, args.date, args.models))
-        elif args.command == "method":
-            print(method.write(args.study, args.date, args.models, args.force))
         elif args.command == "deck":
             print(deck.write(args.study, args.date))
         elif args.command == "page":
@@ -285,29 +274,18 @@ def main(argv=None):
                   "period's and each text fits its slide. The deck is recorded in history/reports.json as the record of "
                   "its period: the next period starts after its runs.")
         elif args.command == "check":
-            problems = check.check(args.study, args.report, args.date, args.unattended)
-            if problems:
-                print(f"check failed: {len(problems)} problem(s)")
-                for problem in problems:
-                    print(f"  - {problem}")
-                if args.unattended:
-                    day = args.date or Path(args.report).stem.split(".")[0]
-                    print(f"Saved as {Path(args.report).with_name(f'{day}.draft.md')}, recorded as a draft; the next "
-                          "invocation does not write it again.")
-                return 1
-            print("check passed: quotes are verbatim, figures and counts are the period's, sections are in order, "
-                  "and no id, key, model id, file name or credit figure appears. The report is recorded as final "
-                  "in history/reports.json.")
-            if doctor.host_sandbox(doctor.SANDBOX_ROOTS) or doctor.sandbox_root(args.study, doctor.SANDBOX_ROOTS):
-                print(f"This host deletes its files when the conversation ends: run monitor.py pack --study "
-                      f"{args.study} --out <the folder the host offers for download>, copy the report there, and "
-                      "offer the report and the pack for download.")
-        elif args.command == "charts":
-            print(charts.write(args.study, args.date))
-        elif args.command == "pdf" and args.deck:
-            print(deck.render(args.study, args.date, args.theme))
+            day = args.date or Path(args.report).name.split(".")[0]
+            raise Refused(f"{args.report} is not a deck: check reads the deck, reports/<date>.deck.json, or a "
+                          f"comparison, <date>.compare.md. A long report an earlier version wrote is not checked or "
+                          f"printed: run deck --date {day}, write the deck and check it")
         elif args.command == "pdf":
-            print(pdf.write(args.study, args.date, args.theme))
+            message = deck.render(args.study, args.date, args.theme)
+            print(message)
+            copy = message.partition(" To send: ")[2]
+            if copy and (doctor.host_sandbox(doctor.SANDBOX_ROOTS) or doctor.sandbox_root(args.study, doctor.SANDBOX_ROOTS)):
+                print(f"This host deletes its files when the conversation ends: run monitor.py pack --study "
+                      f"{args.study} --out <the folder the host offers for download>, copy {copy} there, and offer the "
+                      "deck and the pack for download.")
         elif args.command == "doctor":
             lines, ok = doctor.report(args.study, skill_version=_skill_version(), printer=pdf.probe)
             print("\n".join(lines))

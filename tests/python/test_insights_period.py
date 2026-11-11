@@ -1,13 +1,10 @@
-"""The insights of DEVPLAN M2b in the period file, the material and `check`."""
+"""The insights of DEVPLAN M2b in the period file and the material."""
 
 import datetime as dt
 import json
-import re
 import unittest
 
-from fixtures import (CHOICE_Q, GEM, GPT, NEW, PRICE_Q, WORK_Q, StudyCase, market_project, models, results, weekly)
-from sentlmon.i18n import TEXT as WORDING
-from test_method import sections
+from fixtures import (CHOICE_Q, GEM, GPT, NEW, PRICE_Q, WORK_Q, StudyCase, market_project, results, weekly)
 
 OCT = weekly("2026-10-05", 4)
 OUTDATED = ("Avenello costa 1,90 € al litro.", 2, ["https://prezzi.example/avena"])
@@ -188,63 +185,6 @@ class PresenceChangeTest(InsightCase, unittest.TestCase):
         self.assertIn("### Presence changes", self.material())
 
 
-class CheckFiguresTest(InsightCase, unittest.TestCase):
-    """Each new figure, written as the material prints it, passes `check`; one not in the period fails."""
-
-    TEXT = {
-        "Prezzo": "In 2 su 4 risposte che citano un prezzo il prezzo è quello vecchio (50%).",
-        "Scelta": "Le pagine di Avoria sono citate da 6 su 8 risposte con fonti (75%). "
-                  "Avenello è nominato in 0 su 2 risposte nella prima rilevazione e in 2 su 2 risposte nella terza.",
-        "Lavoro": "In 2 su 4 risposte Acme Chat dice di non trovare informazioni sullo stabilimento: la sua media è 3,5 "
-                  "con queste risposte e 4,0 senza.",
-    }
-
-    def setUp(self):
-        super().setUp()
-        choice = (("La migliore è Avoria.", 3, ["https://avoria.example/confronto?ref=1", "https://guida.example/latte"]),
-                  ("Avoria ha le offerte migliori.", 3, ["https://shop.avoria.example/offerte"]))
-        named = (("La migliore è Avenello.", 4, ["https://avoria.example/confronto"]),
-                 ("Avenello è buona.", 4, ["https://avenello.example/bevande"]))
-        missing = ((NO_DATA, 3, []), ("Si lavora bene da Avenello.", 4, []))
-        price_two = (("Costa 1,90 € al litro.", 2, []), ("Costava 1,90 €, ora 2,10 €.", 4, []))
-        self.ingest_market(9101, OCT[0], rows(choice=choice))
-        self.ingest_market(9102, OCT[1], rows(choice=choice, work=missing, price=price_two))
-        self.ingest_market(9103, OCT[2], rows(choice=named, work=missing))
-        self.ingest_market(9104, OCT[3], rows(choice=named))
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                 "--models", self.save("models.json", models()), check=0)
-        self.path = self.study / "reports/2026-10-31.md"
-
-    def write(self, text_of):
-        report = self.path.read_text(encoding="utf-8").replace("[[summary]]", "- Le risposte descrivono Avenello.")
-        report = report.replace(WORDING["it"]["changes_marker_halves"], "Le dimensioni sono invariate.")
-        for name, text in text_of.items():
-            report = re.sub(r"(^### " + name + r": )\[\[[^\]]*\]\]\n\n\[\[[^\]]*\]\]",
-                            lambda m: m.group(1) + "le risposte descrivono Avenello\n\n" + text, report, flags=re.M)
-        self.path.write_text(report, encoding="utf-8")
-        return self.cli("check", "--study", self.study, self.path)
-
-    def test_each_insight_figure_from_the_period_passes(self):
-        figures = self.question("2026-10-31", "prezzo", PRICE_Q)["facts"]["total"]
-        self.assertEqual((figures["outdated_only"], figures["stating"]), (4, 8))
-        text = dict(self.TEXT, Prezzo="In 4 su 8 risposte che citano un prezzo il prezzo è quello vecchio (50%); "
-                                      "in 1 su 8 risposte compaiono entrambi.")
-        proc = self.write(text)
-        self.assertEqual(proc.returncode, 0, proc.stdout)
-
-    def test_a_figure_that_is_not_in_the_period_fails(self):
-        for name, old, new in (("Lavoro", "4,0 senza", "4,1 senza"), ("Scelta", "(75%)", "(70%)"),
-                               ("Scelta", "2 su 2 risposte nella terza", "3 su 4 risposte nella terza")):
-            text = dict(self.TEXT, Prezzo="In 4 su 8 risposte il prezzo è quello vecchio (50%).")
-            text[name] = text[name].replace(old, new)
-            self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                     "--models", self.save("models.json", models()), "--force", check=0)
-            proc = self.write(text)
-            self.assertEqual(proc.returncode, 1, f"{new}: {proc.stdout}")
-            self.assertIn(new.split()[0].strip("()"), proc.stdout)
-
-
 class AdoptAnswersTest(StudyCase, unittest.TestCase):
 
     def test_adopt_asks_for_foil_domains_and_fact_terms(self):
@@ -275,8 +215,7 @@ class AdoptAnswersTest(StudyCase, unittest.TestCase):
         (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
         self.ingest_market(9101, OCT[0], rows())
         self.build("2026-10-31")
-        proc = self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                        "--models", self.save("models.json", models()), check=2)
+        proc = self.cli("deck", "--study", self.study, "--date", "2026-10-31", check=2)
         self.assertIn("foils[avoria].domains", proc.stdout + proc.stderr)
         self.assertIn("facts", proc.stdout + proc.stderr)
 
@@ -318,27 +257,6 @@ class EpisodeComparabilityTest(StudyCase, unittest.TestCase):
 
     def question_scope(self, date, dim):
         return next(iter(self.period_file(date)["projects"]["market"]["dimensions"][dim]["questions"].values()))
-
-
-class QuotedTermTest(InsightCase, unittest.TestCase):
-
-    def test_a_fact_term_quoted_in_guillemets_is_not_a_figure(self):
-        outdated = (OUTDATED, ("Costa 1,90 € al litro.", 2, []))
-        for n, start in enumerate(OCT):
-            self.ingest_market(9101 + n, start, rows(price=outdated))
-        self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                 "--models", self.save("models.json", models()), check=0)
-        path = self.study / "reports/2026-10-31.md"
-        report = re.sub(r"(^### Prezzo: )\[\[[^\]]*\]\]\n\n\[\[[^\]]*\]\]",
-                        lambda m: m.group(1) + "le risposte citano il prezzo vecchio\n\n"
-                        "Il prezzo attuale, «2,10 €», non compare in nessuna risposta.",
-                        path.read_text(encoding="utf-8"), flags=re.M)
-        path.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello", report), encoding="utf-8")
-        proc = self.cli("check", "--study", self.study, path)
-        self.assertEqual(proc.returncode, 0, proc.stdout)
-        path.write_text(path.read_text(encoding="utf-8").replace("«2,10 €»", "2,10 €"), encoding="utf-8")
-        self.cli("check", "--study", self.study, path, check=1)
 
 
 class NoFigureTest(unittest.TestCase):

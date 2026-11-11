@@ -192,7 +192,7 @@ class ProjectShapeTest(StudyCase, unittest.TestCase):
         q["grading_rubric"] = [q["grading_rubric"][k] for k in "12345"]
         self.adopt_refused(data, "get-project-tool", "grading_rubric", "1 to 5")
 
-    def test_a_partial_or_missing_rubric_is_accepted_and_never_printed_as_none(self):
+    def test_a_partial_or_missing_rubric_is_accepted(self):
         data = project()
         salute, prezzo = data["project"]["dimensions"][0], data["project"]["dimensions"][1]
         salute["questions"][0]["grading_rubric"] = None
@@ -205,11 +205,10 @@ class ProjectShapeTest(StudyCase, unittest.TestCase):
         self.answer_operator()
         self.ingest(run())
         self.build("2026-10-31")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                 "--models", self.save("models.json", models()), check=0)
-        report = (self.study / "reports" / "2026-10-31.md").read_text(encoding="utf-8")
-        self.assertIn("Prezzo corretto", report)
-        self.assertNotIn("None", report)
+        questions = {q["key"]: q for d in self.read("study.json")["projects"][0]["dimensions"] for q in d["questions"]}
+        self.assertEqual((questions["salute-1"]["rubric"], questions["salute-2"]["rubric"]), ({}, {}))
+        self.assertEqual(questions["prezzo-1"]["rubric"]["5"], "Prezzo corretto")
+        self.assertEqual(questions["prezzo-1"]["label"], "")
 
     def test_a_rubric_with_an_anchor_outside_1_to_5_is_refused(self):
         data = project()

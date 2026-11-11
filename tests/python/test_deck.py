@@ -5,11 +5,12 @@ import json
 import re
 import os
 import shutil
+import sys
 import unittest
 from collections import Counter
 from unittest import mock
 
-from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, listing, models
+from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, listing
 from sentlmon import deck, livepage, pack
 from sentlmon import pdf as report_pdf
 from test_insights_period import CURRENT, OCT, OUTDATED, InsightCase, rows
@@ -603,36 +604,33 @@ class CheckTest(DeckCase, unittest.TestCase):
 
 
 class ReportsIndexTest(DeckCase, unittest.TestCase):
-    """The deck's check wrote the deck's path over the report's in history/reports.json."""
+    """A long report an earlier version recorded in history/reports.json keeps its entry: the deck's check records the
+    deck beside it."""
 
     def deck_check(self):
         self.save_doc(self.filled())
         return self.cli("check", "--study", self.study, self.path, check=0)
 
+    def long_report(self, status="final"):
+        """The long report an earlier version wrote for DATE and its entry; a draft was kept as reports/<date>.draft.md."""
+        name = f"{DATE}.md" if status == "final" else f"{DATE}.draft.md"
+        (self.study / "reports" / name).write_text("# Cosa dicono gli assistenti di Avenello?\n", encoding="utf-8")
+        period = self.period_file(DATE)
+        entry = {"date": DATE, "status": status, "file": f"reports/{name}",
+                 "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"], "previous": None}
+        (self.study / "history" / "reports.json").write_text(json.dumps([entry]), encoding="utf-8")
+        return entry
+
     def test_a_deck_check_keeps_the_report_and_records_the_deck_beside_it(self):
-        self.publish(DATE)
-        report = self.read("history/reports.json")
+        report = self.long_report()
         self.deck_check()
-        self.assertEqual(self.read("history/reports.json"), [{**report[0], "deck": f"reports/{DATE}.deck.json"}])
-
-    def test_a_report_check_after_the_deck_keeps_the_deck(self):
-        self.deck_check()
-        self.publish(DATE)
-        entries = self.read("history/reports.json")
-        self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
-                         [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
-
-    def test_a_report_redone_for_its_date_keeps_the_deck(self):
-        self.publish(DATE)
-        self.deck_check()
-        self.publish(DATE, force=True)
-        entries = self.read("history/reports.json")
-        self.assertEqual([(e["date"], e["status"], e["file"], e["deck"]) for e in entries],
-                         [(DATE, "final", f"reports/{DATE}.md", f"reports/{DATE}.deck.json")])
+        self.assertEqual(self.read("history/reports.json"), [{**report, "deck": f"reports/{DATE}.deck.json"}])
 
     def test_a_deck_checked_beside_a_draft_report_leaves_it_a_draft_and_is_found_later(self):
-        self.cli("method", "--study", self.study, "--date", DATE, "--models", self.save("models.json", models()), check=0)
-        self.cli("check", "--study", self.study, self.study / "reports" / f"{DATE}.md", "--unattended", check=1)
+        self.long_report("draft")
+        (self.study / "history" / "last-report.json").write_text(json.dumps(
+            {"at": "2026-10-31T08:00:00Z", "outcome": "draft", "detail": f"the report of {DATE} failed check"}),
+            encoding="utf-8")
         said = self.deck_check().stdout
         entry = self.read("history/reports.json")[0]
         self.assertEqual((entry["status"], entry["file"], entry["deck"]),
@@ -2117,6 +2115,127 @@ class RenderTest(DeckCase, unittest.TestCase):
         deck.render(self.study, DATE, skip_check=True,
                     printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
         self.assertTrue((self.study / "reports" / f"{DATE}.deck.pdf").exists())
+
+
+class PdfCommandTest(DeckCase, unittest.TestCase):
+    """`pdf` prints the deck, with --deck or without it; on a host that deletes its files, it says to pack."""
+
+    def printed(self, *extra, sandbox=False):
+        self.save_doc(self.filled())
+        self.cli("check", "--study", self.study, self.path, check=0)
+        root = self.study.parent / "mnt-data"
+        if sandbox:
+            root.mkdir()
+        with mock.patch.object(report_pdf, "print_pdf", fake_pdf(10)), \
+                mock.patch.object(sys.modules["sentlmon.doctor"], "SANDBOX_ROOTS", (str(root),)):
+            return self.cli("pdf", "--study", self.study, *extra, check=0).stdout
+
+    def outputs(self):
+        return sorted(p.relative_to(self.study / "reports").as_posix() for p in (self.study / "reports").rglob("*")
+                      if p.is_file())
+
+    def test_pdf_without_deck_prints_the_deck(self):
+        said = self.printed("--date", DATE)
+        self.assertIn(f"{DATE}.deck.pdf", said)
+        self.assertIn("Avenello + Sentl.ai - monitoring deck", said)
+        self.assertTrue((self.study / "reports" / f"{DATE}.deck.pdf").exists())
+
+    def test_pdf_with_and_without_deck_write_the_same_files(self):
+        without = self.printed("--date", DATE)
+        made = self.outputs()
+        self.assertEqual(self.printed("--date", DATE, "--deck"), without)
+        self.assertEqual(self.outputs(), made)
+
+    def test_pdf_without_a_date_prints_the_latest_period_s_deck(self):
+        self.assertIn(f"{DATE}.deck.pdf", self.printed())
+
+    def test_a_deck_failing_check_is_not_printed_without_deck_either(self):
+        self.save_doc(self.filled(actions=[]))
+        self.assertIn("check", self.cli("pdf", "--study", self.study, "--date", DATE, check=2).stderr)
+
+    def test_a_deck_printed_in_a_sandbox_says_to_pack_and_names_the_copy_to_send(self):
+        said = self.printed("--date", DATE, sandbox=True)
+        copy = next((self.study / "reports" / "share").glob("*.pdf"))
+        reminder = said.split("To send:", 1)[1]
+        self.assertIn("monitor.py pack", reminder)
+        self.assertIn(str(copy), reminder.split("monitor.py pack", 1)[1])
+        self.assertIn("download", reminder)
+
+    def test_a_deck_printed_on_a_lasting_folder_says_nothing_of_the_pack(self):
+        self.assertNotIn("monitor.py pack", self.printed("--date", DATE))
+
+    def test_a_theme_logo_that_cannot_be_read_is_named_when_the_deck_prints(self):
+        (self.study / "theme.json").write_text(json.dumps({"logo": "nowhere.png"}), encoding="utf-8")
+        said = self.printed("--date", DATE)
+        self.assertIn("nowhere.png", said)
+        self.assertIn("Sentl's mark", said)
+        self.assertIn(f"{DATE}.deck.pdf", said)
+
+    def test_a_deck_left_unprinted_in_a_sandbox_says_nothing_of_the_pack(self):
+        self.save_doc(self.filled())
+        root = self.study.parent / "mnt-data"
+        root.mkdir()
+        with mock.patch.object(report_pdf, "print_pdf", lambda target, pdf, engines: (None, [])), \
+                mock.patch.object(sys.modules["sentlmon.doctor"], "SANDBOX_ROOTS", (str(root),)):
+            said = self.cli("pdf", "--study", self.study, "--date", DATE, check=0).stdout
+        self.assertIn("print it to PDF", said)
+        self.assertNotIn("monitor.py pack", said)
+
+
+class LongReportTest(InsightCase, unittest.TestCase):
+    """A long report an earlier version wrote gets no page, PDF or share copy, and check reads the deck only."""
+
+    def setUp(self):
+        super().setUp()
+        self.ingest_market(9101, OCT[0], rows())
+        self.build(DATE)
+        period = self.period_file(DATE)
+        self.report = self.study / "reports" / f"{DATE}.md"
+        self.report.parent.mkdir(exist_ok=True)
+        self.report.write_text("# Cosa dicono gli assistenti di Avenello?\n\n## 1. Cosa abbiamo fatto\n\nTesto.\n",
+                               encoding="utf-8")
+        (self.study / "history" / "reports.json").write_text(json.dumps([{
+            "date": DATE, "status": "final", "file": f"reports/{DATE}.md",
+            "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"], "previous": None}]),
+            encoding="utf-8")
+
+    def files(self):
+        return sorted(p.relative_to(self.study / "reports").as_posix() for p in (self.study / "reports").rglob("*"))
+
+    def test_pdf_on_a_long_report_names_the_deck_to_write_and_writes_nothing(self):
+        for extra in (["--date", DATE], ["--date", DATE, "--deck"], []):
+            with self.subTest(extra=extra), mock.patch.object(report_pdf, "print_pdf", fake_pdf(10)):
+                proc = self.cli("pdf", "--study", self.study, *extra, check=2)
+                self.assertIn(f"deck --date {DATE}", proc.stderr)
+                self.assertEqual(self.files(), [f"{DATE}.md"])
+
+    def test_check_on_a_long_report_says_the_deck_is_what_gets_checked(self):
+        draft = self.report.with_name(f"{DATE}.draft.md")
+        draft.write_text(self.report.read_text(encoding="utf-8"), encoding="utf-8")
+        before = self.read("history/reports.json")
+        for path in (self.report, draft):
+            for extra in ([], ["--unattended"]):
+                with self.subTest(path=path.name, extra=extra):
+                    proc = self.cli("check", "--study", self.study, path, *extra, check=2)
+                    self.assertIn("deck.json", proc.stderr)
+        self.assertEqual(self.read("history/reports.json"), before)
+        self.assertTrue(draft.exists() and self.report.exists())
+
+
+class CommandsTest(DeckCase, unittest.TestCase):
+    """The long report's commands are gone: `charts` and `method` are not commands, and --help lists neither."""
+
+    def test_charts_and_method_are_not_commands(self):
+        for name in ("charts", "method"):
+            with self.subTest(name):
+                self.assertIn("invalid choice", self.cli(name, "--study", self.study, "--date", DATE, check=2).stderr)
+
+    def test_help_lists_neither(self):
+        listed = re.findall(r"^    (\w+)\s", self.cli("--help", check=0).stdout, re.M)
+        self.assertIn("deck", listed)
+        self.assertIn("pdf", listed)
+        self.assertNotIn("charts", listed)
+        self.assertNotIn("method", listed)
 
 
 if __name__ == "__main__":

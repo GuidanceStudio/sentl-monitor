@@ -369,7 +369,7 @@ def _halves(study, date, current, chosen, end, reader, versions, names):
     start, span = parse_time(current["from"]), parse_time(current["to"]) - parse_time(current["from"])
     if span < dt.timedelta(days=HALVES_DAYS):
         return None, None, [], [f"The runs span {span.days} days, under the {HALVES_DAYS} needed to compare the two "
-                                "halves of the period, so this report is the first measurement (tell the operator)."]
+                                "halves of the period, so this period is the first measurement (tell the operator)."]
     split = start + (end - start) / 2
     halves = []
     for half, inside in (("first", lambda at: at < split), ("second", lambda at: at >= split)):
@@ -384,7 +384,7 @@ def _halves(study, date, current, chosen, end, reader, versions, names):
     first, second = halves
     both = [k for k in chosen if first["runs"].get(k) and second["runs"].get(k)]
     if not both:
-        return None, None, [], ["No project has runs in both halves of the period, so this report is the first "
+        return None, None, [], ["No project has runs in both halves of the period, so this period is the first "
                                 "measurement (tell the operator)."]
     lines = [f"The runs span {span.days} days: the second half of the period, runs started {second['from'][:10]} to "
              f"{second['to'][:10]}, is compared with the first half, runs started {first['from'][:10]} to "
@@ -910,21 +910,18 @@ def _changes_material(study, period, versions, names, answer_of):
                f"{second['to'][:10]}, is compared with the first half, runs started {first['from'][:10]} to "
                f"{first['to'][:10]}; the halves are split at {halves['split'][:16].replace('T', ' ')} UTC. " + counts,
                "A change is called as with a single earlier period: when the value moves at least 0.5 points "
-               "(presence and the share stating a current term: 20 points). " + write + " The report's line naming "
-               "the two halves and the design lines below the marker are written by method: keep them.", ""]
+               "(presence and the share stating a current term: 20 points). " + write, ""]
     else:
         out = ["## Changes since the previous period", ""]
         if c["previous"] is None:
-            return out + ["There is no earlier period: the report's changes section says this is the first "
-                          "measurement.", ""]
+            return out + ["There is no earlier period: this period is the first measurement.", ""]
         pp = c["previous_period"]
         out += [f"Compared with the period of {c['previous']}, runs started {pp['from']} to {pp['to']}"
                 + (", rebuilt from the project's earlier runs" if pp["rebuilt"] else "")
                 + f". The range is made of the earlier periods {', '.join(c['range_of'])}.",
                 "A change is called when the value lies outside the range and moves at least 0.3 points from the "
                 "previous period (presence and the share stating a current term: 10 points); 0.5 and 20 points with a "
-                "single earlier period. " + write + " The report's design lines below the marker are written by "
-                "method: keep them.", ""]
+                "single earlier period. " + write, ""]
     # Names and wordings as the period asked them; an earlier period's from the versions. Two
     # projects may share a dimension key, and so a question key: both are read with the project.
     dims = {(key, d["key"]): d for key, asked in period["asked"].items() for d in asked}

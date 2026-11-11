@@ -1,5 +1,5 @@
 """Live tier: a snapshot folder produced by running the snapshot route in an organization the operator
-designates for tests: estimate, one run on the operator's go, the report, and how the snapshot was closed.
+designates for tests: estimate, one run on the operator's go, the deck, and how the snapshot was closed.
 
 The assistant runs the route, since only it holds the MCP connection and the operator's go for every
 write and for the run; this test verifies what it left. It also settles assumption A6: a run started
@@ -22,7 +22,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 MONITOR = REPO / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
-ORDER = ["purpose", "dimensions", "questions", "scoring", "findings", "limits"]
 
 
 def read(path):
@@ -77,24 +76,14 @@ class LiveSnapshotTest(unittest.TestCase):
             run = json.load(fh)
         self.assertIn(run["status"], ("completed", "completed_with_warnings"))
 
-    def test_the_report_passes_check_in_the_snapshot_order(self):
+    def test_the_deck_passed_check_and_records_the_one_period(self):
         reports = read(self.study / "history" / "reports.json")
         self.assertEqual([e["status"] for e in reports], ["final"])
-        report = self.study / reports[0]["file"]
-        proc = self.monitor("check", str(report))
-        self.assertEqual(proc.returncode, 0, "check refused the folder's own report (output withheld)")
+        self.assertTrue(reports[0].get("deck"), "the period is not recorded by a deck")
+        proc = self.monitor("check", str(self.study / reports[0]["deck"]))
+        self.assertEqual(proc.returncode, 0, "check refused the folder's own deck (output withheld)")
         validated = self.monitor("validate", "--models", str(self.study / "inbox" / "models.json"))
         self.assertEqual(validated.returncode, 0, "validate refused the folder's snapshot (output withheld)")
-
-    def test_the_report_holds_the_snapshot_sections_and_no_changes_section(self):
-        reports = read(self.study / "history" / "reports.json")
-        text = (self.study / reports[0]["file"]).read_text(encoding="utf-8")
-        lang = self.design["report_language"]
-        sys.path.insert(0, str(MONITOR.parent))
-        from sentlmon.i18n import SECTIONS
-        positions = [text.find(f". {SECTIONS[lang][k]}\n") for k in ORDER]
-        self.assertTrue(all(p >= 0 for p in positions) and positions == sorted(positions))
-        self.assertEqual(text.find(f". {SECTIONS[lang]['changes']}\n"), -1)
 
     def test_the_snapshot_is_closed_kept_archived_or_deleted_and_never_active(self):
         self.assertIn(self.bound["closed"]["how"], ("kept", "archived", "deleted"))

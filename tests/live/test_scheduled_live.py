@@ -39,11 +39,13 @@ class LiveScheduledTest(unittest.TestCase):
         record = self.load("last-report.json")
         self.assertIsNone(re.search(r"\d{5,}", record["detail"]), "last-report.json detail holds an id")
 
-    def test_the_first_invocation_wrote_a_report_that_exists(self):
+    def test_the_first_invocation_wrote_a_deck_that_exists(self):
         entries = self.load("reports.json")
         self.assertTrue(entries, "reports.json is empty")
         for entry in entries:
-            self.assertTrue((self.study / entry["file"]).is_file(), f"{entry['file']} is missing")
+            # An entry an earlier version wrote names its long report in `file`; a draft names no file.
+            rel = entry.get("deck") or entry.get("file") or f"reports/{entry['date']}.deck.json"
+            self.assertTrue((self.study / rel).is_file(), f"{rel} is missing")
 
     def test_no_run_is_in_two_reports(self):
         seen = set()
@@ -52,10 +54,10 @@ class LiveScheduledTest(unittest.TestCase):
             self.assertFalse(seen & ids, f"two reports cover the same run: {entry['date']}")
             seen |= ids
 
-    def test_every_report_file_has_an_entry_in_the_index(self):
-        indexed = {Path(e["file"]).name for e in self.load("reports.json")}
-        files = {p.name for p in (self.study / "reports").glob("*.md") if not p.name.endswith(".charts.md")}
-        self.assertEqual(files - indexed, set())
+    def test_every_deck_has_an_entry_in_the_index(self):
+        indexed = {e["date"] for e in self.load("reports.json")}
+        decks = {p.name.split(".")[0] for p in (self.study / "reports").glob("*.deck.json")}
+        self.assertEqual(decks - indexed, set())
 
 
 if __name__ == "__main__":

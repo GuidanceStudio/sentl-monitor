@@ -4,7 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from fixtures import StudyCase, models, project
+from fixtures import StudyCase, project
 
 MONITOR = Path(__file__).resolve().parents[2] / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 
@@ -40,10 +40,9 @@ class ReportLanguageTest(StudyCase, unittest.TestCase):
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("report_language 'de' is not supported; supported: en, it", proc.stderr)
 
-    def test_method_refuses_it(self):
+    def test_deck_refuses_it(self):
         self.unsupported()
-        proc = self.cli("method", "--study", self.study, "--date", "2026-10-31",
-                        "--models", self.save("models.json", models()))
+        proc = self.cli("deck", "--study", self.study, "--date", "2026-10-31")
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("report_language 'de' is not supported; supported: en, it", proc.stderr)
 

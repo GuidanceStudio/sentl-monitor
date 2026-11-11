@@ -3,7 +3,7 @@
 
 import unittest
 
-from fixtures import ANSWERS, GEM, GPT, NEW, RETIRED, StudyCase, models, project, run, weekly
+from fixtures import ANSWERS, GEM, GPT, NEW, RETIRED, StudyCase, project, run, weekly
 from test_detect import ADOPTED, FOUND, NEW_TEXT, OLD_TEXT, edited
 
 OCT = weekly("2026-10-05", 4)
@@ -354,12 +354,7 @@ class LaterPeriodTest(StudyCase, unittest.TestCase):
         material = (self.study / "history/material/2026-11-30.md").read_text(encoding="utf-8")
         self.assertIn(OLD_TEXT, material)
         self.assertNotIn(NEW_TEXT, material)
-        self.cli("method", "--study", self.study, "--date", "2026-11-30",
-                 "--models", self.save("models.json", models()), check=0)
-        report = (self.study / "reports/2026-11-30.md").read_text(encoding="utf-8")
-        self.assertIn(OLD_TEXT, report)
-        self.assertNotIn(NEW_TEXT, report)
-        self.assertNotIn("Gusto", report)
+        self.assertNotIn("Gusto", material)
 
 
 class ModelsAcrossPeriodsTest(StudyCase, unittest.TestCase):

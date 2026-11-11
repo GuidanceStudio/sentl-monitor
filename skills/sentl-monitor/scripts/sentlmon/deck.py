@@ -4,7 +4,7 @@ The manager knows the market and the competitors, and has never seen the questio
 So the deck says what it shows before any figure, sets each figure beside what it compares with, and writes every label
 in the manager's words. The code places each question in a block by its type and draws every tile, chart and table from
 the period; the writer fills only the text of `reports/<date>.deck.json`, which `check` reads against the period
-(ARCHITECTURE.md §The deck). The page holds no script and no network reference, like the report's.
+(ARCHITECTURE.md §The deck). The page holds no script and no network reference.
 """
 
 import html
@@ -21,16 +21,14 @@ from . import fit
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .adopt import missing_answers
-from .charts import span
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
-from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, passed_deck,
-                     require_language, write_json, write_text)
+from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, measured, passed_deck,
+                     require_language, span, write_json, write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
 from .insights import page_of as cited_page
-from .method import measured
 from .period import Reader, _answers_to, _authors, _runs_of
 
 SCHEMA = "sentl-monitor/deck@2"
@@ -1861,7 +1859,7 @@ def problems_of(folder, study, period, doc, layout=True):
     quotable = _quotable(study)
     tied, read = _tied_counts(doc, m, lambda t: _unquote(t, quotable, answers))
     problems += tied + _most_cited(doc, m)
-    problems += _figures(_unquote(text, quotable, answers, shown), lang, (*allowed[:2], allowed[2] | read), every_count=True)
+    problems += _figures(_unquote(text, quotable, answers, shown), lang, (*allowed[:2], allowed[2] | read))
     # A deck missing a part of its structure is not laid out: its slides would be drawn from what is missing.
     return problems + (_overflowing(folder, study, period, doc, m) if layout and not structure else [])
 
@@ -2587,7 +2585,8 @@ def _spilling(path, count, total):
 
 
 def render(root, date=None, option=None, printer=None, skip_check=False):
-    """reports/<date>.deck.html and .pdf; the copy to send goes to reports/share/."""
+    """reports/<date>.deck.html and .pdf; the copy to send goes to reports/share/. The message opens with what of the
+    theme fell back, such as a logo that cannot be read."""
     folder, date, study, period, doc = load(root, date)
     if doc is None:
         raise Refused(f"no deck for {date}: run deck --date {date} and write its text first")
@@ -2597,21 +2596,22 @@ def render(root, date=None, option=None, printer=None, skip_check=False):
         if found:
             raise Refused(f"the deck fails check on {len(found)} point(s): run check on it, then pdf --deck again")
     text, slides = page_of(root, date, option)
+    notes = "".join(f"{note}. " for note in sentl_theme.resolve(folder, option)[1])
     target = folder.path("reports", f"{date}.deck.html")
     pdf = folder.path("reports", f"{date}.deck.pdf")
     write_text(target, text)
     engine, failures = (printer or report_pdf.print_pdf)(target, pdf, ENGINES)
     if not engine:
         why = "; ".join(failures) or "no PDF engine (chromium, google-chrome, weasyprint) is on this machine"
-        return f"Wrote {target}. The PDF was not written ({why}): open the page in a browser and print it to PDF."
+        return f"{notes}Wrote {target}. The PDF was not written ({why}): open the page in a browser and print it to PDF."
     count = pages(pdf)
     if count != slides:
         over = _spilling(pdf, count, slides)
         where = f" (slide {', '.join(map(str, over))} runs over)" if over else ""
         raise Refused(f"{count} pages for {slides} slides{where}: shorten the text of that slide, then pdf --deck again")
-    name = report_pdf.share_name(folder, study, date, "monitoring deck")
+    name = report_pdf.share_name(folder, study, date)
     shared = folder.path("reports", "share")
     shared.mkdir(exist_ok=True)
     copy = shared / f"{name}.pdf"
     shutil.copyfile(pdf, copy)
-    return f"Wrote {target} and {pdf} ({slides} slides, engine: {engine}). To send: {copy}"
+    return f"{notes}Wrote {target} and {pdf} ({slides} slides, engine: {engine}). To send: {copy}"

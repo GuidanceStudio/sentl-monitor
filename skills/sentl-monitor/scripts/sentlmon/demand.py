@@ -1,5 +1,5 @@
 """Search demand: Google's suggestions for the seeds of a theme or of a persona, volumes from a keyword-data
-source, keyword classes, and the lines the report's themes section prints.
+source, and keyword classes.
 
 The suggestion endpoint is the only network call the skill makes. Volumes are never fetched:
 they come from a file the assistant saved from a keyword-data server, or from an export file.
@@ -14,8 +14,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
-from .common import MONTHS, Refused, Study, fmt_date, first_mention, folded, load_json, now_iso, write_json
-from .i18n import TEXT, join, phrase
+from .common import Refused, Study, first_mention, folded, load_json, now_iso, write_json
 
 SEEDS_SCHEMA = "sentl-monitor/seeds@1"
 DEMAND_SCHEMA = "sentl-monitor/search-demand@1"
@@ -441,46 +440,3 @@ def summary(root, seeds_file=None):
     lines.append(NO_VOLUME if not source else
                  f"volume source: {', '.join(source['providers'])}, {source['from']} to {source['to']}")
     return "\n".join(lines + _persona_lines(data, seeds))
-
-
-# --- the report ---------------------------------------------------------------
-
-def _number_text(n, lang):
-    text = f"{n:,}"
-    return text.replace(",", ".") if lang == "it" else text
-
-
-def _month(date, lang):
-    day = dt.date.fromisoformat(date)
-    return f"{MONTHS[lang][day.month - 1]} {day.year}"
-
-
-def report_lines(data, themes, lang):
-    """The themes section's lines on search demand for `themes` (id, label pairs); empty when
-    the search demand holds none of them."""
-    t = TEXT[lang]
-    lines = []
-    for theme_id, label in themes:
-        block = (data.get("themes") or {}).get(theme_id)
-        if not block:
-            continue
-        s = summarize({"themes": {theme_id: block}})[theme_id]
-        parts = []
-        if block["autocomplete"]:
-            latest = max(e["collected"] for e in block["autocomplete"])
-            parts.append(t["demand_suggestions"][s["suggestions"] != 1].format(n=s["suggestions"])
-                         + f" ({_month(latest, lang)}).")
-        if s["volume"]:
-            dates = sorted({e["collected"] for e in block["volumes"]})
-            when = (fmt_date(dates[0], lang) if len(dates) == 1 else
-                    phrase(lang, "span", start=fmt_date(dates[0], lang), end=fmt_date(dates[-1], lang)))
-            classes = "; ".join(f"{_number_text(v, lang)} {t['volume_classes'][c]}" for c, v in s["volume"].items())
-            providers = join(sorted({e["provider"] for e in block["volumes"]}), lang)
-            parts.append(t["demand_monthly"].format(classes=classes, provider=providers, when=when))
-        lines.append(f"- {label}: " + " ".join(parts))
-    if not lines:
-        return []
-    out = [f"**{t['demand_title']}**", ""] + lines + [""]
-    if not data.get("volume_source"):
-        out += [t["no_volume"], ""]
-    return out

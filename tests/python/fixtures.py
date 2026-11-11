@@ -11,7 +11,6 @@ import gzip
 import importlib.util
 import io
 import json
-import re
 import subprocess
 import sys
 import tempfile
@@ -320,21 +319,20 @@ class StudyCase:
         return self.cli("period", "--study", self.study, "--date", date,
                         "--models", self.save("models.json", models()), check=check)
 
-    def publish(self, date, fill="le risposte descrivono Avenello", changes=None, force=False):
-        """period, method, the changes in the answers written as `changes` and every other
-        [[...]] marker filled with plain text, check: the report is final. `force` writes it again over its file."""
+    def publish(self, date, problems=(), unattended=False):
+        """The period of `date` built and recorded by its deck: reports/<date>.deck.json, written when missing, goes
+        through `check` with the deck's own tests (deck.problems_of) answering `problems`, so the real recording path
+        of `check` writes the entry. With no problems the period is final; with some, check exits 1 and, `unattended`,
+        records the period as a draft."""
+        from sentlmon import deck
         self.build(date)
-        self.cli("method", "--study", self.study, "--date", date,
-                 "--models", self.save("models.json", models()), *(["--force"] if force else []), check=0)
-        path = self.study / "reports" / f"{date}.md"
-        text = path.read_text(encoding="utf-8")
-        if changes:
-            from sentlmon.i18n import TEXT
-            marker = TEXT[self.read("study.json")["report_language"]]["changes_marker"]
-            self.assertIn(marker, text)
-            text = text.replace(marker, changes)
-        path.write_text(re.sub(r"\[\[[^\]]*\]\]", fill, text), encoding="utf-8")
-        return self.cli("check", "--study", self.study, path, check=0)
+        path = self.study / "reports" / f"{date}.deck.json"
+        if not path.exists():
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps({"schema": deck.SCHEMA, "date": date}), encoding="utf-8")
+        with mock.patch.object(deck, "problems_of", return_value=list(problems)):
+            return self.cli("check", "--study", self.study, path, *(["--unattended"] if unattended else []),
+                            check=1 if problems else 0)
 
     def period_file(self, date):
         return self.read(f"history/periods/{date}.json")

@@ -6,10 +6,10 @@ change with one run on each side."""
 from pathlib import Path
 
 from .check import _order, _sections, leaks
-from .common import Refused, Study, fmt_date, fmt_decimal, fmt_percent, load_json, match_key, public_name, write_json, write_text
+from .common import (Refused, Study, fmt_date, fmt_decimal, fmt_percent, load_json, match_key, measured, public_name, write_json,
+                     write_text)
 from .compare import STEPS, _models, _pool, called
 from .i18n import COMPARE, COMPARE_ORDER, SECTIONS, join
-from .method import measured
 
 
 class _Side:

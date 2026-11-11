@@ -33,7 +33,7 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the deck as a PDF, and the copy to send), `page` (what a page the answers cite holds), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the deck as a PDF, and the copy to send, with or without `--deck`), `page` (what a page the answers cite holds), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a period needs), `pending` (says whether an unattended `report` has a new run) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
@@ -498,10 +498,8 @@ designate for tests, with no run started: `RUN_LIVE=1 SENTL_LIVE_SETUP_STUDY=<fo
 SENTL_LIVE_TEST_ORG=<organization slug> bash tests/test_all.sh`.
 The search-demand live test needs only `RUN_LIVE=1`: it sends one request to Google's suggestion
 endpoint.
-`python3 tests/python/sample_study.py <empty folder>` builds the fictional study the sample
-report was written from.
 
-The repository is public: fixtures, examples and docs use fictional subjects, and a change must
+The repository is public: fixtures and docs use fictional subjects, and a change must
 not name a real client, brand or person. Design and plan are in [ARCHITECTURE.md](ARCHITECTURE.md)
 and [DEVPLAN.md](DEVPLAN.md).
 
@@ -515,7 +513,6 @@ install.sh             installs the skill for Claude Code, Codex and opencode
 .claude-plugin/        the Claude Code plugin and marketplace manifests
 .github/workflows/     the tests on Python 3.10 to 3.13; the release zip on a v* tag
 tools/build_zip.py     builds dist/sentl-monitor.zip, the zip claude.ai and ChatGPT upload
-examples/              the sample report and its charts
 skills/sentl-monitor/  the skill
   SKILL.md             router
   LICENSE              copy of LICENSE, shipped in the zip
@@ -528,7 +525,7 @@ skills/sentl-monitor/  the skill
   report/DECK.md       how the deck of a period is written, checked and printed
   snapshot/SNAPSHOT.md how a one-off snapshot of a subject is designed and run, and its deck written
   compare/COMPARE.md   how two snapshots of one subject are set side by side
-  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, compare, method, check, charts, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, doctor, pack, unpack
+  scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, import, download, period, compare, check, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, promote, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only
 tests/                 bash suites, Python unit tests, opt-in live tests
 ```

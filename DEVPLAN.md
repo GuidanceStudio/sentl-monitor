@@ -1261,7 +1261,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Tasks:**
 - [x] Test: unit — a period whose only record is a deck that passed `check` bounds the next period (it starts after the deck's last run); an unattended deck `check` records `last-report.json`; implement in `deck.py`, `common.py`, `runs.py`; commit and push
-- [ ] Test: unit — `pdf` without `--deck` prints the deck; the long report has no page, PDF or share copy; remove `charts` and the report-only code the suite no longer reaches; commit and push
+- [x] Test: unit — `pdf` without `--deck` prints the deck; the long report has no page, PDF or share copy; remove `charts` and the report-only code the suite no longer reaches; commit and push
 - [x] Test: structure — REPORT.md ends at the period and hands over to DECK.md; unattended mode ends with the deck; SNAPSHOT.md steps 9 and 11 lead to the deck; SKILL.md "When to use", routes and web-host rule name the deck as what the reader receives; README route table, "A first report, step by step", scheduled reports; ARCHITECTURE, CHANGELOG; commit and push
 - [ ] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
 
@@ -1270,6 +1270,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 **Deviations:**
 - Task 1: the deck's `check` already wrote a deck-only entry with its runs (since 0.7.2), so the bounding tests are guards, proven by breaking the record; the new code is the unattended draft and a draft deck made final. The snapshot deck test is in `test_snapshot.py`.
 - Task 3 ran before task 2: the structure suites check every playbook and README command against `monitor.py --help`, so the docs moved to the deck first and the code goes after them. Task 3 also carries three code changes the playbooks rely on: `deck` asks for the operator's missing answers (the gate `method` held), `snapshot resume` prints `deck` where it printed `report`, and `promote` needs a passing deck. `report/INSIGHTS.md` is removed with the long report's steps. Unattended, the deck's reader's test and audit are left to the operator. ARCHITECTURE's sections on the long report (§The report, §Charts for a deck, the report's `check` in §`history/reports.json`) go with their code in task 2.
+- Task 2: `charts.py`, `method.py`, `examples/` and the long report's `check`, page and share copy are removed; `span` and `measured` moved to `common.py`. `check` on `reports/D.md` or `.draft.md` exits 2 and names the deck. The theme's `footer` key is no longer read, since only the long report's page printed it. `pdf` now says when a theme's logo cannot be read, as the long report's `pdf` did. The refusal for runs a slim pack lacks names the period, since only `period` reaches it.
 
 ## R11: Release 0.8.0
 

@@ -1,6 +1,5 @@
-"""Live tier for a first report on a monitor younger than its report interval: the report's
-`changes` section compares the second half of its period with the first, and the report
-passes `check`.
+"""Live tier for a first report on a monitor younger than its report interval: its period
+compares the second half with the first, and its deck passes `check`.
 
 The assistant runs the report route with read-only tools; this test verifies what it left.
 Opt in with RUN_LIVE=1, SENTL_LIVE_STUDY (the study folder, outside this repository) and
@@ -9,7 +8,6 @@ SENTL_LIVE_PROJECT (the Sentl project id).
 
 import json
 import os
-import re
 import subprocess
 import sys
 import unittest
@@ -20,8 +18,6 @@ MONITOR = REPO / "skills" / "sentl-monitor" / "scripts" / "monitor.py"
 sys.path.insert(0, str(MONITOR.parent))
 
 from sentlmon.compare import dimension_entries  # noqa: E402
-from sentlmon.i18n import SECTIONS, TEXT  # noqa: E402
-from sentlmon.method import halves_line  # noqa: E402
 
 
 def load(path):
@@ -44,14 +40,6 @@ class LiveHalvesTest(unittest.TestCase):
         periods = self.study / "history" / "periods"
         self.period = load(periods / f"{self.first['date']}.json")
         self.halves = [periods / f"{self.first['date']}.{h}.json" for h in ("first", "second")]
-        self.report = (self.study / self.first["file"]).read_text(encoding="utf-8")
-        self.config = load(self.study / "study.json")
-        self.lang = self.config["report_language"]
-
-    def changes(self):
-        title = SECTIONS[self.lang]["changes"]
-        parts = re.split(r"^## \d+\. (.+)$", self.report, flags=re.M)
-        return dict(zip(parts[1::2], parts[2::2])).get(title, "")
 
     def test_the_study_folder_is_outside_the_repository(self):
         self.assertFalse(self.study.is_relative_to(REPO))
@@ -68,15 +56,10 @@ class LiveHalvesTest(unittest.TestCase):
         self.assertTrue(compared, "no dimension of the project is in the comparison")
         self.assertTrue(any(e["status"] == "compared" for e in compared), "no dimension is compared between the halves")
 
-    def test_the_changes_section_names_the_halves_and_holds_the_changes_in_the_answers(self):
-        changes = self.changes()
-        self.assertIn(halves_line(self.period["comparison"]["halves"], self.lang, self.config["projects"]), changes)
-        self.assertNotIn(TEXT[self.lang]["first"], changes)
-        self.assertNotIn("[[", changes)
-
-    def test_the_first_report_passes_check(self):
+    def test_the_first_deck_passes_check(self):
+        self.assertIn("deck", self.first, "the first period has no deck recorded in history/reports.json")
         proc = subprocess.run([sys.executable, str(MONITOR), "check", "--study", str(self.study),
-                               "--date", self.first["date"], str(self.study / self.first["file"])],
+                               "--date", self.first["date"], str(self.study / self.first["deck"])],
                               capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 

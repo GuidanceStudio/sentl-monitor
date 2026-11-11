@@ -1,10 +1,9 @@
 """A name counts where the reader of an answer reads it: in its text, not in a link's address (DEVPLAN M24)."""
 
 import json
-import re
 import unittest
 
-from fixtures import AVORIA, models
+from fixtures import AVORIA
 from sentlmon import deck
 from sentlmon.common import prose
 from sentlmon.period import Reader
@@ -117,13 +116,6 @@ class EarlierPeriodTest(DeckCase, unittest.TestCase):
     def setUp(self):
         super().setUp()
         age(self.study, DATE)
-
-    def test_the_report_is_written_and_passes_check(self):
-        self.cli("method", "--study", self.study, "--date", DATE, "--models", self.save("models.json", models()), check=0)
-        path = self.study / "reports" / f"{DATE}.md"
-        path.write_text(re.sub(r"\[\[[^\]]*\]\]", "le risposte descrivono Avenello", path.read_text(encoding="utf-8")),
-                        encoding="utf-8")
-        self.cli("check", "--study", self.study, path, check=0)
 
     def test_the_deck_passes_check_and_prints(self):
         self.cli("deck", "--study", self.study, "--date", DATE, check=0)

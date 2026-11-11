@@ -158,18 +158,18 @@ class Study:
     def require_runs(self, periods, date):
         """Refuse when `periods` list runs that history/runs does not hold. A study folder never
         deletes a run; one unpacked from a pack written without --full holds the runs the next
-        report reads, and not those of the periods before the latest report."""
+        period reads, and not those of the periods before the latest one."""
         lacking = sorted({(key, run_id) for period in periods for key, ids in (period.get("runs") or {}).items()
                           for run_id in ids if not self.path("history", "runs", key, f"{run_id}.json.gz").is_file()},
                          key=str)
         if lacking:
             shown = ", ".join(f"run {i} of {k}" for k, i in lacking[:5]) + (", ..." if len(lacking) > 5 else "")
-            raise Refused(f"the report of {date} reads runs this folder does not hold ({shown}): the folder was "
-                          "unpacked from a pack written without --full, which holds what the next report reads. "
-                          f"To build or check the report of {date} again, unpack a pack written with --full")
+            raise Refused(f"the period of {date} reads runs this folder does not hold ({shown}): the folder was "
+                          "unpacked from a pack written without --full, which holds what the next period reads. "
+                          f"To build the period of {date} again, unpack a pack written with --full")
 
     def record_report(self, entry):
-        """One entry per date. A report's check keeps the deck an earlier check recorded beside it."""
+        """One entry per date. An entry written again keeps the deck an earlier check recorded beside it."""
         old = next((e for e in self.reports() if e["date"] == entry["date"]), {})
         if "deck" in old and "deck" not in entry:
             entry = {**entry, "deck": old["deck"]}
@@ -189,6 +189,22 @@ class Study:
             raise ValueError(f"unknown outcome {outcome!r}")
         write_json(self.path("history", "last-report.json"),
                    {"at": now_iso(), "outcome": outcome, "detail": " ".join(detail.split())})
+
+
+def measured(study, period):
+    """(project, dimensions) pairs of what the period asked: each dimension and question named
+    and worded as the period's runs had them, with the study's other fields for it."""
+    out = []
+    for proj in study["projects"]:
+        asked = period.get("asked", {}).get(proj["key"])
+        if not asked:
+            continue
+        dims = {d["key"]: d for d in proj["dimensions"]}
+        questions = {q["key"]: q for d in proj["dimensions"] for q in d["questions"]}
+        out.append((proj, [{**dims.get(d["key"], {}), "key": d["key"], "name": d["name"],
+                            "questions": [{**questions.get(q["key"], {}), **q} for q in d["questions"]]}
+                           for d in asked]))
+    return out
 
 
 def passed_deck(entry):
@@ -339,6 +355,22 @@ def fmt_date(value, lang):
     day = value if isinstance(value, dt.date) else parse_time(value) if "T" in value else dt.date.fromisoformat(value)
     number = "1°" if lang == "it" and day.day == 1 else str(day.day)
     return f"{number} {MONTHS[lang][day.month - 1]} {day.year}"
+
+
+def span(start, end, lang):
+    """The days from `start` to `end`, written short: 8–19 ottobre 2026."""
+    a, b = parse_time(start).date(), parse_time(end).date()
+    month = MONTHS[lang]
+
+    def day(d):
+        return "1°" if lang == "it" and d.day == 1 else str(d.day)
+    if a == b:
+        return fmt_date(a, lang)
+    if (a.year, a.month) == (b.year, b.month):
+        return f"{day(a)}–{day(b)} {month[b.month - 1]} {b.year}"
+    if a.year == b.year:
+        return f"{day(a)} {month[a.month - 1]} – {day(b)} {month[b.month - 1]} {b.year}"
+    return f"{fmt_date(a, lang)} – {fmt_date(b, lang)}"
 
 
 def now_iso():

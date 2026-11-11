@@ -1,5 +1,5 @@
-"""The snapshot route's script: `validate`, `review`, `payload` and `bind` in snapshot mode, the report a
-snapshot writes (`period`, `method`, `check`), `resume`, and `close`."""
+"""The snapshot route's script: `validate`, `review`, `payload` and `bind` in snapshot mode, the period of its one run
+and the deck that records it, `resume`, `close` and `promote`."""
 
 import json
 import re
@@ -15,11 +15,8 @@ from snapshot_study import (ANSWERS as RUN_ANSWERS, ASKED_BY, BOUND_AT, DATE, KE
                             search_demand, seeds_file)
 
 from sentlmon import deck, demand
-from sentlmon.i18n import TEXT
 
 TOOLS = ("create-project-tool", "create-snapshot-tool", "update-project-settings-tool", "save-project-questions-tool")
-SNAPSHOT_ORDER = ["What we did and to what end", "The dimensions and how we reached them", "The questions",
-                  "How the answers are scored", "What the assistants say", "What a single run cannot show"]
 
 
 def dim(study, key):
@@ -28,16 +25,6 @@ def dim(study, key):
 
 def q(study, key):
     return dim(study, key.rsplit("-", 1)[0])["questions"][0]
-
-
-def replace_last(text, old, new):
-    head, _, tail = text.rpartition(old)
-    return head + new + tail
-
-
-def sections(text):
-    parts = re.split(r"^## \d+\. (.+)$", text, flags=re.M)
-    return dict(zip(parts[1::2], parts[2::2]))
 
 
 class SnapshotCase(StudyCase, unittest.TestCase):
@@ -99,25 +86,6 @@ class SnapshotCase(StudyCase, unittest.TestCase):
     def period(self, check=0):
         return self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=check)
 
-    def method(self, check=0):
-        return self.cli("method", "--study", self.study, "--date", DATE, "--models", self.models, check=check)
-
-    def report_path(self):
-        return self.study / "reports" / f"{DATE}.md"
-
-    def report(self):
-        return self.report_path().read_text(encoding="utf-8")
-
-    def write_report(self, fill="the answers describe Avenello", edit=None):
-        """period, method, every [[...]] marker filled, `edit` applied to the text; check is not run."""
-        self.period()
-        self.method()
-        text = re.sub(r"\[\[[^\]]*\]\]", fill, self.report())
-        self.report_path().write_text(edit(text) if edit else text, encoding="utf-8")
-
-    def check(self, check=None):
-        return self.cli("check", "--study", self.study, self.report_path(), check=check)
-
     def close(self, saved, check=0):
         return self.cli("close", "--study", self.study, "--saved", self.save("project-closed.json", saved),
                         check=check, at="2026-10-22T12:00:00Z")
@@ -128,9 +96,10 @@ class SnapshotCase(StudyCase, unittest.TestCase):
     def forget_run(self):
         (self.study / "history" / "runs" / KEY / f"{RUN_ID}.json.gz").unlink()
 
-    def final_deck(self):
-        """The one run ingested, its period built and its deck passed check, as SNAPSHOT.md step 9 ends."""
-        self.bind_full()
+    def final_deck(self, edit=None):
+        """The one run ingested, its period built and its deck passed check, as SNAPSHOT.md step 9 ends. `edit` changes
+        the project Sentl holds."""
+        self.bind_full(edit=edit)
         self.ingest_run()
         self.period()
         with mock.patch.object(deck, "MIN_ANSWERS", 1), mock.patch.object(deck, "MIN_SITE_ANSWERS", 1):
@@ -375,21 +344,15 @@ class PayloadSnapshotTest(SnapshotCase):
         self.assertIsNone(self.read(f"history/versions/{KEY}-002.json")["settings"]["schedule"])
 
 
-# --- the report -----------------------------------------------------------------
+# --- the period ---------------------------------------------------------------
 
-class SnapshotReportTest(SnapshotCase):
+class SnapshotPeriodTest(SnapshotCase):
+    """The period of the snapshot's one run: no cadence, nothing to compare with, one run only."""
 
     def setUp(self):
         super().setUp()
         self.bind_full()
         self.ingest_run()
-
-    def test_method_lays_out_the_snapshot_order_with_limits_last(self):
-        self.period()
-        self.method()
-        headings = re.findall(r"^## (\d+)\. (.+)$", self.report(), flags=re.M)
-        self.assertEqual([t for _, t in headings], SNAPSHOT_ORDER)
-        self.assertEqual([int(n) for n, _ in headings], list(range(1, 7)))
 
     def test_the_period_needs_no_report_cadence_and_has_no_comparison(self):
         self.assertNotIn("report_every", self.design)
@@ -408,126 +371,6 @@ class SnapshotReportTest(SnapshotCase):
         self.ingest_run(run_id=7002, started="2026-10-22T10:00:00Z")
         proc = self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=2)
         self.assertIn("one run", proc.stderr)
-
-    def test_the_dimensions_section_says_what_each_dimension_measures_and_why_it_was_chosen(self):
-        self.period()
-        self.method()
-        body = sections(self.report())["The dimensions and how we reached them"]
-        self.assertIn("**Price**", body)
-        self.assertIn("whether the assistants give the price the brand's page states", body)
-        self.assertIn("the reader decides on price pages", body)
-
-    def test_the_scoring_section_gives_no_overall_score_and_no_rule_for_changes_between_periods(self):
-        self.period()
-        self.method()
-        body = sections(self.report())["How the answers are scored"]
-        self.assertNotIn("mean of the dimensions", body)
-        self.assertNotIn("Between periods", body)
-        self.assertIn("names no brand", body)
-
-    def test_the_limits_section_says_what_one_run_cannot_show(self):
-        self.period()
-        self.method()
-        body = sections(self.report())["What a single run cannot show"]
-        self.assertIn("rests on one question", body)
-        self.assertIn("one answer from each assistant", body)
-        self.assertIn("monitoring study", body)
-
-    def test_method_asks_for_no_audience_and_no_cadence(self):
-        study = self.read("study.json")
-        self.assertNotIn("audience", study["narrative"])
-        self.period()
-        self.method(check=0)
-
-    def test_the_questions_section_names_who_asks_each_question_and_the_suggestion_it_started_from(self):
-        self.period()
-        self.method()
-        body = sections(self.report())["The questions"]
-        self.assertIn("- Is Avenello oat milk bad for you? (asked by: a parent who read that oat milk has too much sugar; "
-                      "from the Google suggestion “is oat milk bad for you”)", body)
-        for key in ("reputation", "recommendation", "price"):
-            self.assertIn(f"“{SUGGESTIONS[key]}”", body)
-        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
-
-    def without_suggestions(self, seeds, demand_data):
-        """The report's questions section for a snapshot whose questions carry no suggestion, in a folder holding
-        `seeds` and `demand_data` (None: no such file)."""
-        study = self.read("study.json")
-        for d in study["projects"][0]["dimensions"]:
-            d["questions"][0].pop("suggestion")
-        self.put(study)
-        self.searched(seeds, demand_data)
-        self.write_report()
-        return sections(self.report())["The questions"]
-
-    def test_a_snapshot_whose_seeds_gave_no_suggestion_says_they_could_not_be_collected(self):
-        body = self.without_suggestions(seeds_file(), search_demand(found=False))
-        self.assertIn(TEXT["en"]["no_suggestions"], body)
-        self.assertNotIn("Google suggestion “", body)
-        self.check(check=0)
-
-    def test_seeds_with_no_search_demand_file_say_the_same(self):
-        body = self.without_suggestions(seeds_file(), None)
-        self.assertIn(TEXT["en"]["no_suggestions"], body)
-
-    def test_suggestions_collected_but_left_off_the_questions_print_no_such_sentence(self):
-        body = self.without_suggestions(seeds_file(), search_demand())
-        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
-
-    def test_a_snapshot_made_before_suggestions_says_nothing_about_them(self):
-        body = self.without_suggestions(None, None)
-        self.assertNotIn(TEXT["en"]["no_suggestions"], body)
-        self.assertNotIn("Google", body)
-
-    def test_the_italian_report_says_so_in_italian(self):
-        study = self.read("study.json")
-        study["report_language"] = "it"
-        for d in study["projects"][0]["dimensions"]:
-            d["questions"][0].pop("suggestion")
-        self.put(study)
-        self.searched(seeds_file(), search_demand(found=False))
-        self.period()
-        self.method()
-        self.assertIn(TEXT["it"]["no_suggestions"], self.report())
-
-    def test_a_filled_snapshot_report_passes_check(self):
-        self.write_report()
-        proc = self.check(check=0)
-        self.assertIn("check passed", proc.stdout)
-        self.assertEqual([e["status"] for e in self.read("history/reports.json")], ["final"])
-
-    def test_check_refuses_a_changes_section(self):
-        self.write_report(edit=lambda t: t + "\n## 7. What changed\n\nNothing has changed.\n")
-        proc = self.check(check=1)
-        self.assertIn("a snapshot report has no section What changed", proc.stdout)
-
-    def test_check_refuses_a_summary_or_a_themes_section_too(self):
-        self.write_report(edit=lambda t: t + "\n## 7. In short\n\nThe answers are favourable.\n")
-        self.assertIn("a snapshot report has no section In short", self.check(check=1).stdout)
-
-    def test_check_refuses_a_figure_for_the_whole_project(self):
-        self.write_report(edit=lambda t: replace_last(t, "the answers describe Avenello", "the overall score is 3.4"))
-        proc = self.check(check=1)
-        self.assertIn("figure 3.4 is not in the period's figures", proc.stdout)
-
-    def test_check_refuses_a_figure_for_the_whole_project_written_before_the_first_dimension(self):
-        self.write_report(edit=lambda t: t.replace("## 5. What the assistants say\n\n",
-                                                   "## 5. What the assistants say\n\nThe overall score is 3.4.\n\n"))
-        self.assertIn("figure 3.4 is not in the period's figures", self.check(check=1).stdout)
-
-    def test_check_accepts_the_figure_of_a_dimension(self):
-        self.write_report(edit=lambda t: replace_last(t, "the answers describe Avenello", "the dimension scores 3.0"))
-        self.check(check=0)
-
-    def test_check_refuses_a_credit_figure(self):
-        self.write_report(edit=lambda t: replace_last(t, "the answers describe Avenello", "the run cost 20 credits"))
-        proc = self.check(check=1)
-        self.assertIn("a credit figure appears", proc.stdout)
-
-    def test_check_refuses_a_marker_left_to_write(self):
-        self.period()
-        self.method()
-        self.assertIn("[[...]]", self.check(check=1).stdout)
 
     def test_a_dimension_under_80_percent_judged_is_shown_without_a_figure(self):
         self.forget_run()
@@ -603,7 +446,6 @@ class SnapshotDeckTest(SnapshotCase):
         said = deck.render(self.study, DATE, printer=printer)
         self.assertIn("To send:", said)
         self.assertTrue(list((self.study / "reports" / "share").glob("*monitoring deck*.pdf")))
-        self.assertFalse(self.report_path().exists())
 
 
 # --- the questions start from Google's suggestions ------------------------------
@@ -919,11 +761,8 @@ class PromoteTest(SnapshotCase):
         self.assertIn(f"Compared with the period of {DATE}", proc.stdout)
 
     def test_a_native_snapshot_cannot_be_followed_and_the_message_names_brief_and_design(self):
-        self.bind_full(edit=lambda p: p.update(kind="snapshot"))
+        self.final_deck(edit=lambda p: p.update(kind="snapshot"))
         self.assertEqual(self.read("sentl.json")["projects"][KEY]["kind"], "snapshot")
-        self.ingest_run()
-        self.write_report()
-        self.check(check=0)
         err = self.promote(check=2).stderr
         self.assertIn("no schedule", err)
         self.assertIn("brief", err)

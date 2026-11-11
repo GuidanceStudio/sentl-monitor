@@ -41,10 +41,10 @@ class LiveReportTest(unittest.TestCase):
             run = json.load(fh)
         self.assertEqual([r for r in run["responses"] if r["match"] == "unmatched"], [])
 
-    def test_the_latest_report_passes_check(self):
-        reports = sorted(p for p in (self.study / "reports").glob("*.md") if ".draft" not in p.name)
-        self.assertTrue(reports, "no report written")
-        proc = subprocess.run([sys.executable, str(MONITOR), "check", "--study", str(self.study), str(reports[-1])],
+    def test_the_latest_deck_passes_check(self):
+        decks = sorted((self.study / "reports").glob("*.deck.json"))
+        self.assertTrue(decks, "no deck written")
+        proc = subprocess.run([sys.executable, str(MONITOR), "check", "--study", str(self.study), str(decks[-1])],
                               capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 

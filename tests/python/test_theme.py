@@ -1,16 +1,17 @@
-"""The look of a report: Sentl's by default, replaced by a theme the user points at."""
+"""The look of the deck: Sentl's by default, replaced by a theme the user points at."""
 
 import json
 import os
-import re
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from fixtures import StudyCase
-from sentlmon import pdf, theme
-from sentlmon.common import Refused
-from test_pdf import CommandBase, REPORT
+from sentlmon import deck, theme
+from sentlmon import pdf as report_pdf
+from sentlmon.common import Refused, Study
+from test_deck import DATE, DeckCase
 
 SENTL_ORANGE = "#FF850D"
 
@@ -23,47 +24,34 @@ def write(path, text):
 
 class DefaultThemeTest(unittest.TestCase):
 
-    def test_the_default_page_carries_sentls_colours_and_mark(self):
-        out = pdf.page(REPORT, "en", theme.builtin())
-        self.assertIn(SENTL_ORANGE, out)
-        self.assertIn("#B85C00", out)
-        self.assertIn('src="data:image/png;base64,', out)
-        self.assertIn("Sentl.AI", out)
+    def test_the_default_theme_carries_sentls_colours_and_mark(self):
+        chosen = theme.builtin()
+        self.assertIn(f"--sl-primary: {SENTL_ORANGE};", theme.variables(chosen))
+        self.assertIn("--sl-deep: #B85C00;", theme.variables(chosen))
+        self.assertTrue(chosen["logo"].startswith("data:image/png;base64,"))
 
-    def test_the_page_needs_no_network(self):
-        out = pdf.page(REPORT, "en", theme.builtin())
-        self.assertNotRegex(out, r'(src|href)="https?://')
-        self.assertNotIn("@import", out)
-        self.assertNotIn("<link", out)
-
-    def test_the_structure_is_styled_through_variables(self):
-        out = pdf.page(REPORT, "en", theme.builtin())
+    def test_every_colour_and_the_font_are_variables(self):
+        variables = theme.variables(theme.builtin())
         for name in ("--sl-primary", "--sl-deep", "--sl-text", "--sl-muted", "--sl-line", "--sl-tint", "--sl-font"):
-            self.assertIn(name + ":", out)
-        body = out.split("</style>")[0].split("<style>")[1]
-        rules = body.split("body {", 1)[1]
-        self.assertNotRegex(rules, r"#[0-9A-Fa-f]{6}")
+            self.assertIn(name + ":", variables)
 
 
 class ThemeFileTest(unittest.TestCase):
 
     def setUp(self):
-        import tempfile
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.tmp = Path(self._tmp.name)
 
-    def test_a_json_theme_changes_the_variables_the_footer_and_the_font(self):
+    def test_a_json_theme_changes_the_colours_and_the_font(self):
         file = write(self.tmp / "t.json", json.dumps({
-            "colors": {"primary": "#2255AA", "deep": "#112244"}, "font": "Georgia, serif",
-            "footer": "Prepared for Avenello"}))
+            "colors": {"primary": "#2255AA", "deep": "#112244"}, "font": "Georgia, serif"}))
         loaded, notes = theme.load(file)
-        out = pdf.page(REPORT, "en", loaded)
-        self.assertIn("--sl-primary: #2255AA;", out)
-        self.assertIn("--sl-deep: #112244;", out)
-        self.assertIn("--sl-font: Georgia, serif;", out)
-        self.assertIn("Prepared for Avenello", out)
-        self.assertNotIn("#FF850D", out)
+        variables = theme.variables(loaded)
+        self.assertIn("--sl-primary: #2255AA;", variables)
+        self.assertIn("--sl-deep: #112244;", variables)
+        self.assertIn("--sl-font: Georgia, serif;", variables)
+        self.assertNotIn(SENTL_ORANGE, variables)
         self.assertEqual(notes, [])
 
     def test_what_a_theme_leaves_out_stays_Sentls(self):
@@ -72,12 +60,11 @@ class ThemeFileTest(unittest.TestCase):
         self.assertEqual(loaded["colors"]["deep"], theme.builtin()["colors"]["deep"])
         self.assertEqual(loaded["logo"], theme.builtin()["logo"])
 
-    def test_a_css_theme_overrides_the_variables_after_the_defaults(self):
-        file = write(self.tmp / "t.css", ":root { --sl-primary: #00AA55; }\n.sl-footer { display: none; }")
-        loaded, _ = theme.load(file)
-        out = pdf.page(REPORT, "en", loaded)
-        self.assertLess(out.index("--sl-primary: #FF850D"), out.index("--sl-primary: #00AA55"))
-        self.assertIn(".sl-footer { display: none; }", out)
+    def test_a_css_theme_keeps_sentls_variables_and_adds_its_rules(self):
+        css = ":root { --sl-primary: #00AA55; }\n.foot { display: none; }"
+        loaded, _ = theme.load(write(self.tmp / "t.css", css))
+        self.assertEqual(loaded["css"], css)
+        self.assertEqual(loaded["colors"], theme.builtin()["colors"])
 
     def test_a_logo_path_is_embedded_and_an_inline_svg_is_kept(self):
         mark = self.tmp / "mark.png"
@@ -86,8 +73,7 @@ class ThemeFileTest(unittest.TestCase):
         self.assertTrue(loaded["logo"].startswith("data:image/png;base64,"))
         svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>'
         loaded, _ = theme.load(write(self.tmp / "b.json", json.dumps({"logo": svg})))
-        out = pdf.page(REPORT, "en", loaded)
-        self.assertIn('<img class="sl-logo" src="data:image/svg+xml;base64,', out)
+        self.assertTrue(loaded["logo"].startswith("data:image/svg+xml;base64,"))
 
     def test_a_missing_logo_falls_back_to_the_sentl_mark_and_says_so(self):
         loaded, notes = theme.load(write(self.tmp / "t.json", json.dumps({"logo": "nowhere.png"})))
@@ -96,12 +82,12 @@ class ThemeFileTest(unittest.TestCase):
         self.assertIn("nowhere.png", notes[0])
         self.assertIn("Sentl", notes[0])
 
-    def test_font_url_becomes_a_link_only_when_it_is_set(self):
+    def test_font_url_is_kept_only_when_it_is_set(self):
         plain, _ = theme.load(write(self.tmp / "a.json", json.dumps({"font": "Inter"})))
-        self.assertNotIn("<link", pdf.page(REPORT, "en", plain))
+        self.assertIsNone(plain["font_url"])
         linked, _ = theme.load(write(self.tmp / "b.json", json.dumps(
             {"font": "Inter", "font_url": "https://fonts.example.com/inter.css"})))
-        self.assertIn('<link rel="stylesheet" href="https://fonts.example.com/inter.css">', pdf.page(REPORT, "en", linked))
+        self.assertEqual(linked["font_url"], "https://fonts.example.com/inter.css")
 
     def test_a_value_that_could_break_out_of_the_stylesheet_is_refused(self):
         file = write(self.tmp / "t.json", json.dumps({"colors": {"primary": "red; } body { display: none"}}))
@@ -117,68 +103,134 @@ class ThemeFileTest(unittest.TestCase):
             theme.load(write(self.tmp / "t.txt", "x"))
 
 
-class ResolutionTest(CommandBase, unittest.TestCase):
+class DeckPageTest(DeckCase, unittest.TestCase):
+    """What the deck's page carries of the theme, with no user theme on this machine."""
+
+    def setUp(self):
+        super().setUp()
+        home = self.study.parent / "home"
+        home.mkdir()
+        env = mock.patch.dict(os.environ, {"HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")})
+        env.start()
+        self.addCleanup(env.stop)
+        self.save_doc(self.filled())
+
+    def page(self, option=None):
+        return deck.page_of(self.study, DATE, option)[0]
+
+    def style(self, option=None):
+        return self.page(option).split("<style>", 1)[1].split("</style>", 1)[0]
+
+    def test_the_default_page_carries_sentls_colours_and_mark(self):
+        text = self.page()
+        self.assertIn(SENTL_ORANGE, text)
+        self.assertIn("#B85C00", text)
+        self.assertIn('<img src="data:image/png;base64,', text)
+
+    def test_the_page_needs_no_network(self):
+        text = self.page()
+        self.assertNotRegex(text, r'(src|href)="https?://')
+        self.assertNotIn("@import", text)
+        self.assertNotIn("<link", text)
+
+    def test_the_slides_take_the_theme_s_colours_through_its_variables_only(self):
+        style = self.style()
+        for name, value in theme.COLORS.items():
+            self.assertEqual(style.count(value), 1, name)
+
+    def test_a_json_theme_reaches_the_page(self):
+        option = write(self.study.parent / "t.json", json.dumps({"colors": {"primary": "#2255AA"},
+                                                                 "font": "Georgia, serif"}))
+        style = self.style(option)
+        self.assertIn("--sl-primary: #2255AA;", style)
+        self.assertIn("--sl-font: Georgia, serif;", style)
+        self.assertNotIn(SENTL_ORANGE, style)
+
+    def test_a_css_theme_overrides_the_variables_after_the_defaults(self):
+        css = ":root { --sl-primary: #00AA55; }\n.foot { display: none; }"
+        style = self.style(write(self.study.parent / "t.css", css))
+        self.assertLess(style.index(f"--sl-primary: {SENTL_ORANGE}"), style.index("--sl-primary: #00AA55"))
+        self.assertTrue(style.endswith(css))
+
+    def test_an_inline_svg_logo_is_embedded(self):
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>'
+        option = write(self.study.parent / "t.json", json.dumps({"logo": svg}))
+        self.assertIn('<img src="data:image/svg+xml;base64,', self.page(option))
+
+    def test_font_url_becomes_a_link_only_when_it_is_set(self):
+        plain = write(self.study.parent / "a.json", json.dumps({"font": "Inter"}))
+        self.assertNotIn("<link", self.page(plain))
+        linked = write(self.study.parent / "b.json", json.dumps(
+            {"font": "Inter", "font_url": "https://fonts.example.com/inter.css"}))
+        self.assertIn('<link rel="stylesheet" href="https://fonts.example.com/inter.css">', self.page(linked))
+
+    def test_the_theme_option_of_pdf_reaches_the_page(self):
+        self.cli("check", "--study", self.study, self.path, check=0)
+        option = write(self.study.parent / "t.json", json.dumps({"colors": {"primary": "#555555"}}))
+        with mock.patch.object(report_pdf, "print_pdf", lambda target, pdf, engines: (None, [])):
+            self.cli("pdf", "--study", self.study, "--date", DATE, "--theme", option, check=0)
+        self.assertIn("--sl-primary: #555555;", (self.study / "reports" / f"{DATE}.deck.html").read_text(encoding="utf-8"))
+
+
+class ResolutionTest(StudyCase, unittest.TestCase):
+    """Which theme the deck is drawn with: the option, the `theme` key of study.json, the study folder, the user's
+    folder, Sentl's."""
 
     def setUp(self):
         super().setUp()
         self.home = self.study.parent / "home"
         self.home.mkdir()
-        self.env = {"HOME": str(self.home), "XDG_CONFIG_HOME": str(self.home / ".config")}
+        env = mock.patch.dict(os.environ, {"HOME": str(self.home), "XDG_CONFIG_HOME": str(self.home / ".config")})
+        env.start()
+        self.addCleanup(env.stop)
 
-    def primary(self, *args):
-        with mock.patch.dict(os.environ, self.env):
-            proc = self.run_pdf(*args)
-        page = (self.study / "reports" / "2026-10-14.html").read_text(encoding="utf-8")
-        return re.findall(r"--sl-primary: (#[0-9A-Fa-f]{6});", page)[-1], proc
+    def resolved(self, option=None):
+        return theme.resolve(Study(self.study), option)
+
+    def primary(self, option=None):
+        return self.resolved(option)[0]["colors"]["primary"]
 
     def theme_json(self, path, colour):
         write(path, json.dumps({"colors": {"primary": colour}}))
 
     def test_nothing_set_gives_sentls_orange(self):
-        self.assertEqual(self.primary()[0], SENTL_ORANGE)
+        self.assertEqual(self.primary(), SENTL_ORANGE)
 
     def test_the_user_folder_replaces_the_default(self):
         self.theme_json(self.home / ".config" / "sentl-monitor" / "theme.json", "#111111")
-        self.assertEqual(self.primary()[0], "#111111")
+        self.assertEqual(self.primary(), "#111111")
 
     def test_the_study_folder_beats_the_user_folder(self):
         self.theme_json(self.home / ".config" / "sentl-monitor" / "theme.json", "#111111")
         self.theme_json(self.study / "theme.json", "#222222")
-        self.assertEqual(self.primary()[0], "#222222")
+        self.assertEqual(self.primary(), "#222222")
 
     def test_theme_css_in_the_study_folder_is_found_when_there_is_no_json(self):
         write(self.study / "theme.css", ":root { --sl-primary: #333333; }")
-        self.assertEqual(self.primary()[0], "#333333")
+        self.assertIn("--sl-primary: #333333;", self.resolved()[0]["css"])
 
     def test_the_theme_key_of_study_json_beats_the_study_folder(self):
         self.theme_json(self.study / "theme.json", "#222222")
         self.theme_json(self.study / "brand" / "own.json", "#444444")
         write(self.study / "study.json", json.dumps({"theme": "brand/own.json", "report_language": "en"}))
-        self.assertEqual(self.primary()[0], "#444444")
+        self.assertEqual(self.primary(), "#444444")
 
     def test_the_option_beats_everything(self):
         self.theme_json(self.study / "theme.json", "#222222")
         write(self.study / "study.json", json.dumps({"theme": "theme.json"}))
         other = self.study.parent / "other.json"
         self.theme_json(other, "#555555")
-        self.assertEqual(self.primary("--theme", other)[0], "#555555")
+        self.assertEqual(self.primary(other), "#555555")
 
     def test_an_option_that_points_nowhere_is_refused(self):
-        with mock.patch.dict(os.environ, self.env):
-            proc = self.run_pdf("--theme", self.study / "absent.json", check=2)
-        self.assertIn("absent.json", proc.stderr)
+        with self.assertRaisesRegex(Refused, "absent.json"):
+            self.resolved(self.study / "absent.json")
 
-    def test_a_missing_logo_is_reported_by_the_command(self):
+    def test_a_missing_logo_is_named_in_the_notes(self):
         write(self.study / "theme.json", json.dumps({"logo": "gone.png"}))
-        _, proc = self.primary()
-        self.assertIn("gone.png", proc.stdout)
-
-    def test_the_copy_to_send_is_the_themed_page(self):
-        self.theme_json(self.study / "theme.json", "#222222")
-        self.primary()
-        copies = list((self.study / "reports" / "share").glob("*.html"))
-        self.assertEqual(len(copies), 1)
-        self.assertIn("--sl-primary: #222222;", copies[0].read_text(encoding="utf-8"))
+        notes = self.resolved()[1]
+        self.assertEqual(len(notes), 1)
+        self.assertIn("gone.png", notes[0])
 
 
 if __name__ == "__main__":

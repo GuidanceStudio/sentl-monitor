@@ -1,23 +1,18 @@
-"""Search demand: Google suggestions, volumes from a keyword-data source, keyword classes,
-the per-theme summary, and the report's themes section. No test makes a network call or
-resolves a hostname."""
+"""Search demand: Google suggestions, volumes from a keyword-data source, keyword classes and
+the per-theme summary. No test makes a network call or resolves a hostname."""
 
-import contextlib
 import csv
 import json
-import re
 import socket
 import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
-from fixtures import StudyCase, models
+from fixtures import StudyCase
 
 from sentlmon import demand
-from sentlmon.i18n import TEXT
 
 AT = "2026-10-16T09:00:00Z"
-TEXT_TITLE = {"it": "Da dove vengono i temi", "en": "Where the themes came from"}
 PROVIDER, TOOL = "Acme Keywords", "get_keyword_volume"
 
 SEEDS = {
@@ -598,69 +593,6 @@ class PersonaDemandTest(DemandCase, unittest.TestCase):
         self.assertEqual(len(watch), 1, lines)
         self.assertTrue(watch[0].startswith("sources to watch"), watch)
         self.assertIn("consumatori.example", watch[0])
-
-
-class ThemesSectionTest(DemandCase, unittest.TestCase):
-    """The themes section of the report, fed from search-demand.json."""
-
-    def themes_section(self, lang="it"):
-        study = self.read("study.json")
-        study["report_language"] = lang
-        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
-        self.cli("method", "--study", self.study, "--date", "2026-10-31", "--force",
-                 "--models", self.save("models.json", models()), check=0)
-        text = (self.study / "reports" / "2026-10-31.md").read_text(encoding="utf-8")
-        parts = re.split(r"^## \d+\. (.+)$", text, flags=re.M)
-        return dict(zip(parts[1::2], parts[2::2]))[TEXT_TITLE[lang]]
-
-    def collect(self, with_volumes):
-        self.ready()
-        self.autocomplete()
-        if with_volumes:
-            self.volumes([{"theme": "salute", "keyword": "avenello zuccheri", "monthly_volume": 90},
-                          {"theme": "salute", "keyword": "latte d'avena fa male", "monthly_volume": 1900},
-                          {"theme": "prezzo", "keyword": "latte d'avena prezzo", "monthly_volume": 500}])
-
-    def test_each_theme_gets_its_distinct_suggestions_and_month_in_the_english_report(self):
-        self.collect(False)
-        section = self.themes_section("en")
-        self.assertIn("- Salute: 32 distinct Google suggestions (October 2026)", section)
-        self.assertIn("- Prezzo: 16 distinct Google suggestions (October 2026)", section)
-
-    def test_without_a_volume_source_the_section_says_what_the_counts_measure(self):
-        self.collect(False)
-        section = self.themes_section("en")
-        self.assertIn(TEXT["en"]["no_volume"], section)
-        self.assertNotIn(TEXT["en"]["no_search"], section)
-        self.assertIn(TEXT["it"]["no_volume"], self.themes_section("it"))
-
-    def test_with_volumes_each_class_is_stated_apart_with_its_provider_and_date(self):
-        self.collect(True)
-        section = self.themes_section("en")
-        self.assertIn("90 naming the subject; 1,900 about the component alone", section)
-        self.assertIn("Acme Keywords, 16 October 2026", section)
-        self.assertNotIn(TEXT["en"]["no_volume"], section)
-        self.assertNotIn("1,990", section)
-
-    def test_the_italian_section_writes_numbers_and_dates_the_italian_way(self):
-        self.collect(True)
-        self.volumes([{"theme": "salute", "keyword": "latte d'avena fa male", "monthly_volume": 2500}])
-        section = self.themes_section("it")
-        self.assertIn("2.500 sul solo componente", section)
-        self.assertIn("16 ottobre 2026", section)
-        self.assertIn("ottobre 2026", section)
-
-    def test_a_study_without_search_demand_keeps_the_line_saying_none_was_collected(self):
-        self.ready()
-        self.assertIn(TEXT["en"]["no_search"], self.themes_section("en"))
-
-    def test_a_theme_the_search_demand_does_not_cover_is_left_out_of_the_demand_lines(self):
-        self.ready()
-        (self.study / "search-demand.json").write_text(json.dumps(themed(
-            {"seeds": [], "autocomplete": [auto("x", "uno")], "volumes": []}, source=False)), encoding="utf-8")
-        section = self.themes_section("en")
-        self.assertIn("- Salute: 1 distinct Google suggestion (October 2026)", section)
-        self.assertNotRegex(section, r"Prezzo: \d")
 
 
 if __name__ == "__main__":

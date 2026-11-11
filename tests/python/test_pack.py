@@ -18,13 +18,12 @@ from fixtures import (AVORIA, GEM, GPT, OPERATOR, PRICE_Q, PRICE_TERMS, StudyCas
 from test_detect import ADOPTED, NEW_TEXT, edited
 from test_doctor import skill_md_version
 from test_halves import OLD_PRICE_LOW, day, rows_of
-from test_history import CHEAPER, OCT, runs
+from test_history import OCT, runs
 from test_rebuild import ADOPTED as REBUILD_ADOPTED, TEN_WEEKS
 from test_shared_keys import pack as confezione_answers
 from test_three_reports import CHEAPER_PRICE, december_runs, first_two_reports, third_report
 
 PACK_MODULE = sys.modules["sentlmon.pack"]
-DOCTOR = sys.modules["sentlmon.doctor"]
 MB = 1024 * 1024
 
 OCT_RUNS = [f"history/runs/brand/{i}.json.gz" for i in range(9101, 9105)]
@@ -32,6 +31,7 @@ NOV_RUNS = [f"history/runs/brand/{i}.json.gz" for i in range(9201, 9206)]
 DEC_FIRST = "history/runs/brand/9301.json.gz"
 OCT_HALVES = ["history/periods/2026-10-31.first.json", "history/periods/2026-10-31.second.json"]
 PERIODS = ["history/periods/2026-10-31.json", "history/periods/2026-11-30.json"]
+DECKS = ["reports/2026-10-31.deck.json", "reports/2026-11-30.deck.json"]
 
 
 def snapshot(folder):
@@ -111,10 +111,9 @@ class PackCase(StudyCase):
 
 class ThirdReportFromPackTest(PackCase, unittest.TestCase):
     """Done when: a study packed after its second report and unpacked into an empty folder
-    produces the same third report as the original folder."""
+    produces the same third period, material and record as the original folder."""
 
     def test_the_third_period_built_after_pack_and_unpack_equals_the_one_built_in_the_whole_folder(self):
-        # `method` reads whether search demand was collected.
         (self.study / "search-demand.json").write_text('{"schema": "sentl-monitor/search-demand@1"}\n',
                                                        encoding="utf-8")
         first_two_reports(self)
@@ -133,7 +132,7 @@ class ThirdReportFromPackTest(PackCase, unittest.TestCase):
         self.study = restored
         (restored / "inbox").mkdir()
         third_report(self)
-        for rel in ("history/periods/2026-12-31.json", "history/material/2026-12-31.md", "reports/2026-12-31.md"):
+        for rel in ("history/periods/2026-12-31.json", "history/material/2026-12-31.md", "history/reports.json"):
             self.assertEqual((restored / rel).read_bytes(), (whole / rel).read_bytes(), rel)
 
 
@@ -174,10 +173,10 @@ class PackContentsTest(PackCase, unittest.TestCase):
         self.pack("--out", out)
         self.assertIn("history/runs/brand/9250.json.gz", entries(out))
 
-    def test_the_slim_pack_holds_the_state_the_latest_periods_and_the_runs_from_the_latest_report_on(self):
+    def test_the_slim_pack_holds_the_state_the_latest_periods_the_decks_and_the_runs_from_the_latest_report_on(self):
         out = self.tmp / "slim.zip"
         self.pack("--out", out)
-        self.assertEqual(entries(out), sorted(["manifest.json", *self.state(), *PERIODS, *NOV_RUNS, DEC_FIRST]))
+        self.assertEqual(entries(out), sorted(["manifest.json", *self.state(), *PERIODS, *DECKS, *NOV_RUNS, DEC_FIRST]))
 
     def test_the_manifest_names_the_schema_the_version_the_projects_the_last_report_and_each_file(self):
         out = self.tmp / "slim.zip"
@@ -198,14 +197,17 @@ class PackContentsTest(PackCase, unittest.TestCase):
         self.pack("--full", "--out", out)
         runs_held = sorted(p.relative_to(self.study).as_posix() for p in (self.study / "history/runs").rglob("*.json.gz"))
         periods = sorted(p.relative_to(self.study).as_posix() for p in (self.study / "history/periods").glob("*.json"))
-        self.assertEqual(entries(out), sorted(["manifest.json", *self.state(), *periods, *runs_held]))
+        self.assertEqual(entries(out), sorted(["manifest.json", *self.state(), *periods, *DECKS, *runs_held]))
         self.assertTrue(set(OCT_RUNS + OCT_HALVES) <= set(entries(out)))
         self.assertTrue(manifest(out)["full"])
 
-    def test_inbox_material_and_reports_are_never_packed(self):
+    def test_inbox_material_and_reports_other_than_the_checked_decks_are_never_packed(self):
+        for name in ("2026-11-30.pdf", "2026-12-31.deck.json"):  # a printed deck, and a deck not checked yet
+            (self.study / "reports" / name).write_text("{}", encoding="utf-8")
         out = self.tmp / "full.zip"
         self.pack("--full", "--out", out)
-        self.assertFalse([n for n in entries(out) if n.startswith(("inbox/", "history/material/", "reports/"))])
+        self.assertFalse([n for n in entries(out) if n.startswith(("inbox/", "history/material/"))])
+        self.assertEqual([n for n in entries(out) if n.startswith("reports/")], DECKS)
 
     def test_two_packs_of_one_folder_are_identical_with_sorted_dated_entries(self):
         first, second = self.tmp / "a.zip", self.tmp / "b.zip"
@@ -588,7 +590,7 @@ class UnpackRefusesTest(PackCase, unittest.TestCase):
         target.mkdir(parents=True)
         self.read_only(parent)
         self.unpack(self.good, target)
-        self.assertEqual(sorted(p.name for p in target.iterdir()), ["history", "sentl.json", "study.json"])
+        self.assertEqual(sorted(p.name for p in target.iterdir()), ["history", "reports", "sentl.json", "study.json"])
 
     def test_a_missing_target_under_a_read_only_parent_is_refused(self):
         parent = self.tmp / "locked"
@@ -598,13 +600,11 @@ class UnpackRefusesTest(PackCase, unittest.TestCase):
 
     # --- the halves -------------------------------------------------------------
 
-    def test_the_halves_of_a_first_report_travel_with_it_and_its_charts_build_the_same(self):
+    def test_the_halves_of_a_first_report_travel_with_it(self):
         self.assertTrue(set(OCT_HALVES) <= set(entries(self.good)))
         self.unpack(self.good, self.target)
-        for folder in (self.study, self.target):
-            self.cli("charts", "--study", folder, "--date", "2026-10-31", check=0)
-        rel = "reports/2026-10-31.charts.md"
-        self.assertEqual((self.target / rel).read_bytes(), (self.study / rel).read_bytes())
+        for rel in OCT_HALVES:
+            self.assertEqual((self.target / rel).read_bytes(), (self.study / rel).read_bytes(), rel)
 
 
 class PackSizeCapsTest(PackCase, unittest.TestCase):
@@ -642,10 +642,10 @@ class PackSizeCapsTest(PackCase, unittest.TestCase):
 
 
 class RedoFromSlimPackTest(PackCase, unittest.TestCase):
-    """A pack without --full serves the next report; building or checking its latest report again
-    needs runs it does not hold, and is refused instead of failing or dropping periods."""
+    """A pack without --full serves the next report; building its latest period again needs runs it
+    does not hold, and is refused instead of failing or dropping periods."""
 
-    def test_building_or_checking_the_latest_later_report_again_is_refused_and_works_from_a_full_pack(self):
+    def test_building_the_latest_later_period_again_is_refused_and_works_from_a_full_pack(self):
         first_two_reports(self)
         whole = self.period_file("2026-11-30")
         slim, full = self.tmp / "slim.zip", self.tmp / "full.zip"
@@ -656,10 +656,6 @@ class RedoFromSlimPackTest(PackCase, unittest.TestCase):
         self.study = restored
         (restored / "inbox").mkdir()
         self.assertIn("--full", self.build("2026-11-30", check=2).stderr)
-        (restored / "reports").mkdir()
-        shutil.copy(self.tmp / "study" / "reports" / "2026-11-30.md", restored / "reports" / "2026-11-30.md")
-        self.assertIn("--full", self.cli("check", "--study", restored, restored / "reports" / "2026-11-30.md",
-                                         check=2).stderr)
 
         again = self.tmp / "again"
         self.unpack(full, again)
@@ -668,7 +664,7 @@ class RedoFromSlimPackTest(PackCase, unittest.TestCase):
         self.build("2026-11-30")
         self.assertEqual(self.period_file("2026-11-30"), whole)
 
-    def test_building_a_first_report_with_rebuilt_periods_again_is_refused_and_keeps_them(self):
+    def test_building_a_first_period_with_rebuilt_periods_again_is_refused_and_keeps_them(self):
         self.adopt(at=REBUILD_ADOPTED)
         self.answer_operator(report_every="weekly")
         self.ingest_all(runs(TEN_WEEKS, 9101))
@@ -682,27 +678,6 @@ class RedoFromSlimPackTest(PackCase, unittest.TestCase):
         periods = snapshot(restored / "history" / "periods")
         self.assertIn("--full", self.build("2026-10-16", check=2).stderr)
         self.assertEqual(snapshot(restored / "history" / "periods"), periods)
-
-
-class CheckRemindsToPackTest(PackCase, unittest.TestCase):
-
-    def publish_with_sandbox(self, roots):
-        self.adopt()
-        self.answer_operator()
-        self.ingest_all(runs(OCT, 9101))
-        with mock.patch.object(DOCTOR, "SANDBOX_ROOTS", roots):
-            return self.publish("2026-10-31")
-
-    def test_check_passing_in_a_sandbox_says_to_pack_and_offer_both_files(self):
-        sandbox = self.tmp / "mnt-data"
-        sandbox.mkdir()
-        out = self.publish_with_sandbox((str(sandbox),)).stdout
-        self.assertIn("monitor.py pack", out)
-        self.assertIn("download", out)
-
-    def test_check_passing_on_a_lasting_folder_says_nothing_of_the_pack(self):
-        out = self.publish_with_sandbox((str(self.tmp / "no-such-sandbox"),)).stdout
-        self.assertNotIn("monitor.py pack", out)
 
 
 def brand(text=None):
@@ -803,7 +778,7 @@ class RichStudyFromPackTest(PackCase, unittest.TestCase):
             out[folder] = self.december()
         self.assertEqual(out[restored], out[whole])
         self.assertIn("9599", out[whole])
-        for rel in ("history/periods/2026-12-31.json", "history/material/2026-12-31.md", "reports/2026-12-31.md"):
+        for rel in ("history/periods/2026-12-31.json", "history/material/2026-12-31.md", "history/reports.json"):
             self.assertEqual((restored / rel).read_bytes(), (whole / rel).read_bytes(), rel)
         period = json.loads((whole / "history/periods/2026-12-31.json").read_text(encoding="utf-8"))
         self.assertTrue(period["comparison"]["verdict_changes"])

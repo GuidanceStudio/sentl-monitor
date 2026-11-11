@@ -22,6 +22,16 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 - On a host without a lasting folder, the pack follows the deck's last `pdf`, and the deck's copy to send is offered with
   it (`report/DECK.md` step 9).
 - `report/INSIGHTS.md`, the long report's guide to its findings, is removed.
+- `pdf` prints the period's deck with or without `--deck`, which stays accepted. A date whose only document is a long report
+  an earlier version wrote gets no page, PDF or copy to send: `pdf` exits 2 and names the deck to write.
+- The commands `charts` and `method` are removed, with the long report's code: its sections, its check, its page and its
+  charts. A theme's `footer`, which only the long report's page printed, is no longer read.
+- `pdf` says when a theme's logo cannot be read and the deck carries Sentl's mark, as the long report's `pdf` did.
+- `check` on a long report, `reports/<date>.md` or `.draft.md`, exits 2 and says that the deck is what gets checked.
+  `check` on a deck or on a comparison of two snapshots works as before.
+- On a host without a lasting folder, `pdf` prints the reminder to run `monitor.py pack` and to offer the pack and the
+  deck's copy in `reports/share/` for download, once the deck prints. `check` printed it before.
+- `examples/`, the sample long report and its charts, is removed.
 
 ## 0.7.2 (2026-11-10)
 
