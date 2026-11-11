@@ -1245,7 +1245,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.2.
 
-## M30: The deck is the only report; the long report is no longer written 🔄
+## M30: The deck is the only report; the long report is no longer written ✅
 
 **Why:** on 2026-11-11 the operator called the long period report unreadable: it is not something to show the person who uses the skill. The deck reads only the period the code builds (`history/periods/`, `history/material/`), never `reports/D.md`, so REPORT.md steps 6 to 10 (method sections, findings, changes, summary, the report's `check`) write a document no later step reads, at 20 to 40 minutes of model time per period. The snapshot ends the same way, with a short report offered as a PDF.
 
@@ -1276,11 +1276,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   10. A snapshot's method slide says it ran once, with no schedule; slide 2 says each question was asked once when the period has one round; the favourable/neutral scale is explained only when a slide uses it.
   11. DECK.md asks for three to five actions except when the evidence slides allow fewer, as on a snapshot of a few questions.
   12. The found slide of a deck with one block (a snapshot whose questions all name no subject) keeps its card as tall as its content: today the card fills the slide and the chart sits at its foot, under a gap.
-- [ ] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
+- [x] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
 
 **Done when:** the suite passes; `report` and `snapshot` end with a deck that passes `check` and prints; no route writes or offers the long report; a second period after a deck-only first one starts after the first's runs.
 
 **Deviations:**
+- Trial (2026-11-11): a real snapshot copy went from its period to a 10-slide deck that passes `check` and prints with the browser sandbox; a monitored study written by 0.7.x went from `report` to its deck in one invocation (14 slides), and after the fixes its entry is rewritten from the period, with the gone report's `file` dropped. The review found five faults and the two trials seven more; all twelve are fixed above. One more fix after them (`0ad2fb0`): a snapshot's deck promises no next report. The trial copy needed two domains its study had left out, a study fault, not the skill's.
 - Task 1: the deck's `check` already wrote a deck-only entry with its runs (since 0.7.2), so the bounding tests are guards, proven by breaking the record; the new code is the unattended draft and a draft deck made final. The snapshot deck test is in `test_snapshot.py`.
 - Task 3 ran before task 2: the structure suites check every playbook and README command against `monitor.py --help`, so the docs moved to the deck first and the code goes after them. Task 3 also carries three code changes the playbooks rely on: `deck` asks for the operator's missing answers (the gate `method` held), `snapshot resume` prints `deck` where it printed `report`, and `promote` needs a passing deck. `report/INSIGHTS.md` is removed with the long report's steps. Unattended, the deck's reader's test and audit are left to the operator. ARCHITECTURE's sections on the long report (§The report, §Charts for a deck, the report's `check` in §`history/reports.json`) go with their code in task 2.
 - Task 2: `charts.py`, `method.py`, `examples/` and the long report's `check`, page and share copy are removed; `span` and `measured` moved to `common.py`. `check` on `reports/D.md` or `.draft.md` exits 2 and names the deck. The theme's `footer` key is no longer read, since only the long report's page printed it. `pdf` now says when a theme's logo cannot be read, as the long report's `pdf` did. The refusal for runs a slim pack lacks names the period, since only `period` reaches it.
