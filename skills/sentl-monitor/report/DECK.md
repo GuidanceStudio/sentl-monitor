@@ -60,8 +60,15 @@ A deck that follows a final deck has two more slides after **What we found**: **
 python3 <skill>/scripts/monitor.py doctor --study "$S"
 ```
 
-No file in `history/periods/` for the runs to report: follow `report/REPORT.md` up to the step that builds the
-period, then come back here. A period built by an earlier version of the skill: `deck` says so; run `period` again
+When `doctor` reports a web sandbox and this conversation has not unpacked the study yet, the host has no lasting
+folder: unpack the study's pack before any other command, as `report/REPORT.md` step 1 says.
+
+```bash
+python3 <skill>/scripts/monitor.py unpack --study "$S" <pack>
+```
+
+No file in `history/periods/` for the runs of the period: follow `report/REPORT.md`, which builds the period and comes
+back here in its step 6. A period built by an earlier version of the skill: `deck` says so; run `period` again
 with the same date and `--models inbox/models.json`.
 
 ## 2. Place the questions
@@ -405,8 +412,8 @@ sources slide that holds on a whole block, and its title says it of any site it 
 `pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
 text. Its page count is the final word: a face wider than Arial can run over where `check` passed, and a slide `check`
 estimates over its page still prints when it fits. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. A browser prints with its sandbox only:
-where none can start it, `pdf --deck` exits 1 and says what to install. On a host without a lasting folder,
-end as SKILL.md says, with the deck's PDF in place of the report.
+where none can start it, `pdf --deck` exits 1 and says what to install. On a host without a lasting folder, the pack
+comes after the last `pdf --deck` (step 9).
 
 ## 7. The reader's test
 
@@ -468,6 +475,17 @@ The session ends on a deck that passes: `check` and `pdf --deck` are its last co
 
 ## 9. Tell the operator
 
+On a host without a lasting folder (SKILL.md), once `pdf --deck` has run for the last time, write the pack:
+
+```bash
+python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder the host offers for download>
+```
+
+Copy the deck's copy to send, in `reports/share/`, to the same folder and offer both for download. Tell the user to keep
+the deck and the new pack and, when the host has Projects, to put the pack in the Project's files in place of the
+previous one: the next conversation reads it from there.
+
 In the chat, never in the deck: where the copy to send is, the choices open to doubt, anything in the data that looks
 wrong, what you could not check on the subject's site, what the reader's test and the last audit left open, and the results left
-out for resting on too few answers. The operator sends the deck: never send it yourself.
+out for resting on too few answers. When the deck follows `report`, add what `report/REPORT.md` step 7 lists. The operator
+sends the deck: never send it yourself.

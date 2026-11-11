@@ -128,11 +128,16 @@ class SnapshotCase(StudyCase, unittest.TestCase):
     def forget_run(self):
         (self.study / "history" / "runs" / KEY / f"{RUN_ID}.json.gz").unlink()
 
-    def final_report(self):
+    def final_deck(self):
+        """The one run ingested, its period built and its deck passed check, as SNAPSHOT.md step 9 ends."""
         self.bind_full()
         self.ingest_run()
-        self.write_report()
-        self.check(check=0)
+        self.period()
+        with mock.patch.object(deck, "MIN_ANSWERS", 1), mock.patch.object(deck, "MIN_SITE_ANSWERS", 1):
+            self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+            path = self.study / "reports" / f"{DATE}.deck.json"
+            path.write_text(json.dumps(snapshot_deck(json.loads(path.read_text(encoding="utf-8")))), encoding="utf-8")
+            self.cli("check", "--study", self.study, path, check=0)
 
 
 # --- validate and review --------------------------------------------------------
@@ -703,23 +708,33 @@ class ResumeTest(SnapshotCase):
                 self.assertIn("operator", proc.stdout)
                 self.assertNotIn("never seen", proc.stdout)
 
-    def test_a_completed_run_not_in_history_resumes_at_the_report(self):
+    def test_a_completed_run_not_in_history_resumes_at_the_deck(self):
         self.bind_full()
         proc = self.resume(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID))
-        self.assertIn("Next step: report", proc.stdout)
+        self.assertIn("Next step: deck", proc.stdout)
         self.assertIn(f"run {RUN_ID}", proc.stdout)
+        self.assertIn("period", proc.stdout)
 
-    def test_a_run_ingested_without_a_final_report_resumes_at_the_report(self):
+    def test_a_run_ingested_without_a_passing_deck_resumes_at_the_deck(self):
         self.bind_full()
         self.ingest_run()
-        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "report")
+        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "deck")
 
-    def test_a_finished_report_on_a_snapshot_not_closed_resumes_at_the_end_choice(self):
-        self.final_report()
+    def test_a_deck_left_as_a_draft_resumes_at_the_deck(self):
+        self.bind_full()
+        self.ingest_run()
+        self.period()
+        with mock.patch.object(deck, "MIN_ANSWERS", 1), mock.patch.object(deck, "MIN_SITE_ANSWERS", 1):
+            self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+            self.cli("check", "--study", self.study, self.study / "reports" / f"{DATE}.deck.json", check=1)
+        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "deck")
+
+    def test_a_finished_deck_on_a_snapshot_not_closed_resumes_at_the_end_choice(self):
+        self.final_deck()
         self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "end")
 
     def test_a_closed_snapshot_has_nothing_left(self):
-        self.final_report()
+        self.final_deck()
         self.close(self.saved_paused())
         self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "done")
 
@@ -744,34 +759,34 @@ class CloseTest(SnapshotCase):
         return self.read("sentl.json")["projects"][KEY]["closed"]
 
     def test_a_snapshot_left_in_sentl_is_closed_as_kept(self):
-        self.final_report()
+        self.final_deck()
         self.close(self.saved_paused())
         self.assertEqual(self.closed(), {"closed_at": "2026-10-22T12:00:00Z", "how": "kept"})
 
     def test_an_archived_project_is_closed_as_archived(self):
-        self.final_report()
+        self.final_deck()
         self.close(self.saved_archived())
         self.assertEqual(self.closed()["how"], "archived")
 
     def test_a_deleted_snapshot_is_closed_without_reading_it(self):
-        self.final_report()
+        self.final_deck()
         self.close_deleted()
         self.assertEqual(self.closed(), {"closed_at": "2026-10-22T12:00:00Z", "how": "deleted"})
 
     def test_close_says_the_run_and_the_report_stay_in_the_folder_and_names_no_panel(self):
-        self.final_report()
+        self.final_deck()
         out = self.close(self.saved_paused()).stdout
         self.assertIn("stay in this folder", out)
         self.assertNotIn("web panel", out)
 
     def test_a_project_still_active_is_not_closed(self):
-        self.final_report()
+        self.final_deck()
         proc = self.close(self.saved_paused(active=True), check=2)
         self.assertIn("is_active", proc.stderr)
         self.assertNotIn("closed", self.read("sentl.json")["projects"][KEY])
 
     def test_closing_twice_keeps_the_first_time(self):
-        self.final_report()
+        self.final_deck()
         self.close(self.saved_paused())
         again = self.cli("close", "--study", self.study, "--saved", self.save("p.json", self.saved_paused()),
                          check=0, at="2026-10-23T12:00:00Z")
@@ -779,23 +794,23 @@ class CloseTest(SnapshotCase):
         self.assertEqual(self.closed()["closed_at"], "2026-10-22T12:00:00Z")
 
     def test_neither_saved_nor_deleted_is_refused(self):
-        self.final_report()
+        self.final_deck()
         self.cli("close", "--study", self.study, check=2)
 
     def test_a_project_that_is_not_bound_is_refused(self):
         self.close(self.saved_paused(), check=2)
 
     def test_the_saved_project_must_be_the_bound_one(self):
-        self.final_report()
+        self.final_deck()
         self.close(saved_project(self.design, project_id=1), check=2)
 
     def test_a_study_that_is_not_a_snapshot_is_not_closed(self):
-        self.final_report()
+        self.final_deck()
         self.put(mutated(lambda s: s.update(kind="study")))
         self.close(self.saved_paused(), check=2)
 
     def test_the_binding_keeps_its_ids_after_closing(self):
-        self.final_report()
+        self.final_deck()
         before = self.read("sentl.json")["projects"][KEY]
         self.close(self.saved_paused())
         after = self.read("sentl.json")["projects"][KEY]
@@ -826,7 +841,7 @@ class PromoteTest(SnapshotCase):
         return answers
 
     def test_a_finished_snapshot_becomes_a_study_with_the_schedule_and_the_cadence(self):
-        self.final_report()
+        self.final_deck()
         self.promote()
         study = self.read("study.json")
         self.assertEqual(study["kind"], "study")
@@ -837,7 +852,7 @@ class PromoteTest(SnapshotCase):
         self.assertEqual(study["narrative"]["audience"]["choice"], "generic_consumer")
 
     def test_each_dimension_gets_a_theme_whose_origin_is_the_snapshot_probe(self):
-        self.final_report()
+        self.final_deck()
         self.promote()
         study = self.read("study.json")
         keys = {d["key"] for d in study["projects"][0]["dimensions"]}
@@ -846,21 +861,21 @@ class PromoteTest(SnapshotCase):
                             for t in study["themes"]))
 
     def test_the_questions_and_rubrics_are_left_as_they_were(self):
-        self.final_report()
+        self.final_deck()
         before = [q for d in self.read("study.json")["projects"][0]["dimensions"] for q in d["questions"]]
         self.promote()
         after = [q for d in self.read("study.json")["projects"][0]["dimensions"] for q in d["questions"]]
         self.assertEqual(before, after)
 
     def test_the_project_stays_bound_and_is_not_closed(self):
-        self.final_report()
+        self.final_deck()
         self.promote()
         bound = self.read("sentl.json")["projects"][KEY]
         self.assertEqual(bound["project_id"], PROJECT_ID)
         self.assertNotIn("closed", bound)
 
     def test_it_sends_nothing_and_activates_nothing(self):
-        self.final_report()
+        self.final_deck()
         out = self.promote().stdout
         self.assertIn("payload", out)
         self.assertIn("go", out)
@@ -871,23 +886,23 @@ class PromoteTest(SnapshotCase):
         self.assertIn("run", self.promote(check=2).stderr)
         self.assertEqual(self.read("study.json")["kind"], "snapshot")
 
-    def test_a_snapshot_without_a_final_report_is_refused(self):
+    def test_a_snapshot_without_a_passing_deck_is_refused(self):
         self.bind_full()
         self.ingest_run()
-        self.assertIn("report", self.promote(check=2).stderr)
+        self.assertIn("deck", self.promote(check=2).stderr)
 
     def test_a_project_already_closed_is_refused(self):
-        self.final_report()
+        self.final_deck()
         self.close(self.saved_paused())
         self.assertIn("closed", self.promote(check=2).stderr)
 
     def test_a_study_that_is_not_a_snapshot_is_refused(self):
-        self.final_report()
+        self.final_deck()
         self.promote()
         self.assertIn("snapshot", self.promote(check=2).stderr)
 
     def test_missing_answers_are_named_and_nothing_is_written(self):
-        self.final_report()
+        self.final_deck()
         answers = self.changed(schedule="hourly", report_every="yearly")
         del answers["audience"]
         stderr = self.promote(answers, check=2).stderr
@@ -896,7 +911,7 @@ class PromoteTest(SnapshotCase):
         self.assertEqual(self.read("study.json")["kind"], "snapshot")
 
     def test_the_first_report_after_promotion_compares_with_the_snapshot(self):
-        self.final_report()
+        self.final_deck()
         self.promote()
         self.ingest_run(run_id=RUN_ID + 1, started="2026-11-22T09:00:00Z",
                         scores={k: 5 for k in SCORES})

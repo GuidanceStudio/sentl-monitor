@@ -1,7 +1,7 @@
 # adopt <project>
 
-Takes a project that already exists in Sentl into a study folder, so `report` can report on
-it. Reads only: no Sentl write, no credit spent.
+Takes a project that already exists in Sentl into a study folder, so `report` can build its
+periods and their decks. Reads only: no Sentl write, no credit spent.
 
 `<skill>` below is this skill's directory; `$S` is the study folder.
 
@@ -87,31 +87,31 @@ After a second failure, stop and show the operator the texts listed.
 The script prints the fields to fill and their shapes. Ask for them in one message, in the
 operator's language, proposing a value wherever the project suggests one (rubrics and judge
 instructions often name the subject's competitors and websites). The texts are printed in
-the report as written, so they are written in the report's language:
+the deck as written, so they are written in the deck's language:
 
 - **Research question** (neutral: what is monitored, never one valence of it) and
-  **purpose** (what the client will decide with the reports).
+  **purpose** (what the client will decide with the decks).
 - **Who asks**: `generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason.
   For a business audience, `stakeholders` with the reason ("café owners choosing an oat drink
   for their coffee") reads better than a generic consumer.
 - **Who wrote the rubrics and when** (`narrative.criteria`: `by`, `date`).
 - **The subject**: label, aliases as answers write them (brand name, product names), owned
   domains. **Foils**: competitors or alternatives, each `{"id", "label", "aliases",
-  "domains"}`, if the reports should say who is named before the subject; `domains` are the
-  sites the competitor owns, so the report can say which cited pages it wrote.
+  "domains"}`, if the decks should say who is named before the subject; `domains` are the
+  sites the competitor owns, so the deck can say which cited pages it wrote.
 - **Facts that carry a figure or a name** (a price, a fee, the person in charge), for each
   question whose rubric or judge instructions state one: a `facts` list under that question in
   `study.json`, each `{"fact", "source", "date", "current": [...], "outdated": [...]}`, the
   terms written as answers write them ("2,10 €", "1,90 €"). Propose them from the judge
-  instructions and ask the operator for last year's value. The report then counts the answers
-  stating each, run by run (`report/INSIGHTS.md`).
+  instructions and ask the operator for last year's value. `period` then counts the answers
+  stating each, and the deck shows how many state today's figure.
 - **Market**: `{"country": ISO 3166 code ("GB" for the United Kingdom), "language": ISO 639
-  code}`. **Report language**: `it` or `en`.
-- **Report cadence** (`report_every`: `weekly` or `monthly`). Propose `monthly` when the
-  project runs weekly or daily, so a report pools several runs. The first report covers the
+  code}`. **Deck language** (`report_language`): `it` or `en`.
+- **Period** (`report_every`: `weekly` or `monthly`). Propose `monthly` when the
+  project runs weekly or daily, so a period pools several runs. The first period covers the
   last week or month and compares with up to four earlier weeks or months rebuilt from the
-  project's runs. When the project has no run before that last interval, the first report
-  compares the second half of its period with the first if its runs span at least 14 days,
+  project's runs. When the project has no run before that last interval, the first period
+  compares its second half with the first if its runs span at least 14 days,
   and is the first measurement otherwise. Say which applies, from the runs listed in step 4.
 - **Where each dimension's theme came from**: one or more origins per theme, each a `kind`
   (`client_material`, `client_issue`, `client_analysis`, `search`, `probe`) and a `detail`
@@ -123,14 +123,14 @@ the decision it informs.
 
 Write the answers into `$S/study.json`, changing only those fields; `facts` is added beside a
 question's text and rubric. Do not edit the questions, rubrics or ids the script wrote: they
-are Sentl's. `method` lists a foil's `domains` or a fact's terms that are not a list of
-strings.
+are Sentl's. `deck` lists a foil's `domains` or a fact's terms that are not a list of
+strings, and any field still to answer.
 
 ## 7. Close
 
 Tell the operator: the study folder's path, the dimensions and questions adopted (archived
 dimensions are kept and not reported), how many completed runs the project has, the dates of
-the earliest and the latest (from `runs` in step 4), and that `report` writes the first report: it covers the last
+the earliest and the latest (from `runs` in step 4), and that `report` builds the first period and its deck: it covers the last
 `report_every` interval and compares with the earlier intervals that have runs, up to four,
 or, when no run precedes that interval, the second half of the interval with the first once
 its runs span at least 14 days.
@@ -147,4 +147,4 @@ python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder>
 
 `<folder>` is one the host offers files for download from. Offer the pack for download. Tell the
 user to keep it and, when the host has Projects, to put it in the Project's files: the first
-report reads it from there, or from the pack attached to the new conversation.
+`report` reads it from there, or from the pack attached to the new conversation.

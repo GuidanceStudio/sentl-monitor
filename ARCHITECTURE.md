@@ -3,7 +3,7 @@
 sentl-monitor is a set of route playbooks that an assistant follows, plus one
 standard-library script, `scripts/monitor.py`, for everything that must be deterministic:
 search demand, validation, the arguments sent to Sentl, run ingestion, comparison, the
-method sections of the report and the final check. The assistant calls the Sentl MCP tools
+figures of the deck and its check. The assistant calls the Sentl MCP tools
 and saves their responses into the study folder; the script reads those files and never
 calls Sentl.
 
@@ -14,9 +14,9 @@ calls Sentl.
 | `brief <subject>` | the client's documents, Google autocomplete, a keyword-data source if present | `brief.md`, `seeds.json`, `volumes.json` (optional), `search-demand.json` | the operator's review of the themes and their origins |
 | `design` | `brief.md`, `search-demand.json`, a saved `list-ai-models` response | `study.json`, `study-review.md` | the operator's review of the questions, rubrics and credit estimate |
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
-| `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, report language and cadence, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
-| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, `reports/<date>.md`, `history/reports.json`; `reports/<date>.charts.md` when the operator asks for charts | nothing when run unattended |
-| `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, `reports/<date>.md` | the operator's review of the questions and rubrics, then the go after the credit estimate |
+| `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, the deck's language and the period, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
+| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, then, through `report/DECK.md`, `history/deck/`, `reports/<date>.deck.json`, `reports/<date>.deck.pdf`, `reports/share/` and `history/reports.json` | nothing when run unattended |
+| `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, then the deck as in `report` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 | `compare` | two snapshot folders with their periods | `reports/<date>.compare.md` and `history/compare/<date>.json` in the later folder |
 
 ## The study folder
@@ -38,20 +38,19 @@ is a new version inside the same folder, so the history stays in one place.
     versions/<project>-<NNN>.json   the configuration in force in Sentl, numbered
     runs/<project>/<run_id>.json.gz one normalized snapshot per ingested run
     unavailable.json                completed runs whose results Sentl could not return, retried at each invocation
-    periods/<YYYY-MM-DD>.json       metrics of one report period and its comparison
+    periods/<YYYY-MM-DD>.json       metrics of one period and its comparison
     periods/<YYYY-MM-DD>.first.json the halves of a first period with no earlier one (and .second.json)
-    material/<YYYY-MM-DD>.md        the figures and candidate answers the insights are written from
+    material/<YYYY-MM-DD>.md        the figures and every answer of the period, which the deck's writer reads
     deck/<YYYY-MM-DD>.figures.md    the figures of the deck and of the material, with the answers taken out
     deck/<YYYY-MM-DD>.notes.md      what the writer has found so far, for a session that starts again
-    reports.json                    index of reports: period, runs, status
+    reports.json                    index of periods: dates, runs, status, the deck that recorded it
     last-report.json                outcome of the latest `report` invocation
-  reports/<YYYY-MM-DD>.md        the reports
-  reports/<YYYY-MM-DD>.charts.md the report's figures as md2 chart tables for a deck (optional)
   reports/<YYYY-MM-DD>.deck.json the deck's text; .deck.html and .deck.pdf, the deck drawn from it (§The deck)
+  reports/share/                 the copy of each deck to send
 ```
 
 A snapshot folder has the same layout without `brief.md` and `volumes.json`, and holds one run
-and one report. Its `seeds.json` holds one seed per dimension and its `search-demand.json` their
+and one deck. Its `seeds.json` holds one seed per dimension and its `search-demand.json` their
 Google suggestions. On a host with no network, `seeds.json` is written before `demand
 autocomplete` runs, and `autocomplete` writes `search-demand.json` with no suggestion in any
 dimension's block before it exits 1. A snapshot made before personas and suggestions has
@@ -72,7 +71,7 @@ The skill's repository ignores study and snapshot folders. They hold client data
 | questions: label, text, rubric, judge instructions | per question: stable key, framing, pair, persona, dated facts, lineage |
 | runs: status, trigger, times, score | the ids binding each local key to Sentl (`sentl.json`) |
 | responses: model, answer, sources, score, sentiment | the configuration in force at each run (`history/versions/`) |
-| | a normalized copy of every run ingested, the period metrics, the reports |
+| | a normalized copy of every run ingested, the period metrics, the decks |
 
 Two rules keep them consistent:
 
@@ -89,7 +88,7 @@ Two rules keep them consistent:
   (Assumptions, A1), and after an edit that wording survives only in the recorded versions.
   A run whose results Sentl returns as a server error is recorded in
   `history/unavailable.json`, listed to the operator and requested again at every
-  invocation; it blocks neither a report nor a write.
+  invocation; it blocks neither a period nor a write.
 
 **Why the script never calls Sentl.** The assistant already holds the MCP connection with
 whatever authentication the operator chose (OAuth or token). A script that called the
@@ -240,7 +239,7 @@ share a label with a source to watch (exit 2).
   of `personas`, `stakeholders` or `mixed`, a question's `persona` is an id of that list; with
   `mixed` it may be left out. A study written before the list existed has no `personas` and a
   `persona` in plain words on each question, and validates as before.
-- A snapshot's `narrative.reader` names who will read the report and the decision it feeds;
+- A snapshot's `narrative.reader` names who will read the deck and the decision it feeds;
   `review` prints it. A snapshot's `persona` is one line in plain words: who types the question and
   in what situation. `suggestion` is the Google suggestion a question starts from, as Google gave
   it; a snapshot designed with no network has none.
@@ -698,7 +697,7 @@ that run is not found (see Responses saved by the assistant), and the assistant 
 project again. Every question gets a key; every dimension a theme placeholder. The agent
 then asks the operator for what Sentl does not hold: purpose, research question, who asks
 and why, the origin of each dimension's themes, subject aliases, foils with their domains and
-owned domains, market and language, report language, `report_every`, who wrote the criteria
+owned domains, market and language, the deck's language (`report_language`), `report_every`, who wrote the criteria
 and when, and for the questions whose facts carry a figure or a name (prices, fees, people in
 charge) the current and outdated terms.
 `list-runs-tool`, saved and read by `monitor.py runs`, names the latest completed run by start
@@ -711,7 +710,7 @@ them (see Periods).
    runs to fetch, ordered by start time, never by their position in the listing, which is
    newest first with exceptions. New runs: completed (`completed` or
    `completed_with_warnings`) and not in `history/runs/`, started after the last run of the
-   previous report and up to the end of the report's date; on the first report, those started
+   previous period and up to the end of the period's date; on the first period, those started
    in the last `report_every` interval and the K = 4 intervals before it. Runs in
    `history/unavailable.json` are requested again. Runs not final yet, runs ended with no
    results, runs the listing shows under the floor and statuses never seen are listed apart and
@@ -720,8 +719,8 @@ them (see Periods).
    `total` is warned about when its oldest run started after the window's start. Unattended, the
    listings are saved as `inbox/runs-<project id>.json`, later pages as `.p2.json` and on, and
    `monitor.py pending` reads them: when no project has a run to fetch and none holds a run
-   ingested but not yet reported, it writes `nothing_new` to `last-report.json` and the route
-   stops. A report dated the day of the invocation counts as the previous report, so a second
+   ingested but not yet in a period, it writes `nothing_new` to `last-report.json` and the route
+   stops. A period dated the day of the invocation counts as the previous one, so a second
    invocation on the same day finds nothing new.
 2. `get-project-tool` for each project, saved; `monitor.py detect` compares it with the latest
    version and records a `detected` version on a difference. With the operator present it
@@ -732,28 +731,22 @@ them (see Periods).
    host that truncates output cuts it mid-string. Fewer answers than expected count against
    coverage. A run whose results come back as a server error goes to
    `history/unavailable.json`.
-4. `monitor.py period` builds the period: the runs since the previous report, pooled; on the
-   first report, the rebuilt periods as well, or the two halves of the period when there is
+4. `monitor.py period` builds the period: the runs since the previous period, pooled; on the
+   first period, the rebuilt periods as well, or the two halves of the period when there is
    no earlier one (see Periods). It computes the cells, the
    comparison with the previous period and the range of the K periods before (K = 4), and
    writes `history/periods/<date>.json` and `history/material/<date>.md`. It refuses a study
    without `report_every`.
-5. `monitor.py method` writes the method sections (`purpose`, `themes`, `dimensions`,
-   `questions`, `scoring`) from `study.json`, the versions and the period, and lays out the
-   sections in the order §The report sets: the first-report order when
-   `history/reports.json` holds no final report, the later-report order otherwise.
-   `list-ai-models` gives the models' public names.
-6. The agent reads the material and the answers and writes `findings` and `changes`, then
-   the `summary` from them.
-7. `monitor.py check reports/<date>.md` (below). Pass: the report is added to
-   `history/reports.json` with status `final` and `last-report.json` says `written`. Fail,
-   when unattended (`check --unattended`, run once): the file is saved as
-   `reports/<date>.draft.md`, status `draft`, and `last-report.json` says `draft` and which
-   checks failed. `period` records `below_floor` in `last-report.json` when it ends with exit 4.
-8. In the chat, never in the report: the runs covered, runs left out, unmatched responses,
+5. The route goes on into the deck, `report/DECK.md`, with the same date (§The deck): `monitor.py deck`
+   writes the figures file and the text to fill, the agent writes `reports/<date>.deck.json`, and
+   `monitor.py check` on it records the period in `history/reports.json` with status `final` and
+   `last-report.json` says `written`. Fail, when unattended (`check --unattended`): the period is
+   recorded as `draft` when its date has no entry yet, and `last-report.json` says `draft` and what
+   failed; a later `check` that passes makes it `final`. `period` records `below_floor` in
+   `last-report.json` when it ends with exit 4. `monitor.py pdf --deck` prints the deck and its copy
+   to send. No long report is written.
+6. In the chat, never in the deck: the runs covered, runs left out, unmatched responses,
    versions detected, facts older than 90 days.
-9. Optional, when the report is presented as a deck: `monitor.py charts` writes the report's
-   figures as md2 chart tables (§Charts for a deck).
 
 ### `compare <folder> <folder>`
 
@@ -769,14 +762,14 @@ tool and spends nothing.
 
 ### `snapshot <subject>`
 
-A one-off check in its own folder: a small study, one snapshot in Sentl, one run, one report,
+A one-off check in its own folder: a small study, one snapshot in Sentl, one run, one deck,
 and nothing left running in Sentl. Run end to end on Sentl on 2026-11-07 with skill 0.6.0 (M10). `study.json` carries `"kind": "snapshot"`. Invoked again
 in the same folder, the route resumes at the first step whose output is missing: no
 `study.json` → design; no binding in `sentl.json`, or a binding with no question → project; no
 run → cost and go; a run open → follow it; a completed run not in `history/runs/`, or an ingested
-run with no final report → report; no `closed` in `sentl.json` → archive.
+run with no deck that passed `check` → deck; no `closed` in `sentl.json` → end.
 `monitor.py resume [--runs <list-runs-tool, read now>]` reads the folder and prints
-`Next step: design`, `project`, `cost`, `run`, `report`, `archive` or `done`, with the step of the
+`Next step: design`, `project`, `cost`, `run`, `deck`, `end` or `done`, with the step of the
 playbook; it needs `--runs` once the project holds questions, and refuses a listing of another
 project.
 
@@ -787,7 +780,7 @@ schedule, `report_every`, the audience and the project's question and decision c
 operator's answers; each dimension gets a theme whose origin is `probe` (the snapshot of that date);
 questions, rubrics and rounds are untouched; `sentl.json` is untouched and `closed` is never written.
 It validates the study as `design` does and writes nothing when that fails. It sends nothing to
-Sentl: `setup` saves the schedule and activates on the operator's go. The snapshot's run and report
+Sentl: `setup` saves the schedule and activates on the operator's go. The snapshot's run and period
 stay in `history/`, so the first `report` of the study compares its period with the snapshot's.
 
 1. **Preflight.** `list-organizations` (connection, and the Owner or Admin role in the
@@ -802,15 +795,14 @@ stay in `history/`, so the first `report` of the study compares its period with 
    decide and by the catalogue's rules: at least one dimension naming no brand unless the
    operator wants reputation only; a dimension whose facts cannot be found is replaced by
    another. Each dimension records its catalogue id, and the reason it was picked goes in
-   `design_rationale`. The operator then names who will read the report (`narrative.reader`)
+   `design_rationale`. The operator then names who will read the deck (`narrative.reader`)
    and the persona behind each question, one line each.
 4. **Questions and rubrics.** One seed per dimension goes to `monitor.py demand autocomplete`,
    keyed by the dimension in `seeds.json`; `demand summary` gives each dimension's top
    suggestion. The question starts from it and from the persona's situation, and records it in
    `suggestion`. A host with no network skips the suggestions: the questions come from the
-   catalogue entry's pattern alone, and the report's questions section says the suggestions
-   could not be collected. It says so only when the folder holds `seeds.json` and its
-   `search-demand.json` is missing or holds no suggestion for any dimension. One question per dimension, written as the person types it,
+   catalogue entry's pattern alone, and the operator is told the suggestions could not be
+   collected. One question per dimension, written as the person types it,
    from the catalogue entry's pattern, in the market's language. Five anchors per question,
    adapted from the entry; judge instructions carry the dated facts. Researcher models are
    the operator's choice from a saved `list-ai-models` response, with each model's tariff
@@ -830,17 +822,17 @@ stay in `history/`, so the first `report` of the study compares its period with 
 8. **Run.** On the go, `trigger-run-tool` once. `list-runs-tool` follows the run until its
    status is final. If the session ends first, the next invocation follows the same run and
    starts nothing.
-9. **Report.** `get-run-results-tool` saved to `inbox/`; `monitor.py ingest`, then `period`
-   on the one run, with no comparison, then `method`. The agent writes `findings`;
-   `monitor.py check` verifies the report in the snapshot order of §The report. Written to
-   `reports/<date>.md`.
+9. **Period and deck.** `get-run-results-tool` saved to `inbox/`; `monitor.py ingest`, then `period`
+   on the one run, with no comparison, then the deck of that period (`report/DECK.md`, §The deck).
+   The deck's `check` records the period in `history/reports.json` as final; `pdf --deck` writes the
+   copy to send.
 10. **End.** The operator keeps the snapshot, deletes it, or follows the subject. Deleting is
     `delete-snapshot-tool` on the operator's go, then `monitor.py close --deleted`; keeping is
     `monitor.py close --saved <get-project-tool, read now>`, which refuses a project still active
     and records `archived` when Sentl says so. Both write `closed` to `sentl.json`; closing a
-    closed snapshot changes nothing. Deleting loses nothing the report needs, because the run is
+    closed snapshot changes nothing. Deleting loses nothing the deck needs, because the run is
     saved in the snapshot folder. Following the subject is `brief` and `design`, keeping the
-    report as the first look: a snapshot takes no schedule. A snapshot created as a project before
+    snapshot's deck and period as the first look: a snapshot takes no schedule. A snapshot created as a project before
     Sentl had snapshots is still promoted with `promote`, and archived with `archive-project-tool`.
 
 **`validate` in snapshot mode** refuses: fewer than 4 or more than 5 dimensions; a
@@ -855,8 +847,8 @@ one; duplicate keys. It warns when every dimension names the subject. The study 
 period do not apply.
 
 **Reading a snapshot.** Its one project mixes questions that name the subject with questions
-that name no brand, so Sentl's run score mixes two readings. The report reads each dimension
-on its own: by its score when the question names the subject, by whether and where the
+that name no brand, so Sentl's run score mixes two readings. The deck places each question
+in its block and reads each dimension on its own: by its score when the question names the subject, by whether and where the
 subject appears when it names no brand. It gives no figure for the whole project. The run
 floor of §Coverage does not apply to a snapshot's single run; a dimension under 80% judged is
 shown without a figure, and the operator is told. `period` takes the project's one run with no
@@ -1071,8 +1063,8 @@ and the models present in both.
 
 ### Insights
 
-The figures that explain a mean, each computed by `period` and stated as `report/INSIGHTS.md`
-describes.
+The figures that explain a mean, each computed by `period` and printed in the material, which
+the deck's writer reads.
 
 - **Fact currency.** An answer states a term when the term, folded like an alias, appears on
   word boundaries and not inside a longer number ("10 €" is not in "12,10 €", "£2" not in
@@ -1427,11 +1419,12 @@ Two clocks run independently. Sentl runs the measurement: the project's `schedul
 - **An assistant's own scheduler** (a scheduled cloud agent) needs the study folder to
   persist between runs: keep it in a private repository the routine commits to.
 
-`report` is idempotent: run twice on the same runs, it writes one report and then
+`report` is idempotent: run twice on the same runs, it writes one deck and then
 `nothing_new`. Unattended, it asks no question and treats every gate as described in the
-`report` stage. `pending` ends an invocation with no new run before anything else is read from
-Sentl; the report's playbook (`report/REPORT.md`, "Unattended mode") lists the Sentl tools it
-may call, all of them read-only.
+`report` stage; the deck's `check` runs with `--unattended`, and the reader's test and the audit
+are left to the operator. `pending` ends an invocation with no new run before anything else is
+read from Sentl; `report/REPORT.md` ("Unattended mode") lists the Sentl tools it may call, all of
+them read-only.
 
 ## Hosts without a lasting folder
 
@@ -1440,10 +1433,10 @@ conversation ends; `monitor.py doctor`, the first command of every conversation,
 There the study travels between conversations as a pack: one zip the user downloads at the end
 of a route and attaches to the next conversation, or keeps in the Project's files where the
 host has Projects, replacing the previous pack. A conversation unpacks the pack with the latest
-date before its next command and packs the study again once `check` passes (in `adopt`, once
-the operator's answers are written); `check` passing in a sandbox prints a reminder to do so.
-The report, its PDF in `reports/share/` if one was made, and the pack are copied to the folder the host offers for
-download. Claude Code, opencode and Codex keep the folder on disk and pack only to move or
+date before its next command and packs the study again once the deck's last `check` and `pdf`
+have run (in `adopt`, once the operator's answers are written; in `snapshot`, after `close`);
+`check` passing in a sandbox prints a reminder to do so. The deck's copy to send, in
+`reports/share/`, and the pack are copied to the folder the host offers for download. Claude Code, opencode and Codex keep the folder on disk and pack only to move or
 archive a study.
 
 ### The pack

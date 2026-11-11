@@ -1,11 +1,11 @@
 # sentl-monitor
 
 sentl-monitor is a skill for AI assistants such as Claude Code. It reads the runs of a
-[Sentl](https://sentl.ai) project and writes a dated report on what AI assistants tell people
-about a brand, a product category or an organisation, comparing each period with the earlier
-ones. The report quotes the answers verbatim and says which facts they state, which pages they
-cite and what moved since the previous period; it is meant for a consultant or an analyst who
-reports to a client or to management every week or month.
+[Sentl](https://sentl.ai) project and writes, for each period, a short slide deck on what AI
+assistants tell people about a brand, a product category or an organisation, compared with the
+earlier periods. The deck says what was found and what to do about it, quotes the answers
+verbatim and names the pages they cite; it is meant for a consultant or an analyst who reports
+to a client or to management every week or month.
 
 Sentl measures how AI models describe a subject: a Sentl project asks its questions to several
 AI assistants, and a judge scores each answer from 1 to 5 against a rubric written for that
@@ -15,12 +15,12 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 
 | Route | What it does |
 |---|---|
-| `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the report's language and how often a report is written |
-| `report` | Reads the runs completed since the previous report, compares the period with up to four earlier ones and writes `reports/<date>.md`; on request, also `reports/<date>.charts.md`, the report's figures as Markdown chart tables, and the report as a PDF in Sentl's look or your own ([make it yours](#make-it-yours)); started by a scheduler it runs [unattended](#scheduled-reports) |
+| `adopt <project>` | Takes a project that already exists in Sentl into a study folder on your computer, and asks you for what Sentl does not hold: the research question, the competitors, the facts to track, the market, the deck's language and how long a period is |
+| `report` | Reads the runs completed since the previous period, compares the period with up to four earlier ones and goes on into the deck: one short slide deck for the client's marketing manager, with what was found and three to five actions, printed as a PDF in Sentl's look or your own ([make it yours](#make-it-yours)); started by a scheduler it runs [unattended](#scheduled-reports). the `deck` route (`report/DECK.md`) writes the deck of a period already built: one a session left unfinished, or one written again after the period was rebuilt |
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), and the personas who ask about the subject, each with its situation, its decision and the Google suggestions that show it searches; keeps regulators, consumer associations and the press apart as sources to watch; collects how people search and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, ties each question to a persona of the brief, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
-| `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, each with one question that starts from Google's top suggestion and names the person who asks it, one snapshot in Sentl, which takes none of the plan's project slots, one run on your go after Sentl's credit estimate, and a short report; then you keep the snapshot, delete it, or follow the subject with `brief` and `design`. Invoked again in the same folder, it resumes where it stopped |
+| `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, each with one question that starts from Google's top suggestion and names the person who asks it, one snapshot in Sentl, which takes none of the plan's project slots, one run on your go after Sentl's credit estimate, and the deck of that run; then you keep the snapshot, delete it, or follow the subject with `brief` and `design`. Invoked again in the same folder, it resumes where it stopped |
 | `compare <folder> <folder>` | Writes what changed between two snapshots of one subject with the same questions, neither promoted: each dimension's score and presence on both sides. It reads the two folders only and spends nothing. |
 
 `adopt` and `report` only read from Sentl: they create and change nothing in your account and
@@ -33,8 +33,8 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the report as a page and a PDF, and the copy to send), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
-runs a report needs), `pending` (says whether an unattended report has a run to report on) and `pack` and `unpack`, which carry a study between conversations on a
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the deck as a PDF, and the copy to send), `page` (what a page the answers cite holds), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+runs a period needs), `pending` (says whether an unattended `report` has a new run) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
 | Host | Install with | Status |
@@ -45,9 +45,9 @@ host that deletes its files when the conversation ends.
 | claude.ai | the release zip, uploaded as a skill | Not yet tested: the zip is built to claude.ai's skill limits; a report reads Sentl's run export, which has not been run there. |
 | ChatGPT | the release zip | Not yet tested; uploading the zip on chatgpt.com is not confirmed, and a report reads Sentl's run export, which has not been run there. |
 
-A report reads the complete results of every run in its period; one run of 39 answers is about
+`report` reads the complete results of every run in its period; one run of 39 answers is about
 250,000 characters. Those results reach the study folder only on a host that saves a large tool
-result to a file, and today that means Claude Code. On claude.ai, ChatGPT and Codex a report
+result to a file, and today that means Claude Code. On claude.ai, ChatGPT and Codex `report`
 reads an export file of the runs from Sentl: the assistant calls Sentl's `export-runs-tool`, and
 the skill's `download` or `import` command writes the runs into the study folder. These commands
 are written and tested against the export's documented shape; they have not been run on those
@@ -182,7 +182,7 @@ On a host that deletes its files when the conversation ends, the study travels a
 file: at the end of each route the assistant writes it with `monitor.py pack` and offers it for
 download, and in the next conversation you attach it and the assistant unpacks it first.
 
-## A first report, step by step
+## A first deck, step by step
 
 Avenello is a fictional oat-milk brand. Its marketing team has a Sentl project, *Avenello · US
 market*, that asks three questions every day to two AI assistants, Acme Chat and Orbit Reason,
@@ -193,8 +193,8 @@ three times each:
   Avenello is named at all.
 - Sustainability: «Is Avenello oat milk good for the environment?»
 
-The project has run every day since 1 October 2026. On 14 October you write the first weekly
-report.
+The project has run every day since 1 October 2026. On 14 October you write the deck of the
+first week.
 
 ### 1. Adopt the project
 
@@ -208,39 +208,38 @@ The assistant lists your Sentl projects and picks the one whose name matches, as
 more than one does. It proposes the study folder `./avenello-study/`, checks it with
 `monitor.py doctor`, and saves the project and its latest run into the folder's `inbox/`. Then it asks, in
 one message, for what Sentl does not hold, proposing values from the project's rubrics where it
-can. The answers appear in the report as written, so you write them in the report's language.
+can. The answers appear in the deck as written, so you write them in the deck's language.
 For Avenello:
 
 | The assistant asks for | You answer |
 |---|---|
 | The research question, neutral: what is monitored, never one valence of it | What are people who ask an AI assistant about oat milk told about it and about Avenello? |
-| The purpose: what the client will decide with the reports | Find the facts about Avenello that assistants state wrongly and the pages they take them from, to decide which pages to update. |
+| The purpose: what the client will decide with the decks | Find the facts about Avenello that assistants state wrongly and the pages they take them from, to decide which pages to update. |
 | Who asks the questions, and why | A generic consumer: the questions are the ones any shopper types; no persona changes them. |
 | Who wrote the rubrics, and when | Avenello's marketing team, 15 September 2026 |
 | The subject: its name as answers write it, and its own websites | Avenello; avenello.example |
 | Foils: the competitors, as answers write them, and their websites | Avoria; avoria.example |
 | Facts that carry a figure or a name, with the current and the outdated value as answers write them | On the sugar question: Avenello Original has 3 g of sugar per 100 ml since the March 2026 recipe, and had 5 g before; current «3 g», outdated «5 g»; source avenello.example/nutrition, read on 15 September 2026 |
 | The market: country and language | United States, English |
-| The report's language: English or Italian | English |
-| How often a report is written: weekly or monthly | Weekly |
+| The deck's language: English or Italian | English |
+| How long a period is: a week or a month | A week |
 | Where each dimension's theme came from | Nutrition: customer-service questions about the new recipe. Choice: Google autocomplete, United States, September 2026. Sustainability: Avenello's 2025 sustainability report |
 
 The assistant writes the answers into `avenello-study/study.json` and tells you the dimensions
 and questions it adopted and how many completed runs the project has: 14, from 1 to 14 October.
-The first report covers the last week, 8 to 14 October, and compares it with the week before,
-rebuilt from the project's earlier runs. A first report compares with up to four earlier weeks
-or months. A first monthly report on a project younger than a month compares the second half of
-the month with the first, once its runs span 14 days. With daily runs a report also gives the day
-a movement started; four weekly runs are too few to date one.
+The first period covers the last week, 8 to 14 October, and is compared with the week before,
+rebuilt from the project's earlier runs. A first period is compared with up to four earlier weeks
+or months. A first monthly period on a project younger than a month compares the second half of
+the month with the first, once its runs span 14 days.
 
-### 2. Write the report
+### 2. Build the period and write the deck
 
 ```text
 sentl-monitor report
 ```
 
 The assistant saves the project again, to find questions edited in the Sentl web panel since the
-last report; when one was reworded, it asks you whether the question still asks the same thing.
+last period; when one was reworded, it asks you whether the question still asks the same thing.
 It saves the results of the 14 runs into `inbox/` and runs the script on them, from the skill's
 folder (here the one `install.sh --host claude` writes); `market` is the short name `adopt` gave
 the project in the study folder:
@@ -249,16 +248,30 @@ the project in the study folder:
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py runs --study avenello-study --project market --saved avenello-study/inbox/runs-701.json --date 2026-10-14
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py ingest --study avenello-study --project market --results avenello-study/inbox/run-9408.json
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py period --study avenello-study --date 2026-10-14 --models avenello-study/inbox/models.json
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py method --study avenello-study --date 2026-10-14 --models avenello-study/inbox/models.json
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.md
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py deck --study avenello-study --date 2026-10-14
+# the assistant writes the findings and the actions in reports/2026-10-14.deck.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.deck.json
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --deck --date 2026-10-14
 ```
 
-`runs` lists the runs to fetch, `ingest` stores each one, `period` computes the figures of the
-week and of the week before, and `method` writes the sections on how the study was built. The
-assistant then writes what the assistants say, dimension by dimension, from the answers and the
-figures `period` prepared, and `check` verifies the report: every quote is verbatim, every figure
-is the period's, the sections are in order, and no internal id appears. The assistant corrects
-the report until `check` passes.
+`runs` lists the runs to fetch, `ingest` stores each one, and `period` computes the figures of the
+week and of the week before. `deck` places each question in a block and writes the figures file the
+assistant reads; the assistant writes the text of the slides, from the answers and the figures, in
+`reports/2026-10-14.deck.json`. `check` verifies it: every excerpt is verbatim, every figure is the
+period's, every count beside a site or an assistant is that name's, every text fits its slide, and no
+internal id appears. The assistant corrects the text until `check` passes, which records the period in
+`history/reports.json`: the next period starts after its runs. `pdf --deck` prints the deck; it needs
+Chromium or Google Chrome with a working sandbox, and says what to install when none can start.
+
+The first four slides are enough to decide: the cover says what was done and who prepared it, the second
+what the deck shows, with real questions and how to read a figure, the third what was found, with the
+subject beside the competitors the same answers name, and the fourth what to do and why. Then come the
+evidence, each slide with the question it belongs to, the sources, the method and the list of every
+question. The text is written for the client's marketing manager, in their words. Before an action names
+a page, the assistant reads it with `monitor.py page --url <address>`, which prints what the page's HTML
+holds, tooltips and closed answers included. Then a fresh reader who has seen nothing reads the deck, and
+an audit checks every sentence against the answers; an audit run by another agent goes in
+`history/deck/<date>.audit.md`, and the writer works from it.
 
 What comes out:
 
@@ -267,84 +280,30 @@ avenello-study/
   study.json              your answers, and the project's dimensions, questions and rubrics
   sentl.json              the Sentl project the study reads
   inbox/                  Sentl's responses, as the assistant saved them
-  history/                the runs, the periods, the project's versions and the material each report is written from
-  reports/2026-10-14.md   the report
+  history/                the runs, the periods, the project's versions and the material each deck is written from
+  reports/2026-10-14.deck.json   the deck's text
+  reports/2026-10-14.deck.pdf    the deck
+  reports/share/          the copy to send
 ```
 
-In the chat, and never in the report, the assistant tells you the runs the report covers, the
-week rebuilt from earlier runs, and anything to check: runs not final yet, runs left out, edits
-found in Sentl. Ask for the charts and it writes `reports/2026-10-14.charts.md` with
-`monitor.py charts`.
+The copy to send is `reports/share/Avenello + Sentl.ai - monitoring deck (2026-10-08 to 2026-10-14).pdf`:
+the subject from `study.json`, the period from its entry in `history/reports.json`. In the chat, and never in the deck,
+the assistant tells you the runs the period covers, the week rebuilt from earlier runs, and anything to check:
+runs not final yet, runs left out, edits found in Sentl, and what the reader and the audit left open.
 
-Ask for the PDF and `monitor.py pdf --study <folder>` writes `reports/<date>.html` and, when chromium,
-google-chrome, weasyprint or wkhtmltopdf is installed, `reports/<date>.pdf`; without one it says how to
-print the page to PDF from a browser. The copy to send is written to `reports/share/` as
-`<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf` (subject from `study.json`, period
-from the report's entry in `history/reports.json`); the files in `reports/` keep their date names.
-
-### 3. The next reports
+### 3. The next periods
 
 A week later, `sentl-monitor report` again. It reads the runs started after the last run of the
-previous report, compares the new week with up to four earlier ones, and the report opens with
-what changed.
-
-### The deck: what a client reads
-
-A report is the record of a period; a client reads the deck. Ask for it and the assistant follows `report/DECK.md`:
-
-```bash
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py deck --study avenello-study --date 2026-10-14
-# the assistant writes the findings and the actions in reports/2026-10-14.deck.json
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.deck.json
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --deck --date 2026-10-14
-```
-
-The first four slides are enough to decide: the cover says what was done and who prepared it, the second what the report
-shows, with real questions and how to read a figure, the third what was found, with the subject beside the competitors
-the same answers name, and the fourth what to do and why. Then come the evidence, each slide with the question it belongs
-to, the sources, the method and the list of every question. The script draws every figure from the period; the text is
-written for the client's marketing manager, in their words, and a fresh reader must understand it before it goes out. The
-copy to send is `reports/share/<Subject> + Sentl.ai - monitoring deck (<start> to <end>).pdf`.
-
-A deck that follows a final deck adds two slides after what was found: each block's figure on both dates, and the earlier actions
-with their figure then and now. The deck does not say an action moved a figure, because it does not know whether the client acted.
-
-Before an action names a page, the assistant reads it with `monitor.py page --url <address>`, which prints what the page's HTML
-holds, tooltips and closed answers included. An audit run by another agent goes in `history/deck/<date>.audit.md`, and the
-writer works from it.
-
-## A sample report
-
-[examples/avenello-report-2026-10-14.md](examples/avenello-report-2026-10-14.md) is the first
-report of the walk-through above, written on fictional runs by the same steps; a test checks
-that it still passes `check`. Its sections:
-
-1. **What we did and to what end**: the purpose, the questions, the assistants and how many
-   answers were scored.
-2. **Where the themes came from**: the origin of each dimension's theme.
-3. **The dimensions and how we reached them**, and who asks the questions.
-4. **The questions**, as Sentl asks them.
-5. **How the answers are scored**: what 5, 3 and 1 mean for each question, and what counts as a
-   change between periods.
-6. **In short**: three to five sentences with the figures that matter.
-7. **What the assistants say**: for each dimension, verbatim excerpts with their question and
-   assistant, the cited domains, the score, and what explains it: the facts the answers state,
-   current or outdated, the pages behind them, movements inside the week, the subject's presence
-   run by run, and who wrote the cited pages.
-8. **What changed**: the scores and shares that moved since the week before and, since the
-   project runs daily, the day each movement started; the assistants whose verdict changed, with
-   both answers; and the domains newly cited or no longer cited.
-
-From the second report on, "What changed" and "What the assistants say" come first and the
-sections on method close the report.
-[examples/avenello-report-2026-10-14.charts.md](examples/avenello-report-2026-10-14.charts.md)
-holds the same report's figures as Markdown chart tables.
+previous period, compares the new week with up to four earlier ones, and the deck adds two slides
+after what was found: each block's figure on both dates, and the earlier actions with their figure
+then and now. The deck does not say an action moved a figure, because it does not know whether the
+client acted.
 
 ## Make it yours
 
-`monitor.py pdf` writes the report as a page and, when a PDF engine is installed, as a PDF. The page
-is white with Sentl's orange, text colour and mark, and needs no network. To use your own colours,
-font and logo, put a theme file where the skill looks for it; the first hit wins:
+`monitor.py pdf --deck` prints the deck white, with Sentl's orange, text colour and mark, and needs no
+network. To use your own colours, font and logo, put a theme file where the skill looks for it; the
+first hit wins:
 
 1. `--theme <file>` on the command;
 2. the `theme` key of the study's `study.json`, a path;
@@ -359,42 +318,44 @@ brand:
 {
   "colors": {"primary": "#2255AA", "deep": "#112244", "text": "#1B1F2A"},
   "font": "Georgia, serif",
-  "logo": "avenello-logo.png",
-  "footer": "Prepared for Avenello"
+  "logo": "avenello-logo.png"
 }
 ```
 
-`colors` takes `primary` (rules and quote bars), `deep` (headings and links), `text`, `muted`, `line`
-(borders) and `tint` (table headers and code). `logo` is a path (png, jpg, gif, webp or svg), relative
+`colors` takes `primary` (the cover's band and the accents), `deep` (headings), `text`, `muted`, `line`
+(borders) and `tint` (table headers). `logo` is a path (png, jpg, gif, webp or svg), relative
 to the theme file, or the text of an SVG; a logo that cannot be read is replaced by Sentl's mark and
 the command says so. `font_url` is optional: set it to a stylesheet address and the page links it,
-which then needs the network when the page is opened. A `.css` theme overrides the page's variables
+which then needs the network when the deck is printed. A `.css` theme overrides the deck's variables
 (`--sl-primary`, `--sl-deep`, `--sl-text`, `--sl-muted`, `--sl-line`, `--sl-tint`, `--sl-font`) and may
-add rules; `.sl-header` and `.sl-footer` are the logo band and the footer. The copy in
-`reports/share/` is the themed page.
+add rules; `.cover` and `.foot` are the cover and the footer of each slide. `check` lays the slides out
+with the theme's rules, so a wider font can make a slide run over where Sentl's did not. The copy in
+`reports/share/` is printed with the theme.
 
-The skill writes its files (Markdown, HTML, PDF) in the study folder and sends none of them.
-Putting a report in a drive, a document library or a mailbox is done by the connectors your assistant
+The skill writes its files (JSON, Markdown, PDF) in the study folder and sends none of them.
+Putting a deck in a drive, a document library or a mailbox is done by the connectors your assistant
 already has.
 
 ## Scheduled reports
 
 Two clocks run independently. Sentl runs the measurement, on the project's schedule (daily,
 weekly or monthly) once `setup` has activated it. A scheduler on your side starts the assistant
-that writes the report. Started that way, `report` is unattended: it asks no question and
-Sentl is only read.
+that builds the period and writes the deck. Started that way, `report` is unattended: it asks no
+question and Sentl is only read.
 
 - It lists each project's runs, and stops with `nothing_new` when no completed run is new since
-  the previous report. A run still open is read at the next invocation.
+  the previous period. A run still open is read at the next invocation.
 - A run with under 90% of its answers judged is left out of the period; when no run is left it
   stops with `below_floor`. A dimension with under 80% of its answers judged is shown without a
   figure.
-- A report that fails `check` is kept as `reports/<date>.draft.md`, not corrected, and the next
-  invocation does not write it again. Fix it, rename it to `reports/<date>.md` and run `check`
+- The deck's text is written and checked as in an attended session. A deck that still fails
+  `check` is recorded as a draft, with the problems found, and its period is recorded, so the next
+  invocation does not write it again. Fix the text in `reports/<date>.deck.json` and run `check`
   on it to make it final.
+- The fresh reader and the audit are left to you: run them before the deck is sent.
 - `history/last-report.json` holds the time, the outcome (`written`, `draft`, `nothing_new` or
   `below_floor`) and a one-line detail of the latest invocation. Two invocations on the same
-  runs write one report, and the second records `nothing_new`.
+  runs write one deck, and the second records `nothing_new`.
 
 Start it after the project's scheduled run has completed. The study folder must have been set
 up by `adopt` or `setup`, with its `study.json` answered in full, because nobody can answer
@@ -404,8 +365,8 @@ a question at 07:00.
 
 cron, launchd or a systemd timer starts a headless assistant in the study folder. The Sentl
 connection uses an API token, because signing in through the browser needs a person, and a
-sign-in unused for 30 days must be repeated. A token with the User role is enough, since the
-report only reads. Create it in Sentl under **Integrations → API Tokens**, then add the server to
+sign-in unused for 30 days must be repeated. A token with the User role is enough, since
+`report` only reads. Create it in Sentl under **Integrations → API Tokens**, then add the server to
 Claude Code; the token is read from the terminal, stored in the assistant's own configuration and
 never in the study folder:
 
@@ -415,8 +376,8 @@ claude mcp add --scope user --transport http sentl-mcp https://app.sentl.ai/mcp 
 unset SENTL_TOKEN
 ```
 
-The crontab line below starts the report every Monday at 07:00. It allows the script, file edits
-and the five Sentl tools the report reads, so the unattended assistant cannot create a project,
+The crontab line below starts `report` every Monday at 07:00. It allows the script, file edits
+and the five Sentl tools `report` reads, so the unattended assistant cannot create a project,
 change a setting or start a run:
 
 ```text
@@ -432,7 +393,7 @@ its Python and the Sentl tools.
 
 An assistant's own scheduler, such as a scheduled cloud agent, starts every run in a fresh
 environment, so the study folder must live somewhere that lasts: a **private** repository
-holding the study folder. The reports and the saved answers are client data, so the repository
+holding the study folder. The decks and the saved answers are client data, so the repository
 must not be public. Keep `inbox/` out of it, since the agent saves Sentl's responses there again
 at each invocation:
 
@@ -461,9 +422,9 @@ the playbook; this table is for when you run a command yourself or the assistant
 | Code | Meaning | What to do |
 |---|---|---|
 | 0 | Done. | Nothing. |
-| 1 | `check` found problems in the report, or `validate` in the study, listed one per line, `doctor` found that the study folder cannot be written, or `demand autocomplete` could not fetch some of Google's suggestions and lists the prefixes. | The assistant corrects the report and runs `check` again until it passes. For `doctor`, choose another folder. For `demand autocomplete`, run it again: it fetches only the missing prefixes. |
-| 2 | Input refused: a saved response is incomplete or belongs to another tool or project, a field of `study.json` is not filled in, a pack was changed, is older than the folder's last report or belongs to another study, or Python is older than 3.10. The message says why and what to do. | Follow the message: save the Sentl response again, answer the field it names, attach the latest pack, or install a newer Python. |
-| 3 | A run is not final yet. | Nothing: the next report reads it. |
+| 1 | `check` found problems in the deck, or `validate` in the study, listed one per line, `doctor` found that the study folder cannot be written, or `demand autocomplete` could not fetch some of Google's suggestions and lists the prefixes. | The assistant corrects the deck's text and runs `check` again until it passes. For `doctor`, choose another folder. For `demand autocomplete`, run it again: it fetches only the missing prefixes. |
+| 2 | Input refused: a saved response is incomplete or belongs to another tool or project, a field of `study.json` is not filled in, a pack was changed, is older than the folder's last period or belongs to another study, or Python is older than 3.10. The message says why and what to do. | Follow the message: save the Sentl response again, answer the field it names, attach the latest pack, or install a newer Python. |
+| 3 | A run is not final yet. | Nothing: the next period reads it. |
 | 4 | No run of the period has 90% of its answers scored, or the period has no run. | Wait for the runs to complete, or check in the Sentl web panel why answers were not scored. |
 | 5 | A Sentl response does not have the shape the skill reads, or a pack was written by a later version of the skill. The message names the tool and the field. | Do not edit the saved file. Update the skill; if the latest version still exits 5, open an issue naming the tool and the field. |
 | 6 | Unexpected error. | Run the same command again with `--debug` and open an issue with its output. |
@@ -471,13 +432,13 @@ the playbook; this table is for when you run a command yourself or the assistant
 
 ## Time zone, systems and languages
 
-Periods are counted in UTC: a report dated D covers the runs started up to the end of D in UTC,
-and the report date is today's local date unless one is given.
+Periods are counted in UTC: a period dated D covers the runs started up to the end of D in UTC,
+and its date is today's local date unless one is given.
 
 Linux and macOS are supported, and Windows through WSL. On native Windows the script runs, but
 the playbooks' commands assume a POSIX shell.
 
-Reports are written in English or Italian. The questions can be in any language. Answers in
+Decks are written in English or Italian. The questions can be in any language. Answers in
 which an assistant says it found no source of the kind asked for are detected in English and
 Italian answers only.
 
@@ -563,9 +524,9 @@ skills/sentl-monitor/  the skill
   brief/BRIEF.md
   design/DESIGN.md     how a study is designed; design/catalogue.md is the dimension catalogue
   setup/SETUP.md       how the study's projects are created and saved in Sentl
-  report/REPORT.md
-  report/INSIGHTS.md   how a report states each insight
-  snapshot/SNAPSHOT.md how a one-off snapshot of a subject is designed, run and reported
+  report/REPORT.md     how the runs of a period are read and pooled
+  report/DECK.md       how the deck of a period is written, checked and printed
+  snapshot/SNAPSHOT.md how a one-off snapshot of a subject is designed and run, and its deck written
   compare/COMPARE.md   how two snapshots of one subject are set side by side
   scripts/monitor.py   the command line: adopt, detect, runs, pending, ingest, period, compare, method, check, charts, demand, validate, review, revise, deck, pdf, page, payload, bind, resume, close, doctor, pack, unpack
   scripts/sentlmon/    its implementation, standard library only

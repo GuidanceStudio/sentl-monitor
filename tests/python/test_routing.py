@@ -16,6 +16,7 @@ SHAPES = {
     "follow a subject already looked at": ["follow the subject", "brief"],
     "start a study": ["brief <subject>", "design"],
     "projects not yet in Sentl": ["setup"],
+    "what to send a client": ["what to send a client", "sentl-monitor report", "deck"],
 }
 
 

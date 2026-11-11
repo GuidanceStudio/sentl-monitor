@@ -1,7 +1,7 @@
 # snapshot
 
 A one-off check of a subject, in a folder of its own: a small study of four or five dimensions, one
-snapshot in Sentl (it takes none of the plan's project slots), one run, one report, and nothing left
+snapshot in Sentl (it takes none of the plan's project slots), one run, one deck, and nothing left
 running in Sentl. It writes to the
 operator's Sentl account and spends credits: every write has its own go.
 
@@ -55,16 +55,16 @@ Exit 1: the folder cannot be written; choose another. On a web sandbox, unpack t
    python3 <skill>/scripts/monitor.py resume --study "$S" --runs "$S/inbox/runs-<project id>.json"
    ```
 
-   It prints `Next step: design`, `project`, `cost`, `run`, `report`, `end` or `done`, and
+   It prints `Next step: design`, `project`, `cost`, `run`, `deck`, `end` or `done`, and
    the step of this playbook that follows. Go to that step and skip the ones before it. A new
    folder is at `design`.
 
 ## 2. Subject and facts
 
-Ask the operator what the reader of the report needs to decide, and the subject: its label,
+Ask the operator what the reader of the deck needs to decide, and the subject: its label,
 kind (brand, product, category or organisation), aliases as people write it, the competitors
 to name as foils, the sites the subject owns, and the market and language. Ask which language
-the report is written in.
+the deck is written in.
 
 Collect 5 to 10 facts from primary sources: the subject's own pages, a regulator's or a
 retailer's page. Each fact has its source and the date it was read. `catalogue.md` lists the
@@ -84,7 +84,7 @@ replaced by another entry. For each, write in `$S/study.json`:
 
 Then ask the operator two things, one line each:
 
-- who will read the report: their role and the decision the report feeds. Write it in
+- who will read the deck: their role and the decision the deck feeds. Write it in
   `narrative.reader`.
 - the persona behind each dimension's question: who types it and in what situation, such as *a
   parent who read that oat milk has too much sugar*. Write it in the question's `persona`
@@ -113,8 +113,8 @@ the question's `"suggestion"`.
 `validate` refuses a `suggestion` that is not recorded in `search-demand.json` under the
 question's dimension, and a question without one when its dimension has suggestions there.
 When `autocomplete` exits 1, run it again: it fetches only the prefixes still missing. A host with no network fails on every prefix: leave `suggestion` out of
-every question and write them from the catalogue's pattern alone. The report's method section
-then says that Google's suggestions could not be collected.
+every question and write them from the catalogue's pattern alone, and tell the operator that
+Google's suggestions could not be collected.
 
 One question per dimension, written as the person types it, in the market's language, from the
 catalogue entry's pattern. A question that names no brand contains no alias of the subject or of
@@ -149,7 +149,7 @@ python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models
 
 `validate` exit 1 lists the problems: correct `study.json` and run it again. It refuses a
 question with no `persona`. It warns when every
-dimension names the subject; tell the operator what that costs the report. `review` writes
+dimension names the subject; tell the operator what that costs the deck. `review` writes
 `$S/study-review.md`: the narrative, the dimensions, every question with its rubric and judge
 instructions, and the credits of one run from the tariffs, without judging. Show it and stop for
 the operator's approval. Nothing is written to Sentl before it.
@@ -218,43 +218,32 @@ Follow the run with `list-runs-tool`, a few minutes apart, through `queued`, `pe
 `completed_with_warnings`. If the conversation ends first, the next invocation resumes at this
 step and starts nothing. A status the skill has never seen is told to the operator, who decides.
 
-## 9. Report
+## 9. Period and deck
 
 Take the completed run's id from `resume`. Call `get-run-results-tool`, save the response to
-`$S/inbox/run-<id>.json` (copy the host's file when the response was large) and ingest it:
+`$S/inbox/run-<id>.json` (copy the host's file when the response was large) and ingest it, then
+build the period of the one run:
 
 ```bash
 python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<id>.json"
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
-python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inbox/models.json"
 ```
 
 If Sentl returns an error for the run twice, tell the operator and stop: a snapshot has one run
-and no report without it; the folder resumes here. `period` reads the one run, with no
-comparison and no floor on the judged share. A dimension with under 80% of its answers judged is
-shown without a figure; tell the operator. `method` exit 2 listing fields: ask the operator and
-run it again. It writes `reports/D.md` in this order: what we did, the dimensions, the
-questions, how the answers are scored, the findings, and what a single run cannot show. Keep what
-`period` printed for the chat; none of it goes in the report.
+and no deck without it; the folder resumes here. `period` reads the one run, with no comparison
+and no floor on the judged share. A dimension with under 80% of its answers judged is shown
+without a figure; tell the operator. Keep what `period` printed for the chat; none of it goes in
+the deck.
 
-Write the findings as `report/REPORT.md` step 7 sets out, reading `history/material/D.md`, with
-these differences: a dimension whose question names the subject is read by its score and its
-figure; one whose question names no brand, by whether and where the subject appears (the share of
-answers that name it and its position), and the answers of the assistants that do not name it
-are described as such. Give no figure for the whole project, and write no summary and no changes
-section. Every excerpt is copied verbatim. Never write a credit figure, an id, a key, a model id
-or a file name.
-
-```bash
-python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
-```
-
-Exit 1 lists each problem: fix the report and run it again until it passes. A passing report is
-recorded in `history/reports.json` as final.
+Then follow `report/DECK.md` from its step 1 with the same `D`: the deck is what the reader of
+step 3 receives. `deck` exit 2 listing fields: ask the operator and run it again. The deck's
+`check` records the period in `history/reports.json` as final; `pdf --deck` writes the copy to
+send in `reports/share/`. Never write a credit figure, an id, a key, a model id or a file name in
+the deck. On a host without a lasting folder, the pack waits for step 10, after the operator's choice.
 
 ## 10. Keep it, delete it, or follow the subject
 
-Ask the operator which of three. The run and its report stay in this folder whichever they choose.
+Ask the operator which of three. The run, its period and the deck stay in this folder whichever they choose.
 
 **Keep it.** The snapshot stays in Sentl, readable, and costs nothing more. Call `get-project-tool`,
 saved to `$S/inbox/project.json`, and:
@@ -270,7 +259,7 @@ python3 <skill>/scripts/monitor.py close --study "$S" --deleted
 ```
 
 **Follow the subject over time.** A snapshot takes no schedule, so following it means a project:
-go on with `brief` and `design`, keeping this report as the first look. `promote` exists only for
+go on with `brief` and `design`, keeping this snapshot's deck and period as the first look. `promote` exists only for
 a snapshot that was created as a project before Sentl had snapshots; for a snapshot it exits 2
 and says so. When the project of such a snapshot is no longer needed, archive it with
 `archive-project-tool` on the operator's go (`undo-project-archive-tool` reverts it in the first
@@ -278,10 +267,11 @@ ten minutes), then run `close` with `--saved` after reading it again.
 
 On a host without a lasting folder, pack the snapshot before the conversation ends:
 `monitor.py pack --study "$S" --out <the folder the host offers for download>`, and offer the
-pack and the report for download (SKILL.md).
+pack and the deck's copy to send, in `reports/share/`, for download (SKILL.md).
 
 ## 11. Tell the operator
 
-In the chat: the report's path, the credits the estimate gave, the runs left out or unavailable,
-the dimensions shown without a figure, unmatched responses, and what became of the snapshot
-(kept, deleted, or followed by a study). Offer the report as a PDF: `monitor.py pdf --study "$S"`; what is sent is the file it names in `reports/share/`.
+In the chat: where the deck's copy to send is (the file `pdf --deck` names in `reports/share/`),
+the credits the estimate gave, the runs left out or unavailable, the dimensions shown without a
+figure, unmatched responses, what DECK.md step 9 lists, and what became of the snapshot (kept,
+deleted, or followed by a study).

@@ -60,7 +60,7 @@ if [ -e "$REPO_ROOT/sentl-monitor" ]; then bad "the old payload folder sentl-mon
 assert_nonempty "skills/sentl-monitor/SKILL.md"
 assert_nonempty "skills/sentl-monitor/adopt/ADOPT.md"
 assert_nonempty "skills/sentl-monitor/report/REPORT.md"
-assert_nonempty "skills/sentl-monitor/report/INSIGHTS.md"
+assert_nonempty "skills/sentl-monitor/report/DECK.md"
 assert_nonempty "skills/sentl-monitor/scripts/monitor.py"
 assert_dir "skills/sentl-monitor/scripts/sentlmon"
 assert_file "skills/sentl-monitor/scripts/sentlmon/__init__.py"
@@ -231,14 +231,11 @@ else
     bad "monitor.py commands in the README:"
     echo "$COMMAND_PROBLEMS" | sed 's/^/        /'
 fi
-# The sample report the README links exists; the unit test test_sample_report.py runs check on it.
-SAMPLE_LINKS=$(grep -oE '\(examples/[^)]+\.md\)' "$README" | tr -d '()' | sort -u)
-if [ -z "$SAMPLE_LINKS" ]; then
-    bad "the README links the sample report in examples/"
+# The README shows no long report: the deck is the only thing the reader gets.
+if grep -qE '\(examples/[^)]+\.md\)|A sample report' "$README"; then
+    bad "the README links no long report in examples/"
 else
-    for link in $SAMPLE_LINKS; do
-        if [ -f "$REPO_ROOT/$link" ]; then ok "the README's link $link exists"; else bad "the README's link $link exists"; fi
-    done
+    ok "the README links no long report in examples/"
 fi
 for section in "## Prerequisites" "## Exit codes" "## Update and uninstall" "## Version and changes" "## Planned" "## Contributing and support"; do
     if grep -qxF "$section" "$README"; then ok "README has '$section'"; else bad "README has '$section'"; fi
@@ -327,7 +324,7 @@ holds "$DESIGN_WHO" "the brief's personas" "DESIGN.md copies the brief's persona
 holds "$DESIGN_WHO" "an id of" "DESIGN.md makes each question's persona an id of the list"
 
 SNAPSHOT_DIMS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 3. ")
-holds "$SNAPSHOT_DIMS" "who will read the report" "SNAPSHOT.md asks who will read the report"
+holds "$SNAPSHOT_DIMS" "who will read the deck" "SNAPSHOT.md asks who will read the deck"
 holds "$SNAPSHOT_DIMS" "one line each" "SNAPSHOT.md asks for the persona behind each question, one line each"
 SNAPSHOT_QUESTIONS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")
 holds "$SNAPSHOT_QUESTIONS" "demand autocomplete" "SNAPSHOT.md sends one seed per dimension to Google's suggestions"

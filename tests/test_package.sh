@@ -207,7 +207,7 @@ if grep -qx "sentl-monitor/notes.md" <<<"$DIRTY_NAMES"; then
 else
     ok "with --allow-dirty, an untracked file still stays out of the zip"
 fi
-dirty_case "a deleted payload file" 'rm skills/sentl-monitor/report/INSIGHTS.md' refused
+dirty_case "a deleted payload file" 'rm skills/sentl-monitor/compare/COMPARE.md' refused
 dirty_case "a change outside the payload" 'echo "edit" >>README.md' builds
 
 echo ""

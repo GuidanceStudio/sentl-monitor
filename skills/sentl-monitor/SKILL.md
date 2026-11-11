@@ -19,8 +19,8 @@ metadata:
 
 A Sentl project asks its questions to several researcher models; a judge scores each answer
 from 1 to 5 against a rubric written for that question. This skill keeps a **study folder**
-per monitored subject, reads the project's runs into it, and writes reports a client can
-read without having seen an earlier one.
+per monitored subject, reads the project's runs into it, pools them into periods, and writes for
+each period one short slide deck a client can read without having seen an earlier one.
 
 ## When to use
 
@@ -30,28 +30,28 @@ production method or an organisation, and the answers are measured in Sentl.
 | You want | Route |
 |---|---|
 | A first look at a brand or topic, once, leaving nothing running | `snapshot <subject>` |
-| To follow a subject over time and receive a report each period | `brief`, `design`, then `setup`; the report is `report` |
-| A report on a Sentl project that already exists | `adopt <project>`, then `report` |
-| This period's report, or what changed since the last | `report` in the study's folder |
-| What a client reads: one short deck, with what was found and what to do | `deck` in the study's folder |
-| A report as a PDF | `pdf` after the report passes `check` |
+| To follow a subject over time and receive a deck each period | `brief`, `design`, then `setup`; each period is `report` |
+| A deck on a Sentl project that already exists | `adopt <project>`, then `report` |
+| This period's deck, or what changed since the last | `report` in the study's folder |
+| The deck of a period already built, written again or carried on | `deck` in the study's folder |
+| The deck as a PDF | `pdf --deck` after the deck passes `check` |
 | To change the questions, models or schedule of a monitored study | edit `study.json` through `design`, then `setup` |
 | To stop a project | `setup` step 8: archive it, on your go |
 
 The assistant reads the Sentl tools' own descriptions for their parameters, roles and limits; this
 skill does not repeat them. It tells you which route to take, in which order, what needs your go,
-and how the figures in the report are built.
+and how the figures in the deck are built.
 
 Choose the route by the state of the study:
 
 - No study folder holds the Sentl project yet: `sentl-monitor adopt <project>`.
-- The study folder exists and runs have completed after its last report: `sentl-monitor report`.
+- The study folder exists and runs have completed after its last period: `sentl-monitor report`.
 - A scheduler starts the assistant and nobody can answer a question: `sentl-monitor report`
   unattended, which follows the last section of `report/REPORT.md`.
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
-- Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, `brief` and `design` start from the snapshot's report as the first look.
-- Someone wants what to send a client, or asks for a deck, for slides or for suggested actions: `sentl-monitor deck`, which starts from the period `report` builds.
+- Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, `brief` and `design` start from the snapshot's deck and period as the first look.
+- Someone wants what to send a client, or asks for a deck, for slides or for suggested actions: `sentl-monitor report`: it writes the deck after the period. When the period of that date is built already, `sentl-monitor deck`.
 - Someone asks what changed between two moments: `sentl-monitor report` in the study's folder; it compares each period with the one before.
 - Someone asks what changed between two snapshots of one subject, neither promoted: `sentl-monitor compare <earlier folder> <later folder>`.
 
@@ -60,12 +60,12 @@ Choose the route by the state of the study:
 | Invocation | Playbook | What it does |
 |---|---|---|
 | `adopt <project>` | `adopt/ADOPT.md` | takes an existing Sentl project into a study folder and asks the operator what Sentl does not hold |
-| `report` | `report/REPORT.md` | pools the completed runs since the previous report, compares them with the earlier periods, and writes `reports/<date>.md`; started by a scheduler, it records its outcome in `history/last-report.json` |
-| `deck` | `report/DECK.md` | turns one period into one slide deck for whoever decides: the code places each question in a block and draws the figures, the assistant writes the findings and three to five actions in `reports/<date>.deck.json`, `check` reads them against the period, and `pdf --deck` writes the copy to send |
+| `report` | `report/REPORT.md` | pools the completed runs since the previous period, compares them with the earlier periods, and goes on into the deck (`report/DECK.md`) in the same invocation; started by a scheduler, it records its outcome in `history/last-report.json` |
+| `deck` | `report/DECK.md` | turns one period into one slide deck for whoever decides, the only thing the reader receives: the code places each question in a block and draws the figures, the assistant writes the findings and three to five actions in `reports/<date>.deck.json`, `check` reads them against the period and records the period, and `pdf --deck` writes the copy to send |
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
-| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once, as a snapshot in Sentl that takes no project slot: 4 or 5 dimensions from the catalogue, one run on the operator's go after the credit estimate, a short report, then the operator chooses to keep the snapshot, delete it, or follow the subject; invoked again in the same folder, it resumes |
+| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once, as a snapshot in Sentl that takes no project slot: 4 or 5 dimensions from the catalogue, one run on the operator's go after the credit estimate, the deck of that run, then the operator chooses to keep the snapshot, delete it, or follow the subject; invoked again in the same folder, it resumes |
 | `compare <folder> <folder>` | `compare/COMPARE.md` | sets two folders with the same questions side by side, each dimension's score and presence on both, in `reports/<date>.compare.md` of the later one |
 
 Read the playbook of the route invoked and follow it step by step.
@@ -115,10 +115,10 @@ Read the playbook of the route invoked and follow it step by step.
   ChatGPT), the study folder is deleted when the conversation ends, so the study travels as a
   pack, one zip file. Before any other command, run `monitor.py unpack --study <folder> <pack>`
   on the pack the user attached or the one kept in the Project's files; with several packs,
-  unpack the one with the latest date in its name. When the route ends (after `check` in
+  unpack the one with the latest date in its name. When the route ends (after the deck's last `check` and `pdf` in
   `report` or `deck`, after the operator's answers in `adopt`, after `close` in `snapshot`), run `monitor.py pack --study <folder>
-  --out <folder the host offers for download>`, copy the report and the PDF in `reports/share/`, if one was made, to
-  the same folder, and offer them for download. Tell the user to keep the report and the new
+  --out <folder the host offers for download>`, copy the deck's PDF to send, in `reports/share/`, to
+  the same folder, and offer both for download. Tell the user to keep the deck and the new
   pack and, when the host has Projects, to put the pack in the Project's files in place of the
   previous one: the next conversation reads it from there. The playbooks say where.
 - **Runs too large for the conversation.** When the host does not save a large tool result to a
@@ -138,10 +138,10 @@ Read the playbook of the route invoked and follow it step by step.
   the run is read again at the next invocation. `completed` and `completed_with_warnings` are final
   with results. `failed` and `stalled` are final with no results: tell the operator and leave them
   out of the period. Any other status is one the skill has never seen: tell the operator.
-- **What the operator is told goes in the chat, never in the report:** runs covered and left
+- **What the operator is told goes in the chat, never in the deck:** runs covered and left
   out, unmatched responses, unavailable runs, a run score that differs from the one computed,
   dimensions shown without a figure, edits detected in Sentl, the periods rebuilt from a
   project's earlier runs, the two halves of a first period compared with each other, or that
   no earlier period exists.
-- Talk to the operator in their language. The report is written in the study's
+- Talk to the operator in their language. The deck is written in the study's
   `report_language`.

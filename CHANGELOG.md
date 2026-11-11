@@ -12,6 +12,16 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   the date has no entry yet, the period as a draft in `history/reports.json`, so the next invocation finds no new run. The
   same deck checked again and passing makes the entry final and records `written`.
 - A deck checks on a snapshot's one run: a test builds, checks and prints it.
+- The deck is the only thing the reader gets. `report` builds the period and goes on into `report/DECK.md` in the same
+  invocation; no playbook writes or prints `reports/<date>.md` any more. Unattended, the deck is written and checked with
+  `--unattended`, and the reader's test and the audit are left to the operator before the deck is sent.
+- `snapshot` ends with the deck of its one run: step 9 builds the period and follows `report/DECK.md`, and `resume`
+  prints `Next step: deck` where it printed `report`. `promote` needs a deck that passed `check`.
+- `deck` refuses a study with a field only the operator can answer (the purpose, the audience, the origins of a theme and
+  the others `adopt` asks for), naming each field, as `method` did before the long report.
+- On a host without a lasting folder, the pack follows the deck's last `pdf`, and the deck's copy to send is offered with
+  it (`report/DECK.md` step 9).
+- `report/INSIGHTS.md`, the long report's guide to its findings, is removed.
 
 ## 0.7.2 (2026-11-10)
 

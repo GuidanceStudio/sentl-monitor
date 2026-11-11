@@ -196,47 +196,42 @@ for t in adopt/ADOPT.md report/REPORT.md; do
 done
 
 echo ""
-echo "=== The report playbook points to the insights ==="
-has 'INSIGHTS\.md' "$PAYLOAD/report/REPORT.md" "REPORT.md points the writer to report/INSIGHTS.md"
-has "goes in the findings entry of its dimension" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md puts every insight in its dimension's findings entry"
-if grep -qiE "or in the changes section" "$PAYLOAD/report/INSIGHTS.md"; then
-    bad "INSIGHTS.md offers the changes section instead of the findings entry"
+echo "=== The report playbook ends at the period and goes on into the deck ==="
+# The deck is the only thing the reader gets: REPORT.md runs nothing after `period` in its steps,
+# and hands the period to DECK.md.
+HANDOVER=$(python3 - "$PAYLOAD/report/REPORT.md" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+steps = text.split("\n## Redo the latest", 1)[0]
+commands = [(m.start(), m.group(1)) for m in re.finditer(r"scripts/monitor\.py (\w+)", steps)]
+print("yes" if commands and commands[-1][1] == "period" and steps.find("report/DECK.md", commands[-1][0]) > 0 else "no")
+PY
+)
+if [ "$HANDOVER" = "yes" ]; then
+    ok "REPORT.md ends its steps at period and hands over to report/DECK.md"
 else
-    ok "INSIGHTS.md never offers the changes section instead of the findings entry"
+    bad "REPORT.md ends its steps at period and hands over to report/DECK.md"
 fi
-has "«" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md tells the writer to quote a fact term in «»"
-for f in "$PAYLOAD/report/REPORT.md" "$REPO_ROOT/ARCHITECTURE.md"; do
-    has "the subject's own first, then the most cited, five in all" "$f" \
-        "$(basename "$f") lists the domains after the excerpts as the subject's own first, then the most cited"
+if [ -e "$PAYLOAD/report/INSIGHTS.md" ]; then
+    bad "the long report's report/INSIGHTS.md is gone"
+else
+    ok "the long report's report/INSIGHTS.md is gone"
+fi
+for f in "$SKILL" "$PAYLOAD"/*/*.md; do
+    if grep -qE 'monitor\.py (method|charts)|reports/D\.md|charts\.md|INSIGHTS\.md' "$f"; then
+        bad "$(basename "$f") runs neither method nor charts and writes no long report"
+    else
+        ok "$(basename "$f") runs neither method nor charts and writes no long report"
+    fi
 done
-INSIGHT_LINE=$(grep -n "The insights the material prints" "$PAYLOAD/report/REPORT.md" | head -1 | cut -d: -f1)
-CLIENT_LINE=$(grep -n "One line on what it means for the client" "$PAYLOAD/report/REPORT.md" | head -1 | cut -d: -f1)
-if [ -n "$INSIGHT_LINE" ] && [ -n "$CLIENT_LINE" ] && [ "$INSIGHT_LINE" -lt "$CLIENT_LINE" ]; then
-    ok "REPORT.md step 7 puts the insights before the line for the client"
-else
-    bad "REPORT.md step 7 puts the insights before the line for the client"
-fi
-has "summary is written last" "$PAYLOAD/report/REPORT.md" "REPORT.md writes the summary last, from the findings and changes"
 
 echo ""
-echo "=== The report playbook says how to redo the latest report of its date ==="
-REDO=$(awk '/^## Redo the latest report/ {on=1; print; next} on && /^## / {exit} on' "$PAYLOAD/report/REPORT.md")
-if [ -n "$REDO" ]; then ok "REPORT.md has a section on redoing the latest report"; else bad "REPORT.md has a section on redoing the latest report"; fi
-for phrase in "monitor.py period" "monitor.py method" "--force" "monitor.py check" "Keeps" "Rewrites" \
+echo "=== The report playbook says how to redo the latest period of its date ==="
+REDO=$(awk '/^## Redo the latest period/ {on=1; print; next} on && /^## / {exit} on' "$PAYLOAD/report/REPORT.md")
+if [ -n "$REDO" ]; then ok "REPORT.md has a section on redoing the latest period"; else bad "REPORT.md has a section on redoing the latest period"; fi
+for phrase in "monitor.py period" "monitor.py deck" "monitor.py check" "Keeps" "Rewrites" \
               "history/reports.json" "reports/D.deck.json"; do
     if grep -qF -- "$phrase" <<<"$REDO"; then ok "the redo section names $phrase"; else bad "the redo section names $phrase"; fi
-done
-has "In short|summary" "$REPO_ROOT/ARCHITECTURE.md" "ARCHITECTURE.md names the summary section"
-has "five domains cited by most answers of the group" "$PAYLOAD/report/INSIGHTS.md" \
-    "INSIGHTS.md states the sources rule as the five domains cited most in each group"
-if grep -qE "at least 10 points apart|at least five of the two groups" "$PAYLOAD/report/INSIGHTS.md"; then
-    bad "INSIGHTS.md still states the thresholds of the earlier rule"
-else
-    ok "INSIGHTS.md states no threshold of the earlier rule"
-fi
-for insight in "Fact currency" "Sources behind" "Readings" "Episodes" "Presence by run" "Missing evidence" \
-               "Who wrote the sources" "Presence changes"; do
-    has "^## $insight" "$PAYLOAD/report/INSIGHTS.md" "INSIGHTS.md has an entry for $insight"
 done
 
 echo ""
@@ -313,7 +308,7 @@ RULE=$(awk '/\*\*Hosts without a lasting folder/ {on=1} on && /^- \*\*/ && !/Hos
 for word in "monitor.py doctor" "unpack" "monitor.py pack" "download"; do
     if grep -qF "$word" <<<"$RULE"; then ok "the rule names $word"; else bad "the rule names $word"; fi
 done
-# Positions in the rule: doctor, then unpack, then check, then pack.
+# Positions in the rule: doctor, then unpack, then the deck's check, then pack.
 ORDERED=$(python3 - "$RULE" <<'PY'
 import sys
 rule = sys.argv[1]
@@ -327,8 +322,9 @@ else
     bad "the rule says doctor, then unpack, then pack after check"
 fi
 # In each playbook the first command run (`scripts/monitor.py <command>`, not a mention in prose)
-# is doctor, in the section that opens the route (ADOPT §2, REPORT §1), the second is unpack, and
-# pack comes after the command that closes the route: check in report, adopt in adopt.
+# is doctor, in the section that opens the route (ADOPT §2, REPORT §1, DECK §1), the second is unpack,
+# and pack comes after the command that closes the route: adopt in adopt, the deck's pdf in report
+# and deck (REPORT.md ends in DECK.md).
 playbook_order() {
     python3 - "$1" "$2" "$3" <<'PY'
 import re, sys
@@ -345,7 +341,7 @@ last_ok = bool(pack) and bool(closing) and pack[0] > max(closing)
 print(("doctor-unpack-first " if first_ok else "") + ("pack-last" if last_ok else ""))
 PY
 }
-for spec in "adopt/ADOPT.md:adopt:## 2. Study folder" "report/REPORT.md:check:## 1. Preflight"; do
+for spec in "adopt/ADOPT.md:adopt:## 2. Study folder" "report/DECK.md:pdf:## 1. Preflight"; do
     rel="${spec%%:*}"; rest="${spec#*:}"; closing="${rest%%:*}"; section="${rest#*:}"
     file="$PAYLOAD/$rel"; name="$(basename "$file")"
     found=$(playbook_order "$file" "$closing" "$section")
@@ -366,24 +362,15 @@ for spec in "adopt/ADOPT.md:adopt:## 2. Study folder" "report/REPORT.md:check:##
         bad "$name says to keep the latest pack in the Project's files"
     fi
 done
+if grep -q "doctor-unpack-first" <<<"$(playbook_order "$PAYLOAD/report/REPORT.md" check "## 1. Preflight")"; then
+    ok "REPORT.md runs monitor.py doctor first, in '## 1. Preflight', then monitor.py unpack"
+else
+    bad "REPORT.md runs monitor.py doctor first, in '## 1. Preflight', then monitor.py unpack"
+fi
 # What the user keeps, and which pack to unpack.
 for word in "PDF" "Project's files" "latest date" "keep"; do
     if grep -qF "$word" <<<"$RULE"; then ok "the rule names $word"; else bad "the rule names $word"; fi
 done
-# The charts are offered for download once step 12 has written them, never before.
-CHARTS_OFFER=$(python3 - "$PAYLOAD/report/REPORT.md" <<'PY'
-import re, sys
-text = open(sys.argv[1], encoding="utf-8").read()
-step12 = text.find("## 12.")
-offers = [m.start() for m in re.finditer(r"charts\.md[^\n]*download|download[^\n]*charts", text)]
-print("yes" if step12 >= 0 and offers and min(offers) > text.find("monitor.py charts", step12) > step12 else "no")
-PY
-)
-if [ "$CHARTS_OFFER" = "yes" ]; then
-    ok "REPORT.md offers the charts for download after step 12 writes them"
-else
-    bad "REPORT.md offers the charts for download after step 12 writes them"
-fi
 has "pack's manifest" "$SKILL" "SKILL.md names exit 5 for a pack's manifest it cannot read"
 
 echo ""

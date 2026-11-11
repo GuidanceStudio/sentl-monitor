@@ -20,11 +20,12 @@ from urllib.parse import urlparse
 from . import fit
 from . import pdf as report_pdf
 from . import theme as sentl_theme
+from .adopt import missing_answers
 from .charts import span
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
-from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, passed_deck, write_json,
-                     write_text)
+from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, passed_deck,
+                     require_language, write_json, write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
@@ -762,6 +763,10 @@ def write(root, date=None):
     """The figures file and, the first time, the deck's text to fill. A second run keeps what is written, reads its
     `moved` and `same_audience`, and adds `earlier` when a deck before this one has become final."""
     folder, date, study, period, doc = load(root, date)
+    require_language(study)
+    missing = missing_answers(study)
+    if missing:
+        raise Refused("the deck needs the operator's answers to:\n  " + "\n  ".join(missing))
     lang = study["report_language"]
     m = build_model(folder, study, period, doc)
     path = folder.path("reports", f"{date}.deck.json")

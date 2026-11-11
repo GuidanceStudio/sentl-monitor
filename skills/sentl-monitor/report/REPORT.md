@@ -1,10 +1,8 @@
 # report
 
-Reads the completed runs since the previous report, pools them into one period, compares the
-period with the earlier ones and writes `reports/<date>.md`. Reads only: no Sentl write, no
-credit spent.
-
-A client reads the deck, not this document: `report/DECK.md` starts from the period of step 5.
+Reads the completed runs since the previous period, pools them into one period, compares the
+period with the earlier ones, and goes on into the deck (`report/DECK.md`), the only thing the
+reader receives. One invocation gives the deck. Reads only: no Sentl write, no credit spent.
 
 `<skill>` is this skill's directory, `$S` the study folder, `D` today's date (`YYYY-MM-DD`).
 Run every command with `--study "$S"`. When the invocation is unattended, a scheduler started it
@@ -13,14 +11,14 @@ and no operator can answer: read "Unattended mode", at the end, before step 1.
 Every `monitor.py` command below can also end with exit 5 or 6. Exit 5: a saved response does
 not have the shape the skill reads, and the message names the tool and the field. Sentl changed
 what it returns, so no figure computed from it can be trusted: do not edit the file; stop and
-tell the operator the tool and the field, since the skill needs an update before the next report.
+tell the operator the tool and the field, since the skill needs an update before the next period.
 Exit 6: an unexpected error; stop, give the operator the message, and run the same command with
 `--debug` to show where it failed.
 
 **Sentl's errors.** An error carries a code and a message: tell the operator both as Sentl gave
 them. `internal` is called once more. If it fails again on `get-run-results-tool`, record the run
 as unavailable (step 3) and go on. If it fails again on `get-project-tool`, `list-runs-tool` or
-`list-ai-models`, stop: the report cannot be written without it. Tell the operator which tool
+`list-ai-models`, stop: the period cannot be built without it. Tell the operator which tool
 failed and that `report` can be run again later. `not_found`: stop and name the id.
 `invalid_argument`: stop, the skill needs an update. A saved error is refused with exit 2, naming
 its code and message.
@@ -42,9 +40,9 @@ date in its name. Unpack it before any other command:
 python3 <skill>/scripts/monitor.py unpack --study "$S" <pack>
 ```
 
-Exit 2: the pack was changed after it was written, is older than the folder's last report, or
+Exit 2: the pack was changed after it was written, is older than the folder's last period, or
 belongs to another study; exit 5: a later version of the skill wrote it. Tell the operator why
-and stop. When the user has no pack, ask for the one written after the last report; without
+and stop. When the user has no pack, ask for the one written after the last deck; without
 it, the study starts again with `adopt`.
 
 `$S/study.json` and `$S/sentl.json` must exist; otherwise run `adopt` first. Call
@@ -71,12 +69,12 @@ python3 <skill>/scripts/monitor.py detect --study "$S" --project K --saved "$S/i
 
 The detected version is in `history/versions/`. For an adopted project, `study.json` and
 `sentl.json` now follow Sentl's project; a new dimension gets a theme without origins, which
-step 6 asks the operator for. An edit made after the period's last run shows in the next
-report, not in this one.
+`deck` asks the operator for (step 6). An edit made after the period's last run shows in the
+next period, not in this one.
 
 ## 3. Read the runs of the period
 
-For each project, ask for the arguments of the report's window:
+For each project, ask for the arguments of the period's window:
 
 ```bash
 python3 <skill>/scripts/monitor.py runs --study "$S" --project K --date D
@@ -95,12 +93,14 @@ whose `total` exceeds the runs read is refused, naming the page to read.
 It prints the runs to fetch, ordered by start time (the listing is newest first with
 exceptions), and ends with a `Fetch:` line holding their ids:
 
-- **First report** (no report in `history/reports.json` dated before `D`): the completed runs
-  started in the report's `report_every` interval and the four before it (five weeks or five
+- **First period** (no entry in `history/reports.json` dated before `D`): the completed runs
+  started in the study's `report_every` interval and the four before it (five weeks or five
   months). The last interval is the period; the four before it are rebuilt from their runs,
-  so the report can compare with them.
-- **Later reports:** the completed runs started after the last run of the previous report and
-  up to the end of `D`.
+  so the period can be compared with them.
+- **Later periods:** the completed runs started after the last run of the previous entry and
+  up to the end of `D`. The entry is the one the deck's `check` writes (step 6); in a folder
+  that holds reports written by versions before 0.8.0 (`reports/<date>.md`), their entries stay
+  as they are and count the same way.
 
 Completed means `completed` or `completed_with_warnings`. Runs already ingested are left out;
 runs recorded as unavailable are listed again. The output also lists the runs not final yet
@@ -109,7 +109,7 @@ runs ended with no results (`failed`, `stalled`), left out of the period with Se
 runs the listing already shows under the 90% floor, which cost no read, and any status the skill
 has never seen; none of these is fetched. A listing with no `expected` or `judged` leaves the floor
 to the results. A line starting `Warning` says a listing saved without its `total` may stop before
-the window's start. Keep these for step 11.
+the window's start. Keep these for step 7.
 
 When the host saves a large tool result to a file, take each run on the `Fetch:` line one at a
 time: when its line says it is already saved in `inbox/` (`adopt` saved it), use that file; else
@@ -132,225 +132,80 @@ python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S
 - Sentl returned the error `internal` instead of results: call
   `get-run-results-tool` once more; if the error repeats, record the run as unavailable and
   go on: `monitor.py ingest --study "$S" --project K --unavailable <run> --reason "<the error>"`.
-  The next report requests it again.
+  The next period requests it again.
 - Exit 3: the run is not final yet; it is read at the next invocation.
 - Exit 2 on a `failed` or `stalled` run: it holds no results and stays out of the period.
-- The output lists unmatched responses or a run score that differs: keep it for step 11.
+- The output lists unmatched responses or a run score that differs: keep it for step 7.
 
 ## 4. Models
 
 `list-ai-models`, saved to `$S/inbox/models.json`. It gives each researcher model's public
-name; the report never shows a model id.
+name; the deck never shows a model id.
 
 ## 5. Period
 
-Periods are counted in UTC: the report date `D` covers the runs started up to the end of `D`
-in UTC, and the default date is today's local date.
+Periods are counted in UTC: the date `D` covers the runs started up to the end of `D` in UTC,
+and the default date is today's local date.
 
 ```bash
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
 ```
 
 The output says which runs the period pools, which runs were left out and why, the
-unavailable runs, and on a first report the periods rebuilt from earlier runs or, when there
+unavailable runs, and on a first period the periods rebuilt from earlier runs or, when there
 is none, either the two halves of the period compared with each other (runs spanning at least
-14 days) or that this is the first measurement. Keep all of it for step 11; none of it goes
-in the report.
+14 days) or that this is the first measurement. Keep all of it for step 7; none of it goes
+in the deck.
 
-- Exit 2 saying `report_every` is not set: ask the operator whether a report covers a week
+- Exit 2 saying `report_every` is not set: ask the operator whether a period covers a week
   or a month, write it into `study.json`, rerun.
 - Exit 4: no run of the period has 90% of its answers judged, or the period has no run.
   Tell the operator which runs and the share judged, and stop.
 
-## 6. Method sections
+## 6. The deck
 
-```bash
-python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inbox/models.json"
-```
+Go on into `report/DECK.md` with the same `D`, from its step 1, in this invocation. The deck is
+the only document the route writes, and its PDF the only one printed. `deck` exit 2
+listing fields: the operator has not answered them yet; ask (see `adopt` step 6) and rerun.
 
-Exit 2 listing fields: the operator has not answered them yet; ask (see `adopt` step 6) and
-rerun. The script writes `reports/D.md`. A first report (no final report before `D` in
-`history/reports.json`) opens with the method sections; a later report opens with what
-changed and what the assistants say, and the method sections close it. The summary
-section, after the method sections in a first report and first in a later one, holds the
-`[[summary]]` marker. The findings section holds one entry per dimension, marked `[[...]]`. The changes section holds either the line
-saying this is the first measurement, or the period compared with (on a first report with no
-earlier period, the line naming the two halves of the period, their dates and each project's
-runs and answers in each), a `[[...]]`
-marker for the changes in the answers, and one line per change in the design.
+When the deck passes its `check`, `history/reports.json` records the period with the runs it
+read: the next period starts after them and is compared with this one. The route ends with
+DECK.md: `check` and `pdf` are its last commands, and on a host without a lasting folder the pack
+comes after them (DECK.md step 9).
 
-## 7. Write the findings
+## 7. Tell the operator, in the chat
 
-Read `$S/history/material/D.md`: per dimension, the figures, the domains cited, and per
-question whether it names the subject, then every answer with its assistant and score,
-between `~~~~` lines exactly as Sentl returned it. Replace each `[[...]]` marker of the
-findings with:
-
-- **The heading**: `### <Dimension name>: <what the person asking is told>`. The part after
-  the colon is a plain statement of what the answers say, never a score.
-- **One or two excerpts**, each a Markdown blockquote (`> ...`) copied verbatim from one
-  answer in the material. Text can be skipped inside an excerpt with `[…]`, never joined from
-  two answers. Markdown emphasis (`**`) and citation markers (`[1]`) may be left out; nothing
-  else is changed. Copy the excerpt from the material by its lines rather than retyping it:
-  assistants use typographic characters a retyped quote loses.
-- **After each excerpt**, on a plain line: the question in «» and the assistant's public
-  name.
-- **The domains** those answers cite:
-  the subject's own first, then the most cited, five in all.
-- **The figure**, when the material says `figure yes`: the dimension's mean as the material
-  prints it (one decimal, a comma in Italian; never round it again), and how many answers
-  were judged out of how many expected, written as "N su M risposte" or "N of M answers". When it says `figure no`: no mean, only how many
-  answers were judged. For a question whose material says `names the subject: no`, the
-  presence: in what share of the answers the subject is named (whole percent).
-- An entry cites the figures of its own dimension and the project's overall figure, never
-  another dimension's.
-- **The insights the material prints for the dimension** (fact currency, sources behind a fact
-  or a score, readings, episodes, presence by run, missing evidence, who wrote the sources),
-  each in one plain sentence with its figure, as `report/INSIGHTS.md` describes. State every
-  one the material holds; a fact term named in the sentence is quoted in «» as listed. For an
-  episode, the close date is the first run back inside the range; it says nothing about the runs
-  after it. Write the close as that date, state the later runs the material lists under it as
-  still on its side, and never write that the measure was outside the range "only" during the
-  episode (`check` refuses a word for "only" before the episode's dates in the same clause unless
-  the sentence names every later run).
-- **One line on what it means for the client**, last.
-
-## 8. Write the changes in the answers
-
-Skip this step when the changes section says this is the first measurement. Otherwise read
-the material's part "Changes since the previous period", or "Changes between the two halves
-of the period" on a first report with no earlier period, and replace the `[[...]]` marker of
-the changes section with:
-
-- **Each change called**, project, dimension or question: one sentence saying what moved, with
-  the value before and now as the material prints them (a mean with one decimal, a presence
-  or a share in whole percent). Between the halves, "before" is the first half and "now" the
-  second. A dimension the material marks as not compared, or new, gets no figure here.
-- **The facts whose current share changed**: the share of the answers stating a current term,
-  before and now.
-- **An episode beside a change**: where the material lists an episode under a change called,
-  state the episode's first date in the same sentence ("from 9 October"). The material lists
-  only the episodes on the side the change moves to that run in the later period or half.
-- **Each verdict change**: one sentence naming the assistant and the question, then the two
-  answers the material gives, as excerpts copied by their lines, each followed by the question
-  in «», the assistant's public name and which period, or which half, it comes from.
-- **The domains** new or lost: the material lists the five cited by most answers in each list.
-- **Presence changes**: for each question in the material's "Presence changes", the domains
-  that came or went with the subject, and an episode or a fact share that explains a change
-  called (`report/INSIGHTS.md`).
-- **One line** saying the other dimensions are unchanged.
-
-Keep the line above the marker and the design-change lines below it as `method` wrote them;
-`check` refuses a report on the two halves whose changes section no longer names them.
-
-## 9. Write the summary
-
-The summary is written last, from the findings and changes already written. Replace the
-`[[summary]]` marker with a bulleted list of three to five plain declarative sentences, each
-stating one point the reader needs, with its figure as the material prints it. Any figure of
-the period may be cited here, whichever dimension it belongs to, and in a later report the
-figures of the comparison. The summary quotes no answer: an excerpt belongs in findings.
-
-Every figure in steps 7 to 9 must come from the material, rounded as above. Write plain
-declarative sentences; no slogans, no rhetorical openers. Never write a run, project or
-question id, a question key, a model id, a file name, a credit figure, or anything about the
-skill's own steps.
-
-## 10. Check
-
-```bash
-python3 <skill>/scripts/monitor.py check --study "$S" "$S/reports/D.md"
-```
-
-Exit 1 lists each problem: fix the report and run it again until it passes. A quote that
-fails was not copied exactly; a figure that fails is not in the period's metrics or its
-comparison, or belongs to a dimension shown without a figure; a section out of order means
-the report was rearranged; a summary that quotes an answer fails; a first report on the two
-halves of its period fails when the line naming the halves was changed or removed, and is
-refused (exit 2) when a half's file is missing: run `period` again. A period built before
-episodes recorded the runs after their close is refused (exit 2) too: run `period` again for that
-date, then `check`. When it passes, the report is recorded in `history/reports.json` as final,
-and the next report compares with it.
-
-Offer the report as a PDF: `python3 <skill>/scripts/monitor.py pdf --study "$S"` writes
-`reports/D.html` and, when chromium, google-chrome, weasyprint or wkhtmltopdf is installed,
-`reports/D.pdf`; without one it says how to print the page to PDF. A browser prints with its sandbox
-only: where none can start it, `pdf` exits 1 and says what to install, and `doctor` says which engine
-prints here. The page is in Sentl's colours with
-Sentl's mark unless the operator has a theme (`--theme <file>`, `theme.json` or `theme.css` in the study
-folder or in `~/.config/sentl-monitor/`; README, "Make it yours"); the skill sends no file anywhere, and the
-operator's own connectors move it to a drive or a mailbox. It also writes the copy to send,
-`reports/share/<Subject> + Sentl.ai - monitoring report (<start> to <end>).pdf`: attach and give
-that file, never `reports/D.pdf`, whose name says nothing to the person who receives it.
-
-On a host without a lasting folder, `check` ends by saying so. Pack the study, then copy the
-report, and its copy in `reports/share/` if one was made, to the same folder:
-
-```bash
-python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder>
-cp "$S/reports/D.md" <folder>/
-```
-
-`<folder>` is one the host offers files for download from. The pack holds what the next report
-needs: the versions, the report index, the latest four periods and the runs from this report
-on. Offer the report and the pack for download. Tell the user to keep both and, when the host
-has Projects, to put the pack in the Project's files in place of the previous one: the next
-report reads it from there.
-
-## 11. Tell the operator, in the chat
-
-The report's path, the runs it covers, and anything the scripts flagged: runs not final yet,
-runs ended with no results and their error, runs under the floor in the listing, statuses never
-seen and a run listing that may be cut (step 3), edits detected in
+With what DECK.md step 9 lists: the runs the period covers, and anything the scripts flagged:
+runs not final yet, runs ended with no results and their error, runs under the floor in the
+listing, statuses never seen and a run listing that may be cut (step 3), edits detected in
 Sentl and how each affects the comparison, the periods rebuilt from earlier runs, the two
-halves compared on a first report and any project with runs in one half only, or that no
-earlier period exists, runs left out or
-unavailable, unmatched responses, a Sentl run score
+halves compared on a first period and any project with runs in one half only, or that no
+earlier period exists, runs left out or unavailable, unmatched responses, a Sentl run score
 that differs from the one computed, dimensions shown without a figure. None of this goes in
-the report.
+the deck.
 
-## 12. Charts for a deck (optional)
+## Redo the latest period of its date
 
-When the operator presents the report as a deck, after `check` has passed:
-
-```bash
-python3 <skill>/scripts/monitor.py charts --study "$S" --date D
-```
-
-It writes `reports/D.charts.md`: the report's figures as Markdown `:::chart` tables, each under a
-heading that says what it shows and the period or halves it covers. Per project, the dimension
-means as a radar and a bar (the previous period and this one, the two halves, or this period
-alone) and, with more than one assistant, by assistant; per question, the share stating the
-current fact run by run, the share naming the subject run by run, and the domains behind a fact
-or a score. Give the operator the file's path and the charts the output lists as left out; the
-report itself does not change. On a host without a lasting folder, also offer
-`reports/D.charts.md` for download, copied to the folder of step 10.
-
-## Redo the latest report of its date
-
-When the latest report must be built again for its own date `D` (a new version of the skill, a fact corrected in
-`study.json`, a run ingested since), copy the report aside, then run steps 5 and 6 with the same `D`:
+When the latest period must be built again for its own date `D` (a new version of the skill, a fact corrected in
+`study.json`, a run ingested since), run step 5 with the same `D`, then `deck` with it:
 
 ```bash
-cp "$S/reports/D.md" "$S/history/D.before.md"
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
-python3 <skill>/scripts/monitor.py method --study "$S" --date D --models "$S/inbox/models.json" --force
+python3 <skill>/scripts/monitor.py deck --study "$S" --date D
 ```
 
-Then steps 7 to 11 as for a new report: step 10's `monitor.py check` makes `reports/D.md` final again.
+Then the deck's `check` and `pdf` (`report/DECK.md`, step 6): `monitor.py check` on `reports/D.deck.json` records the
+period again.
 
-- **Keeps:** the runs in `history/runs/`, the versions, the earlier reports and their periods, the deck's text
-  `reports/D.deck.json` and its notes `history/deck/D.notes.md`. Only the reports before `D` set the period's window, so
-  `period` pools the same runs as the first time and any run of that window ingested since.
-- **Rewrites:** `history/periods/D.json` and `history/material/D.md` (on a first report, the rebuilt periods and the
-  halves as well); `reports/D.md`, with the method sections and `[[...]]` markers in place of the findings, the changes
-  and the summary; and, when `check` passes, the entry of `D` in `history/reports.json`, which keeps the deck recorded
-  beside the report.
+- **Keeps:** the runs in `history/runs/`, the versions, the earlier periods and their entries, the deck's text
+  `reports/D.deck.json` and its notes `history/deck/D.notes.md`. Only the entries before `D` set the period's window,
+  so `period` pools the same runs as the first time and any run of that window ingested since.
+- **Rewrites:** `history/periods/D.json` and `history/material/D.md` (on a first period, the rebuilt periods and the
+  halves as well); `history/deck/D.figures.md`; and, when the deck's `check` passes, the entry of `D` in
+  `history/reports.json`, with the runs the new period read.
 
-Write the findings, the changes and the summary from the new material. Take a sentence from the copy only when its
-figures are still the period's, since `check` refuses the others, and delete the copy once `check` passes. Redo only
-the latest report: a later one has compared its period with this one. A deck of `D` keeps its text: run `deck --date D`,
-which writes the figures file from the new period, then the deck's `check` and `pdf --deck` (`report/DECK.md`, step 6).
+Fix every text the deck's `check` refuses on the new figures; a figure the code draws is never changed by hand. Redo
+only the latest period: a later one has been compared with it.
 
 ## Unattended mode
 
@@ -374,19 +229,21 @@ choice written here or stop.
 3. Step 5: exit 4 means no run of the period has 90% of its answers judged, or the period has
    no run. `period` has recorded `below_floor`; stop and write nothing. A run under 90% judged
    is left out of the period, and a dimension under 80% judged shows its answers without a
-   figure; steps 7 to 9 write what the material prints.
+   figure; the deck writes what the figures file prints.
 4. Steps 5 and 6, exit 2 for a missing answer of the operator (`report_every`, or a field
-   `method` lists): stop. No outcome is recorded, since no invocation can answer it; the output
+   `deck` lists): stop. No outcome is recorded, since no invocation can answer it; the output
    names the field.
-5. Step 10 with `--unattended` added to the `check` command. Run it once and do not correct the
-   report after a failure. Exit 1 saves the report as
-   `reports/D.draft.md`, records it in `history/reports.json` as `draft` and in
-   `last-report.json` with the problems found, and counts as the previous report, so the next
-   invocation does not write it again. The operator fixes the draft, renames it to
-   `reports/D.md` and runs `check` with the date, which makes it final.
-6. Step 11 is the invocation's last output, short and plain: the outcome, the report's path, and
-   the items step 11 lists. Sentl's errors that stop a route (exit 5, exit 6, a tool that fails
-   twice) end the invocation with the message; no outcome is recorded.
+5. Step 6 runs DECK.md steps 1 to 6, with `--unattended` added to every `check` of the deck. A
+   `check` that fails records the deck as a draft: `last-report.json` says `draft` with the
+   problems found and, when the date has no entry yet, `history/reports.json` holds the period as
+   a draft, so the next invocation does not write it again. Fix what `check` names and run it
+   again: a `check` that passes makes the entry final and records `written`. The reader's test
+   and the audit (DECK.md steps 7 and 8) are left to the operator, who runs them before sending
+   the deck.
+6. Step 7 is the invocation's last output, short and plain: the outcome, the deck's copy to send
+   (or the path of the deck left as a draft), that the reader's test and the audit are left to
+   the operator, and the items step 7 lists. Sentl's errors that stop a route (exit 5, exit 6, a
+   tool that fails twice) end the invocation with the message; no outcome is recorded.
 7. Never call a Sentl tool that writes. The invocation needs only `list-organizations`,
    `get-project-tool`, `list-runs-tool`, `get-run-results-tool` and `list-ai-models`.
 
@@ -394,10 +251,10 @@ choice written here or stop.
 
 | Outcome | Recorded by | Meaning |
 |---|---|---|
-| `written` | `check` | the report passed `check` and is final |
-| `draft` | `check --unattended` | the report failed `check` and was saved as a draft |
-| `nothing_new` | `pending` | no completed run is new since the previous report |
+| `written` | the deck's `check` | the deck passed `check` and records its period |
+| `draft` | the deck's `check --unattended` | the deck failed `check`; its period is recorded as a draft |
+| `nothing_new` | `pending` | no completed run is new since the previous period |
 | `below_floor` | `period` | no run of the period has 90% of its answers judged |
 
-Two invocations on the same runs write one report: the second one ends at `pending` with
+Two invocations on the same runs write one deck: the second one ends at `pending` with
 `nothing_new`.

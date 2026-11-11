@@ -209,8 +209,8 @@ def resume(root, runs_file=None):
                             "is already started, so do not call trigger-run-tool.")
     if pending:
         ids = ", ".join(f"run {r['id']}" for r in pending)
-        return _step("report", f"A completed run is not in history/runs: {ids}. Fetch its results, ingest them and "
-                               "write the report (step 9).")
+        return _step("deck", f"A completed run is not in history/runs: {ids}. Fetch its results, ingest them, "
+                             "build the period and write the deck (step 9).")
     if ended and not ingested:
         shown = ", ".join(f"run {r['id']} ({r['status']})" for r in ended)
         return _step("run", f"The run ended with no results: {shown}. Tell the operator, with Sentl's error; a stalled "
@@ -223,11 +223,12 @@ def resume(root, runs_file=None):
         return _step("cost", "The project has no run: show estimate-run-tool and wait for the operator's go "
                              "(step 7).")
     if not reported:
-        return _step("report", "The run is ingested and no report has passed check: write the report (step 9).")
+        return _step("deck", "The run is ingested and no deck has passed check: build the period and write the deck "
+                             "(step 9).")
     if "closed" not in bound:
-        return _step("end", "The report is final and the snapshot is not closed: ask the operator whether to keep it, "
+        return _step("end", "The deck is final and the snapshot is not closed: ask the operator whether to keep it, "
                             "delete it, or follow the subject over time (step 10).")
-    return _step("done", "The snapshot is finished: the report is final and the project is closed.")
+    return _step("done", "The snapshot is finished: the deck is final and the project is closed.")
 
 
 def close(root, saved_file=None, deleted=False):
@@ -259,8 +260,8 @@ def close(root, saved_file=None, deleted=False):
         how = "archived" if saved.get("archived") else "kept"
     bound["closed"] = {"closed_at": now_iso(), "how": how}
     write_json(folder.path("sentl.json"), binding)
-    return (f"Project {key} is recorded as closed in sentl.json ({how}). The run and the report stay in this folder, "
-            "so nothing the report needs is lost if the snapshot is deleted or the project archived.")
+    return (f"Project {key} is recorded as closed in sentl.json ({how}). The run, its period and the deck stay in this "
+            "folder, so nothing the deck needs is lost if the snapshot is deleted or the project archived.")
 
 
 # --- promote ------------------------------------------------------------------
@@ -295,14 +296,14 @@ def promote(root, answers_file, models_file):
         raise Refused(f"project {key} is not created in Sentl: a snapshot is promoted after its run")
     if bound.get("kind") == "snapshot":
         raise Refused("a snapshot takes no schedule, so it cannot be followed: design a study for the subject "
-                      "(`brief`, `design`) and keep this report as the first look")
+                      "(`brief`, `design`) and keep this snapshot's deck as the first look")
     if "closed" in bound:
         raise Refused("the snapshot's project is closed: nothing is left to follow. Design a study for the "
-                      "subject (`brief`, `design`) and keep this report as the first look")
+                      "subject (`brief`, `design`) and keep this snapshot's deck as the first look")
     if not any(folder.path("history", "runs", key).glob("*.json.gz")):
         raise Refused("the snapshot has no run in history/runs: its run is the baseline, so it is ingested first")
     if not any(e["status"] == "final" for e in folder.reports()):
-        raise Refused("the snapshot has no report that passed check: write the report (SNAPSHOT.md step 9) before "
+        raise Refused("the snapshot has no deck that passed check: write its deck (SNAPSHOT.md step 9) before "
                       "promoting it")
     answers = load_json(answers_file)
     gaps = _promote_gaps(answers)
@@ -324,6 +325,6 @@ def promote(root, answers_file, models_file):
         raise Refused("the promoted study fails validate:\n  - " + "\n  - ".join(problems))
     write_json(folder.path("study.json"), promoted)
     return (f"Promoted: study.json is a study with project {key} on a {answers['schedule']} schedule and reports "
-            f"{answers['report_every']}; the snapshot's run and report stay as the baseline. Nothing was sent to "
+            f"{answers['report_every']}; the snapshot's run and period stay as the baseline. Nothing was sent to "
             "Sentl and the project is still paused. Next: `payload` (saves the schedule), then, on the operator's "
             f"go, activation; `report` compares each period with the snapshot of {when}.")

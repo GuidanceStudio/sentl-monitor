@@ -359,6 +359,28 @@ class SkeletonTest(DeckCase, unittest.TestCase):
         self.assertIn("run period", proc.stderr)
 
 
+class OperatorAnswersTest(DeckCase, unittest.TestCase):
+    """The deck asks for what only the operator can answer, since no long report runs before it."""
+
+    def unanswered(self, change):
+        path = self.study / "study.json"
+        study = json.loads(path.read_text(encoding="utf-8"))
+        change(study)
+        path.write_text(json.dumps(study), encoding="utf-8")
+        return self.cli("deck", "--study", self.study, "--date", DATE, check=2)
+
+    def test_a_missing_purpose_is_refused_and_named(self):
+        proc = self.unanswered(lambda s: s["narrative"].update(purpose=""))
+        self.assertIn("narrative.purpose", proc.stderr)
+        self.assertIn("operator", proc.stderr)
+
+    def test_a_theme_without_origins_is_named(self):
+        def drop(study):
+            for theme in study["themes"]:
+                theme["origins"] = []
+        proc = self.unanswered(drop)
+        self.assertIn(".origins", proc.stderr)
+
 class CheckTest(DeckCase, unittest.TestCase):
 
     def test_a_complete_deck_passes_and_is_recorded(self):
