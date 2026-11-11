@@ -1244,3 +1244,34 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Version 0.7.2 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.7.2.
+
+## M30: The deck is the only report; the long report is no longer written 🔄
+
+**Why:** on 2026-11-11 the operator called the long period report unreadable: it is not something to show the person who uses the skill. The deck reads only the period the code builds (`history/periods/`, `history/material/`), never `reports/D.md`, so REPORT.md steps 6 to 10 (method sections, findings, changes, summary, the report's `check`) write a document no later step reads, at 20 to 40 minutes of model time per period. The snapshot ends the same way, with a short report offered as a PDF.
+
+**Approach (operator's choices of 2026-11-11: stop writing the long report; the snapshot ends with a deck):**
+- `report` reads the runs and builds the period (steps 1 to 5 as today), then goes on into `report/DECK.md`. One invocation gives the deck. Steps 6 to 12 of REPORT.md go, and so do the "Redo the latest report" section's report-only parts.
+- The deck's `check` records the period in `history/reports.json` with the runs it read, so the next period starts after them with no report entry. Folders that already hold long reports keep working: their entries stay as they are.
+- Unattended mode ends with the deck, and the deck's `check` records the outcome in `history/last-report.json`.
+- `pdf` prints the deck; `--deck` stays accepted. No PDF, share copy or download is offered for `reports/D.md`, and none for `D.charts.md`.
+- `snapshot`: step 9 builds the period of the one run and goes on into the deck; step 11 gives the deck's copy to send. `brief` and `design` start from the snapshot's deck and period as the first look.
+- On web hosts the route offers the pack and the deck's copy to send, nothing else.
+- Code that only the long report uses (the report's `check`, `charts`, the report page in `pdf`, sections the deck does not call) is removed once the suite shows nothing else calls it.
+- `compare` is unchanged: its table goes to the operator in the chat.
+
+**Tasks:**
+- [ ] Test: unit — a period whose only record is a deck that passed `check` bounds the next period (it starts after the deck's last run); an unattended deck `check` records `last-report.json`; implement in `deck.py`, `common.py`, `runs.py`; commit and push
+- [ ] Test: unit — `pdf` without `--deck` prints the deck; the long report has no page, PDF or share copy; remove `charts` and the report-only code the suite no longer reaches; commit and push
+- [ ] Test: structure — REPORT.md ends at the period and hands over to DECK.md; unattended mode ends with the deck; SNAPSHOT.md steps 9 and 11 lead to the deck; SKILL.md "When to use", routes and web-host rule name the deck as what the reader receives; README route table, "A first report, step by step", scheduled reports; ARCHITECTURE, CHANGELOG; commit and push
+- [ ] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
+
+**Done when:** the suite passes; `report` and `snapshot` end with a deck that passes `check` and prints; no route writes or offers the long report; a second period after a deck-only first one starts after the first's runs.
+
+## R11: Release 0.8.0
+
+**Why:** M30 changes what `report`, `snapshot` and `pdf` produce. Needs the operator's go.
+
+**Tasks:**
+- [ ] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+
+**Done when:** the release page holds the zip and its sha256, and both installed copies report 0.8.0.
