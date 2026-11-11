@@ -266,9 +266,7 @@ def main(argv=None):
                 for problem in problems:
                     print(f"  - {problem}")
                 if args.unattended:
-                    print("The deck is recorded as a draft in history/last-report.json, and its period in "
-                          "history/reports.json, so the next invocation does not write it again. Fix it and run check "
-                          "again to make it final.")
+                    print(deck.draft_note(args.study, args.report, args.date))
                 return 1
             print("check passed: the deck has its actions and their evidence, excerpts are verbatim, figures are the "
                   "period's and each text fits its slide. The deck is recorded in history/reports.json as the record of "

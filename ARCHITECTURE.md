@@ -487,15 +487,16 @@ computes a run's score (A4). A period rebuilt from a project's history carries
 ### `history/reports.json`
 
 A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in date order.
-The deck's `check` writes the entry of its period when it passes, with the period's `runs`, as `final`, and `deck`, the
-deck's text `reports/<date>.deck.json`; `check --unattended` on a deck that fails writes the period as `draft` when the
-date has no entry yet, and the same deck passing later makes it `final`. The next period starts after the runs of the
-latest entry, a draft included, and a draft counts as the previous period. An entry an earlier version wrote for its long
-report carries `file`, `reports/<date>.md` or `.draft.md`, and is read like any other: its period bounds the next one and
-it is the previous period. A deck checked beside such an entry keeps it and adds `deck`. A draft stays a draft when its
-deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the latest earlier entry with a `deck`, and
-a pack holds that deck's text. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
-deck's next `check`. `previous` is the date of the period the entry's period compared with, a rebuilt one included; it is
+The deck's `check` writes the entry of its date again from the period the deck read, its bounds and `runs`, on a first
+check, on a redo and on an entry an earlier version wrote, so a run ingested since is not pooled again by the next period.
+When it passes, the entry is `final`, with `deck`, the deck's text `reports/<date>.deck.json`, and `last-report.json`
+says `written`, a draft entry included. `check --unattended` on a deck that fails writes the period as `draft` when the
+date has no entry yet; on a date that has one, the entry keeps its status and its `deck` and takes the period's runs. The
+next period starts after the runs of the latest entry, a draft included, and a draft counts as the previous period. An
+entry an earlier version wrote for its long report carries `file`, `reports/<date>.md` or `.draft.md`, and is read like
+any other: its period bounds the next one and it is the previous period. The deck's `check` keeps that `file` while the
+report is in the folder and drops it once the report is gone; a `file` that names a deck, as earlier versions wrote it,
+is dropped too. The next deck compares with the latest earlier entry whose deck passed, and a pack holds that deck's text. `previous` is the date of the period the entry's period compared with, a rebuilt one included; it is
 null on a first period, including one that compares the two halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
 
@@ -741,8 +742,9 @@ them (see Periods).
    writes the figures file and the text to fill, the agent writes `reports/<date>.deck.json`, and
    `monitor.py check` on it records the period in `history/reports.json` with status `final` and
    `last-report.json` says `written`. Fail, when unattended (`check --unattended`): the period is
-   recorded as `draft` when its date has no entry yet, and `last-report.json` says `draft` and what
-   failed; a later `check` that passes makes it `final`. `period` records `below_floor` in
+   recorded as `draft` when its date has no entry yet, an entry already there takes the period's runs
+   and keeps its status, and `last-report.json` says `draft` and what failed; a later `check` that
+   passes makes it `final`. `period` records `below_floor` in
    `last-report.json` when it ends with exit 4. `monitor.py pdf --deck` prints the deck and its copy
    to send. No long report is written.
 6. In the chat, never in the deck: the runs covered, runs left out, unmatched responses,
@@ -1210,7 +1212,7 @@ questions, and draws no row and no excerpt: one answer of two is no finding. A d
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
 rating printed beside it contradicts it. An
-excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, beside the `file` of a long report an earlier version wrote and never in its place; with no entry for the date, it writes one with the period and no `file`.
+excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, written again from the period the deck read, beside the `file` of a long report an earlier version wrote while that report is in the folder.
 
 **Leaks, excerpts and numbers.** Question keys, model ids and file names are distinctive strings and are refused anywhere
 in the deck's text. A Sentl id of the study is an integer that looks like a count, so it is refused only where a word names

@@ -626,7 +626,7 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         self.deck_check()
         self.assertEqual(self.read("history/reports.json"), [{**report, "deck": f"reports/{DATE}.deck.json"}])
 
-    def test_a_deck_checked_beside_a_draft_report_leaves_it_a_draft_and_is_found_later(self):
+    def test_a_deck_that_passes_beside_a_draft_report_makes_the_entry_final(self):
         self.long_report("draft")
         (self.study / "history" / "last-report.json").write_text(json.dumps(
             {"at": "2026-10-31T08:00:00Z", "outcome": "draft", "detail": f"the report of {DATE} failed check"}),
@@ -634,13 +634,26 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         said = self.deck_check().stdout
         entry = self.read("history/reports.json")[0]
         self.assertEqual((entry["status"], entry["file"], entry["deck"]),
-                         ("draft", f"reports/{DATE}.draft.md", f"reports/{DATE}.deck.json"))
-        self.assertNotIn("as final", said)
+                         ("final", f"reports/{DATE}.draft.md", f"reports/{DATE}.deck.json"))
         self.assertIn("record of its period", said)
-        self.assertEqual(self.read("history/last-report.json")["outcome"], "draft")
+        self.assertEqual(self.read("history/last-report.json")["outcome"], "written")
         folder = deck.load(self.study, DATE)[0]
         self.assertEqual(deck._earlier(folder, "2026-11-30")[0], DATE)
         self.assertIn(f"reports/{DATE}.deck.json", pack.select(folder, False))
+
+    def test_a_redo_rewrites_the_entry_from_the_period_its_deck_read(self):
+        self.long_report()
+        (self.study / "reports" / f"{DATE}.md").unlink()
+        self.ingest_market(9102, OCT[2], rows())
+        self.publish(DATE)
+        period = self.period_file(DATE)
+        self.assertEqual(period["runs"], {"market": [9101, 9102]})
+        self.assertEqual(self.read("history/reports.json"), [
+            {"date": DATE, "status": "final", "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"],
+             "previous": (period.get("comparison") or {}).get("previous"), "deck": f"reports/{DATE}.deck.json"}])
+        self.ingest_market(9103, "2026-11-02T06:00:00Z", rows())
+        self.build("2026-11-30")
+        self.assertEqual(self.period_file("2026-11-30")["runs"], {"market": [9103]})
 
     def test_a_deck_recorded_in_the_report_s_place_moves_beside_it(self):
         self.deck_check()
@@ -722,6 +735,23 @@ class DeckRecordTest(DeckCase, unittest.TestCase):
         self.deck_check("--unattended", doc=self.filled(actions=[]), check=1)
         self.assertEqual(self.read("history/reports.json"), before)
         self.assertEqual(self.read("history/last-report.json")["outcome"], "draft")
+
+    def test_an_unattended_failure_on_a_redo_records_the_runs_its_period_read(self):
+        self.publish(DATE)
+        self.ingest_market(9102, OCT[2], rows())
+        said = self.publish(DATE, problems=["a slide runs over its page"], unattended=True).stdout
+        entry = self.read("history/reports.json")[0]
+        self.assertEqual((entry["status"], entry["runs"], entry["deck"]),
+                         ("final", {"market": [9101, 9102]}, f"reports/{DATE}.deck.json"))
+        self.listing((9101, OCT[0]), (9102, OCT[2]))
+        self.assertTrue(self.cli("pending", "--study", self.study, "--date", DATE, check=0).stdout.startswith("nothing_new"))
+        self.assertIn(f"The entry of {DATE} in history/reports.json keeps its status, final, and lists the runs this "
+                      "period read", said)
+        self.assertNotIn("as a draft with the runs", said)
+
+    def test_an_unattended_failure_with_no_entry_says_the_period_is_a_draft(self):
+        said = self.deck_check("--unattended", doc=self.filled(actions=[]), check=1).stdout
+        self.assertIn(f"The entry of {DATE} in history/reports.json holds the period as a draft, with the runs it read", said)
 
 
 class OpeningTest(DeckCase, unittest.TestCase):

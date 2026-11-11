@@ -1867,7 +1867,8 @@ def problems_of(folder, study, period, doc, layout=True):
 def check(root, path, date=None, unattended=False):
     """The deck's problems. A deck that passes is the record of its period in history/reports.json, so the next period
     starts after its runs; `unattended`, a deck that fails is recorded as a draft of its period, which the next
-    invocation does not write again."""
+    invocation does not write again. Either way the entry of its date is written again from the period the deck read,
+    so a redo, or an entry an earlier version wrote, lists the runs this period read."""
     path = Path(path)
     day = date or path.name.split(".")[0]
     folder, day, study, period, _ = load(root, day)
@@ -1877,21 +1878,33 @@ def check(root, path, date=None, unattended=False):
         raise Refused(f"{path} cannot be read ({exc})") from None
     problems = problems_of(folder, study, period, doc)
     entry = next((e for e in folder.reports() if e["date"] == day), None)
-    # A long report an earlier version wrote keeps its entry, and its status, with the deck beside it.
-    report = entry if entry and entry.get("file", "").endswith(".md") else None
+    # A long report an earlier version wrote stays named in the entry while its file is there.
+    report = (entry or {}).get("file", "")
+    kept = {"file": report} if report.endswith(".md") and folder.path(report).is_file() else {}
     if not problems:
-        if report:
-            folder.record_report({**report, "deck": _shown(folder, path)})
-        else:
-            folder.record_period(day, period, deck=_shown(folder, path))
-        if not report or report.get("status") != "draft":
-            folder.record_outcome("written", f"deck of {day} passed check")
+        folder.record_period(day, period, deck=_shown(folder, path), **kept)
+        folder.record_outcome("written", f"deck of {day} passed check")
     elif unattended:
         if entry is None:
             folder.record_period(day, period, status="draft")
+        else:
+            folder.record_period(day, period, **{k: entry[k] for k in ("status", "deck") if k in entry}, **kept)
         shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
         folder.record_outcome("draft", f"the deck of {day} failed check on {len(problems)} problem(s): {shown}")
     return problems
+
+
+def draft_note(root, path, date=None):
+    """What an unattended `check` that failed recorded, for the message after it."""
+    day = date or Path(path).name.split(".")[0]
+    entry = next(e for e in Study(root).reports() if e["date"] == day)
+    if entry["status"] == "draft":
+        said = (f"The entry of {day} in history/reports.json holds the period as a draft, with the runs it read, so the "
+                "next invocation does not write it again. Fix the deck and run check again to make it final.")
+    else:
+        said = (f"The entry of {day} in history/reports.json keeps its status, {entry['status']}, and lists the runs "
+                "this period read, so the next invocation does not read them again. Fix the deck and run check again.")
+    return f"The deck is recorded as a draft in history/last-report.json. {said}"
 
 
 # --- the page ---------------------------------------------------------------

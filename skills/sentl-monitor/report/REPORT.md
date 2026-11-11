@@ -201,8 +201,9 @@ period again.
   `reports/D.deck.json` and its notes `history/deck/D.notes.md`. Only the entries before `D` set the period's window,
   so `period` pools the same runs as the first time and any run of that window ingested since.
 - **Rewrites:** `history/periods/D.json` and `history/material/D.md` (on a first period, the rebuilt periods and the
-  halves as well); `history/deck/D.figures.md`; and, when the deck's `check` passes, the entry of `D` in
-  `history/reports.json`, with the runs the new period read.
+  halves as well); `history/deck/D.figures.md`; and, at the deck's `check`, the entry of `D` in
+  `history/reports.json`, with the bounds and runs the new period read. A long report an earlier version wrote for `D`
+  stays named in the entry while its file is in the folder.
 
 Fix every text the deck's `check` refuses on the new figures; a figure the code draws is never changed by hand. Redo
 only the latest period: a later one has been compared with it.
@@ -235,9 +236,10 @@ choice written here or stop.
    names the field.
 5. Step 6 runs DECK.md steps 1 to 6, with `--unattended` added to every `check` of the deck. A
    `check` that fails records the deck as a draft: `last-report.json` says `draft` with the
-   problems found and, when the date has no entry yet, `history/reports.json` holds the period as
-   a draft, so the next invocation does not write it again. Fix what `check` names and run it
-   again: a `check` that passes makes the entry final and records `written`. The reader's test
+   problems found. `history/reports.json` holds the period as a draft when the date has no entry
+   yet; an entry already there keeps its status and takes the runs this period read. Either way
+   the next invocation does not read those runs again. Fix what `check` names and run it again: a
+   `check` that passes makes the entry final and records `written`. The reader's test
    and the audit (DECK.md steps 7 and 8) are left to the operator, who runs them before sending
    the deck.
 6. Step 7 is the invocation's last output, short and plain: the outcome, the deck's copy to send

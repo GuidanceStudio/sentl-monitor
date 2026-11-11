@@ -11,6 +11,11 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 - `check --unattended` on a deck that fails records `draft` in `history/last-report.json` with the problems found and, when
   the date has no entry yet, the period as a draft in `history/reports.json`, so the next invocation finds no new run. The
   same deck checked again and passing makes the entry final and records `written`.
+- The deck's `check` writes the entry of its date again from the period it read, on a redo and on an entry an earlier
+  version wrote, so a run ingested since is not pooled again by the next period. A long report named in the entry stays
+  named while its file is in the folder. A deck that passes makes a draft entry final and records `written`.
+- `check --unattended` on a deck that fails, on a date that already has an entry, records the period's runs in it and keeps
+  its status; the message after it says what the entry holds.
 - A deck checks on a snapshot's one run: a test builds, checks and prints it.
 - The deck is the only thing the reader gets. `report` builds the period and goes on into `report/DECK.md` in the same
   invocation; no playbook writes or prints `reports/<date>.md` any more. Unattended, the deck is written and checked with

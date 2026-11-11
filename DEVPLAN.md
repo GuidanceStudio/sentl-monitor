@@ -1263,6 +1263,19 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Test: unit — a period whose only record is a deck that passed `check` bounds the next period (it starts after the deck's last run); an unattended deck `check` records `last-report.json`; implement in `deck.py`, `common.py`, `runs.py`; commit and push
 - [x] Test: unit — `pdf` without `--deck` prints the deck; the long report has no page, PDF or share copy; remove `charts` and the report-only code the suite no longer reaches; commit and push
 - [x] Test: structure — REPORT.md ends at the period and hands over to DECK.md; unattended mode ends with the deck; SNAPSHOT.md steps 9 and 11 lead to the deck; SKILL.md "When to use", routes and web-host rule name the deck as what the reader receives; README route table, "A first report, step by step", scheduled reports; ARCHITECTURE, CHANGELOG; commit and push
+- [~] Fixes from the independent review and the two trials (2026-11-11). Test: unit for each; commit and push:
+  1. A deck's `check` rewrites the entry of its date from the period it read (runs and bounds), on a redo and on an entry an earlier version wrote; a `file` whose report is gone is dropped. Today it keeps the old runs, so a run ingested later is pooled again by the next period.
+  2. An unattended `check` that fails on a date that already has an entry records the period's runs, and the message after it says what is recorded.
+  3. `snapshot resume` and `promote` treat a folder whose only record is an earlier version's report, with no deck, as a folder still to deck.
+  4. `pack` carries an unattended draft deck and the material its `check` reads, so the draft can be fixed after `unpack`.
+  5. A deck that passes `check` makes an earlier draft entry final, as REPORT.md unattended step 5 says.
+  6. Playbooks write `pdf`, not `pdf --deck`; `period` says "period" in the chat, not "report"; the copy to send is named in the study's `report_language`.
+  7. From the snapshot trial: the line on a page the code draws (`_page_seen`) looks for the subject's aliases, not only its label; today it states that a page leaves out the subject when the page names it by an alias.
+  8. An excerpt that starts right after a Markdown `---` line is not refused as starting inside a sentence.
+  9. A site's count is tied to the site with the wording DECK.md's own example uses ("by 25 answers"), not only with "cited" within 12 characters.
+  10. A snapshot's method slide says it ran once, with no schedule; slide 2 says each question was asked once when the period has one round; the favourable/neutral scale is explained only when a slide uses it.
+  11. DECK.md asks for three to five actions except when the evidence slides allow fewer, as on a snapshot of a few questions.
+  12. The found slide of a deck with one block (a snapshot whose questions all name no subject) keeps its card as tall as its content: today the card fills the slide and the chart sits at its foot, under a gap.
 - [ ] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
 
 **Done when:** the suite passes; `report` and `snapshot` end with a deck that passes `check` and prints; no route writes or offers the long report; a second period after a deck-only first one starts after the first's runs.
@@ -1280,3 +1293,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [ ] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.8.0.
+
+## M31: A project with no runs in a period keeps its own window
+
+**Why:** found by the M30 review on 2026-11-11, older than M30 (`period.py`): a project with no runs in a period is left out of the entry's `runs`, so its next window starts after the latest start of any project. A run of that project that started earlier and was still being judged when the period was built would never be pooled. Not reproduced yet.
+
+**Tasks:**
+- [ ] Reproduce on a two-project fixture; if it holds, the entry records each project's cut, test first; commit and push. Needs the operator's go.
+
+**Done when:** a run of a project with no runs in the previous period is pooled exactly once.
