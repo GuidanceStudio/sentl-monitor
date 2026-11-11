@@ -3,7 +3,10 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.8.0 (2026-11-11)
+
+The deck is the only report: `report` and `snapshot` build the period and go on into the deck, and the long report is
+no longer written, printed or offered.
 
 - A deck that passes `check` is the record of its period in `history/reports.json`: with no report of its date, its entry
   holds the period's runs, so the next period starts after them and compares with it. A long report an earlier version

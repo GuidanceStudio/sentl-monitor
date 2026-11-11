@@ -1288,12 +1288,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - Fixes task, item 4: `check` reads only the period and its runs; the material goes in the pack because `deck` builds the figures file from it, which fixing the draft needs. Item 6: "period" replaces "report" in the chat of `runs`, `pending`, `pack` and `unpack` too, and in the material's heading.
 - Fixes task, item 10: a deck with no rated block keeps the method slide's note on which assistants get which questions, without the scores heading. Item 12: `fit` does not model a flex item that grows, so the test reads the computed `flex` of the cards and the slide's height; a Chrome screenshot confirmed the layout.
 
-## R11: Release 0.8.0
+## R11: Release 0.8.0 🔄
 
-**Why:** M30 changes what `report`, `snapshot` and `pdf` produce. Needs the operator's go.
+**Why:** M30 changes what `report`, `snapshot` and `pdf` produce. Operator's go on 2026-11-11 ("via su tutto").
 
 **Tasks:**
-- [ ] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+- [~] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.8.0.
 
@@ -1305,3 +1305,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [ ] Reproduce on a two-project fixture; if it holds, the entry records each project's cut, test first; commit and push. Needs the operator's go.
 
 **Done when:** a run of a project with no runs in the previous period is pooled exactly once.
+
+## M32: A place name beside "cited most" is not a site
+
+**Why:** in the snapshot trial of 2026-11-11, `check` refused "la pagina su Verona del sito più citato" as "Verona is cited most… a tie is no most": it read the city in the page's description as the name said to be cited most. A false refusal; the writer rephrased. Needs the operator's go.
+
+**Tasks:**
+- [ ] Test: unit — a sentence naming a place before "the site cited most" is not read as that place being cited most, and a real tie is still refused; fix in `deck.py`; CHANGELOG; commit and push
+
+**Done when:** the sentence above passes `check` and a tie written as "most" is still refused.
