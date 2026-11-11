@@ -283,6 +283,8 @@ has '`judging`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in ju
 has '`failed`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a failed run as final with no results"
 has '`stalled`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a stalled run as final with no results"
 has 'history/deck/D.notes.md' "$PAYLOAD/report/DECK.md" "DECK.md has the writer keep its notes on file"
+has 'fewer when the evidence slides allow fewer' "$PAYLOAD/report/DECK.md" "DECK.md allows fewer than three actions when the evidence slides allow fewer"
+has 'site said to be cited most, "by 25 answers"' "$PAYLOAD/report/DECK.md" "DECK.md ties a count after by to the site cited most"
 has 'one section per command' "$PAYLOAD/report/DECK.md" "DECK.md has the writer write one section at a time"
 has 'first draft' "$PAYLOAD/report/DECK.md" "DECK.md has the writer draft before opening answers and pages"
 has 'Two readers in the whole session' "$PAYLOAD/report/DECK.md" "DECK.md stops at two readers, whatever changes after them"

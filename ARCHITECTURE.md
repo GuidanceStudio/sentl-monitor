@@ -1167,13 +1167,14 @@ block's figure is one per project unless `same_audience` says otherwise: a count
 over all the block's answers, so one base serves the whole deck.
 
 **The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one or two real
-questions per block, one answer per block, one to five actions, each with a class, a block, an evidence slide and a reason
+questions per block, one answer per block, one to five actions (fewer than three when the evidence slides allow fewer), each with a class, a block, an evidence slide and a reason
 carrying a figure), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
 own question and assistant, the figures against the period and the figures the deck draws, and the leaks below.
 A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
 the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
 its figures, rows and questions. Such a count needs no place in the period's figures, and the refusal prints the counts the name
-has, so that any writer can correct it. A site's count beside a page is refused, and a count beside a site needs its base. A
+has, so that any writer can correct it. A site's count beside a page is refused, and a count beside a site needs its base,
+except after the site said to be cited most ("by 25 answers"), where it must be one of that site's counts. A
 grounding redirect hides the page, so a page's count is a range. A site said to be cited most comes first, alone, among the sites
 the sentence speaks of. A bare name ties a count only through brackets or a page, because "citare" also means naming in the text.
 What a count of a word in the answers says, and a count written in words, stay with the reader and the audit.
@@ -1212,7 +1213,7 @@ questions, and draws no row and no excerpt: one answer of two is no finding. A d
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
 rating printed beside it contradicts it. An
-excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not. Passing records the deck in `history/reports.json` as `deck` in the entry of its date, written again from the period the deck read, beside the `file` of a long report an earlier version wrote while that report is in the folder.
+excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not; a sentence starts after a stop, a list marker or a Markdown rule (`---`). Passing records the deck in `history/reports.json` as `deck` in the entry of its date, written again from the period the deck read, beside the `file` of a long report an earlier version wrote while that report is in the folder.
 
 **Leaks, excerpts and numbers.** Question keys, model ids and file names are distinctive strings and are refused anywhere
 in the deck's text. A Sentl id of the study is an integer that looks like a count, so it is refused only where a word names

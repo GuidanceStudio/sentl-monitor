@@ -473,6 +473,12 @@ class CheckTest(DeckCase, unittest.TestCase):
         self.assertIn("starts inside a sentence", self.problems(self.excerpt(self.filled(), cut)))
         self.assertEqual(self.problems(self.excerpt(self.without_counts(), f"[…] {cut}")), "")
 
+    def test_an_excerpt_that_starts_after_a_markdown_rule_starts_a_sentence(self):
+        cut = "Avoria è la scelta più lineare se vuoi un prezzo semplice."
+        self.ingest_market(9102, OCT[1], rows(price=((f"Prezzi a confronto\n\n---\n\n{cut}", 2, []), CURRENT)))
+        self.build(DATE)
+        self.assertNotIn("starts inside a sentence", self.problems(self.excerpt(self.filled(), cut)))
+
     def test_an_excerpt_ending_inside_a_sentence_must_show_the_cut(self):
         self.ingest_market(9102, OCT[1], rows(price=((LONG, 2, []), CURRENT)))
         self.build(DATE)
@@ -484,6 +490,11 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         doc["found"]["title"] = "parola " * 40
         self.assertIn("characters", self.problems(doc))
+
+    def test_a_deck_of_one_action_holds_enough_actions(self):
+        doc = self.filled()
+        self.assertEqual(len(doc["actions"]), 1)
+        self.assertNotRegex(self.problems(doc), r"the deck has no action|actions: a deck holds|three actions")
 
     def test_a_block_may_hold_three_slides_and_no_more(self):
         doc = self.filled()
@@ -1519,6 +1530,25 @@ class ThirdPageTest(DeckCase, unittest.TestCase):
         doc = self.doc([{"url": "prezzi.example/avena", "shows": ["Avoria", "Oatwell"]}])
         self.save_doc(doc)
         self.assertIn("prezzi.example/avena elenca Avoria, Oatwell, non Avenello", deck.page_of(self.study, DATE)[0])
+
+    def alias(self, name="AVN Drinks"):
+        study = self.read("study.json")
+        study["subject"]["aliases"].append(name)
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+
+    def test_a_page_that_names_the_subject_by_an_alias_lists_it(self):
+        self.alias()
+        doc = self.doc([{"url": "prezzi.example/avena", "shows": ["Avoria", "Oatwell", "avn drinks"]}])
+        self.assertIn("its page lists it", self.problems(doc))
+        self.save_doc(doc)
+        page = deck.page_of(self.study, DATE)[0]
+        self.assertIn("prezzi.example/avena elenca Avoria, Oatwell, avn drinks.", page)
+        self.assertNotIn("non Avenello", page)
+
+    def test_an_alias_does_not_count_among_the_others_a_page_lists(self):
+        self.alias()
+        doc = self.doc([{"url": "prezzi.example/avena", "shows": ["Avoria", "AVN Drinks"]}])
+        self.assertIn("lists fewer than two others", self.problems(doc))
 
     def test_the_slide_shows_every_wrong_figure_of_a_page(self):
         doc = self.doc([{"url": "prezzi.example/avena", "shows": ["1,90 €", "2,40 €"]}], what="Chiedere a prezzi.example di correggere il prezzo",

@@ -172,6 +172,13 @@ class BaseTest(TiedCase, unittest.TestCase):
                      "4 citano guida.example.", "guida.example is cited by 4 answers."):
             self.refused(text, "base", "4 of 6")
 
+    def test_a_count_after_by_beside_the_site_cited_most_is_that_site_s(self):
+        self.passes("guida.example è il sito più citato su queste domande, da 4 risposte.",
+                    "guida.example is the site cited most on these questions, by 4 answers.",
+                    "guida.example, the most cited site, by 4 answers.")
+        self.refused("guida.example is the site cited most on these questions, by 5 answers.", "guida.example", "4 of 6")
+        self.refused("guida.example, the most cited site, by 5 answers.", "4 of 6")
+
     def test_all_and_none_of_a_count_are_a_base(self):
         self.passes("Tutte le 4 risposte citano guida.example.", "Nessuna delle 6 risposte cita altro.example.")
 

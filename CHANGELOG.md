@@ -20,6 +20,13 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   still to deck: a deck passed `check` when the entry names it in `deck`, or names a deck as its final `file`.
 - `pack` carries the deck the latest entry holds as an unattended draft and the material of its period, so the draft can
   be fixed after `unpack`.
+- The line a deck prints under a page an action asks, and the checks on what that page lists, find the subject by its
+  aliases as well as its label: a page naming it by an alias no longer reads as one that leaves it out.
+- An excerpt that starts right after a Markdown rule (`---`) starts a sentence, and needs no `[…]`.
+- After the site said to be cited most, a count after "by" ("by 25 answers", "da 25 risposte") is that site's count and
+  is refused when the site has no such count, as DECK.md's own example writes it.
+- DECK.md, SKILL.md and README ask for three to five actions, fewer when the evidence slides allow fewer: each action
+  needs an evidence slide of its own, and a block holds at most three.
 - A deck checks on a snapshot's one run: a test builds, checks and prints it.
 - The deck is the only thing the reader gets. `report` builds the period and goes on into `report/DECK.md` in the same
   invocation; no playbook writes or prints `reports/<date>.md` any more. Unattended, the deck is written and checked with

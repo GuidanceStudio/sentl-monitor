@@ -23,8 +23,8 @@ from . import theme as sentl_theme
 from .adopt import missing_answers
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
-from .common import (REDIRECT_HOSTS, Refused, Study, fmt_date, is_owned, load_json, match_key, measured, passed_deck,
-                     require_language, span, write_json, write_text)
+from .common import (REDIRECT_HOSTS, Refused, Study, first_mention, fmt_date, fold, is_owned, load_json, match_key,
+                     measured, passed_deck, require_language, span, write_json, write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import classify, fact_terms, tight
@@ -120,11 +120,14 @@ BARE_RIVAL = re.compile(r"\d{1,3}(?!\d)")
 AFTER_BARE = re.compile(r"\s*(?:[,;.)]|$)|\s+(?:rispost[ae]|answers?|e|ed|and|mentre|while|sul\w*|on)\b", re.I)
 SITE_SUFFIX = {"co", "com", "org", "net", "ac", "gov"}
 MOST = re.compile(r"\b(?:soprattutto|più citat[aoie]|cited most|most[- ]cited|mainly|above all)\b", re.I)
+# "the site cited most on these questions, by 25 answers": the count after "by" is the count of the site said to lead.
+MOST_BY = re.compile(r"\b(?:più citat[aoie]|cited most|most[- ]cited)\b[^.;:]{0,60}?\b(?:by|da|con)\s+$", re.I)
 THIRD_WORD = re.compile(r"\b(?:terz[ie]|estern[aoie]|altri siti|third|external|other sites)\b", re.I)
 PAGE = re.compile(r"(?<![\w@/.-])(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,}/[\w%~+-][\w%~+./-]*)", re.I)
 DOMAIN = re.compile(r"(?<![\w@/.-])(?:https?://)?(?:www\.)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?![\w-])", re.I)
 SENTENCE = re.compile(r"(?<=[.!?;])\s+")
-SENTENCE_START = re.compile(r"(?:^|[.!?:;]|(?:^|\s)(?:[-•]|\d+[.)]))\s*$")
+# A sentence starts at the answer's start, after a stop, a list marker or a Markdown rule (---).
+SENTENCE_START = re.compile(r"(?:^|[.!?:;]|(?:^|\s)(?:[-•]|-{3,}|\d+[.)]))\s*$")
 SENTENCE_END = re.compile(r"[.!?:;…]$")
 # The printers a deck takes: the page lays its slides out with flex and grid, which wkhtmltopdf does not read.
 ENGINES = tuple(e for e in report_pdf.ENGINES if e[0] not in ("weasyprint", "wkhtmltopdf"))
@@ -1176,6 +1179,11 @@ def _is_third(action, author):
     return bool(sites) and not any(author(d) == "owned" for d in sites)
 
 
+def _names_subject(text, m):
+    """Whether `text` names the subject, by its label or one of its aliases, case and accents folded."""
+    return first_mention(fold(text), [m["subject"], *m.get("aliases", [])]) is not None
+
+
 def _third_pages(doc, study, folder, period, m):
     """A writer reading only the answers asks a shop to list a rival, or to correct a figure its page does not hold: a site an
     action asks has been opened, and so has any page it corrects, and what the page shows is on the record for the reader."""
@@ -1200,7 +1208,7 @@ def _third_pages(doc, study, folder, period, m):
                 problems.append(f"action {n}: {page.get('url')} is not a page the answers cite")
             shows = page.get("shows") or []
             label = max(site.split(".")[:-1], key=len)
-            others = [s for s in shows if label not in s.lower() and m["subject"].lower() not in s.lower()]
+            others = [s for s in shows if label not in s.lower() and not _names_subject(s, m)]
             if not shows:
                 if not CHECK_FIRST.search(what):
                     problems.append(f"action {n} asks {site} for something and its page was not read: open it, or start the "
@@ -1208,7 +1216,7 @@ def _third_pages(doc, study, folder, period, m):
             elif not corrects and len(others) < 2:
                 problems.append(f"action {n}: the page of {site} lists fewer than two others, so nobody gets listed there: "
                                 "choose a page that compares providers, or an action on the subject's own pages")
-            elif not corrects and ADDS.search(what) and any(m["subject"].lower() in s.lower() for s in shows):
+            elif not corrects and ADDS.search(what) and any(_names_subject(s, m) for s in shows):
                 problems.append(f"action {n} asks {site} to add the subject, and its page lists it: say what is missing there")
     return problems
 
@@ -1689,7 +1697,9 @@ def _tied_sites(field, part, labels, assistants, scopes):
     """The counts of a part of a sentence that stand beside a site: what is wrong with them, and those it judged."""
     names, problems, read = _names_in(part, labels), [], set()
     for start, end, a, b in _spans(part):
-        tied = _beside(part, start, end, names)
+        most = MOST_BY.search(part, 0, start)
+        leader = [n for n in names if not n[5] and n[1] <= start] if most else []
+        tied = (min(leader, key=lambda n: abs(n[0] - most.start())), False) if leader else _beside(part, start, end, names)
         if not tied:
             continue
         (first, last, shown, domains, page, _), in_words = tied
@@ -1701,6 +1711,11 @@ def _tied_sites(field, part, labels, assistants, scopes):
             pool = [r for r in answers if r["model"] in models] if models else answers
             rows += [(lo, hi, len(pool), where + only) for lo, hi in _tally(pool, domains, page, in_words)]
         what = f"a page of {shown}" if in_words else shown
+        if b is None and leader:
+            if not any(lo <= a <= hi for lo, hi, _, _ in rows):
+                problems.append(f"{field} says {a} beside {what}, said to be cited most: it has "
+                                + _held(sorted(rows, key=lambda r: min(abs(a - r[0]), abs(a - r[1])))))
+            continue
         if b is None:
             problems.append(f"{field} says {a} beside {what} with no base: write it as a count of the answers it comes from: "
                             + _held(sorted(rows, key=lambda r: (r[0] != a, not r[0] <= a <= r[1], r[1] - r[0]))))
@@ -2307,7 +2322,7 @@ def _page_seen(record, action, m, t):
     url, shows = _address(record["url"]), record["shows"]
     if action.get("class") == "wrong_fact":
         return t["action_shows"].format(url=url, term="», «".join(shows))
-    listed = any(m["subject"].lower() in s.lower() for s in shows)
+    listed = any(_names_subject(s, m) for s in shows)
     return t["action_lists_with" if listed else "action_lists"].format(url=url, names=", ".join(shows[:PAGE_NAMES]), subject=m["subject"])
 
 

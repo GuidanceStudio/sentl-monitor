@@ -39,7 +39,7 @@ The deck's slides, in order, for every client:
 1. **Cover**: what was done, in one sentence, who prepared it, and whether this is the first reading.
 2. **What this report shows**: the purpose, the two or three questions the report answers with real examples, and how to read a figure.
 3. **What we found**: the same questions in the same order, each with its answer and its figure.
-4. **What to do**: three to five actions, each with its reason.
+4. **What to do**: three to five actions, each with its reason; fewer when the evidence slides allow fewer.
 5. **The evidence**, block by block: each slide carries the question it belongs to, and shows the real answers.
 6. **How many answers cite each source**, the sources.
 7. **How the reading was made**, the method.
@@ -149,7 +149,9 @@ an answer citing a page does not mean the page holds the figure, and a page may 
 answers with the old figure cite, one after the other, until one shows it. When none does, leave the action out and say in
 the facts slide's `read` that the old figure stays in the answers while the pages opened no longer show it.
 
-Write three to five actions, in `actions`. Rank them by how many answers and how much of the reader's stated purpose
+Write three to five actions, in `actions`; fewer when the evidence slides allow fewer. Each action needs an evidence
+slide of its own in its block, and a block holds at most three slides, so a deck of one block, as on a snapshot of a
+few questions, holds at most three actions, and as many as it has slides with something to act on. Rank them by how many answers and how much of the reader's stated purpose
 (`narrative.purpose`, each project's `decision`) they touch. If `themes` or `search-demand.json` carry search volumes,
 use them to break ties. A wrong fact or a confusion comes first, then the largest gaps, where the subject is absent or a
 competitor is chosen, then what is missing on topics mostly favourable: "0 of 18" before "12 of 18 favourable". The deck
@@ -404,7 +406,8 @@ names by at least that much. The lists of questions are flowed by the code and n
 or a competitor must be that name's, on the period, a block, the questions of its slide, a topic or one question: the refusal
 prints the counts the name has, so take the one that fits the sentence, and never reword the count to get past it. A site's
 count is not its page's: "guide.example is cited by 9 of the 12, and its list by 3 of them". A count beside a site carries its
-base: "(39)" and "cited by 25 answers" are refused. In a sentence naming an assistant the count and its base are that assistant's answers alone, and the refusal says so. Name what a base counts, because the reader cannot tell what "19 of 141" is: "19 of the 141 answers to the questions on prices". A grounding redirect hides the page an answer read, so a page's count may
+base: "(39)" and "cited by 25 answers" are refused. After the site said to be cited most, "by 25 answers" is that site's
+count on the answers the sentence speaks of, and is refused when the site has no such count. In a sentence naming an assistant the count and its base are that assistant's answers alone, and the refusal says so. Name what a base counts, because the reader cannot tell what "19 of 141" is: "19 of the 141 answers to the questions on prices". A grounding redirect hides the page an answer read, so a page's count may
 run from the answers showing its address to those plus the answers the redirect hides. A site said to be cited most comes
 first, alone, among the sites the sentence speaks of: write "among third parties" when the subject's own site leads. On the
 sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
