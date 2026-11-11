@@ -6,8 +6,8 @@ import re
 from pathlib import Path
 
 from . import demand, design, schema
-from .common import (FINAL, Refused, Study, folded, load_json, match_key, now_iso, public_name, write_json,
-                     write_text)
+from .common import (FINAL, Refused, Study, folded, load_json, match_key, now_iso, passed_deck, public_name,
+                     write_json, write_text)
 
 CATALOGUE = Path(__file__).resolve().parents[2] / "design" / "catalogue.md"
 DIMENSIONS = (4, 5)
@@ -199,7 +199,7 @@ def resume(root, runs_file=None):
                       f"{bound['project_id']}: save list-runs-tool's response for the right project")
     rows = listing["runs"]
     ingested = {int(p.name.split(".")[0]) for p in folder.path("history", "runs", key).glob("*.json.gz")}
-    reported = any(e["status"] == "final" for e in folder.reports())
+    reported = any(passed_deck(e) for e in folder.reports())
     opened = [r for r in rows if r["status"] in schema.OPEN]
     pending = [r for r in rows if r["status"] in FINAL and r["id"] not in ingested]
     ended = [r for r in rows if r["status"] in schema.ENDED]
@@ -302,7 +302,7 @@ def promote(root, answers_file, models_file):
                       "subject (`brief`, `design`) and keep this snapshot's deck as the first look")
     if not any(folder.path("history", "runs", key).glob("*.json.gz")):
         raise Refused("the snapshot has no run in history/runs: its run is the baseline, so it is ingested first")
-    if not any(e["status"] == "final" for e in folder.reports()):
+    if not any(passed_deck(e) for e in folder.reports()):
         raise Refused("the snapshot has no deck that passed check: write its deck (SNAPSHOT.md step 9) before "
                       "promoting it")
     answers = load_json(answers_file)
@@ -315,7 +315,7 @@ def promote(root, answers_file, models_file):
     promoted.setdefault("narrative", {})["audience"] = answers["audience"]
     promoted["projects"][0].update(schedule=answers["schedule"], question=answers["project"]["question"],
                                    decision=answers["project"]["decision"])
-    when = min(e["date"] for e in folder.reports() if e["status"] == "final")
+    when = min(e["date"] for e in folder.reports() if passed_deck(e))
     promoted["themes"] = [{"id": d["key"], "label": d["name"], "dimension": d["key"],
                            "origins": [{"kind": "probe", "detail": f"the snapshot of {when} asked this dimension "
                                                                    f"({d['catalogue']} in the catalogue)"}]}

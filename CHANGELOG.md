@@ -16,6 +16,10 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   named while its file is in the folder. A deck that passes makes a draft entry final and records `written`.
 - `check --unattended` on a deck that fails, on a date that already has an entry, records the period's runs in it and keeps
   its status; the message after it says what the entry holds.
+- `snapshot resume` and `promote` treat a folder whose only record is a long report an earlier version wrote as a folder
+  still to deck: a deck passed `check` when the entry names it in `deck`, or names a deck as its final `file`.
+- `pack` carries the deck the latest entry holds as an unattended draft and the material of its period, so the draft can
+  be fixed after `unpack`.
 - A deck checks on a snapshot's one run: a test builds, checks and prints it.
 - The deck is the only thing the reader gets. `report` builds the period and goes on into `report/DECK.md` in the same
   invocation; no playbook writes or prints `reports/<date>.md` any more. Unattended, the deck is written and checked with

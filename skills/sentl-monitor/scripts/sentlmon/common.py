@@ -208,9 +208,9 @@ def measured(study, period):
 
 
 def passed_deck(entry):
-    """Whether the reports.json entry has a deck that passed check: one recorded in `deck`, beside a
-    final or a draft report, or one an earlier version recorded as a final report of its own."""
-    return bool(entry.get("deck")) or entry.get("status") == "final"
+    """Whether the reports.json entry has a deck that passed check: one recorded in `deck`, or one an earlier version
+    recorded in the report's place, as a final `file`. A long report an earlier version wrote is no deck."""
+    return bool(entry.get("deck")) or (entry.get("status") == "final" and entry.get("file", "").endswith(".deck.json"))
 
 
 # --- text -------------------------------------------------------------------

@@ -96,6 +96,19 @@ class SnapshotCase(StudyCase, unittest.TestCase):
     def forget_run(self):
         (self.study / "history" / "runs" / KEY / f"{RUN_ID}.json.gz").unlink()
 
+    def earlier_report(self):
+        """The one run ingested and its period recorded by a long report an earlier version wrote, with no deck."""
+        self.bind_full()
+        self.ingest_run()
+        self.period()
+        period = self.read(f"history/periods/{DATE}.json")
+        (self.study / "reports").mkdir(exist_ok=True)
+        (self.study / "reports" / f"{DATE}.md").write_text("# Report\n", encoding="utf-8")
+        (self.study / "history" / "reports.json").write_text(json.dumps([
+            {"date": DATE, "file": f"reports/{DATE}.md", "status": "final",
+             "period": {"from": period["from"], "to": period["to"]}, "runs": period["runs"], "previous": None}]),
+            encoding="utf-8")
+
     def final_deck(self, edit=None):
         """The one run ingested, its period built and its deck passed check, as SNAPSHOT.md step 9 ends. `edit` changes
         the project Sentl holds."""
@@ -571,6 +584,10 @@ class ResumeTest(SnapshotCase):
             self.cli("check", "--study", self.study, self.study / "reports" / f"{DATE}.deck.json", check=1)
         self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "deck")
 
+    def test_a_folder_whose_only_record_is_an_earlier_versions_report_resumes_at_the_deck(self):
+        self.earlier_report()
+        self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "deck")
+
     def test_a_finished_deck_on_a_snapshot_not_closed_resumes_at_the_end_choice(self):
         self.final_deck()
         self.assertEqual(self.step(listing([(RUN_ID, "completed", RUN_STARTED)], PROJECT_ID)), "end")
@@ -732,6 +749,11 @@ class PromoteTest(SnapshotCase):
         self.bind_full()
         self.ingest_run()
         self.assertIn("deck", self.promote(check=2).stderr)
+
+    def test_a_snapshot_whose_only_record_is_an_earlier_versions_report_is_refused(self):
+        self.earlier_report()
+        self.assertIn("deck", self.promote(check=2).stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
 
     def test_a_project_already_closed_is_refused(self):
         self.final_deck()

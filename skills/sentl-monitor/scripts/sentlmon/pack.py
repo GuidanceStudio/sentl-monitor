@@ -31,6 +31,7 @@ STATE = ("study.json", "sentl.json", "search-demand.json", "history/reports.json
 PERIOD = re.compile(r"\d{4}-\d{2}-\d{2}(\.(first|second))?\.json")
 DAY_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.json")
 DECK_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.deck\.json")
+MATERIAL_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.md")
 RUN_FILE = re.compile(r"(\d+)\.json\.gz")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 CHUNK = 1 << 20
@@ -126,8 +127,14 @@ def select(folder, full=False):
         paths += [f"history/runs/{key}/{name}" for name in _runs(folder, key, reports, latest_ids, full)]
     paths += [f"history/periods/{name}" for name in _periods(folder, reports, full)]
     # The next deck reads the text of the one before it.
-    paths += [rel for rel in (f"reports/{e['date']}.deck.json" for e in reports if passed_deck(e)) if folder.path(rel).is_file()]
-    return sorted(set(paths))
+    decks = [e["date"] for e in reports if passed_deck(e)]
+    # A deck the latest entry holds as a draft is fixed after unpack: its text, and the material `deck` builds the
+    # figures from, which a slim pack cannot build again.
+    if reports and not passed_deck(reports[-1]):
+        decks.append(reports[-1]["date"])
+        paths.append(f"history/material/{reports[-1]['date']}.md")
+    paths += [f"reports/{day}.deck.json" for day in decks]
+    return sorted({rel for rel in paths if folder.path(rel).is_file()})
 
 
 def _caps(folder, paths):
@@ -251,7 +258,7 @@ def _unsafe(info):
 
 def _allowed(path, keys):
     """True when `path` is a file a pack writes: the state files, a version or the runs of one of
-    the pack's projects, a period file, the text of a final deck."""
+    the pack's projects, a period file, the text of a deck, the material of a draft deck's period."""
     if path in STATE:
         return True
     parts = path.split("/")
@@ -262,6 +269,8 @@ def _allowed(path, keys):
         return bool(PERIOD.fullmatch(parts[2]))
     if len(parts) == 2 and parts[0] == "reports":
         return bool(DECK_FILE.fullmatch(parts[1]))
+    if len(parts) == 3 and parts[:2] == ["history", "material"]:
+        return bool(MATERIAL_FILE.fullmatch(parts[2]))
     if path.startswith("history/runs/"):
         key, _, name = path[len("history/runs/"):].rpartition("/")
         return key in keys and bool(RUN_FILE.fullmatch(name))

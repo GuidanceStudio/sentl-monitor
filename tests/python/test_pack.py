@@ -209,6 +209,20 @@ class PackContentsTest(PackCase, unittest.TestCase):
         self.assertFalse([n for n in entries(out) if n.startswith(("inbox/", "history/material/"))])
         self.assertEqual([n for n in entries(out) if n.startswith("reports/")], DECKS)
 
+    def test_an_unattended_draft_deck_travels_with_its_material_and_unpacks(self):
+        self.publish("2026-12-31", problems=["a slide runs over its page"], unattended=True)
+        held = ["reports/2026-12-31.deck.json", "history/material/2026-12-31.md"]
+        for extra in ((), ("--full",)):
+            with self.subTest(extra):
+                out = self.tmp / f"pack{len(extra)}.zip"
+                self.pack(*extra, "--out", out)
+                self.assertTrue(set(held) <= set(entries(out)))
+                self.assertFalse([n for n in entries(out) if n.startswith("history/material/") and n not in held])
+        restored = self.tmp / "restored"
+        self.unpack(self.tmp / "pack0.zip", restored)
+        for name in held:
+            self.assertEqual((restored / name).read_bytes(), (self.study / name).read_bytes(), name)
+
     def test_two_packs_of_one_folder_are_identical_with_sorted_dated_entries(self):
         first, second = self.tmp / "a.zip", self.tmp / "b.zip"
         self.pack("--out", first)

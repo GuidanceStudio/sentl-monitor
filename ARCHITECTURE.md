@@ -1308,13 +1308,14 @@ next report reads:
 | `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
 | `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
 | the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
-| `reports/<date>.deck.json` of each entry whose deck passed `check`, a draft's included | the next deck's second edition |
+| `reports/<date>.deck.json` of each entry whose deck passed `check` | the next deck's second edition |
+| the deck of the latest entry when it has not passed `check` (an unattended draft), and `history/material/<date>.md` of its period | fixing the draft after `unpack`: `deck` builds its figures file from the material, which a slim pack cannot build again |
 | the runs of the latest report's period, as `reports.json` and its period file list them, those it left out under the judged floor included, and every run started after its last run | the previous period's answers (verdict changes, episodes, presence sources) and the runs of the next period |
 
 Before the first final report the pack holds every run, since the first report rebuilds the
 earlier periods from them. `--full` holds every run and every period file, to move a study to
-a CLI host or archive it. `inbox/`, `history/material/` and `reports/` are never packed: the
-inbox and the material are built again, and each report is downloaded on its own. A pack
+a CLI host or archive it. `inbox/`, `reports/` other than the decks above, and `history/material/` other than
+the draft's are never packed: the inbox and the material are built again, and each deck's PDF is downloaded on its own. A pack
 without `--full` serves the next report. Building the latest report's period again from it
 gives the same file when that report was the first one compared on the two halves of its
 period; any other latest report also reads the runs of the period before it, or rebuilds the
