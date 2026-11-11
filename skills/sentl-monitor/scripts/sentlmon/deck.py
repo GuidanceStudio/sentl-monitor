@@ -2335,8 +2335,12 @@ def _page_seen(record, action, m, t):
     url, shows = _address(record["url"]), record["shows"]
     if action.get("class") == "wrong_fact":
         return t["action_shows"].format(url=url, term="», «".join(shows))
-    listed = any(_names_subject(s, m) for s in shows)
-    return t["action_lists_with" if listed else "action_lists"].format(url=url, names=", ".join(shows[:PAGE_NAMES]), subject=m["subject"])
+    # The names cut after PAGE_NAMES never take the subject's own entry with them: it takes the last place shown.
+    named = [s for s in shows if _names_subject(s, m)]
+    shown = shows[:PAGE_NAMES]
+    if named and not any(s in named for s in shown):
+        shown = shows[:PAGE_NAMES - 1] + named[:1]
+    return t["action_lists_with" if named else "action_lists"].format(url=url, names=", ".join(shown), subject=m["subject"])
 
 
 def _why_site(action, n, doc, m, t, slide=None, page=False):

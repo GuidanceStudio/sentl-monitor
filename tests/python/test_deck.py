@@ -1545,6 +1545,12 @@ class ThirdPageTest(DeckCase, unittest.TestCase):
         self.assertIn("prezzi.example/avena elenca Avoria, Oatwell, avn drinks.", page)
         self.assertNotIn("non Avenello", page)
 
+    def test_a_long_list_keeps_the_subject_the_page_names(self):
+        self.alias()
+        line = deck._page_seen({"url": "prezzi.example/avena", "shows": ["Avoria", "Oatwell", "Nordic", "Altro", "AVN Drinks"]},
+                               {}, {"subject": "Avenello", "aliases": ["AVN Drinks"]}, deck.DECK["it"])
+        self.assertEqual(line, "prezzi.example/avena elenca Avoria, Oatwell, Nordic, AVN Drinks.")
+
     def test_an_alias_does_not_count_among_the_others_a_page_lists(self):
         self.alias()
         doc = self.doc([{"url": "prezzi.example/avena", "shows": ["Avoria", "AVN Drinks"]}])
