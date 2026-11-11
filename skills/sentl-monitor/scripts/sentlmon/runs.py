@@ -90,11 +90,11 @@ def _for_report(folder, key, rows, date, through=False, complete=False):
     ingested = _ingested(folder, key)
     start, later, end, last = _window(folder, key, date, through)
     if last:
-        lines = [f"Report of {date} on {key}: the completed runs started after the last run of the report of "
+        lines = [f"Period of {date} on {key}: the completed runs started after the last run of the period of "
                  f"{last['date']} ({start.isoformat().replace('+00:00', 'Z')}) and up to the end of {date}."]
     else:
-        lines = [f"First report of {date} on {key}: the completed runs started from {start.date()} to {date}, the "
-                 f"report's {'week' if every == 'weekly' else 'month'} and the four before it, rebuilt for the "
+        lines = [f"First period of {date} on {key}: the completed runs started from {start.date()} to {date}, the "
+                 f"period's {'week' if every == 'weekly' else 'month'} and the four before it, rebuilt for the "
                  "comparison."]
 
     def inside(r):
@@ -167,7 +167,7 @@ def arguments(folder, key, date):
         note = "A run recorded as unavailable is read again whenever it started, so the listing is not narrowed. " + note
     else:
         args["started_after"] = _window(folder, key, date)[0].isoformat().replace("+00:00", "Z")
-    return f"list-runs-tool arguments for the report of {date} on {key}: {json.dumps(args)}\n{note}"
+    return f"list-runs-tool arguments for the period of {date} on {key}: {json.dumps(args)}\n{note}"
 
 
 def runs(root, saved, key=None, date=None):
@@ -200,11 +200,11 @@ def pending(root, date):
         fetch, already, left = fetch + len(to_fetch), already + ingested, left + skipped
         waiting += sum(1 for r in rows if r["status"] in schema.OPEN)
     if fetch or already:
-        return (f"{fetch} run{'s' if fetch != 1 else ''} to fetch, {already} already ingested and not yet reported: "
+        return (f"{fetch} run{'s' if fetch != 1 else ''} to fetch, {already} already ingested and in no recorded period: "
                 f"build the period of {date} and its deck.")
     earlier = [e for e in folder.reports() if e["date"] <= date]
-    detail = (f"no completed run is new since the report of {earlier[-1]['date']}" if earlier
-              else "no completed run in the window of the first report")
+    detail = (f"no completed run is new since the period of {earlier[-1]['date']}" if earlier
+              else "no completed run in the window of the first period")
     detail += f"; {waiting} not final yet" if waiting else ""
     detail += "".join(f"; {n} {what}" for what, n in left.items())
     folder.record_outcome("nothing_new", detail)

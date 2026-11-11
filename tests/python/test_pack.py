@@ -259,7 +259,8 @@ class PackContentsTest(PackCase, unittest.TestCase):
         self.assertFalse((restored / "manifest.json").exists())
         self.assertIn("2026-11-30", proc.stdout)
         self.assertIn("6 runs", proc.stdout)
-        self.assertIn("started after the last run of the report of 2026-11-30", proc.stdout)
+        self.assertIn("started after the last run of the period of 2026-11-30", proc.stdout)
+        self.assertNotRegex(proc.stdout + self.pack("--out", self.tmp / "again.zip").stdout, r"(?i)\breports?\b")
 
 
 class PackBeforeFirstReportTest(PackCase, unittest.TestCase):

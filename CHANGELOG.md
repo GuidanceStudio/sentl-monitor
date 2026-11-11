@@ -27,6 +27,15 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
   is refused when the site has no such count, as DECK.md's own example writes it.
 - DECK.md, SKILL.md and README ask for three to five actions, fewer when the evidence slides allow fewer: each action
   needs an evidence slide of its own, and a block holds at most three.
+- Playbooks, README, ARCHITECTURE and the messages of `pdf` write `pdf`, not `pdf --deck`; `--deck` stays accepted.
+- `period`, `runs`, `pending`, `pack` and `unpack` say "period" in the chat where they said "report", and the material's
+  heading reads "Material for the period of <date>".
+- The copy to send is named in the study's `report_language`: in Italian, `<Subject> + Sentl.ai - deck di monitoraggio
+  (dal <start> al <end>)`.
+- A snapshot's method slide says it ran once with no schedule, where it showed Sentl's daily setting; slide 2 says each
+  question was asked once when every project ran once, one round; the rating scale is explained only when the description
+  or facts block draws it.
+- The found slide of a deck with one block keeps its card as tall as its content, with the figure under the finding.
 - A deck checks on a snapshot's one run: a test builds, checks and prints it.
 - The deck is the only thing the reader gets. `report` builds the period and goes on into `report/DECK.md` in the same
   invocation; no playbook writes or prints `reports/<date>.md` any more. Unattended, the deck is written and checked with

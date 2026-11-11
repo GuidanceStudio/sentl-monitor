@@ -228,10 +228,10 @@ def pack(root, out=None, full=False, skill_version="unknown"):
         tmp.unlink(missing_ok=True)
     size, digest = _digest(target)
     keys = [p["key"] for p in folder.study["projects"]]
-    kind = "every run and period (--full)" if full else "the state the next report needs"
+    kind = "every run and period (--full)" if full else "the state the next period needs"
     lines = [f"Packed {len(paths)} files of {folder.root.resolve().name} into {target} ({size:,} bytes, "
              f"sha256 {digest}): {kind}.",
-             (f"Last final report: {last}. " if last else "No final report yet. ") + f"Runs held: {_held(paths, keys)}.",
+             (f"Latest final period: {last}. " if last else "No final period yet. ") + f"Runs held: {_held(paths, keys)}.",
              "Give the user this file to download and keep: the next conversation unpacks it before its first "
              "command."]
     return "\n".join(lines)
@@ -549,10 +549,10 @@ def unpack(root, pack_path, skill_version="unknown"):
              f"{manifest.get('skill_version') or 'unknown'}."]
     if manifest.get("skill_version") not in (None, skill_version):
         lines.append(f"This is sentl-monitor {skill_version}: the pack's files are read as they are.")
-    lines.append((f"Last final report: {last}. " if last else "No final report yet. ")
+    lines.append((f"Latest final period: {last}. " if last else "No final period yet. ")
                  + f"Runs held: {_held(list(listed), order)}.")
     if last:
-        lines.append(f"The next report covers the runs started after the last run of the report of {last}.")
+        lines.append(f"The next period covers the runs started after the last run of the period of {last}.")
     else:
-        lines.append("The first report covers the last report_every interval and the four before it.")
+        lines.append("The first period covers the last report_every interval and the four before it.")
     return "\n".join(lines)

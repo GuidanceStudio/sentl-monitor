@@ -429,8 +429,8 @@ def snapshot_deck(doc):
             "method": {"limits": [], "ask": ["Which pages do the assistants cite?"]}}
 
 
-class SnapshotDeckTest(SnapshotCase):
-    """A snapshot ends with a deck: the period of its one run, compared with nothing, is what the deck draws."""
+class SnapshotDeckCase(SnapshotCase):
+    """The deck of the fixture's one run, written as DECK.md asks."""
 
     def setUp(self):
         super().setUp()
@@ -446,6 +446,10 @@ class SnapshotDeckTest(SnapshotCase):
         self.path.write_text(json.dumps(snapshot_deck(json.loads(self.path.read_text(encoding="utf-8")))),
                              encoding="utf-8")
 
+
+class SnapshotDeckTest(SnapshotDeckCase):
+    """A snapshot ends with a deck: the period of its one run, compared with nothing, is what the deck draws."""
+
     def test_the_deck_of_the_one_run_passes_check_and_records_the_period(self):
         self.cli("check", "--study", self.study, self.path, check=0)
         self.assertEqual([(e["date"], e["status"], e["runs"], e["previous"], e["deck"])
@@ -459,6 +463,58 @@ class SnapshotDeckTest(SnapshotCase):
         said = deck.render(self.study, DATE, printer=printer)
         self.assertIn("To send:", said)
         self.assertTrue(list((self.study / "reports" / "share").glob("*monitoring deck*.pdf")))
+
+
+class SnapshotDeckSlidesTest(SnapshotDeckCase):
+    """What the deck of a snapshot says of how it ran, and how its slides look with one block."""
+
+    def model(self, blocks=None):
+        folder, _, study, period, doc = deck.load(self.study, DATE)
+        m = deck.build_model(folder, study, period, doc)
+        for key in set(deck.BLOCKS) - set(blocks or deck.BLOCKS):
+            m["blocks"][key]["rows"] = []
+        return doc, m
+
+    def test_the_method_slide_says_it_ran_once_with_no_schedule(self):
+        doc, m = self.model()
+        method = deck._method(doc, m, deck.DECK["en"])
+        self.assertIn("<td>1, no schedule</td>", method)
+        self.assertNotIn("scheduled every", method)
+
+    def test_slide_two_says_each_question_was_asked_once(self):
+        doc, m = self.model()
+        self.assertEqual(deck._reading_key(m), "reading_answers_once")
+        opening = deck._opening_slide(doc, m, deck.DECK["en"], "en", (9, 9))
+        self.assertIn("each question was asked once, to 2 of these assistants", opening)
+        self.assertNotIn("repeated", opening)
+
+    def test_the_rating_scale_is_explained_only_when_a_slide_uses_it(self):
+        t = deck.DECK["en"]
+        for blocks, used in ((["reach"], False), (["reach", "description"], True), (["reach", "facts"], True)):
+            with self.subTest(blocks):
+                doc, m = self.model(blocks)
+                opening, method = deck._opening_slide(doc, m, t, "en", (9, 9)), deck._method(doc, m, t)
+                self.assertEqual(t["reading_scores"].split(":")[0] in opening, used)
+                self.assertEqual(t["scores_title"] in method, used)
+
+    def test_the_found_slide_of_one_block_keeps_its_card_as_tall_as_its_content(self):
+        from sentlmon import fit
+        for blocks, grows in ((["reach"], False), (["reach", "description"], True), (list(deck.BLOCKS), True)):
+            with self.subTest(blocks):
+                doc, m = self.model(blocks)
+                tree = fit._Tree()
+                tree.feed(f'<section class="slide found">{deck._found_slide(doc, m, deck.DECK["en"])}</section>')
+                cards = next(n for n in _nodes(tree.root) if "cards" in n.classes)
+                layout = fit.Layout(deck.STYLE)
+                self.assertEqual(fit._flex(layout.style(cards).props)[0] > 0, grows)
+                section = tree.root.elements()[0]
+                self.assertLessEqual(layout.box(section, fit.PAGE_WIDTH), fit.PAGE_HEIGHT)
+
+
+def _nodes(node):
+    for kid in node.elements():
+        yield kid
+        yield from _nodes(kid)
 
 
 # --- the questions start from Google's suggestions ------------------------------

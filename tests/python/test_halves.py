@@ -107,6 +107,7 @@ class HalvesTest(HalvesCase, unittest.TestCase):
         self.assertFalse((self.study / "history/reports.json").exists())
         self.assertIn("half", proc.stdout)
         self.assertNotIn("first measurement", proc.stdout)
+        self.assertNotRegex(proc.stdout, r"(?i)\breports?\b")
 
     def test_a_dimension_moving_half_a_point_is_a_change_and_one_moving_less_is_not(self):
         self.history()
@@ -482,7 +483,9 @@ class SecondReportTest(HalvesCase, unittest.TestCase):
         self.publish(REPORT)
         for n, start in enumerate(("2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23")):
             self.ingest_market(9201 + n, f"{start}T06:00:00Z", rows_of(24))
-        self.build("2026-11-30")
+        said = self.build("2026-11-30").stdout
+        self.assertIn(f"The period covers the runs started after the last run of the period of {REPORT}.", said)
+        self.assertNotRegex(said, r"(?i)\breports?\b")
         c = self.comparison("2026-11-30")
         self.assertEqual((c["previous"], c["range_of"]), (REPORT, [REPORT]))
         self.assertNotIn("halves", c)

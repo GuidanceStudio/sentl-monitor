@@ -385,7 +385,7 @@ results, such as one on how the questions are built.
 
 ```bash
 python3 <skill>/scripts/monitor.py check --study "$S" reports/D.deck.json
-python3 <skill>/scripts/monitor.py pdf --study "$S" --deck --date D
+python3 <skill>/scripts/monitor.py pdf --study "$S" --date D
 ```
 
 `check` refuses a deck with no action, an action with no evidence slide, a block with no question or answer for the first
@@ -412,11 +412,11 @@ run from the answers showing its address to those plus the answers the redirect 
 first, alone, among the sites the sentence speaks of: write "among third parties" when the subject's own site leads. On the
 sources slide that holds on a whole block, and its title says it of any site it says the answers cite.
 
-`pdf --deck` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
+`pdf` refuses a deck that fails `check` and a slide that runs over its page, and names the slide: shorten its
 text. Its page count is the final word: a face wider than Arial can run over where `check` passed, and a slide `check`
 estimates over its page still prints when it fits. It writes `reports/D.deck.pdf` and the copy to send, in `reports/share/`. A browser prints with its sandbox only:
-where none can start it, `pdf --deck` exits 1 and says what to install. On a host without a lasting folder, the pack
-comes after the last `pdf --deck` (step 9).
+where none can start it, `pdf` exits 1 and says what to install. On a host without a lasting folder, the pack
+comes after the last `pdf` (step 9).
 
 ## 7. The reader's test
 
@@ -467,18 +467,18 @@ brief and work from it. Check each point against the answers and the pages, and 
 
 Rewrite every sentence it reports. A wrong fact or a confusion left out becomes an action when it rests on the answers. A
 biggest gap with no action gets one, or the `read` of its slide says why none holds: the reader goes there first. Then
-run `check` and `pdf --deck` again. When the deck already exists and passes, this step is a pass of its own: keep what the
+run `check` and `pdf` again. When the deck already exists and passes, this step is a pass of its own: keep what the
 audit does not report and start nothing over.
 
 Two audits in the whole session are enough, both on this brief and on the data: a second one finds what the first let
 through, and every new agent after that finds something else to report, so the rounds never end. Give the second one the
 deck as the first one's corrections left it, and tell the operator what it reports and you could not settle.
 
-The session ends on a deck that passes: `check` and `pdf --deck` are its last commands, with no change to the text after them.
+The session ends on a deck that passes: `check` and `pdf` are its last commands, with no change to the text after them.
 
 ## 9. Tell the operator
 
-On a host without a lasting folder (SKILL.md), once `pdf --deck` has run for the last time, write the pack:
+On a host without a lasting folder (SKILL.md), once `pdf` has run for the last time, write the pack:
 
 ```bash
 python3 <skill>/scripts/monitor.py pack --study "$S" --out <folder the host offers for download>

@@ -283,6 +283,13 @@ has '`judging`' "$PAYLOAD/snapshot/SNAPSHOT.md" "SNAPSHOT.md follows a run in ju
 has '`failed`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a failed run as final with no results"
 has '`stalled`' "$PAYLOAD/report/REPORT.md" "REPORT.md reads a stalled run as final with no results"
 has 'history/deck/D.notes.md' "$PAYLOAD/report/DECK.md" "DECK.md has the writer keep its notes on file"
+# `pdf` prints the deck; `--deck` is accepted for older invocations, and nothing the operator or the agent reads asks for it.
+deck_flag="$(cd "$REPO_ROOT" && { echo README.md; echo ARCHITECTURE.md; find skills/sentl-monitor -name '*.md' -o -name '*.py'; } | sort | xargs grep -ln -- 'pdf --deck\|pdf --study [^ ]* --deck' 2>/dev/null)"
+if [ -z "$deck_flag" ]; then
+    ok "no playbook, README or message writes pdf --deck"
+else
+    bad "no playbook, README or message writes pdf --deck: $(echo $deck_flag)"
+fi
 has 'fewer when the evidence slides allow fewer' "$PAYLOAD/report/DECK.md" "DECK.md allows fewer than three actions when the evidence slides allow fewer"
 has 'site said to be cited most, "by 25 answers"' "$PAYLOAD/report/DECK.md" "DECK.md ties a count after by to the site cited most"
 has 'one section per command' "$PAYLOAD/report/DECK.md" "DECK.md has the writer write one section at a time"

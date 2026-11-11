@@ -11,6 +11,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .i18n import DECK
+
 ENGINES = (
     ("weasyprint", ["{html}", "{pdf}"]),
     ("chromium", ["--headless", "--disable-gpu", "--no-pdf-header-footer", "--print-to-pdf={pdf}", "{url}"]),
@@ -30,15 +32,18 @@ class NoSandbox(Exception):
     """Every engine that could print failed, and a browser among them could not start its sandbox; exit code 1."""
 
 
-def share_name(folder, study, date, kind="monitoring deck"):
-    """`<Subject> + Sentl.ai - <kind> (<start> to <end>)`: what the recipient sees of the file."""
+def share_name(folder, study, date):
+    """`<Subject> + Sentl.ai - monitoring deck (<start> to <end>)`, in the study's `report_language`: what the recipient
+    sees of the file."""
+    t = DECK.get(study.get("report_language") or "en", DECK["en"])
+    kind = t["share_kind"]
     subject = ((study.get("subject") or {}).get("label") or "").strip()
     entry = next((e for e in folder.reports() if e["date"] == date), None)
     period = entry.get("period") if entry else None
     span = date
     if period:
         start, end = period["from"][:10], period["to"][:10]
-        span = start if start == end else f"{start} to {end}"
+        span = start if start == end else t["share_span"].format(start=start, end=end)
     name = f"{subject} + Sentl.ai - {kind} ({span})" if subject else f"Sentl.ai - {kind} ({span})"
     return " ".join(re.sub(r'[/\\:*?"<>|]', " ", name).split())
 

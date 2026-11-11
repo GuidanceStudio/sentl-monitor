@@ -388,7 +388,7 @@ def _halves(study, date, current, chosen, end, reader, versions, names):
                                 "measurement (tell the operator)."]
     lines = [f"The runs span {span.days} days: the second half of the period, runs started {second['from'][:10]} to "
              f"{second['to'][:10]}, is compared with the first half, runs started {first['from'][:10]} to "
-             f"{first['to'][:10]}; the halves are written with no report of their own (tell the operator)."]
+             f"{first['to'][:10]}; the halves are written with no deck of their own (tell the operator)."]
     lines += [f"{k} has runs in the {h['half']} half only and is not compared (tell the operator)."
               for k in chosen if k not in both for h in halves if h["runs"].get(k)]
     return halves, split, both, lines
@@ -436,10 +436,10 @@ def build(root, date, models_file=None):
         last = reports[-1]
         cut = {k: previous_cut(last, k, {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]}) for k in keys}
         chosen = pick(lambda k: {"end": bounds[0][1], "after": cut[k]})
-        lines = [f"The period covers the runs started after the last run of the report of {last['date']}."]
+        lines = [f"The period covers the runs started after the last run of the period of {last['date']}."]
     else:
         chosen = pick(lambda k: {"start": bounds[0][0], "end": bounds[0][1]})
-        lines = [f"First report: the period covers the runs started from {bounds[0][0].date()} to {date}."]
+        lines = [f"First period: it covers the runs started from {bounds[0][0].date()} to {date}."]
     current = _period(study, date, chosen, reader, versions)
     if not current["runs"]:
         reasons = [f"{k}: run {e['run_id']} left out, {e['reason']}" for k, ex in current["excluded"].items() for e in ex]
@@ -471,8 +471,8 @@ def build(root, date, models_file=None):
                 write_json(periods_dir / f"{day}.json", earlier)
                 rebuilt.append(day)
         if rebuilt:
-            lines.append(f"Rebuilt {len(rebuilt)} earlier period(s) from the project's runs, with no report of their own: "
-                         f"{', '.join(sorted(rebuilt))}. The first report compares with them (tell the operator).")
+            lines.append(f"Rebuilt {len(rebuilt)} earlier period(s) from the project's runs, with no deck of their own: "
+                         f"{', '.join(sorted(rebuilt))}. The first period compares with them (tell the operator).")
         else:
             halves, split, both, found = _halves(study, date, current, chosen, bounds[0][1], reader, versions, names)
             lines += [f"There is no earlier period: no completed run started before {bounds[0][0].date()} was "
@@ -549,7 +549,7 @@ def build(root, date, models_file=None):
     current["names"] = {m: public_name(m, names) for m in sorted(seen)}
     write_json(periods_dir / f"{date}.json", current)
 
-    material = [f"# Material for the report of {date}", ""]
+    material = [f"# Material for the period of {date}", ""]
     for proj in study["projects"]:
         kept = chosen[proj["key"]][0]
         if kept:

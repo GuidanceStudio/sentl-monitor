@@ -33,7 +33,7 @@ assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the
 routes, it has `demand` (Google suggestions, search volumes and their summary, for `brief`), `validate`,
-`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the deck as a PDF, and the copy to send, with or without `--deck`), `page` (what a page the answers cite holds), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
+`review` and `revise` (the checks, the review and the question lineage of `design`), `payload` and `bind` (the arguments `setup` sends to Sentl, printed and never sent, and the ids it records from Sentl's response), `resume` and `close` (the step a `snapshot` folder is at, and the record of whether the snapshot was kept, archived or deleted), `pdf` (the deck as a PDF, and the copy to send), `page` (what a page the answers cite holds), `doctor` (checks Python and the study folder), `--version`, `runs` (lists the
 runs a period needs), `pending` (says whether an unattended `report` has a new run) and `pack` and `unpack`, which carry a study between conversations on a
 host that deletes its files when the conversation ends.
 
@@ -251,7 +251,7 @@ python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py period --study avenell
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py deck --study avenello-study --date 2026-10-14
 # the assistant writes the findings and the actions in reports/2026-10-14.deck.json
 python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py check --study avenello-study avenello-study/reports/2026-10-14.deck.json
-python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --deck --date 2026-10-14
+python3 ~/.claude/skills/sentl-monitor/scripts/monitor.py pdf --study avenello-study --date 2026-10-14
 ```
 
 `runs` lists the runs to fetch, `ingest` stores each one, and `period` computes the figures of the
@@ -260,7 +260,7 @@ assistant reads; the assistant writes the text of the slides, from the answers a
 `reports/2026-10-14.deck.json`. `check` verifies it: every excerpt is verbatim, every figure is the
 period's, every count beside a site or an assistant is that name's, every text fits its slide, and no
 internal id appears. The assistant corrects the text until `check` passes, which records the period in
-`history/reports.json`: the next period starts after its runs. `pdf --deck` prints the deck; it needs
+`history/reports.json`: the next period starts after its runs. `pdf` prints the deck; it needs
 Chromium or Google Chrome with a working sandbox, and says what to install when none can start.
 
 The first four slides are enough to decide: the cover says what was done and who prepared it, the second
@@ -287,7 +287,8 @@ avenello-study/
 ```
 
 The copy to send is `reports/share/Avenello + Sentl.ai - monitoring deck (2026-10-08 to 2026-10-14).pdf`:
-the subject from `study.json`, the period from its entry in `history/reports.json`. In the chat, and never in the deck,
+the subject from `study.json`, the period from its entry in `history/reports.json`, in the study's `report_language`
+(in Italian, `Avenello + Sentl.ai - deck di monitoraggio (dal 2026-10-08 al 2026-10-14).pdf`). In the chat, and never in the deck,
 the assistant tells you the runs the period covers, the week rebuilt from earlier runs, and anything to check:
 runs not final yet, runs left out, edits found in Sentl, and what the reader and the audit left open.
 
@@ -301,7 +302,7 @@ client acted.
 
 ## Make it yours
 
-`monitor.py pdf --deck` prints the deck white, with Sentl's orange, text colour and mark, and needs no
+`monitor.py pdf` prints the deck white, with Sentl's orange, text colour and mark, and needs no
 network. To use your own colours, font and logo, put a theme file where the skill looks for it; the
 first hit wins:
 

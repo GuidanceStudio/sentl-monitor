@@ -87,6 +87,8 @@ DECK = {
         "reading_answers_always": "I numeri contano risposte, non domande: ogni domanda va a {few} di questi assistenti, più "
                                   "volte. {spread}.",
         "reading_answers_one": "I numeri contano risposte, non domande: ogni domanda è ripetuta. {spread}.",
+        "reading_answers_once": "I numeri contano risposte, non domande: ogni domanda è stata posta una volta, a {few} di "
+                                "questi assistenti. {spread}.",
         "spread_one": "Ogni domanda ha {n} risposte",
         "spread_first": "{q} domande hanno {n} risposte ciascuna",
         "spread_rest": "{q} ne hanno {n}",
@@ -127,6 +129,8 @@ DECK = {
         "action_there": "alle domande della slide {slide}",
         "action_lists": "{url} elenca {names}, non {subject}.",
         "action_lists_with": "{url} elenca {names}.",
+        "share_kind": "deck di monitoraggio",
+        "share_span": "dal {start} al {end}",
         "action_shows": "{url} riporta «{term}».",
         "action_page": "Pagina più citata: {page} ({n}).",
         "actions_head": ("N.", "Cosa fare", "Perché", "Slide"),
@@ -164,7 +168,7 @@ DECK = {
         "method_title": "Come è stata fatta la rilevazione",
         "method_head": ("Progetto su Sentl", "Domande", "Assistenti", "Risposte", "Rilevazioni nel periodo"),
         "frequency": {"daily": "in programma ogni giorno", "weekly": "in programma ogni settimana",
-                      "monthly": "in programma ogni mese"},
+                      "monthly": "in programma ogni mese", "none": "senza programmazione"},
         "scores_title": "Come è valutata ogni risposta",
         "scores": "Ogni domanda ha un proprio criterio, scritto prima di leggere le risposte, e ogni risposta è valutata in "
                   "automatico su quel criterio: {line}.",
@@ -212,6 +216,8 @@ DECK = {
         "reading_answers_always": "Figures count answers, not questions: each question goes to {few} of these assistants, "
                                   "several times. {spread}.",
         "reading_answers_one": "Figures count answers, not questions: each question is repeated. {spread}.",
+        "reading_answers_once": "Figures count answers, not questions: each question was asked once, to {few} of these "
+                                "assistants. {spread}.",
         "spread_one": "Each question has {n} answers",
         "spread_first": "{q} questions have {n} answers each",
         "spread_rest": "{q} have {n}",
@@ -252,6 +258,8 @@ DECK = {
         "action_there": "to the questions on slide {slide}",
         "action_lists": "{url} lists {names}, not {subject}.",
         "action_lists_with": "{url} lists {names}.",
+        "share_kind": "monitoring deck",
+        "share_span": "{start} to {end}",
         "action_shows": "{url} shows «{term}».",
         "action_page": "Page cited most: {page} ({n}).",
         "actions_head": ("No.", "What to do", "Why", "Slide"),
@@ -287,7 +295,8 @@ DECK = {
                          "Cite other sites: press, comparison sites, reviews", "Other sites cited most (answers)"),
         "method_title": "How the reading was made",
         "method_head": ("Project in Sentl", "Questions", "Assistants", "Answers", "Times asked in the period"),
-        "frequency": {"daily": "scheduled every day", "weekly": "scheduled every week", "monthly": "scheduled every month"},
+        "frequency": {"daily": "scheduled every day", "weekly": "scheduled every week", "monthly": "scheduled every month",
+                      "none": "no schedule"},
         "scores_title": "How each answer is rated",
         "scores": "Each question has its own criteria, written before the answers were read, and each answer is rated "
                   "automatically against them: {line}.",

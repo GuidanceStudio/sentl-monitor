@@ -160,8 +160,16 @@ class ShareNameTest(StudyCase, unittest.TestCase):
             "date": "2026-10-14", "status": "final", "period": {"from": start, "to": end}, "runs": {}, "previous": None,
             "deck": "reports/2026-10-14.deck.json"}]), encoding="utf-8")
 
-    def name(self, subject="Avenello"):
-        return pdf.share_name(Study(self.study), {"subject": {"label": subject}}, "2026-10-14")
+    def name(self, subject="Avenello", lang=None):
+        study = {"subject": {"label": subject}, **({"report_language": lang} if lang else {})}
+        return pdf.share_name(Study(self.study), study, "2026-10-14")
+
+    def test_the_name_is_in_the_study_s_language(self):
+        self.record()
+        self.assertEqual(self.name(lang="en"), "Avenello + Sentl.ai - monitoring deck (2026-10-08 to 2026-10-14)")
+        self.assertEqual(self.name(lang="it"), "Avenello + Sentl.ai - deck di monitoraggio (dal 2026-10-08 al 2026-10-14)")
+        self.record("2026-10-14T09:00:00+00:00", "2026-10-14T18:00:00+00:00")
+        self.assertEqual(self.name(lang="it"), "Avenello + Sentl.ai - deck di monitoraggio (2026-10-14)")
 
     def test_the_name_says_whose_deck_and_which_period(self):
         self.record()

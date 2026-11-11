@@ -4,7 +4,7 @@ The estimate lays the slide out as the browser does, with the sizes, gaps, paddi
 blocks stack, flex rows and grid rows take the height of their tallest item, table rows that of their tallest cell, and
 text wraps word by word at the width of its box. A character takes its width in Arial, whose metrics Liberation Sans
 and Helvetica share: the face the deck's font stack falls to where Inter, SF and Segoe UI are missing, and narrower than
-those. A wider face can run over where the estimate fits, so `pdf --deck` keeps the page count as the final word.
+those. A wider face can run over where the estimate fits, so `pdf` keeps the page count as the final word.
 """
 
 import math

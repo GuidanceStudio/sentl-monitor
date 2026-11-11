@@ -45,6 +45,7 @@ class FirstReportTest(StudyCase, unittest.TestCase):
         proc = self.runs(self.ROWS)
         self.assertEqual(fetched(proc), [9102, 9103, 9105, 9104])
         self.assertIn("2026-06-01", proc.stdout)
+        self.assertNotRegex(proc.stdout, r"(?i)\breports?\b")
         self.assertEqual(line(proc, "Warning"), "")
 
     def test_runs_already_ingested_are_not_fetched_again(self):
@@ -148,6 +149,8 @@ class LaterReportTest(StudyCase, unittest.TestCase):
         rows += [(9101 + n, "completed", s) for n, s in reversed(list(enumerate(OCT)))]
         proc = self.runs(rows)
         self.assertEqual(fetched(proc), [9110, 9201, 9202, 9203, 9204, 9205])
+        self.assertIn("the last run of the period of 2026-10-31", proc.stdout)
+        self.assertNotRegex(proc.stdout, r"(?i)\breports?\b")
         self.assertEqual(line(proc, "Warning"), "")
 
     def test_a_listing_that_does_not_reach_the_previous_report_is_flagged(self):

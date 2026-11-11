@@ -237,7 +237,7 @@ the deck.
 
 Then follow `report/DECK.md` from its step 1 with the same `D`: the deck is what the reader of
 step 3 receives. `deck` exit 2 listing fields: ask the operator and run it again. The deck's
-`check` records the period in `history/reports.json` as final; `pdf --deck` writes the copy to
+`check` records the period in `history/reports.json` as final; `pdf` writes the copy to
 send in `reports/share/`. Never write a credit figure, an id, a key, a model id or a file name in
 the deck. On a host without a lasting folder, the pack waits for step 10, after the operator's choice.
 
@@ -271,7 +271,7 @@ pack and the deck's copy to send, in `reports/share/`, for download (SKILL.md).
 
 ## 11. Tell the operator
 
-In the chat: where the deck's copy to send is (the file `pdf --deck` names in `reports/share/`),
+In the chat: where the deck's copy to send is (the file `pdf` names in `reports/share/`),
 the credits the estimate gave, the runs left out or unavailable, the dimensions shown without a
 figure, unmatched responses, what DECK.md step 9 lists, and what became of the snapshot (kept,
 deleted, or followed by a study).

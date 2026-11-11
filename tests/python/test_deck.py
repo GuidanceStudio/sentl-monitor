@@ -315,7 +315,7 @@ class BlocksTest(DeckCase, unittest.TestCase):
     def test_the_method_table_says_how_often_each_project_ran(self):
         m = {"method": [{"name": "Mercato", "questions": 3, "assistants": ["Acme Chat"], "answers": 6, "runs": 7, "schedule": "daily"},
                         {"name": "Marca", "questions": 2, "assistants": ["Acme Chat"], "answers": 4, "runs": 2, "schedule": None}],
-             "fidelity": False, "subject": "Avenello", "monitored": []}
+             "fidelity": False, "subject": "Avenello", "monitored": [], "blocks": {b: {"rows": []} for b in deck.BLOCKS}}
         it = deck._method({}, m, deck.DECK["it"])
         self.assertIn("<th>Rilevazioni nel periodo</th>", it)
         self.assertIn("<td>7, in programma ogni giorno</td>", it)
@@ -2164,7 +2164,7 @@ class RenderTest(DeckCase, unittest.TestCase):
         message = deck.render(self.study, DATE, printer=fake_pdf(10))
         shared = list((self.study / "reports" / "share").glob("*.pdf"))
         self.assertEqual(len(shared), 1)
-        self.assertIn("Avenello + Sentl.ai - monitoring deck", shared[0].name)
+        self.assertEqual(shared[0].name, f"Avenello + Sentl.ai - deck di monitoraggio ({OCT[0][:10]}).pdf")
         self.assertIn(str(shared[0]), message)
 
     def test_the_fullest_slides_stay_on_one_page_each(self):
@@ -2197,7 +2197,7 @@ class PdfCommandTest(DeckCase, unittest.TestCase):
     def test_pdf_without_deck_prints_the_deck(self):
         said = self.printed("--date", DATE)
         self.assertIn(f"{DATE}.deck.pdf", said)
-        self.assertIn("Avenello + Sentl.ai - monitoring deck", said)
+        self.assertIn("Avenello + Sentl.ai - deck di monitoraggio", said)
         self.assertTrue((self.study / "reports" / f"{DATE}.deck.pdf").exists())
 
     def test_pdf_with_and_without_deck_write_the_same_files(self):

@@ -745,7 +745,7 @@ them (see Periods).
    recorded as `draft` when its date has no entry yet, an entry already there takes the period's runs
    and keeps its status, and `last-report.json` says `draft` and what failed; a later `check` that
    passes makes it `final`. `period` records `below_floor` in
-   `last-report.json` when it ends with exit 4. `monitor.py pdf --deck` prints the deck and its copy
+   `last-report.json` when it ends with exit 4. `monitor.py pdf` prints the deck and its copy
    to send. No long report is written.
 6. In the chat, never in the deck: the runs covered, runs left out, unmatched responses,
    versions detected, facts older than 90 days.
@@ -826,7 +826,7 @@ stay in `history/`, so the first `report` of the study compares its period with 
    starts nothing.
 9. **Period and deck.** `get-run-results-tool` saved to `inbox/`; `monitor.py ingest`, then `period`
    on the one run, with no comparison, then the deck of that period (`report/DECK.md`, §The deck).
-   The deck's `check` records the period in `history/reports.json` as final; `pdf --deck` writes the
+   The deck's `check` records the period in `history/reports.json` as final; `pdf` writes the
    copy to send.
 10. **End.** The operator keeps the snapshot, deletes it, or follows the subject. Deleting is
     `delete-snapshot-tool` on the operator's go, then `monitor.py close --deleted`; keeping is
@@ -1208,7 +1208,10 @@ answers it has more or fewer. Beside an action, a site's count takes the base of
 the site a count on one row of its slide, and names the row; otherwise it counts the slide's questions. A third party's site
 whose name is the subject's or an alias, and which `study.json` does not own, is labelled as another organisation of that
 name. The method table says how many times each project's questions were asked in the period, beside how often they are
-scheduled. A question with fewer than three answers counts in its topic and in the list of
+scheduled; a snapshot's row says it has no schedule. Slide 2 says each question was asked once when every project ran once,
+one round. The rating scale (favourable, neutral, unfavourable) is explained on slide 2 and the method slide only when the
+description or facts block draws it. The found slide of a deck with one block keeps its card as tall as its content, with
+the figure under the finding; with two or three, the cards share the slide's height. A question with fewer than three answers counts in its topic and in the list of
 questions, and draws no row and no excerpt: one answer of two is no finding. A deck with unfavourable answers shows one, and its
 excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
@@ -1242,7 +1245,7 @@ out. It can run alone on a deck that passes, so a fault found late costs one sen
 less well than a stronger model does, so `history/deck/D.audit.md` lets the operator run the audit elsewhere and hand the writer the report.
 
 **The pages.** 13.333 x 7.5 inches. A slide has a minimum height and no fixed one, so too much text runs onto a new
-page, the page count differs from the slide count, and `pdf --deck` refuses it and names the slide. That came after `check`
+page, the page count differs from the slide count, and `pdf` refuses it and names the slide. That came after `check`
 had passed, so `check` also estimates each slide's height (`fit.py`): it parses the slide's HTML, applies the deck's style
 sheet over the browser's own rules, and lays the boxes out as the browser does (blocks with collapsed margins, flex rows
 and columns, grids, tables with fixed and automatic column widths, balanced columns), wrapping text in Arial's advance
@@ -1253,7 +1256,7 @@ never inside a minus sign's number. Line heights are read as a theme may set the
 `rem` or `normal`, which is Liberation Sans's ascent, descent and gap; a value the estimate cannot read (`var()`,
 `calc()`) leaves the inherited one standing. On the test fixture's slides and on trial decks it lands within half a pixel
 of Chrome printing in Liberation Sans. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out. Inter, SF and Segoe UI come first in the font stack
-and are wider, so a host that has them can still run over: `pdf --deck` does not run the estimate, and its page count is
+and are wider, so a host that has them can still run over: `pdf` does not run the estimate, and its page count is
 the final word. The theme of
 §Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and
 later) and the only browser has no profile that allows them, its print fails with "No usable sandbox". The next engine is
@@ -1363,9 +1366,9 @@ folder inside the target, on the target's file system, each created new without 
 link, and moved into place one by one; a file they replace is first moved aside into the staging
 folder. On any failure the files moved aside are put back, the new files and folders are removed
 (the target too, when the unpack created it), and the staging folder is removed: the target is as
-it was, and the command exits 6. Unpacking leaves the folder's other files as they are; it prints the last final report's date, the runs
-held per project, and that the next report covers the runs started after the last run of that
-report.
+it was, and the command exits 6. Unpacking leaves the folder's other files as they are; it prints the latest final period's date, the runs
+held per project, and that the next period covers the runs started after the last run of that
+period.
 
 ## Theme
 

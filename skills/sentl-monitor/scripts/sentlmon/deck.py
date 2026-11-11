@@ -161,7 +161,7 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .card.reach { flex-grow: 1.3; }
 .card-q { font-size: 20px; line-height: 1.24; font-weight: 700; color: var(--sl-deep); }
 .found .card-q { font-size: 16px; line-height: 1.25; font-weight: 600; }
-.opening .cards { flex: 0 1 auto; }
+.opening .cards, .cards.one { flex: 0 1 auto; }
 .opening .reading { margin-top: auto; }
 .three .card-q { font-size: 18px; }
 .three .card-ex { font-size: 16px; gap: 7px; }
@@ -572,7 +572,9 @@ def build_model(folder, study, period, doc=None):
         method.append({"name": name, "questions": sum(len(d["questions"]) for d in dims),
                        "assistants": [_assistant(m, names) for m in asked],
                        "answers": sum(counted[q["key"]] for d in dims for q in d["questions"]),
-                       "runs": len(period["runs"].get(key, [])), "schedule": settings.get("schedule")})
+                       "runs": len(period["runs"].get(key, [])), "rounds": settings.get("rounds") or 1,
+                       # A snapshot runs once: Sentl's own setting for it is no schedule the reader can count on.
+                       "schedule": "none" if study.get("kind") == "snapshot" else settings.get("schedule")})
     blocks["facts"]["rows"] = _by_fact(blocks["facts"]["questions"], doc.get("same_audience"))
     for row in blocks["facts"]["rows"]:
         row["telling"] = _telling(row, reader.author)
@@ -2096,11 +2098,19 @@ def _origins_line(m, t, lang):
 
 
 def _reading_key(m):
-    """"Some several times" is false of questions that all have more answers than assistants."""
+    """"Some several times" is false of questions that all have more answers than assistants, and "repeated" of a period
+    whose projects each ran once, one round."""
+    if all(r.get("runs") == 1 and r.get("rounds") == 1 for r in m["method"]):
+        return "reading_answers_once"
     if m["totals"]["assistants"] == 1:
         return "reading_answers_one"
     always = min(n for n, _ in m["spread"]) > max(len(r["assistants"]) for r in m["method"])
     return "reading_answers_always" if always else "reading_answers"
+
+
+def _rated(m):
+    """Whether a slide draws the rating of the answers: the description and facts blocks do, reach does not."""
+    return any(key in present(m) for key in ("description", "facts"))
 
 
 def _opening_slide(doc, m, t, lang, list_slides):
@@ -2118,8 +2128,9 @@ def _opening_slide(doc, m, t, lang, list_slides):
     each = sorted({len(r["assistants"]) for r in m["method"]})
     few = ", ".join(str(n) for n in each[:-1]) + f' {t["or"]} {each[-1]}' if len(each) > 1 else str(each[0])
     lines = [t[_reading_key(m)].format(spread=_spread(m["spread"], t), few=few),
-             t["reading_assistants"].format(assistants=m["makers"]),
-             t["reading_scores"].format(bands=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=subject))]
+             t["reading_assistants"].format(assistants=m["makers"])]
+    if _rated(m):
+        lines.append(t["reading_scores"].format(bands=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=subject)))
     if m["first"]:
         lines.append(t["reading_first"])
     first, last = list_slides
@@ -2190,8 +2201,9 @@ def _found_slide(doc, m, t):
     cards = "".join(f'<div class="card {key}"><div class="card-q">{esc(_asked(doc, key))}</div>'
                     f'<p class="card-a">{esc(answers.get(key) or "")}</p><div class="card-visual">{_visual(key, m, t)}</div></div>'
                     for key in present(m))
-    pair = " pair" if len(present(m)) == 2 else ""  # two cards leave room: larger type, not a hole in the card
-    return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="cards{pair}">{cards}</div>'
+    # Two cards leave room: larger type, not a hole in the card. One card is as tall as what it says, with its figure under it.
+    size = {1: " one", 2: " pair"}.get(len(present(m)), "")
+    return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="cards{size}">{cards}</div>'
 
 
 def _question_pages(m, t):
@@ -2418,10 +2430,12 @@ def _method(doc, m, t):
                    f'<td>{esc(_ran(r, t))}</td></tr>' for r in m["method"])
     method = doc.get("method") or {}
     limits = [t["limit_versions"]] + (method.get("limits") or [])
-    scores = t["scores"].format(line=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=m["subject"]))
-    if len({tuple(r["assistants"]) for r in m["method"]}) > 1:
-        scores += " " + t["scope_note"]
-    left = f'<h2>{esc(t["scores_title"])}</h2><p>{esc(scores)}</p>'
+    scope = t["scope_note"] if len({tuple(r["assistants"]) for r in m["method"]}) > 1 else ""
+    if _rated(m):
+        scores = t["scores"].format(line=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=m["subject"]))
+        left = f'<h2>{esc(t["scores_title"])}</h2><p>{esc(" ".join(filter(None, (scores, scope))))}</p>'
+    else:
+        left = f'<p>{esc(scope)}</p>' if scope else ""
     left += f'<h2>{esc(t["limits_title"])}</h2><ul>' + "".join(f"<li>{esc(x)}</li>" for x in limits) + "</ul>"
     monitored = f'<h2>{esc(t["monitored_title"])}</h2><p>{esc(", ".join(m["monitored"]))}</p>' if m["monitored"] else ""
     right = (f'{monitored}<h2>{esc(t["where_title"])}</h2><p>{esc(t["where"])}</p><h2>{esc(t["ask_title"])}</h2><ul>'
@@ -2571,7 +2585,7 @@ def _on_slide(kind, key, n, slide, doc):
 
 def _overflowing(folder, study, period, doc, m):
     """The slides the estimate finds taller than their page, which the print would carry onto one more. A deck that
-    passes here still prints with `pdf --deck`, whose page count is the final word. The lists of questions are flowed
+    passes here still prints with `pdf`, whose page count is the final word. The lists of questions are flowed
     by the code, never by the writer."""
     chosen = sentl_theme.resolve(folder)[0]
     order, slides = _slides(study, period, doc, m, chosen)
@@ -2622,7 +2636,7 @@ def render(root, date=None, option=None, printer=None, skip_check=False):
         # The estimate of each slide's height is left to the print, whose page count is the final word.
         found = problems_of(folder, study, period, doc, layout=False)
         if found:
-            raise Refused(f"the deck fails check on {len(found)} point(s): run check on it, then pdf --deck again")
+            raise Refused(f"the deck fails check on {len(found)} point(s): run check on it, then pdf again")
     text, slides = page_of(root, date, option)
     notes = "".join(f"{note}. " for note in sentl_theme.resolve(folder, option)[1])
     target = folder.path("reports", f"{date}.deck.html")
@@ -2636,7 +2650,7 @@ def render(root, date=None, option=None, printer=None, skip_check=False):
     if count != slides:
         over = _spilling(pdf, count, slides)
         where = f" (slide {', '.join(map(str, over))} runs over)" if over else ""
-        raise Refused(f"{count} pages for {slides} slides{where}: shorten the text of that slide, then pdf --deck again")
+        raise Refused(f"{count} pages for {slides} slides{where}: shorten the text of that slide, then pdf again")
     name = report_pdf.share_name(folder, study, date)
     shared = folder.path("reports", "share")
     shared.mkdir(exist_ok=True)

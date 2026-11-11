@@ -41,6 +41,8 @@ class RebuildTest(StudyCase, unittest.TestCase):
         self.assertFalse((self.study / "history/reports.json").exists())
         for date in REBUILT_WEEKS:
             self.assertIn(date, proc.stdout)
+        self.assertIn("First period:", proc.stdout)
+        self.assertNotRegex(proc.stdout, r"(?i)\breports?\b")
 
     def test_runs_before_the_adopt_version_have_no_version_and_expect_what_they_answered(self):
         self.history(TEN_WEEKS)
