@@ -1861,7 +1861,10 @@ def problems_of(folder, study, period, doc, layout=True):
     return problems + (_overflowing(folder, study, period, doc, m) if layout and not structure else [])
 
 
-def check(root, path, date=None):
+def check(root, path, date=None, unattended=False):
+    """The deck's problems. A deck that passes is the record of its period in history/reports.json, so the next period
+    starts after its runs; `unattended`, a deck that fails is recorded as a draft of its period, which the next
+    invocation does not write again."""
     path = Path(path)
     day = date or path.name.split(".")[0]
     folder, day, study, period, _ = load(root, day)
@@ -1870,16 +1873,21 @@ def check(root, path, date=None):
     except (OSError, ValueError) as exc:
         raise Refused(f"{path} cannot be read ({exc})") from None
     problems = problems_of(folder, study, period, doc)
+    entry = next((e for e in folder.reports() if e["date"] == day), None)
+    # A long report an earlier version wrote keeps its entry, and its status, with the deck beside it.
+    report = entry if entry and entry.get("file", "").endswith(".md") else None
     if not problems:
-        # The deck goes beside the report of its date, never in its place.
-        entry = next((e for e in folder.reports() if e["date"] == day), None) or {
-            "date": day, "status": "final", "period": {"from": period["from"], "to": period["to"]},
-            "runs": period["runs"], "previous": (period.get("comparison") or {}).get("previous")}
-        if entry.get("file", "").endswith(".deck.json"):  # an earlier version recorded the deck as the report
-            entry = {k: v for k, v in entry.items() if k != "file"}
-        folder.record_report({**entry, "deck": _shown(folder, path)})
-        if entry.get("status") != "draft":  # a draft report stays the invocation's outcome until its own check
+        if report:
+            folder.record_report({**report, "deck": _shown(folder, path)})
+        else:
+            folder.record_period(day, period, deck=_shown(folder, path))
+        if not report or report.get("status") != "draft":
             folder.record_outcome("written", f"deck of {day} passed check")
+    elif unattended:
+        if entry is None:
+            folder.record_period(day, period, status="draft")
+        shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
+        folder.record_outcome("draft", f"the deck of {day} failed check on {len(problems)} problem(s): {shown}")
     return problems
 
 

@@ -3,6 +3,16 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+- A deck that passes `check` is the record of its period in `history/reports.json`: with no report of its date, its entry
+  holds the period's runs, so the next period starts after them and compares with it. A long report an earlier version
+  wrote keeps its entry, with the deck beside it.
+- `check --unattended` on a deck that fails records `draft` in `history/last-report.json` with the problems found and, when
+  the date has no entry yet, the period as a draft in `history/reports.json`, so the next invocation finds no new run. The
+  same deck checked again and passing makes the entry final and records `written`.
+- A deck checks on a snapshot's one run: a test builds, checks and prints it.
+
 ## 0.7.2 (2026-11-10)
 
 - The deck's `check` records the deck as `deck` in the entry of its date in `history/reports.json`, beside the report's

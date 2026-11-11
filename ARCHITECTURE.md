@@ -488,10 +488,12 @@ computes a run's score (A4). A period rebuilt from a project's history carries
 ### `history/reports.json`
 
 A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in date order.
-`monitor.py check` adds the report as `final` when it passes; `check --unattended` adds a
-report that fails as `draft`, and a draft counts as the previous report. `deck` is the deck's
-text, `reports/<date>.deck.json`, set when the deck passes its `check`; a report's `check` keeps
-it. A draft stays a draft when its deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the
+The deck's `check` writes the entry of its period when it passes, with the period's `runs`, as `final`, and `deck`, the
+deck's text `reports/<date>.deck.json`; `check --unattended` on a deck that fails writes the period as `draft` when the
+date has no entry yet, and the same deck passing later makes it `final`. The next period starts after the runs of the
+latest entry, a draft included. `monitor.py check` on a report adds it as `final` when it passes, with its `file`;
+`check --unattended` adds a report that fails as `draft`, and a draft counts as the previous report. A deck checked beside
+a report keeps that entry and adds `deck`; a report's `check` keeps it. A draft stays a draft when its deck passes, and `last-report.json` keeps saying `draft`; the next deck reads the
 latest earlier entry with a `deck`, and a pack holds that deck's text. An entry whose `file` names a deck, as earlier versions wrote it, loses that `file` at the
 deck's next `check`, and the report's `check` writes it again. `previous` is the date of the period the report compared with, a
 rebuilt one included; it is null on a first report, including one that compares the two

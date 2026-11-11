@@ -176,6 +176,13 @@ class Study:
         entries = [e for e in self.reports() if e["date"] != entry["date"]] + [entry]
         write_json(self.path("history", "reports.json"), sorted(entries, key=lambda e: e["date"]))
 
+    def record_period(self, date, period, **fields):
+        """The entry of the period of `date`: the runs it read, so the next period starts after them, and the period it
+        compared with. `fields` adds to it or replaces what it holds (`status`, `deck`)."""
+        self.record_report({"date": date, "status": "final", "period": {"from": period["from"], "to": period["to"]},
+                            "runs": period["runs"], "previous": (period.get("comparison") or {}).get("previous"),
+                            **fields})
+
     def record_outcome(self, outcome, detail):
         """history/last-report.json: how the latest report invocation ended."""
         if outcome not in OUTCOMES:

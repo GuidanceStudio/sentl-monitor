@@ -201,7 +201,7 @@ def pending(root, date):
         waiting += sum(1 for r in rows if r["status"] in schema.OPEN)
     if fetch or already:
         return (f"{fetch} run{'s' if fetch != 1 else ''} to fetch, {already} already ingested and not yet reported: "
-                f"write the report of {date}.")
+                f"build the period of {date} and its deck.")
     earlier = [e for e in folder.reports() if e["date"] <= date]
     detail = (f"no completed run is new since the report of {earlier[-1]['date']}" if earlier
               else "no completed run in the window of the first report")

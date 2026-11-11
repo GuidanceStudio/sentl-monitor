@@ -121,8 +121,8 @@ def _parser():
     c.add_argument("--study", default=".")
     c.add_argument("--date", help="period date (default: from the report's file name)")
     c.add_argument("--unattended", action="store_true",
-                   help="no operator to fix the report: when check fails, keep it as reports/<date>.draft.md "
-                        "and record it as a draft")
+                   help="no operator to fix the report or the deck: when check fails, record it as a draft, "
+                        "keeping a report as reports/<date>.draft.md")
     c.add_argument("report", help="the report file")
 
     g = command("charts", "write a report's figures as Markdown chart tables for a deck")
@@ -271,15 +271,19 @@ def main(argv=None):
                 return 1
             print("check passed: the sections are in order, the rows are the two snapshots' and the limits are in place.")
         elif args.command == "check" and args.report.endswith(".deck.json"):
-            problems = deck.check(args.study, args.report, args.date)
+            problems = deck.check(args.study, args.report, args.date, args.unattended)
             if problems:
                 print(f"check failed: {len(problems)} problem(s)")
                 for problem in problems:
                     print(f"  - {problem}")
+                if args.unattended:
+                    print("The deck is recorded as a draft in history/last-report.json, and its period in "
+                          "history/reports.json, so the next invocation does not write it again. Fix it and run check "
+                          "again to make it final.")
                 return 1
             print("check passed: the deck has its actions and their evidence, excerpts are verbatim, figures are the "
-                  "period's and each text fits its slide. The deck is recorded in history/reports.json, in the entry of its "
-                  "date; a draft report there stays a draft until its own check passes.")
+                  "period's and each text fits its slide. The deck is recorded in history/reports.json as the record of "
+                  "its period: the next period starts after its runs.")
         elif args.command == "check":
             problems = check.check(args.study, args.report, args.date, args.unattended)
             if problems:

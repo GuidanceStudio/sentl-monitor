@@ -9,7 +9,7 @@ import unittest
 from collections import Counter
 from unittest import mock
 
-from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, models
+from fixtures import CHOICE_Q, GEM, GPT, PRICE_Q, listing, models
 from sentlmon import deck, livepage, pack
 from sentlmon import pdf as report_pdf
 from test_insights_period import CURRENT, OCT, OUTDATED, InsightCase, rows
@@ -616,7 +616,7 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         self.assertEqual((entry["status"], entry["file"], entry["deck"]),
                          ("draft", f"reports/{DATE}.draft.md", f"reports/{DATE}.deck.json"))
         self.assertNotIn("as final", said)
-        self.assertIn("in the entry of its date", said)
+        self.assertIn("record of its period", said)
         self.assertEqual(self.read("history/last-report.json")["outcome"], "draft")
         folder = deck.load(self.study, DATE)[0]
         self.assertEqual(deck._earlier(folder, "2026-11-30")[0], DATE)
@@ -631,6 +631,77 @@ class ReportsIndexTest(DeckCase, unittest.TestCase):
         self.deck_check()
         entry = self.read("history/reports.json")[0]
         self.assertEqual((entry.get("file"), entry["deck"]), (None, f"reports/{DATE}.deck.json"))
+
+
+class DeckRecordTest(DeckCase, unittest.TestCase):
+    """The deck is the only report: its check records the period, and the next period starts after its runs."""
+
+    NOV = "2026-11-30"
+    LATER = "2026-11-02T06:00:00Z"
+
+    def deck_check(self, *extra, doc=None, check=0):
+        self.save_doc(doc or self.filled())
+        return self.cli("check", "--study", self.study, self.path, *extra, check=check)
+
+    def listing(self, *runs):
+        return self.save("runs-601.json", listing([(run_id, "completed", started) for run_id, started in runs], 601))
+
+    def test_a_period_recorded_by_its_deck_alone_bounds_the_next_period(self):
+        said = self.deck_check().stdout
+        self.assertIn("the next period starts after its runs", said)
+        self.assertNotIn("draft report", said)
+        self.assertEqual([(e["date"], e["status"], e["runs"]) for e in self.read("history/reports.json")],
+                         [(DATE, "final", self.period_file(DATE)["runs"])])
+        fetch = self.cli("runs", "--study", self.study, "--project", "market", "--date", self.NOV,
+                         "--saved", self.listing((9101, OCT[0]), (9102, self.LATER)), check=0).stdout
+        self.assertIn("Fetch: 9102\n", fetch + "\n")
+        self.ingest_market(9102, self.LATER, rows())
+        self.build(self.NOV)
+        later = self.period_file(self.NOV)
+        self.assertEqual((later["runs"], later["comparison"]["previous"]), ({"market": [9102]}, DATE))
+
+    def test_no_run_is_new_after_a_period_recorded_by_its_deck(self):
+        self.deck_check()
+        self.listing((9101, OCT[0]))
+        self.assertTrue(self.cli("pending", "--study", self.study, "--date", DATE, check=0).stdout.startswith("nothing_new"))
+
+    def test_an_unattended_deck_that_passes_records_written(self):
+        self.deck_check("--unattended")
+        last = self.read("history/last-report.json")
+        self.assertEqual(last["outcome"], "written")
+        self.assertIn(DATE, last["detail"])
+
+    def test_an_unattended_deck_that_fails_is_recorded_as_a_draft_and_ends_the_invocation(self):
+        said = self.deck_check("--unattended", doc=self.filled(actions=[]), check=1).stdout
+        self.assertIn("recorded as a draft", said)
+        entries = self.read("history/reports.json")
+        self.assertEqual([(e["date"], e["status"], e["runs"], "deck" in e) for e in entries],
+                         [(DATE, "draft", self.period_file(DATE)["runs"], False)])
+        last = self.read("history/last-report.json")
+        self.assertEqual(last["outcome"], "draft")
+        self.assertIn("problem", last["detail"])
+        self.listing((9101, OCT[0]))
+        self.assertTrue(self.cli("pending", "--study", self.study, "--date", DATE, check=0).stdout.startswith("nothing_new"))
+
+    def test_a_failing_deck_with_the_operator_present_records_nothing(self):
+        self.deck_check(doc=self.filled(actions=[]), check=1)
+        self.assertFalse((self.study / "history" / "reports.json").exists())
+        self.assertFalse((self.study / "history" / "last-report.json").exists())
+
+    def test_a_draft_deck_fixed_and_checked_again_becomes_the_final_record(self):
+        self.deck_check("--unattended", doc=self.filled(actions=[]), check=1)
+        self.deck_check()
+        entry = self.read("history/reports.json")[0]
+        self.assertEqual((entry["status"], entry["deck"]), ("final", f"reports/{DATE}.deck.json"))
+        self.assertEqual(self.read("history/last-report.json")["outcome"], "written")
+        self.assertEqual(deck._earlier(deck.load(self.study, DATE)[0], self.NOV)[0], DATE)
+
+    def test_an_unattended_failure_leaves_a_deck_that_passed_before_as_it_was(self):
+        self.deck_check()
+        before = self.read("history/reports.json")
+        self.deck_check("--unattended", doc=self.filled(actions=[]), check=1)
+        self.assertEqual(self.read("history/reports.json"), before)
+        self.assertEqual(self.read("history/last-report.json")["outcome"], "draft")
 
 
 class OpeningTest(DeckCase, unittest.TestCase):

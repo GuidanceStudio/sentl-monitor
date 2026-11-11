@@ -1260,12 +1260,15 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - `compare` is unchanged: its table goes to the operator in the chat.
 
 **Tasks:**
-- [ ] Test: unit — a period whose only record is a deck that passed `check` bounds the next period (it starts after the deck's last run); an unattended deck `check` records `last-report.json`; implement in `deck.py`, `common.py`, `runs.py`; commit and push
+- [x] Test: unit — a period whose only record is a deck that passed `check` bounds the next period (it starts after the deck's last run); an unattended deck `check` records `last-report.json`; implement in `deck.py`, `common.py`, `runs.py`; commit and push
 - [ ] Test: unit — `pdf` without `--deck` prints the deck; the long report has no page, PDF or share copy; remove `charts` and the report-only code the suite no longer reaches; commit and push
 - [ ] Test: structure — REPORT.md ends at the period and hands over to DECK.md; unattended mode ends with the deck; SNAPSHOT.md steps 9 and 11 lead to the deck; SKILL.md "When to use", routes and web-host rule name the deck as what the reader receives; README route table, "A first report, step by step", scheduled reports; ARCHITECTURE, CHANGELOG; commit and push
 - [ ] Trial with no credits: a copy of a real snapshot folder (in the session scratchpad, never in the repo) goes from its period to a deck that passes `check` and prints; one monitored study folder goes from `report` to the deck in one invocation; independent review of the diff; fixes; commit and push
 
 **Done when:** the suite passes; `report` and `snapshot` end with a deck that passes `check` and prints; no route writes or offers the long report; a second period after a deck-only first one starts after the first's runs.
+
+**Deviations:**
+- Task 1: the deck's `check` already wrote a deck-only entry with its runs (since 0.7.2), so the bounding tests are guards, proven by breaking the record; the new code is the unattended draft and a draft deck made final. The snapshot deck test is in `test_snapshot.py`.
 
 ## R11: Release 0.8.0
 

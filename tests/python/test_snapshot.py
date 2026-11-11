@@ -10,11 +10,11 @@ from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
 from fixtures import GEM, GPT, StudyCase, listing, models
-from snapshot_study import (ASKED_BY, BOUND_AT, DATE, KEY, PROJECT_ID, READER, RUN_ID, RUN_STARTED, SCORES, SEEDS,
+from snapshot_study import (ANSWERS as RUN_ANSWERS, ASKED_BY, BOUND_AT, DATE, KEY, PROJECT_ID, READER, RUN_ID, RUN_STARTED, SCORES, SEEDS,
                             SUGGESTIONS, clean_snapshot, extra_dimension, mutated, run_results, saved_project,
                             search_demand, seeds_file)
 
-from sentlmon import demand
+from sentlmon import deck, demand
 from sentlmon.i18n import TEXT
 
 TOOLS = ("create-project-tool", "create-snapshot-tool", "update-project-settings-tool", "save-project-questions-tool")
@@ -528,6 +528,77 @@ class SnapshotReportTest(SnapshotCase):
         self.forget_run()
         self.ingest_run(scores={k: v for k, v in SCORES.items() if k != ("price", GEM)})
         self.assertIn("1 of 2 answers judged, under 80%", self.period().stdout)
+
+
+# --- the deck of a snapshot ---------------------------------------------------
+
+def snapshot_deck(doc):
+    """The deck's text of the fixture's one run, written as DECK.md asks: every figure is the period's."""
+    slide = {"rows": "dimensions", "dimensions": [], "questions": []}
+
+    def excerpt(dimension, model, name):
+        return [{"text": RUN_ANSWERS[(dimension, model)], "question": q(clean_snapshot(), f"{dimension}-1")["text"],
+                 "assistant": name}]
+    return {**doc,
+            "opening": {"who": "shoppers who ask an AI assistant about oat milk",
+                        "questions": {"reach": "Do shoppers who ask for an oat milk without naming a brand find Avenello?",
+                                      "description": "What do shoppers who ask about Avenello hear?",
+                                      "facts": "Do the answers give the price of Avenello right?"},
+                        "examples": {"reach": ["recommendation-1"], "description": ["reputation-1"], "facts": ["price-1"]}},
+            "found": {"title": "Shoppers who ask for an oat milk hear of Avoria before Avenello",
+                      "answers": {"reach": "Avenello is named in 1 of the 2 answers, Avoria in 2 of 2.",
+                                  "description": "3 of the 6 answers about Avenello are favourable.",
+                                  "facts": "1 of the 2 answers gives the price of today."}},
+            "actions_title": "The first thing to do is to get Avenello into the guide the answers cite",
+            "actions": [{"class": "not_named", "what": "Ask guide.example to add Avenello to its oat milk guide",
+                         "why": "Avoria is named in 2 of the 2 answers, Avenello in fewer",
+                         "read_next": "Answers naming Avenello: 1 of 2", "block": "reach",
+                         "pages": [{"url": "guide.example/oat", "shows": ["Avoria", "Brand B", "Brand C"]}]}],
+            "blocks": {"reach": [{**slide, "title": "Shoppers who ask for an oat milk find Avoria",
+                                  "read": "One answer leaves Avenello out.",
+                                  "excerpts": excerpt("recommendation", GEM, "Orbit Reason"), "action": 1}],
+                       "description": [{**slide, "title": "Shoppers who ask about Avenello hear about its taste",
+                                        "read": "The answers describe the taste.",
+                                        "excerpts": excerpt("reputation", GPT, "Acme Chat"), "action": None}],
+                       "facts": [{**slide, "title": "The price of today comes up in one answer",
+                                  "read": "The other answer rounds the price.",
+                                  "excerpts": excerpt("price", GPT, "Acme Chat"), "action": None}]},
+            "sources": {"title": "The answers cite guide.example",
+                        "read": "The answers cite guide.example, where the action asks for Avenello."},
+            "method": {"limits": [], "ask": ["Which pages do the assistants cite?"]}}
+
+
+class SnapshotDeckTest(SnapshotCase):
+    """A snapshot ends with a deck: the period of its one run, compared with nothing, is what the deck draws."""
+
+    def setUp(self):
+        super().setUp()
+        for name in ("MIN_ANSWERS", "MIN_SITE_ANSWERS"):  # the fixture's questions have two answers each
+            patcher = mock.patch.object(deck, name, 1)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.bind_full()
+        self.ingest_run()
+        self.period()
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+        self.path = self.study / "reports" / f"{DATE}.deck.json"
+        self.path.write_text(json.dumps(snapshot_deck(json.loads(self.path.read_text(encoding="utf-8")))),
+                             encoding="utf-8")
+
+    def test_the_deck_of_the_one_run_passes_check_and_records_the_period(self):
+        self.cli("check", "--study", self.study, self.path, check=0)
+        self.assertEqual([(e["date"], e["status"], e["runs"], e["previous"], e["deck"])
+                          for e in self.read("history/reports.json")],
+                         [(DATE, "final", {KEY: [RUN_ID]}, None, f"reports/{DATE}.deck.json")])
+
+    def test_the_deck_of_the_one_run_prints_with_a_slide_per_page(self):
+        def printer(target, pdf, engines):
+            pdf.write_bytes(b"%PDF-1.4\n" + b"<< /Type /Page >>\n" * deck.page_of(self.study, DATE)[1])
+            return "fake", []
+        said = deck.render(self.study, DATE, printer=printer)
+        self.assertIn("To send:", said)
+        self.assertTrue(list((self.study / "reports" / "share").glob("*monitoring deck*.pdf")))
+        self.assertFalse(self.report_path().exists())
 
 
 # --- the questions start from Google's suggestions ------------------------------
