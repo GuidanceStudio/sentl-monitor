@@ -1288,12 +1288,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - Fixes task, item 4: `check` reads only the period and its runs; the material goes in the pack because `deck` builds the figures file from it, which fixing the draft needs. Item 6: "period" replaces "report" in the chat of `runs`, `pending`, `pack` and `unpack` too, and in the material's heading.
 - Fixes task, item 10: a deck with no rated block keeps the method slide's note on which assistants get which questions, without the scores heading. Item 12: `fit` does not model a flex item that grows, so the test reads the computed `flex` of the cards and the slide's height; a Chrome screenshot confirmed the layout.
 
-## R11: Release 0.8.0 🔄
+## R11: Release 0.8.0 ✅
 
 **Why:** M30 changes what `report`, `snapshot` and `pdf` produce. Operator's go on 2026-11-11 ("via su tutto").
 
 **Tasks:**
-- [~] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts
+- [x] Version 0.8.0 in SKILL.md and the plugin files; CHANGELOG; tag; CI green; release with zip and sha256; install on both hosts (tag on `08da95f`; the release zip equals the local build, sha256 `8c6416cc…`)
 
 **Done when:** the release page holds the zip and its sha256, and both installed copies report 0.8.0.
 
