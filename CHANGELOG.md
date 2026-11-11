@@ -28,6 +28,9 @@ Each release of sentl-monitor, newest first. The version is `metadata.version` i
 - DECK.md, SKILL.md and README ask for three to five actions, fewer when the evidence slides allow fewer: each action
   needs an evidence slide of its own, and a block holds at most three.
 - Playbooks, README, ARCHITECTURE and the messages of `pdf` write `pdf`, not `pdf --deck`; `--deck` stays accepted.
+- A snapshot's deck promises no next report: slide 2 says it is a single reading and what asking the same questions
+  again would show, and so does the note under the actions. Every deck says a new reading, not the next report, can
+  reverse the order of two close names.
 - `period`, `runs`, `pending`, `pack` and `unpack` say "period" in the chat where they said "report", and the material's
   heading reads "Material for the period of <date>".
 - The copy to send is named in the study's `report_language`: in Italian, `<Subject> + Sentl.ai - deck di monitoraggio

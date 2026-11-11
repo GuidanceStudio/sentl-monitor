@@ -592,6 +592,7 @@ def build_model(folder, study, period, doc=None):
             "monitored": [f["label"] for f in study.get("foils") or []],
             "repeated": any(r["answers"] > r["questions"] * len(r["assistants"]) for r in method),
             "by": (narrative.get("criteria") or {}).get("by"), "first": not (period.get("comparison") or {}).get("previous"),
+            "snapshot": study.get("kind") == "snapshot",
             "fidelity": narrative.get("score_axis") == "fidelity", "second": _second(folder, study, period, doc),
             "aliases": (study.get("subject") or {}).get("aliases") or [],
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
@@ -2132,7 +2133,7 @@ def _opening_slide(doc, m, t, lang, list_slides):
     if _rated(m):
         lines.append(t["reading_scores"].format(bands=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=subject)))
     if m["first"]:
-        lines.append(t["reading_first"])
+        lines.append(t["reading_once" if m.get("snapshot") else "reading_first"])
     first, last = list_slides
     lines.append(t["reading_list"].format(n=first) if first == last else t["reading_list_many"].format(n=first, last=last))
     origins = _origins_line(m, t, lang)
@@ -2477,6 +2478,11 @@ def _earlier_slide(doc, m, t, lang):
             f'{_table(t["earlier_head"], rows, dates)}<p class="note">{esc(t["earlier_note"])}</p>')
 
 
+def _actions_note(m, t):
+    """A snapshot has no next report to promise: it says what asking again would show."""
+    return t["actions_note_once" if m.get("snapshot") else "actions_note"]
+
+
 def _slide_html(kind, key, slide, doc, m, order, t, lang):
     subject = m["subject"]
     if kind == "opening":
@@ -2490,7 +2496,7 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
         return _earlier_slide(doc, m, t, lang)
     if kind == "actions":
         return (f'{_kicker(t["actions_kicker"])}<h1>{esc(doc.get("actions_title") or "")}</h1>{_actions_table(doc, order, m, t)}'
-                f'<p class="note">{esc(t["actions_note"])}</p>')
+                f'<p class="note">{esc(_actions_note(m, t))}</p>')
     if kind == "sources":
         sources = doc.get("sources") or {}
         return (f'{_kicker(t["sources_kicker"])}<h1>{esc(sources.get("title"))}</h1><p class="read">{esc(sources.get("read"))}</p>'

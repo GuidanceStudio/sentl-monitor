@@ -872,7 +872,7 @@ class OpeningTest(DeckCase, unittest.TestCase):
         t = deck.DECK["it"]
         f = {"a": 39, "b": 180, "rivals": [("Avoria", 62), ("Oatfield", 37), ("Nordic", 36), ("Altro", 25)], "rank": 2,
              "names": 5, "left_out": False, "project": None}
-        self.assertIn("Nel confronto con Avenello, Oatfield ha 2 risposte in meno e Nordic 3 in meno: il prossimo report "
+        self.assertIn("Nel confronto con Avenello, Oatfield ha 2 risposte in meno e Nordic 3 in meno: una nuova rilevazione "
                       "può invertire l'ordine.", deck._versus(f, "Avenello", t))
         far = {**f, "rivals": [("Avoria", 62), ("Altro", 25)]}
         self.assertNotIn("Nel confronto con", deck._versus(far, "Avenello", t))

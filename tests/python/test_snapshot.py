@@ -488,6 +488,25 @@ class SnapshotDeckSlidesTest(SnapshotDeckCase):
         self.assertIn("each question was asked once, to 2 of these assistants", opening)
         self.assertNotIn("repeated", opening)
 
+    def test_a_snapshot_promises_no_next_report(self):
+        doc, m = self.model()
+        for lang in ("en", "it"):
+            with self.subTest(lang):
+                t = deck.DECK[lang]
+                opening = deck._opening_slide(doc, m, t, lang, (9, 9))
+                self.assertIn(deck.esc(t["reading_once"]), opening)
+                self.assertNotIn(deck.esc(t["reading_first"]), opening)
+                self.assertEqual(deck._actions_note(m, t), t["actions_note_once"])
+                for text in (t["reading_once"], t["actions_note_once"], t["close"]):
+                    self.assertNotIn("report", text)
+
+    def test_a_monitored_deck_keeps_the_next_report(self):
+        doc, m = self.model()
+        m = {**m, "snapshot": False}
+        t = deck.DECK["en"]
+        self.assertIn(deck.esc(t["reading_first"]), deck._opening_slide(doc, m, t, "en", (9, 9)))
+        self.assertEqual(deck._actions_note(m, t), t["actions_note"])
+
     def test_the_rating_scale_is_explained_only_when_a_slide_uses_it(self):
         t = deck.DECK["en"]
         for blocks, used in ((["reach"], False), (["reach", "description"], True), (["reach", "facts"], True)):
