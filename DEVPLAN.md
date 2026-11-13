@@ -1322,7 +1322,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 **Shape under evaluation:** cover; one slide per project, one row per dimension with the code's figure (named x of y for a question naming no subject, favourable x of y otherwise), one sentence with the fact behind the figure, and one verbatim excerpt with the assistant and the question it answers; one slide with the sites cited most and how the reading was made. Two slides plus one per project.
 
 **Tasks:**
-- [~] T1 Prototype, outside the skill: one quick deck from a real three-project period, with the full deck's style, for the operator to evaluate (no client deck comes from it)
+- [x] T1 Prototype, outside the skill: one quick deck from a real three-project period, with the full deck's style, for the operator to evaluate (no client deck comes from it). Five slides against the full deck's fourteen; 16 dimensions, one sentence and one excerpt each, every count checked on the answers. Waits for the operator's evaluation before T2.
 - [ ] T2 After the operator's evaluation: `report --quick` / `deck --quick` and the snapshot's choice of deck, a reduced `deck.json`, `check` rules for the sentences and excerpts, tests, CHANGELOG; release
 
 **Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
