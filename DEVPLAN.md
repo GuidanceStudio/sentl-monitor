@@ -1334,3 +1334,49 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - Done 2026-11-14: tag on `8b491ea`, CI green, the release zip equals the local build (sha256 `f08761bd…`), installed for Claude Code and for Codex/opencode; the installed skill drew a quick deck of a real three-project period that passed `check` and printed 5 pages for 5 slides.
 
 **Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
+
+## M34: What a reader of the full deck stops on, the small fixes 🔄
+
+**Why:** on 2026-11-14 an independent reviewer read three full decks sent to clients as their marketing manager would, then traced each problem to the skill. The operator approved every fix ("falle tutte"). These five are small and touch the drawn slides, the labels and `check`.
+
+**Tasks:**
+- [ ] T1 The question with the most unfavourable answers in a block is drawn as a row of its own on an evidence slide and carries an excerpt: `_worst_shown` asks for that question, not for any unfavourable excerpt. In one deck, a question on public controversies (12 of 18 unfavourable) and one on complaints (10 of 14) were folded into topics without an excerpt. DECK.md: "no action" is never written in the deck; the reason goes in the notes to the operator.
+- [ ] T2 `found.title` and the first action rest on the same finding: the deck records `found.block`, the block the title is about, and `check` refuses a first action of another block. Two readers asked why the first action was about one topic when the title spoke of another.
+- [ ] T3 The facts slide shows no favourable column: an answer stating today's figure was drawn as neutral or unfavourable by its rating, a visible contradiction with a hidden criterion. Under a facts excerpt the slide prints whether the answer states today's figure or an old one.
+- [ ] T4 Labels the test readers stopped on in every round, and the writer cannot change: the overlap note ("4 of the questions of the other columns, 64 answers"), the spread line on the method slide, the presence card's note on competitors not measured, the cover's "first reading" beside the method's "readings in the period", and a single project's name with an ISO date as a slide's kicker. Each label passes the label test (shown one value under it, a reader can say what it asserts).
+- [ ] T5 A snapshot with one block draws its card and its actions without a half-empty slide, and an evidence slide with one row carries up to three excerpts, one per assistant.
+
+**Done when:** each fix has a test, the full suite passes, and a trial deck redrawn from a copy of a real three-project period shows them.
+
+## M35: Answers about a namesake are counted apart 🔄
+
+**Why:** in one deck many answers to questions on the subject described another company with the same name (a listed company elsewhere, a furniture maker), and the ratings counted them among the favourable ones. The deck then told the reader the measure could not be trusted. Any subject whose name another company shares has this problem. Approved 2026-11-14.
+
+**Tasks:**
+- [ ] T1 `study.json` records `subject.namesakes`: each with a label and the markers that identify it in an answer or a cited page (place, domain, product, listing). `schema` validates it; `adopt` and `brief` ask the operator for namesakes, and `brief` looks for them in the search suggestions and in a probe of the answers.
+- [ ] T2 `period` marks an answer that describes a namesake (its markers in the answer or its cited domains) and counts those answers per question, dimension, project and model; the material and the figures file show the count and the excerpts.
+- [ ] T3 The deck's favourable figure counts only the answers about the subject: the bar gets a part of its own for the answers about a namesake, with its count and label; the description rows, cards and tables do the same, and `check` accepts those counts. DECK.md: the writer gives the count, never says the measure is wrong.
+- [ ] T4 `design` writes into the rubric of a question on the subject that an answer describing a namesake rates 1, so later runs agree; `setup` saves it on the operator's go.
+- [ ] T5 Tests on a fixture with a namesake; a copy of a real period redrawn with its namesakes recorded.
+
+**Done when:** a period with namesake answers draws them apart, with the favourable figure on the subject's answers alone.
+
+## M36: What a reader of the full deck stops on, the medium fixes 🔄
+
+**Why:** the same review as M34, approved 2026-11-14.
+
+**Tasks:**
+- [ ] T1 Presence by market: a study whose topics on questions naming no subject are different markets (cities, customer segments) draws one position per topic, never a rank pooled across markets; `deck.json` records `by_market`, DECK.md asks the reach answer per market. In one deck "fourth of nine" summed a home market where the subject equals the leader with one where it is absent.
+- [ ] T2 A deck on fewer than six answers per question (a snapshot) says on the second slide that it reads whether the subject is named, not how often; its presence card names the assistants that name the subject instead of a bar; `check` refuses a comparison resting on a difference of one answer.
+- [ ] T3 The sources slide says what each site does for the subject: its pages the assistants read and where the actions are; review sites are grouped, with the answers citing them. DECK.md drops the rule that makes the writer explain why a site has no action.
+- [ ] T4 Above eight topics in a block, a fourth evidence slide, so no title lists seven topics.
+- [ ] T5 Former names as a recorded fact: `study.json` marks an alias as former; `period` counts answers carrying only the former name and the pages they cite; the deck can propose a `wrong_fact` action on a page that still carries it.
+
+**Done when:** each fix has a test, the full suite passes, and the trial deck shows them.
+
+## R12: Release 0.10.0 🔄
+
+**Tasks:**
+- [ ] Version 0.10.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+
+**Done when:** the release page holds the zip and both installed copies report 0.10.0.
