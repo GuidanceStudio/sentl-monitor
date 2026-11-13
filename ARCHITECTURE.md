@@ -15,7 +15,7 @@ calls Sentl.
 | `design` | `brief.md`, `search-demand.json`, a saved `list-ai-models` response | `study.json`, `study-review.md` | the operator's review of the questions, rubrics and credit estimate |
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
 | `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, the deck's language and the period, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
-| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, then, through `report/DECK.md`, `history/deck/`, `reports/<date>.deck.json`, `reports/<date>.deck.pdf`, `reports/share/` and `history/reports.json` | nothing when run unattended |
+| `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, then, through `report/DECK.md`, `history/deck/`, `reports/<date>.deck.json`, `reports/<date>.deck.pdf`, `reports/share/` and `history/reports.json`; with `--quick`, through `report/QUICK.md`, `reports/<date>.quick.json` and `.quick.pdf` in place of the deck's | nothing when run unattended |
 | `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, then the deck as in `report` | the operator's review of the questions and rubrics, then the go after the credit estimate |
 | `compare` | two snapshot folders with their periods | `reports/<date>.compare.md` and `history/compare/<date>.json` in the later folder |
 
@@ -46,6 +46,7 @@ is a new version inside the same folder, so the history stays in one place.
     reports.json                    index of periods: dates, runs, status, the deck that recorded it
     last-report.json                outcome of the latest `report` invocation
   reports/<YYYY-MM-DD>.deck.json the deck's text; .deck.html and .deck.pdf, the deck drawn from it (§The deck)
+  reports/<YYYY-MM-DD>.quick.json the quick deck's text; .quick.html and .quick.pdf, drawn from it (§The quick deck)
   reports/share/                 the copy of each deck to send
 ```
 
@@ -490,7 +491,8 @@ A list of `{date, file, status, period: {from, to}, runs, previous, deck}`, in d
 The deck's `check` writes the entry of its date again from the period the deck read, its bounds and `runs`, on a first
 check, on a redo and on an entry an earlier version wrote, so a run ingested since is not pooled again by the next period.
 When it passes, the entry is `final`, with `deck`, the deck's text `reports/<date>.deck.json`, and `last-report.json`
-says `written`, a draft entry included. `check --unattended` on a deck that fails writes the period as `draft` when the
+says `written`, a draft entry included. A quick deck that passes records its entry the same way, with `deck` naming
+`reports/<date>.quick.json`, unless the entry already names a full deck that passed, which stays. `check --unattended` on a deck that fails writes the period as `draft` when the
 date has no entry yet; on a date that has one, the entry keeps its status and its `deck` and takes the period's runs. The
 next period starts after the runs of the latest entry, a draft included, and a draft counts as the previous period. An
 entry an earlier version wrote for its long report carries `file`, `reports/<date>.md` or `.draft.md`, and is read like
@@ -1266,6 +1268,24 @@ test page here.
 **Later editions.** `reports/<date>.deck.json` keeps each action with its `read_next` figure, for the next deck to read
 them; they are not printed. The slide of what changed is not written yet (DEVPLAN M18).
 
+## The quick deck
+
+`report/QUICK.md` turns the same period into a shorter deck with no actions (DEVPLAN M33), for a reader who wants to know
+what the assistants say before deciding whether to act. `deck --quick` writes the figures file, with a section of its
+own, and `reports/<date>.quick.json` (schema `sentl-monitor/quick@1`): one slide per project of the period, split evenly
+when a project has more than six topics, and one row per topic with answers. The code draws the cover, each row's figure
+(answers naming the subject, x of y, beside the competitor named most, for questions that name no subject; favourable
+x of y with the neutral and unfavourable answers otherwise; both when a topic has both kinds), and a last slide with the
+eight sites cited most on each kind of question and how the answers were read. The writer fills each slide's question
+and title, and each row's sentence and excerpt.
+
+`check` on a `.quick.json` reads the slides and rows against the period, the lengths, each excerpt against that
+assistant's answers to a question of the row's topic, with any cut inside a sentence marked, the figures against the
+period's (`_allowed_figures`, the counts tied to a site or a competitor, all-or-nothing words), the words of the study
+and of the machine, and each slide's height. A quick deck that passes records its period (`history/reports.json`, above). It is never the
+earlier edition of a full deck, which compares its own actions. `pdf --quick` prints `reports/<date>.quick.html` and
+`.pdf`, one page per slide, and the copy to send under the quick deck's kind.
+
 ## Scheduling
 
 Two clocks run independently. Sentl runs the measurement: the project's `schedule_frequency`
@@ -1312,7 +1332,7 @@ next report reads:
 | `history/versions/` | `ingest` matches each run against the version in force when it started; `detect` compares with the latest |
 | `history/reports.json`, `history/unavailable.json`, `history/last-report.json` | the cut after the latest report's last run and the report order; the runs to request again; the last outcome |
 | the period files of the latest K = 4 dates among the reports and the rebuilt periods, and the halves of the latest report | the earlier periods `period` compares with and takes the range from |
-| `reports/<date>.deck.json` of each entry whose deck passed `check` | the next deck's second edition |
+| the deck the entry names, `reports/<date>.deck.json` or `.quick.json`, of each entry whose deck passed `check` | the next deck's second edition, which reads only a full deck |
 | the deck of the latest entry when it has not passed `check` (an unattended draft), and `history/material/<date>.md` of its period | fixing the draft after `unpack`: `deck` builds its figures file from the material, which a slim pack cannot build again |
 | the runs of the latest report's period, as `reports.json` and its period file list them, those it left out under the judged floor included, and every run started after its last run | the previous period's answers (verdict changes, episodes, presence sources) and the runs of the next period |
 

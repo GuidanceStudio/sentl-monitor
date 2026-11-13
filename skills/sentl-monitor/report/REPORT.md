@@ -173,6 +173,11 @@ read: the next period starts after them and is compared with this one. The route
 DECK.md: `check` and `pdf` are its last commands, and on a host without a lasting folder the pack
 comes after them (DECK.md step 9).
 
+Invoked as `report --quick`, go on into `report/QUICK.md` instead, from its step 1: the quick
+deck reads the same figures and has no actions. Its `check` records the period as the deck's does,
+and step 7 below tells the operator what QUICK.md step 6 lists. Unattended, add `--unattended` to
+its `check` as for the deck.
+
 ## 7. Tell the operator, in the chat
 
 With what DECK.md step 9 lists: the runs the period covers, and anything the scripts flagged:

@@ -34,6 +34,7 @@ production method or an organisation, and the answers are measured in Sentl.
 | A deck on a Sentl project that already exists | `adopt <project>`, then `report` |
 | This period's deck, or what changed since the last | `report` in the study's folder |
 | The deck of a period already built, written again or carried on | `deck` in the study's folder |
+| A shorter deck, topic by topic, without actions | `report --quick`, or `deck --quick` when the period is built |
 | The deck as a PDF | `pdf` after the deck passes `check` |
 | To change the questions, models or schedule of a monitored study | edit `study.json` through `design`, then `setup` |
 | To stop a project | `setup` step 8: archive it, on your go |
@@ -52,6 +53,7 @@ Choose the route by the state of the study:
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
 - Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, `brief` and `design` start from the snapshot's deck and period as the first look.
 - Someone wants what to send a client, or asks for a deck, for slides or for suggested actions: `sentl-monitor report`: it writes the deck after the period. When the period of that date is built already, `sentl-monitor deck`.
+- Someone wants to know what the assistants say, topic by topic, without actions, or a first look before the full deck: `sentl-monitor report --quick`, or `sentl-monitor deck --quick` when the period is built.
 - Someone asks what changed between two moments: `sentl-monitor report` in the study's folder; it compares each period with the one before.
 - Someone asks what changed between two snapshots of one subject, neither promoted: `sentl-monitor compare <earlier folder> <later folder>`.
 
@@ -62,6 +64,7 @@ Choose the route by the state of the study:
 | `adopt <project>` | `adopt/ADOPT.md` | takes an existing Sentl project into a study folder and asks the operator what Sentl does not hold |
 | `report` | `report/REPORT.md` | pools the completed runs since the previous period, compares them with the earlier periods, and goes on into the deck (`report/DECK.md`) in the same invocation; started by a scheduler, it records its outcome in `history/last-report.json` |
 | `deck` | `report/DECK.md` | turns one period into one slide deck for whoever decides, the only thing the reader receives: the code places each question in a block and draws the figures, the assistant writes the findings and three to five actions (fewer when the evidence slides allow fewer) in `reports/<date>.deck.json`, `check` reads them against the period and records the period, and `pdf` writes the copy to send |
+| `deck --quick` | `report/QUICK.md` | turns one period into a quick deck: one slide per project with a row per topic, the code's figure, one sentence and one verbatim passage of an answer the assistant writes in `reports/<date>.quick.json`, and the sites cited most; no actions. `check` and `pdf --quick` as for the deck; `report --quick` builds the period and goes on into it |
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |

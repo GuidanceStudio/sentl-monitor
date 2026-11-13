@@ -25,7 +25,7 @@ if doctor.python_problem():
     sys.exit(2)
 
 from sentlmon import (adopt, deck, demand, design, detect, exportfile, frontmatter, ingest, livepage, pack, pdf,  # noqa: E402
-                      period, runs, schema, setup, snapcompare, snapshot)
+                      period, quick, runs, schema, setup, snapcompare, snapshot)
 from sentlmon.common import Refused, Study  # noqa: E402
 
 DEBUG_ENV = "SENTL_MONITOR_DEBUG"
@@ -111,8 +111,8 @@ def _parser():
     j.add_argument("--study", default=".")
     j.add_argument("--date", default=today, help="report date, YYYY-MM-DD (default: today)")
 
-    c = command("check", "verify a deck, reports/<date>.deck.json, or a comparison, <date>.compare.md, before it "
-                         "is final")
+    c = command("check", "verify a deck, reports/<date>.deck.json, a quick deck, reports/<date>.quick.json, or a "
+                         "comparison, <date>.compare.md, before it is final")
     c.add_argument("--study", default=".")
     c.add_argument("--date", help="period date (default: from the file's name)")
     c.add_argument("--unattended", action="store_true",
@@ -122,6 +122,8 @@ def _parser():
     e = command("deck", "place the period's questions in the deck's blocks and write what the deck's writer fills")
     e.add_argument("--study", default=".")
     e.add_argument("--date", help="period date, YYYY-MM-DD (default: the latest period)")
+    e.add_argument("--quick", action="store_true",
+                   help="write the quick deck instead, reports/<date>.quick.json: one slide per project, a row per topic")
 
     w = command("page", "print what a page's HTML holds: title, description, tooltips and closed answers included")
     w.add_argument("--url", required=True, help="the page, with or without https://")
@@ -131,6 +133,7 @@ def _parser():
     f.add_argument("--study", default=".")
     f.add_argument("--date", help="period date, YYYY-MM-DD (default: the latest period)")
     f.add_argument("--deck", action="store_true", help="accepted as before: pdf prints the deck with or without it")
+    f.add_argument("--quick", action="store_true", help="print the quick deck, reports/<date>.quick.json, in place of the deck")
     f.add_argument("--theme", help="a theme file (.json or .css) in place of the study's, the user's or Sentl's")
 
     h = command("doctor", "report the Python version, the system, whether a study folder is writable and lasts, "
@@ -248,7 +251,7 @@ def main(argv=None):
         elif args.command == "period":
             print(period.build(args.study, args.date, args.models))
         elif args.command == "deck":
-            print(deck.write(args.study, args.date))
+            print((quick if args.quick else deck).write(args.study, args.date))
         elif args.command == "page":
             print(livepage.read(args.url))
         elif args.command == "check" and args.report.endswith(".compare.md"):
@@ -271,13 +274,26 @@ def main(argv=None):
             print("check passed: the deck has its actions and their evidence, excerpts are verbatim, figures are the "
                   "period's and each text fits its slide. The deck is recorded in history/reports.json as the record of "
                   "its period: the next period starts after its runs.")
+        elif args.command == "check" and args.report.endswith(".quick.json"):
+            problems = quick.check(args.study, args.report, args.date, args.unattended)
+            if problems:
+                print(f"check failed: {len(problems)} problem(s)")
+                for problem in problems:
+                    print(f"  - {problem}")
+                if args.unattended:
+                    print(deck.draft_note(args.study, args.report, args.date))
+                return 1
+            print("check passed: the quick deck's slides and rows are the period's, excerpts are verbatim, figures are the "
+                  "period's and each text fits its slide. The quick deck is recorded in history/reports.json as the record "
+                  "of its period: the next period starts after its runs.")
         elif args.command == "check":
             day = args.date or Path(args.report).name.split(".")[0]
-            raise Refused(f"{args.report} is not a deck: check reads the deck, reports/<date>.deck.json, or a "
+            raise Refused(f"{args.report} is not a deck: check reads the deck, reports/<date>.deck.json, a quick deck, "
+                          f"reports/<date>.quick.json, or a "
                           f"comparison, <date>.compare.md. A long report an earlier version wrote is not checked or "
                           f"printed: run deck --date {day}, write the deck and check it")
         elif args.command == "pdf":
-            message = deck.render(args.study, args.date, args.theme)
+            message = (quick if args.quick else deck).render(args.study, args.date, args.theme)
             print(message)
             copy = message.partition(" To send: ")[2]
             if copy and (doctor.host_sandbox(doctor.SANDBOX_ROOTS) or doctor.sandbox_root(args.study, doctor.SANDBOX_ROOTS)):

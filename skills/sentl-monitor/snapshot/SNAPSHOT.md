@@ -235,7 +235,10 @@ and no floor on the judged share. A dimension with under 80% of its answers judg
 without a figure; tell the operator. Keep what `period` printed for the chat; none of it goes in
 the deck.
 
-Then follow `report/DECK.md` from its step 1 with the same `D`: the deck is what the reader of
+Ask the operator which deck the reader of step 3 receives: the deck, with what was found and
+three to five actions (`report/DECK.md`), or the quick deck, with each topic's figure, one
+sentence and one passage of an answer, and no actions (`report/QUICK.md`). Then follow the one
+chosen from its step 1 with the same `D`: the deck is what the reader of
 step 3 receives. `deck` exit 2 listing fields: ask the operator and run it again. The deck's
 `check` records the period in `history/reports.json` as final; `pdf` writes the copy to
 send in `reports/share/`. Never write a credit figure, an id, a key, a model id or a file name in

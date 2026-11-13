@@ -459,9 +459,14 @@ def _makers(models, names):
     return ", ".join(f"{maker} ({', '.join(shown)})" if maker else ", ".join(shown) for maker, shown in sorted(makers.items()))
 
 
+def _full_deck(entry):
+    """Whether the reports.json entry records a full deck that passed check: a quick deck has no actions to read again."""
+    return passed_deck(entry) and (entry.get("deck") or entry.get("file") or "").endswith(".deck.json")
+
+
 def _earlier(folder, date):
-    """(date, text) of the latest deck before `date` that passed check and still has its period."""
-    days = {e["date"] for e in folder.reports() if passed_deck(e) and e["date"] < date}
+    """(date, text) of the latest full deck before `date` that passed check and still has its period."""
+    days = {e["date"] for e in folder.reports() if _full_deck(e) and e["date"] < date}
     for day in sorted(days, reverse=True):
         path = folder.path("reports", f"{day}.deck.json")
         if path.is_file() and folder.path("history", "periods", f"{day}.json").is_file():
@@ -614,8 +619,8 @@ def _latest(folder):
     return days[-1]
 
 
-def load(root, date=None):
-    """(folder, date, study, period, the deck's text or None)."""
+def load(root, date=None, kind="deck"):
+    """(folder, date, study, period, the text of reports/<date>.<kind>.json or None)."""
     folder = Study(root)
     study = folder.study
     date = date or _latest(folder)
@@ -624,7 +629,7 @@ def load(root, date=None):
         raise Refused(f"no period for {date}: run period --date {date} first")
     period = load_json(path)
     folder.require_runs([period], date)
-    doc_path = folder.path("reports", f"{date}.deck.json")
+    doc_path = folder.path("reports", f"{date}.{kind}.json")
     if not doc_path.exists():
         return folder, date, study, period, None
     try:
@@ -763,6 +768,19 @@ def _without_answers(material):
     return out
 
 
+def _figures_file(folder, study, date, m, lang, extra=()):
+    """history/deck/<date>.figures.md: the figures the deck draws, the lines of `extra`, then the material without the
+    answers."""
+    material = folder.path("history", "material", f"{date}.md")
+    if not material.exists():
+        raise Refused(f"no material for {date}: run period --date {date} first")
+    figures = folder.path("history", "deck", f"{date}.figures.md")
+    figures.parent.mkdir(exist_ok=True)
+    lines = _plan(m, study, date, lang) + list(extra) + _without_answers(material.read_text(encoding="utf-8"))
+    write_text(figures, "\n".join(lines) + "\n")
+    return figures
+
+
 def write(root, date=None):
     """The figures file and, the first time, the deck's text to fill. A second run keeps what is written, reads its
     `moved` and `same_audience`, and adds `earlier` when a deck before this one has become final."""
@@ -779,12 +797,7 @@ def write(root, date=None):
         write_json(path, _skeleton(date, m))
     elif m.get("second") and "earlier" not in doc:
         write_json(path, {**doc, "earlier": _earlier_fields(m["second"])})
-    material = folder.path("history", "material", f"{date}.md")
-    if not material.exists():
-        raise Refused(f"no material for {date}: run period --date {date} first")
-    figures = folder.path("history", "deck", f"{date}.figures.md")
-    figures.parent.mkdir(exist_ok=True)
-    write_text(figures, "\n".join(_plan(m, study, date, lang) + _without_answers(material.read_text(encoding="utf-8"))) + "\n")
+    figures = _figures_file(folder, study, date, m, lang)
     blocks = ", ".join(f"{b} ({len(m['blocks'][b]['questions' if b == 'facts' else 'placed'])} questions)" for b in present(m))
     notes = folder.path("history", "deck", f"{date}.notes.md")
     earlier = f" Notes of an earlier session: {notes}. Read them first." if notes.exists() else ""
@@ -1407,9 +1420,9 @@ def _earned(word, sentence, pairs):
     return False
 
 
-def _sweeping(doc, pairs):
+def _sweeping(doc, pairs, texts=None):
     problems = []
-    for field, limit, claim in _texts(doc):
+    for field, limit, claim in texts if texts is not None else _texts(doc):
         if limit not in ("title", "answer", "read", "why"):
             continue
         for sentence in SENTENCE.split(claim):
@@ -1436,10 +1449,10 @@ def _repeated(doc):
             for (a, b), n in seen.items() if n > MAX_REPEATS]
 
 
-def _reader_words(doc, m, study):
+def _reader_words(doc, m, study, texts=None):
     """Words the reader does not have: the study's, its project names, and a topic standing as the subject of a sentence."""
     found = []
-    for field, limit, text in _texts(doc):
+    for field, limit, text in texts if texts is not None else _texts(doc):
         found += [f"{field} says {w.group(0)!r}, a word of the study: write what the reader would say (DECK.md, Words)"
                   for w in JARGON.finditer(text)]
         found += [f"{field} says {w.group(0)!r}: the chart says neutre" for w in BAND_WORD.finditer(text)]
@@ -1763,14 +1776,14 @@ def _tied_rivals(field, part, held):
     return problems, read
 
 
-def _tied_counts(doc, m, clean=str):
+def _tied_counts(doc, m, clean=str, texts=None):
     """A count must be the count of the name beside it, not merely some count of the period: what is wrong, and the counts
     judged here, which the period's figures need not hold."""
     labels, held = _site_labels(m), _rival_counts(m)
     assistants = {model: name.split(": ") for model, name in m["names"].items()}
     scopes = [s for s in _scopes(doc, m) if s[2]]
     problems, read = [], set()
-    for field, limit, text in _texts(doc):
+    for field, limit, text in texts if texts is not None else _texts(doc):
         if limit in ("who", "question", "ask"):
             continue
         for part in SENTENCE.split(clean(text)):
@@ -1895,21 +1908,29 @@ def check(root, path, date=None, unattended=False):
     except (OSError, ValueError) as exc:
         raise Refused(f"{path} cannot be read ({exc})") from None
     problems = problems_of(folder, study, period, doc)
+    _record(folder, day, period, path, problems, unattended)
+    return problems
+
+
+def _record(folder, day, period, path, problems, unattended, what="deck"):
+    """The entry of the period a checked deck, full or quick, makes: final with the deck that passed, a draft when an
+    unattended check failed, nothing when the operator is there to fix the deck."""
     entry = next((e for e in folder.reports() if e["date"] == day), None)
     # A long report an earlier version wrote stays named in the entry while its file is there.
     report = (entry or {}).get("file", "")
     kept = {"file": report} if report.endswith(".md") and folder.path(report).is_file() else {}
+    # A quick deck has no actions: a full deck of the same date that passed stays the record the next deck reads.
+    shown = entry["deck"] if what != "deck" and entry and _full_deck(entry) and entry.get("deck") else _shown(folder, Path(path))
     if not problems:
-        folder.record_period(day, period, deck=_shown(folder, path), **kept)
-        folder.record_outcome("written", f"deck of {day} passed check")
+        folder.record_period(day, period, deck=shown, **kept)
+        folder.record_outcome("written", f"{what} of {day} passed check")
     elif unattended:
         if entry is None:
             folder.record_period(day, period, status="draft")
         else:
             folder.record_period(day, period, **{k: entry[k] for k in ("status", "deck") if k in entry}, **kept)
         shown = "; ".join(problems[:3]) + (f"; and {len(problems) - 3} more" if len(problems) > 3 else "")
-        folder.record_outcome("draft", f"the deck of {day} failed check on {len(problems)} problem(s): {shown}")
-    return problems
+        folder.record_outcome("draft", f"the {what} of {day} failed check on {len(problems)} problem(s): {shown}")
 
 
 def draft_note(root, path, date=None):

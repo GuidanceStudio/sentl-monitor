@@ -324,6 +324,69 @@ DECK = {
 }
 
 
+# The quick deck (DEVPLAN M33): what its slides print beside the writer's texts. Its other words are the deck's (DECK).
+QUICK = {
+    "it": {
+        "kind": "Sintesi",
+        "share_kind": "sintesi",
+        "cover_what": "Abbiamo fatto {questions} domande {assistants} e raccolto {answers} risposte{parts}.",
+        "cover_what_repeated": "Abbiamo fatto {questions} domande {assistants}, più volte, e raccolto {answers} "
+                               "risposte{parts}.",
+        "naming": "risposte che nominano {subject}",
+        "rival_one": "concorrente più nominato: {names}",
+        "rival_many": "concorrenti più nominati: {names}",
+        "no_rival": "nessun concorrente nominato",
+        "bands": "favorevoli · neutre {mid} · sfavorevoli {bad}",
+        "bands_fidelity": "fedeli · parziali {mid} · lontane {bad}",
+        "quote_who": "{assistant}, alla domanda «{question}»",
+        "sources_kicker": "Da dove leggono le risposte e come sono contate",
+        "sources_title": "I siti più citati e come abbiamo contato",
+        "reach_col": "Nelle {n} risposte alle domande senza il nome di {subject}",
+        "description_col": "Nelle {n} risposte alle domande su {subject}",
+        "own_site": "sito di {subject}",
+        "no_sites": "Nessun sito citato",
+        "count_note": "Il numero accanto a ogni sito conta le risposte che lo citano.",
+        "assistants": "Assistenti interrogati: {makers}.",
+        "asked_always": "Ogni domanda è stata posta più volte nel periodo.",
+        "asked_some": "Alcune domande sono state poste più volte nel periodo.",
+        "rating": "Le risposte alle domande su {subject} sono valutate da 1 a 5, con un criterio scritto per ogni "
+                  "domanda: {bands}.",
+        "rating_bands": "favorevole 4 o 5, neutra 3, sfavorevole 1 o 2",
+        "rating_bands_fidelity": "fedele ai fatti 4 o 5, parziale 3, lontana 1 o 2",
+        "presence": "Per le domande senza il nome di {subject} si conta in quante risposte compare {names}.",
+    },
+    "en": {
+        "kind": "Summary",
+        "share_kind": "summary",
+        "cover_what": "We put {questions} questions to {assistants} and collected {answers} answers{parts}.",
+        "cover_what_repeated": "We put {questions} questions to {assistants}, several times over, and collected {answers} "
+                               "answers{parts}.",
+        "naming": "answers naming {subject}",
+        "rival_one": "competitor named most: {names}",
+        "rival_many": "competitors named most: {names}",
+        "no_rival": "no competitor named",
+        "bands": "favourable · neutral {mid} · unfavourable {bad}",
+        "bands_fidelity": "faithful · partial {mid} · far off {bad}",
+        "quote_who": "{assistant}, asked “{question}”",
+        "sources_kicker": "Where the answers read from, and how they are counted",
+        "sources_title": "The sites cited most and how we counted",
+        "reach_col": "In the {n} answers to the questions without {subject}'s name",
+        "description_col": "In the {n} answers to the questions about {subject}",
+        "own_site": "{subject}'s site",
+        "no_sites": "No site cited",
+        "count_note": "The number beside each site counts the answers citing it.",
+        "assistants": "Assistants asked: {makers}.",
+        "asked_always": "Each question was asked more than once in the period.",
+        "asked_some": "Some questions were asked more than once in the period.",
+        "rating": "The answers to the questions about {subject} are rated from 1 to 5, against criteria written for each "
+                  "question: {bands}.",
+        "rating_bands": "favourable 4 or 5, neutral 3, unfavourable 1 or 2",
+        "rating_bands_fidelity": "faithful to the facts 4 or 5, partial 3, far off 1 or 2",
+        "presence": "For the questions without {subject}'s name, the figure counts the answers in which {names} appears.",
+    },
+}
+
+
 def join(items, lang):
     items = list(items)
     if len(items) < 2:

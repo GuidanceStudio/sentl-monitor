@@ -30,7 +30,7 @@ STATE = ("study.json", "sentl.json", "search-demand.json", "history/reports.json
          "history/last-report.json")
 PERIOD = re.compile(r"\d{4}-\d{2}-\d{2}(\.(first|second))?\.json")
 DAY_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.json")
-DECK_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.deck\.json")
+DECK_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.(?:deck|quick)\.json")
 MATERIAL_FILE = re.compile(r"\d{4}-\d{2}-\d{2}\.md")
 RUN_FILE = re.compile(r"(\d+)\.json\.gz")
 SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -126,14 +126,14 @@ def select(folder, full=False):
                   for p in sorted(folder.path("history", "versions").glob(f"{key}-[0-9][0-9][0-9].json"))]
         paths += [f"history/runs/{key}/{name}" for name in _runs(folder, key, reports, latest_ids, full)]
     paths += [f"history/periods/{name}" for name in _periods(folder, reports, full)]
-    # The next deck reads the text of the one before it.
-    decks = [e["date"] for e in reports if passed_deck(e)]
-    # A deck the latest entry holds as a draft is fixed after unpack: its text, and the material `deck` builds the
-    # figures from, which a slim pack cannot build again.
+    # The next deck reads the text of the one before it: the file the entry names, a full deck or a quick one.
+    paths += [f"reports/{e['date']}.{'quick' if (e.get('deck') or '').endswith('.quick.json') else 'deck'}.json"
+              for e in reports if passed_deck(e)]
+    # A deck the latest entry holds as a draft is fixed after unpack: its text, full or quick, and the material `deck`
+    # builds the figures from, which a slim pack cannot build again.
     if reports and not passed_deck(reports[-1]):
-        decks.append(reports[-1]["date"])
-        paths.append(f"history/material/{reports[-1]['date']}.md")
-    paths += [f"reports/{day}.deck.json" for day in decks]
+        day = reports[-1]["date"]
+        paths += [f"history/material/{day}.md", f"reports/{day}.deck.json", f"reports/{day}.quick.json"]
     return sorted({rel for rel in paths if folder.path(rel).is_file()})
 
 
@@ -258,7 +258,7 @@ def _unsafe(info):
 
 def _allowed(path, keys):
     """True when `path` is a file a pack writes: the state files, a version or the runs of one of
-    the pack's projects, a period file, the text of a deck, the material of a draft deck's period."""
+    the pack's projects, a period file, the text of a deck, full or quick, the material of a draft deck's period."""
     if path in STATE:
         return True
     parts = path.split("/")

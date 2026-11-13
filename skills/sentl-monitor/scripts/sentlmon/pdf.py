@@ -32,11 +32,11 @@ class NoSandbox(Exception):
     """Every engine that could print failed, and a browser among them could not start its sandbox; exit code 1."""
 
 
-def share_name(folder, study, date):
+def share_name(folder, study, date, kind=None):
     """`<Subject> + Sentl.ai - monitoring deck (<start> to <end>)`, in the study's `report_language`: what the recipient
-    sees of the file."""
+    sees of the file. `kind` names another kind of file in place of the deck, such as the quick deck's summary."""
     t = DECK.get(study.get("report_language") or "en", DECK["en"])
-    kind = t["share_kind"]
+    kind = kind or t["share_kind"]
     subject = ((study.get("subject") or {}).get("label") or "").strip()
     entry = next((e for e in folder.reports() if e["date"] == date), None)
     period = entry.get("period") if entry else None
