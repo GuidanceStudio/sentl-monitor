@@ -1315,7 +1315,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the sentence above passes `check` and a tie written as "most" is still refused.
 
-## M33: A quick deck from the same period 🔄
+## M33: A quick deck from the same period ✅
 
 **Why:** the operator asked on 2026-11-13 for a quick version of the period deck, with the PDF of the archived standalone snapshot skill as a reference only (that skill stays as it is, for its own users). The full deck needs the assistant to write the opening, the answers, three to five actions after reading the cited pages, and every block's text, then a reader's test and an audit; most of a deck session goes there. The quick deck keeps what the code draws and asks the assistant for one sentence and one quoted excerpt per dimension. No actions. Operator's go for a prototype on 2026-11-13 ("generane uno come l'hai in testa e lo valuto").
 
@@ -1330,6 +1330,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `pdf --quick` prints `reports/D.quick.html` and `.pdf`, refuses a page count other than the slide count, and copies the PDF to `reports/share/` under the share name with the quick deck's kind.
   - Done 2026-11-14: `quick.py`, 45 tests; on a real three-project period `check` refused 18 points of the prototype's text (cuts without […], counts read by hand, a long title) and passed once they were fixed; `pdf --quick` printed 5 pages for 5 slides. A quick deck checked on a date whose entry holds a full deck that passed leaves that deck as the record.
 - [x] T3 Playbooks: `report/QUICK.md` (what the writer fills, the rules `check` applies, how to choose the excerpt); `report --quick` in SKILL.md and REPORT.md; the snapshot's step 9 asks the operator for the full or the quick deck; README and ARCHITECTURE list the route and its files
-- [~] T4 Release 0.9.0: CHANGELOG, version, tag, CI green, release with zip and sha256, install on both hosts; a quick deck drawn by the installed skill from a real three-project period passes `check` and prints one page per slide
+- [x] T4 Release 0.9.0: CHANGELOG, version, tag, CI green, release with zip and sha256, install on both hosts; a quick deck drawn by the installed skill from a real three-project period passes `check` and prints one page per slide
+  - Done 2026-11-14: tag on `8b491ea`, CI green, the release zip equals the local build (sha256 `f08761bd…`), installed for Claude Code and for Codex/opencode; the installed skill drew a quick deck of a real three-project period that passed `check` and printed 5 pages for 5 slides.
 
 **Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
