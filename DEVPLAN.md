@@ -1314,3 +1314,15 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [ ] Test: unit — a sentence naming a place before "the site cited most" is not read as that place being cited most, and a real tie is still refused; fix in `deck.py`; CHANGELOG; commit and push
 
 **Done when:** the sentence above passes `check` and a tie written as "most" is still refused.
+
+## M33: A quick deck from the same period 🔄
+
+**Why:** the operator asked on 2026-11-13 for a quick version of the period deck, with the PDF of the archived sentl-snapshot skill as a reference only (that skill stays as it is, for its own users). The full deck needs the assistant to write the opening, the answers, three to five actions after reading the cited pages, and every block's text, then a reader's test and an audit; most of a deck session goes there. The quick deck keeps what the code draws and asks the assistant for one sentence and one quoted excerpt per dimension. No actions. Operator's go for a prototype on 2026-11-13 ("generane uno come l'hai in testa e lo valuto").
+
+**Shape under evaluation:** cover; one slide per project, one row per dimension with the code's figure (named x of y for a question naming no subject, favourable x of y otherwise), one sentence with the fact behind the figure, and one verbatim excerpt with the assistant and the question it answers; one slide with the sites cited most and how the reading was made. Two slides plus one per project.
+
+**Tasks:**
+- [~] T1 Prototype, outside the skill: one quick deck from a real three-project period, with the full deck's style, for the operator to evaluate (no client deck comes from it)
+- [ ] T2 After the operator's evaluation: `report --quick` / `deck --quick` and the snapshot's choice of deck, a reduced `deck.json`, `check` rules for the sentences and excerpts, tests, CHANGELOG; release
+
+**Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
