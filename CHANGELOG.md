@@ -3,6 +3,27 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## 0.9.0 (2026-11-14)
+
+A quick deck of the same period, with no actions: `report --quick`, `deck --quick`, and the snapshot's choice of deck.
+
+- `deck --quick` writes `reports/<date>.quick.json` and the figures file: one slide per project of the period, split
+  evenly when a project has more than six topics, one row per topic with answers. The code draws each row's figure
+  (answers naming the subject beside the competitor named most, or favourable answers beside the neutral and
+  unfavourable ones), the cover and a last slide with the sites cited most and how the answers were read. The writer
+  fills each slide's question and title, and each row's sentence and excerpt (`report/QUICK.md`).
+- `check` on a `.quick.json` refuses slides or rows other than the period's, texts over their length, an excerpt not
+  verbatim in that assistant's answers to a question of the row's topic or cut inside a sentence without `[…]`, a figure
+  the period does not hold, all-or-nothing words the figures do not bear out, the study's and the machine's words, and a
+  slide taller than its page. A quick deck that passes records its period in `history/reports.json`, as a deck does; a
+  full deck of the same date that passed stays the record, and a quick deck is never the earlier edition a later deck
+  compares its actions with.
+- `pdf --quick` prints `reports/<date>.quick.html` and `.pdf`, one page per slide, and copies the PDF to `reports/share/`
+  under the quick deck's name ("summary", in Italian "sintesi").
+- `report --quick` builds the period and goes on into the quick deck; `snapshot` asks at step 9 which deck the reader
+  receives.
+- `pack` carries the deck an entry names, full or quick, and a draft of either.
+
 ## 0.8.0 (2026-11-11)
 
 The deck is the only report: `report` and `snapshot` build the period and go on into the deck, and the long report is

@@ -1330,6 +1330,6 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `pdf --quick` prints `reports/D.quick.html` and `.pdf`, refuses a page count other than the slide count, and copies the PDF to `reports/share/` under the share name with the quick deck's kind.
   - Done 2026-11-14: `quick.py`, 45 tests; on a real three-project period `check` refused 18 points of the prototype's text (cuts without […], counts read by hand, a long title) and passed once they were fixed; `pdf --quick` printed 5 pages for 5 slides. A quick deck checked on a date whose entry holds a full deck that passed leaves that deck as the record.
 - [x] T3 Playbooks: `report/QUICK.md` (what the writer fills, the rules `check` applies, how to choose the excerpt); `report --quick` in SKILL.md and REPORT.md; the snapshot's step 9 asks the operator for the full or the quick deck; README and ARCHITECTURE list the route and its files
-- [ ] T4 Release 0.9.0: CHANGELOG, version, tag, CI green, release with zip and sha256, install on both hosts; a quick deck drawn by the installed skill from a real three-project period passes `check` and prints one page per slide
+- [~] T4 Release 0.9.0: CHANGELOG, version, tag, CI green, release with zip and sha256, install on both hosts; a quick deck drawn by the installed skill from a real three-project period passes `check` and prints one page per slide
 
 **Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
