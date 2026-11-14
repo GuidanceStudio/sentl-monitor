@@ -1374,9 +1374,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** each fix has a test, the full suite passes, and the trial deck shows them.
 
-## R12: Release 0.10.0 🔄
+## R12: Release 0.10.0 ✅
 
 **Tasks:**
-- [ ] Version 0.10.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+- [x] Version 0.10.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.10.0.

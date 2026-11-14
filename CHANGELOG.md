@@ -3,6 +3,34 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## 0.10.0 (2026-11-14)
+
+The full deck's fixes from an independent read of three client decks, and answers about a namesake counted apart.
+
+- The question with the most unfavourable answers is drawn as a row of its own with one of those answers quoted; the
+  deck never says a topic has no action, and the reason goes to the operator.
+- `found.block` names the block the title of "what we found" is about; `check` refuses a first action of another block.
+- The facts slide draws no rating; under each excerpt it prints whether the answer states today's figure, an old one,
+  both or neither.
+- Labels readers stopped on are rewritten: the overlap note, the spread line, the description card's note, the cover's
+  kind (first report, update, single reading) and the method's "times asked"; one project's figure has no name over it.
+- A deck of one block draws its card across the slide; a one-row evidence slide holds up to three excerpts, one per
+  assistant.
+- `subject.namesakes` in `study.json` (label, places, products, domains, listings). `period` marks an answer to a
+  question on the subject as about a namesake when the namesake's marks outweigh the subject's; the favourable figure
+  counts only answers about the subject, and namesake answers are a part of the bar of their own, in the full and the
+  quick deck. `design` adds to anchor 1 of those questions' rubrics that an answer describing a namesake rates 1;
+  `adopt` asks for namesakes and `demand namesakes` proposes candidates.
+- `by_market` in the deck draws one position per topic on questions naming no subject, never a rank pooled across
+  markets.
+- With fewer than six answers per question, slide 2 says the answers show which assistants name the subject, not how
+  often, and the card lists those assistants; `check` refuses a comparison resting on a difference of one answer.
+- The sources slide names the sites the actions are about and the subject's own pages, and groups review sites on one
+  line.
+- A block above eight topics may hold a fourth evidence slide.
+- `subject.former` marks an alias as a former name; `period` counts answers carrying only that name and the pages they
+  cite, and the deck shows the count.
+
 ## 0.9.0 (2026-11-14)
 
 A quick deck of the same period, with no actions: `report --quick`, `deck --quick`, and the snapshot's choice of deck.
