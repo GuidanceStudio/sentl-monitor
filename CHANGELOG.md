@@ -3,6 +3,29 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## 0.11.0 (2026-11-14)
+
+The full deck says each thing once, in fewer words.
+
+- The text under a card on "what we found" may not restate the card's figure: `check` refuses it and asks what lies
+  behind it. The presence card's note is one line: the subject's position, and the names a few answers away with how
+  many more or fewer they have.
+- An evidence slide numbers the questions of its table; an excerpt on one of them points to its row instead of printing
+  the question again, and excerpts on one question outside the table print it once. An excerpt holds at most 30 words.
+- Evidence slides and the found slide name their group in a few words ("Questions about Avenello"); slide 2 alone prints
+  each group's question, with one example question per column.
+- Slide 2 lists the assistants once, in the line on how questions are asked, and says how an answer is rated; the method
+  slide no longer repeats the scale and notes a competitor's count that leaves out the questions naming it.
+- The sources slide gives one count beside each site; how many of a site's answers name the subject is shown only beside
+  a site an action names. The note on how the columns add up is gone.
+- The action strip on an evidence slide no longer repeats the site's count, and the actions slide leaves out the code's
+  line on a site when the action's why already gives that count.
+- Word limits `check` names: a title 20, a slide's read and a found answer 25, an action's what and why 20 each, a
+  content slide 230 counting what the code draws (`WORD_LIMITS`, `SLIDE_WORDS`). Over the ceiling, `check` names the
+  slide's longest texts.
+- The quick deck: a row's sentence holds at most 25 words and may not restate the count its row draws; excerpts hold at
+  most 30 words.
+
 ## 0.10.0 (2026-11-14)
 
 The full deck's fixes from an independent read of three client decks, and answers about a namesake counted apart.

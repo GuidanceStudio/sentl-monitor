@@ -1402,9 +1402,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Result (2026-11-14):** the aggregated trial deck, rewritten to the new limits with the same four actions and the same findings, passes `check`; its content slides hold 2,345 words (2,961 in M36, 21% fewer), the longest 226. Full suite green.
 
-## R13: Release 0.11.0
+## R13: Release 0.11.0 ✅
 
 **Tasks:**
-- [ ] Version 0.11.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+- [x] Version 0.11.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.11.0.
