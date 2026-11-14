@@ -1380,3 +1380,24 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Version 0.10.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.10.0.
+
+## M37: The deck says each thing once, in fewer words (waits for the operator's go)
+
+**Why:** on 2026-11-14 the operator asked for reports that get to the point. The three full decks sent to clients before 0.10.0 carry 3,704, 1,774 and 3,231 words; their content slides hold 220 to 400 words each. About two thirds of those words are drawn by the code, not written: a card prints its figure, then a note restating it, then a legend with the same counts; an excerpt repeats in full the question already in the slide's table; slide 2 lists the assistants per column and again in the method; the sources slide carries a footnote on how its columns add up and a count beside every site. The written third is also long: a slide's reading runs to 35 words, an action's what and why to about 30 each.
+
+**Tasks:**
+- [ ] T1 Cards: the writer's text under a card does not restate the card's figure (`check` refuses it); the code's note under the presence card is one line (the position, with the tie noted in a few words); the bar's legend is the only place the three counts appear.
+- [ ] T2 Evidence slides: an excerpt whose question is in the slide's table points to that row instead of printing the question again; the assistant stays. `MAX_WORDS` for an excerpt goes from 40 to 30.
+- [ ] T3 Slide 2 and the method slide: each column says who asks and how many questions and answers, with one example question; the assistants are listed once; the method says in two sentences where the questions come from and how an answer is rated. The labels rewritten in M34 T4 keep their wording.
+- [ ] T4 Sources slide: no footnote on how columns add up; beside each site, the count of answers citing it, nothing else, and the split by whether the answer names the subject only where it changes what the reader does (M36 T3 says what each site does for the subject).
+- [ ] T5 Word limits the writer works to: a slide's reading at most 25 words, a title at most 20, an action's what and why at most 20 each; `check` names each text over its limit. A content slide (not the cover, not the questions' appendix) above 180 words is refused, naming the slide and its longest texts. DECK.md and QUICK.md: one fact per sentence, never a figure the slide already draws.
+- [ ] T6 The quick deck under the same rules where they apply (row sentence, excerpt length).
+
+**Done when:** each rule has a test, the full suite passes, and the aggregated trial deck redrawn under the new rules has every content slide at 180 words or fewer and at least a third fewer words in total, with the same findings and actions.
+
+## R13: Release 0.11.0
+
+**Tasks:**
+- [ ] Version 0.11.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+
+**Done when:** the release page holds the zip and both installed copies report 0.11.0.
