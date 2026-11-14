@@ -107,6 +107,9 @@ the deck as written, so they are written in the deck's language:
   carrying its name and the places the answers say it is based in. The operator decides which
   are another organisation. Answers that describe one are then counted apart in the decks, and
   the rubrics of the questions naming the subject rate them 1 on the next `setup`.
+- **Former names** (`subject.former`, optional): the aliases the subject no longer uses, such
+  as a company's name before a merger. They still count as naming the subject; the decks also
+  count the answers naming it by them alone and the pages those answers cite.
 - **Facts that carry a figure or a name** (a price, a fee, the person in charge), for each
   question whose rubric or judge instructions state one: a `facts` list under that question in
   `study.json`, each `{"fact", "source", "date", "current": [...], "outdated": [...]}`, the

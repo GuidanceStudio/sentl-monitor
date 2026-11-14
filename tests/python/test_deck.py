@@ -59,7 +59,7 @@ class DeckCase(InsightCase):
                                       "description": "Chi chiede di Avenello cosa si sente dire?",
                                       "facts": "Il prezzo di Avenello è riportato bene?"},
                         "examples": examples},
-            "found": {"title": "Chi cerca una bevanda all'avena trova Avoria prima di Avenello", "block": "reach",
+            "found": {"title": "Chi cerca una bevanda all'avena trova Avoria", "block": "reach",
                       "answers": {"reach": "Avoria compare in 1 risposta su 2, Avenello in 0 risposte su 2.",
                                   "description": "Le risposte su chi lavora da Avenello sono favorevoli.",
                                   "facts": "Una risposta su due riporta il prezzo di oggi."}},
@@ -73,7 +73,7 @@ class DeckCase(InsightCase):
                                                      {"text": OUTDATED[0], "question": PRICE_Q, "assistant": "Acme Chat"}]}],
                        "facts": [{**slide, "action": None}]},
             "sources": {"title": "Le pagine citate sono soprattutto di altri siti",
-                        "read": f"Una frase sulle fonti: {', '.join(sorted(tops))}, senza azione perché parlano bene."},
+                        "read": f"Una frase sulle fonti: {', '.join(sorted(tops))}."},
             "method": {"limits": [], "ask": ["Quali pagine citano gli assistenti?"]},
         })
         doc.update(changes)
@@ -500,6 +500,22 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         doc["blocks"]["reach"] = doc["blocks"]["reach"] * 4
         self.assertIn("at most 3", self.problems(doc))
+
+    def test_a_block_of_more_than_eight_topics_may_hold_a_fourth_slide(self):
+        doc = self.filled()
+        doc["blocks"]["reach"] = [doc["blocks"]["reach"][0]] + [{**doc["blocks"]["reach"][0], "action": None}] * 3
+        m = deck.build_model(*self.model_args(doc))
+        count = 4 + sum(len(s) for s in doc["blocks"].values()) + bool(deck._any_sources(m)) + 1
+        with mock.patch.object(deck, "MANY_TOPICS", 0), mock.patch.object(deck, "MAX_SLIDES", count - 1):
+            found = self.problems(doc)
+        self.assertNotIn("a block holds at most", found)
+        self.assertNotIn("slides before the list", found)
+
+    def test_a_block_of_many_topics_holds_no_fifth_slide(self):
+        doc = self.filled()
+        doc["blocks"]["reach"] = [doc["blocks"]["reach"][0]] + [{**doc["blocks"]["reach"][0], "action": None}] * 4
+        with mock.patch.object(deck, "MANY_TOPICS", 0):
+            self.assertIn("at most 4", self.problems(doc))
 
     def test_a_slide_with_an_action_needs_an_excerpt(self):
         doc = self.filled()
@@ -1563,26 +1579,6 @@ class AskerJudgesTest(DeckCase, unittest.TestCase):
         self.assertNotIn("gives the judgement to who asks", self.problems(self.filled()))
 
 
-class TopSiteTest(unittest.TestCase):
-    """A reader sees the most cited site with no action and asks why."""
-
-    m = {"blocks": {"reach": {"sources": {"third_domains": [{"domain": "it.guida.example", "answers": 27}]}}}}
-
-    def doc(self, read, what="Pubblicare il prezzo su avenello.example"):
-        return {"actions": [{"what": what}], "sources": {"read": read}}
-
-    def test_a_top_site_with_no_action_and_no_reason_is_refused(self):
-        self.assertTrue(deck._top_site(self.doc("Guida è il sito più citato."), self.m))
-
-    def test_a_reason_in_the_read_passes(self):
-        doc = self.doc("Guida è il sito più citato, senza azione perché parla bene di Avenello.")
-        self.assertEqual(deck._top_site(doc, self.m), [])
-
-    def test_an_action_on_that_site_passes(self):
-        doc = self.doc("Una frase sulle fonti.", "Chiedere a guida.example di aggiungere il corso")
-        self.assertEqual(deck._top_site(doc, self.m), [])
-
-
 class ThirdPageTest(DeckCase, unittest.TestCase):
     """A writer reading only the answers asked a shop to list a rival: a site an action asks has been opened."""
 
@@ -1992,7 +1988,8 @@ class ComparisonTest(DeckCase, unittest.TestCase):
 
     def test_the_found_slide_draws_the_subject_beside_the_competitors(self):
         self.save_doc(self.filled())
-        text = deck.page_of(self.study, DATE)[0]
+        with mock.patch.object(deck, "FEW_ANSWERS", 1):  # the fixture's two answers a question read as enough
+            text = deck.page_of(self.study, DATE)[0]
         versus = text[text.index('class="versus"'):]
         self.assertIn("Avoria", versus)
         self.assertIn('<div class="me">Avenello</div>', versus)

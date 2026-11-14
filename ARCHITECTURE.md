@@ -272,6 +272,9 @@ share a label with a source to watch (exit 2).
   subject, the sentence of `NAMESAKE_ANCHOR` (in the market's language, English otherwise) is appended to its
   rubric's anchor 1 as Sentl receives it (`compose_rubric`): an answer describing a namesake also rates 1.
   `validate` counts it in the anchor's length; `bind` and the criteria hash compare the rubric as sent.
+- `subject.former` (optional) lists the aliases that are former names of the subject, each one of `subject.aliases`.
+  They still count as naming the subject; `period` also counts the answers naming it by them alone (§Periods), so that
+  a page still carrying an old name can be asked to correct it. Without the field nothing changes.
 
 **Sentl's limits, checked before any save:** dimension name and question label at most 100
 characters; question at most 500; each rubric anchor at most 300; judge instructions,
@@ -495,7 +498,10 @@ in the period differ by two points or more), `domains` (domain → answers citin
 model of the period and of the periods compared with it to its public name, which the deck
 prints and its `check` needs to tell a name from a figure. When `study.json` records namesakes, each cell also
 carries `namesakes` (the answers about a namesake: `given`, `judged`, their `bands` and the judged ones per `labels`),
-and the period carries the `namesakes` it read; the cell's own figures still count those answers. A question's or a dimension's `mean` is the mean of its
+and the period carries the `namesakes` it read; the cell's own figures still count those answers. When `study.json`
+marks former names, each cell carries `former` (the `answers` naming the subject by a former name alone and the `pages` they
+cite most, each counted once per answer), the period carries the `former` names it read, and `check` accepts those counts
+over the answers given and those naming the subject. A question's or a dimension's `mean` is the mean of its
 judged answers; a project's `mean` is the mean of its dimension means, the way Sentl
 computes a run's score (A4). A period rebuilt from a project's history carries
 `"rebuilt": true` and no comparison (see Periods).
@@ -1205,7 +1211,16 @@ both kinds of answer, so a site's count says nothing about where an old figure c
 and its slide may cite none: an answer stating today's figure was drawn as neutral or unfavourable by a criterion the reader
 never sees. Under a facts excerpt the slide prints which figure that answer states (today's, today's and an old one, only an
 old one, none), classified with the fact's terms as the chart counts it. A
-block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing. A block of one
+block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing.
+With `by_market`, the presence card draws one position per topic of `reach`: a position over a home city where the subject
+leads and a country where it is absent averages two markets. The writer sets it, because the code cannot tell a topic that
+is a market from one that is a theme; the figures file gives each topic's position and suggests the setting when there are
+several topics and competitors. When every question has fewer than `FEW_ANSWERS` answers, one answer reverses an order, so
+the presence card names the assistants that name the subject in place of a bar and slide 2 says the deck reads whether the
+subject is named; on any deck `check` refuses a comparison or a position resting on a difference of one answer. The
+presence chart adds a column for the answers naming the subject by a former name alone when a row has any. A block holds
+up to `MAX_BLOCK_SLIDES` evidence slides, one more above `MANY_TOPICS` topics, and the deck's ceiling grows by that slide,
+so no title has to list most of a block's topics. A block of one
 project prints no project name over its figure: on a snapshot that name is the Sentl project's, an ISO date included. Sources count
 over all the block's answers, so one base serves the whole deck.
 
@@ -1232,7 +1247,10 @@ is not played down; words of the study, project names and a topic as the subject
 pass only beside the count that says so. It keeps an action answerable: its reason is on its own slide and rests on more than one
 answer, since one answer in a hundred can come from a document years old, it names a site cited by at least five answers, and one in twenty, on that slide's questions, it does not dictate what the study does not record, and one action at
 least is on the subject's own pages, since those are the only ones the reader controls. The sources slide says how many answers citing a site name the subject on the questions without the name: the reason for acting
-on a site or leaving it alone is that count, and a sentence on what the site publishes was a guess the audit kept finding false.
+on a site is that count, and a sentence on what the site publishes was a guess the audit kept finding false. The slide
+also says which sites the actions are about, with each action's number, and groups the review sites (`REVIEW_SITES`, read
+from the site's name) on one line with the answers citing any of them. It asks nobody why a site has no action: a rule
+asking that made writers explain, site by site, sites the reader was never going to act on.
 The deck prints beside an action on a third
 party how many answers cite the site, and on the action's slide the page they cite most, because a reader asked to write to a
 site needs to know why that site and about which page. The figures file lists the other pages cited most, so the writer can

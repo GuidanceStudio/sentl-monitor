@@ -117,6 +117,12 @@ def _allowed(scopes):
             pairs |= {(c["judged"], c["expected"]), (c["judged"], c["received"]), (c["received"], c["expected"]),
                       (p["named"], p["given"]), (c["owned"]["citing"], c["owned"]["with_sources"])}
             pairs |= {(n, p["given"]) for n in (c.get("foils") or {}).values()}
+            former = c.get("former")
+            if former:
+                _ratio(former["answers"], p["given"], percents, pairs)
+                _ratio(former["answers"], p["named"], percents, pairs)
+                for _, n in former["pages"]:
+                    _ratio(n, former["answers"], percents, pairs)
             if "readings" in c:
                 pairs |= {(c["readings"], p["given"]), (c["readings"], c["received"])}
                 a = c["authors"]

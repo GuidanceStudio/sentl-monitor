@@ -36,7 +36,7 @@ themes back in three lines, then ask only about the gaps.
 Ask for, and write to `$S/seeds.json`:
 
 - the subject's label, kind (brand, category, method, organisation) and aliases, as people
-  type them;
+  type them, marking any that is a former name of the subject;
 - the foils it is measured against, each with its aliases;
 - where the subject is (its towns, regions, sites) and any other organisation that shares its
   name (step 5 proposes candidates);
@@ -179,8 +179,8 @@ page). `design` writes them to `subject.namesakes` and the subject's places to `
 
 In the operator's language, with these sections:
 
-1. The subject: label, kind, aliases, foils, components, owned domains, places, market and
-   language, and the namesakes with their markers, or the line that none was found.
+1. The subject: label, kind, aliases (former names marked), foils, components, owned domains,
+   places, market and language, and the namesakes with their markers, or the line that none was found.
 2. The theme inventory: one row for each theme, with its origin, the detail of the origin and
    its search demand.
 3. Search demand: a table of each theme's distinct suggestions and volume for each class, with

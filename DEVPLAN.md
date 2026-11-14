@@ -1361,16 +1361,16 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** a period with namesake answers draws them apart, with the favourable figure on the subject's answers alone.
 
-## M36: What a reader of the full deck stops on, the medium fixes 🔄
+## M36: What a reader of the full deck stops on, the medium fixes ✅
 
 **Why:** the same review as M34, approved 2026-11-14.
 
 **Tasks:**
-- [ ] T1 Presence by market: a study whose topics on questions naming no subject are different markets (cities, customer segments) draws one position per topic, never a rank pooled across markets; `deck.json` records `by_market`, DECK.md asks the reach answer per market. In one deck "fourth of nine" summed a home market where the subject equals the leader with one where it is absent.
-- [ ] T2 A deck on fewer than six answers per question (a snapshot) says on the second slide that it reads whether the subject is named, not how often; its presence card names the assistants that name the subject instead of a bar; `check` refuses a comparison resting on a difference of one answer.
-- [ ] T3 The sources slide says what each site does for the subject: its pages the assistants read and where the actions are; review sites are grouped, with the answers citing them. DECK.md drops the rule that makes the writer explain why a site has no action.
-- [ ] T4 Above eight topics in a block, a fourth evidence slide, so no title lists seven topics.
-- [ ] T5 Former names as a recorded fact: `study.json` marks an alias as former; `period` counts answers carrying only the former name and the pages they cite; the deck can propose a `wrong_fact` action on a page that still carries it.
+- [x] T1 Presence by market: a study whose topics on questions naming no subject are different markets (cities, customer segments) draws one position per topic, never a rank pooled across markets; `deck.json` records `by_market`, DECK.md asks the reach answer per market. In one deck "fourth of nine" summed a home market where the subject equals the leader with one where it is absent.
+- [x] T2 A deck on fewer than six answers per question (a snapshot) says on the second slide that it reads whether the subject is named, not how often; its presence card names the assistants that name the subject instead of a bar; `check` refuses a comparison resting on a difference of one answer.
+- [x] T3 The sources slide says what each site does for the subject: its pages the assistants read and where the actions are; review sites are grouped, with the answers citing them. DECK.md drops the rule that makes the writer explain why a site has no action.
+- [x] T4 Above eight topics in a block, a fourth evidence slide, so no title lists seven topics.
+- [x] T5 Former names as a recorded fact: `study.json` marks an alias as former; `period` counts answers carrying only the former name and the pages they cite; the deck can propose a `wrong_fact` action on a page that still carries it.
 
 **Done when:** each fix has a test, the full suite passes, and the trial deck shows them.
 

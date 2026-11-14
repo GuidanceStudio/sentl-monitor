@@ -40,7 +40,7 @@ class QuickCase(InsightCase):
         doc = self.skeleton()
         slide = doc["slides"][0]
         slide.update(question="Cosa sentono dagli assistenti AI i consumatori di bevande all'avena?",
-                     title="Chi chiede una bevanda all'avena senza fare nomi trova Avoria prima di Avenello")
+                     title="Chi chiede una bevanda all'avena senza fare nomi trova Avoria e non Avenello")
         texts = {
             "prezzo": ("Una risposta riporta il prezzo di oggi, l'altra un prezzo vecchio.",
                        excerpt(CURRENT[0], PRICE_Q, "Orbit Reason")),

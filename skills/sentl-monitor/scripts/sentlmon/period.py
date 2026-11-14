@@ -157,6 +157,8 @@ class Reader:
         # The names a namesake shares with the subject (those its label holds) mark neither of them.
         shared = {a for a in self.aliases for n in self.namesakes if first_mention(folded(n["label"]), [a]) is not None}
         self.distinct = [a for a in self.aliases if a not in shared]
+        # The subject's former names (subject.former), each one of its aliases.
+        self.former = [a for a in subject.get("former") or [] if a in self.aliases]
         self.foils = [f.get("aliases") or [] for f in study.get("foils") or []]
         self.foil_names = [(f.get("label") or f.get("id"), f.get("aliases") or []) for f in study.get("foils") or []]
         self.foil_domains = [(f.get("label") or f.get("id"), f["domains"]) for f in study.get("foils") or []
@@ -181,15 +183,26 @@ class Reader:
         text = self._text(answer)
         return [label for label, aliases in self.foil_names if first_mention(text, aliases) is not None]
 
-    def _alias_marks(self, text):
-        """The distinctive aliases standing in a folded text, the longest read first and none inside another."""
-        spans, found = [], 0
+    def _aliases_in(self, text):
+        """The aliases standing in a folded text, one per occurrence, the longest read first and none inside another."""
+        spans, found = [], []
         for alias in sorted(self.aliases, key=lambda a: -len(folded(a))):
             for m in re.finditer(rf"(?<!\w){re.escape(folded(alias))}(?!\w)", text) if folded(alias) else ():
                 if not any(m.start() < end and start < m.end() for start, end in spans):
                     spans.append((m.start(), m.end()))
-                    found += alias in self.distinct
+                    found.append(alias)
         return found
+
+    def _alias_marks(self, text):
+        """The distinctive aliases standing in a folded text."""
+        return sum(alias in self.distinct for alias in self._aliases_in(text))
+
+    def former_only(self, answer):
+        """True when an answer names the subject by its former names alone."""
+        if not self.former or not answer:
+            return False
+        names = set(self._aliases_in(self._text(answer)))
+        return bool(names) and names <= set(self.former)
 
     def namesake(self, answer, sources):
         """The label of the namesake an answer to a question on the subject describes, or None when it is about the
@@ -280,7 +293,17 @@ def cell(responses, expected, reader):
     }
     if reader.namesakes:
         out["namesakes"] = _namesake_cell(responses)
+    if reader.former:
+        out["former"] = _former_cell(given, reader)
     return out
+
+
+def _former_cell(given, reader):
+    """The answers naming the subject by a former name alone, and the pages they cite most, each once per answer."""
+    old = [r for r in given if reader.former_only(r["answer"])]
+    pages = Counter(p for r in old for p in {page_of(s) for s in r["sources"] if s.get("url") or s.get("domain")})
+    return {"answers": len(old),
+            "pages": [[p, n] for p, n in sorted(pages.items(), key=lambda kv: (-kv[1], kv[0]))[:TOP_SOURCES]]}
 
 
 def _namesake_cell(responses):
@@ -452,6 +475,8 @@ def _period(study, date, chosen, reader, versions):
         period["from"], period["to"] = min(starts, key=parse_time), max(starts, key=parse_time)
     if reader.namesakes:
         period["namesakes"] = reader.namesakes
+    if reader.former:
+        period["former"] = reader.former
     return period
 
 

@@ -406,7 +406,7 @@ def snapshot_deck(doc):
                                       "description": "What do shoppers who ask about Avenello hear?",
                                       "facts": "Do the answers give the price of Avenello right?"},
                         "examples": {"reach": ["recommendation-1"], "description": ["reputation-1"], "facts": ["price-1"]}},
-            "found": {"title": "Shoppers who ask for an oat milk hear of Avoria before Avenello", "block": "reach",
+            "found": {"title": "Shoppers who ask for an oat milk hear of Avoria and not of Avenello", "block": "reach",
                       "answers": {"reach": "Avenello is named in 1 of the 2 answers, Avoria in 2 of 2.",
                                   "description": "3 of the 6 answers about Avenello are favourable.",
                                   "facts": "1 of the 2 answers gives the price of today."}},

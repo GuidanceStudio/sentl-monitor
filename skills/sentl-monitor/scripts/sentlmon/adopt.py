@@ -17,6 +17,8 @@ QUESTIONS_FOR_THE_OPERATOR = [
     ("narrative.criteria", '{"by": who wrote the rubrics, "date": "YYYY-MM-DD"}'),
     ("subject.label, subject.aliases, subject.owned_domains", "the subject as answers name it, and its websites"),
     ("subject.places", '["..."], the towns or regions the subject is based in, as answers write them (optional)'),
+    ("subject.former", '["..."], the aliases that are former names of the subject, so a page still carrying one can be '
+                       "asked to correct it (optional)"),
     ("subject.namesakes", '[{"label": "...", "places": ["..."], "domains": ["..."], "products": ["..."], '
                           '"listings": ["..."]}], other organisations sharing the subject\'s name, each with what marks '
                           "it in an answer: where it is, its sites, what it makes or sells and any name of its own, and "
@@ -46,10 +48,14 @@ NAMESAKE_MARKERS = ("places", "domains", "products", "listings")
 
 
 def namesake_problems(subject):
-    """(field, what is wrong) for the subject's places and namesakes; both are optional."""
+    """(field, what is wrong) for the subject's places, former names and namesakes; all are optional."""
     out = []
     if "places" in subject and not _terms(subject["places"]):
         out.append(("subject.places", "a list of the places the subject is based in, each a non-empty text"))
+    former = subject.get("former")
+    if former is not None and not (isinstance(former, list) and former
+                                   and all(f in (subject.get("aliases") or []) for f in former)):
+        out.append(("subject.former", "a list of the subject's former names, each one of subject.aliases"))
     namesakes = subject.get("namesakes")
     if namesakes is None:
         return out

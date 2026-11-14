@@ -27,7 +27,7 @@ from .common import (REDIRECT_HOSTS, Refused, Study, first_mention, fmt_date, fo
                      measured, passed_deck, require_language, span, write_json, write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
-from .insights import classify, fact_terms, tight
+from .insights import TOP_SOURCES, classify, fact_terms, tight
 from .insights import page_of as cited_page
 from .period import Reader, _answers_to, _authors, _runs_of
 
@@ -37,6 +37,7 @@ CLASSES = ("not_named", "named_by_name_only", "passed_over", "no_information", "
            "confused", "holds")
 TODO = "[[...]]"
 MAX_ACTIONS, MAX_SLIDES, MAX_BLOCK_SLIDES, MAX_EXCERPTS, MAX_EXAMPLES, MAX_ROWS, MAX_WORDS = 5, 12, 3, 2, 2, 8, 40
+MANY_TOPICS = 8  # above this many topics a block may hold one more slide, which the deck's ceiling adds
 # A slide drawing one row has room under it for an answer of each assistant, three at most.
 MAX_ONE_ROW_EXCERPTS = 3
 # Figures a sentence holds before it stops being read, and how often the first slides may repeat one.
@@ -52,6 +53,7 @@ TELLING_RATIO = 4
 TELLING_ANSWERS = 3
 CLOSE_SHARE = 0.02
 MIN_ANSWERS = 3
+FEW_ANSWERS = 6  # below this many answers a question, one answer more or less reverses any order of names
 MIN_SITE_SHARE = 0.05
 MIN_SITE_ANSWERS = 5
 THIRD_PAGES = 12
@@ -84,7 +86,6 @@ ASSERTED = re.compile(r"(?::\s|\b(?:dicendo|dica|dire|spiegando|spieghi|spiegare
 # What the answers cannot show: they say what assistants reply, not what anyone makes of it.
 SITE_RANK = re.compile(r"\b(?:super(?:a|ano)|sorpass\w*|davanti a|overtak\w*|outrank\w*|ahead of)\b", re.I)
 MOST_CITED = re.compile(r"\b(?:il sito più citato|the most cited site|the site cited most)\b(?! (?:di terzi|esterno|among third))", re.I)
-WHY_NOT = re.compile(r"\b(?:perch[eé]|poich[eé]|because|since|senza azione|nessuna azione|no action)\b", re.I)
 DOUBT = re.compile(r"\b(?:non ho trovato|non trovo|non risulta|non (?:è|e') (?:chiaro|verificabile|possibile verificare)|non sono riuscit\w+|"
                    r"non posso (?:valutar|confermar|verificar|dir)\w*|non compare nei risultati|"
                    r"could(?: not|n't) find|did(?: not|n't) find|can(?:not|'t) (?:verify|assess|confirm)|not clear|unclear)\b", re.I)
@@ -109,6 +110,15 @@ JARGON = re.compile(r"\b(blocc[oh]i?|blocks?|dimension[ei]|dimensions?|punteggi[
 THEME_VERB = (r"\s+(?:l[aoei]\s+(?:nomin|cit|menzion)\w*|è a\b|sono a\b|sta a\b|stanno a\b|reach\w*|sits? at\b|is at\b|are at\b"
               r"|names? \w+|mentions? \w+)")
 # Words that read a figure as low: wrong of a subject among the first of the names monitored.
+# An order of names, and a position among them: what one answer more or less reverses.
+COMPARING = re.compile(r"\b(?:davanti a\w*|dietro\b|prima di\b|dopo di\b|precede\w*|supera\w*|sorpass\w*|più di\b|meno di\b"
+                       r"|più (?:spesso|volte|risposte)|meno (?:spesso|volte|risposte)|ahead of|behind|before\b|after\b"
+                       r"|outrank\w*|overtak\w*|more often|less often|more than|fewer than|more answers|fewer answers)", re.I)
+RANKED = re.compile(r"\b(?:(?:(?:prim|second|terz|quart|quint|sest|settim|ottav|non|decim|undicesim|dodicesim)[oaie]|first|second"
+                    r"|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(?:dei|degli|delle|tra|fra|of|among)"
+                    r"\s+(?:(?:i|gli|le|the)\s+)?(?:\d+|due|tre|quattro|cinque|sei|sette|otto|nove|dieci|undici|dodici|tredici"
+                    r"|quattordici|quindici|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)\b"
+                    r"|posizion[ei]\s+\d+|position\s+\d+|al primo posto|in first place)", re.I)
 PLAYED_DOWN = re.compile(r"\b(solo|soltanto|appena|poco|poche|pochi|debole|scars[ao]|only|just|barely|few|weak|low)\b", re.I)
 # A count stands beside what it counts when it is said to cite: "X è citato in 9 delle 12", "19 citano X", "X (39)".
 CITING = re.compile(r"\b(?:citat[aoie]|cit(?:a|ano)|cited|cites?|citing)\b", re.I)
@@ -121,6 +131,9 @@ BARE_RIVAL = re.compile(r"\d{1,3}(?!\d)")
 # After a competitor's bare count, a word that keeps it a count: "in 12 e Finom in 11", never "in 3 paesi".
 AFTER_BARE = re.compile(r"\s*(?:[,;.)]|$)|\s+(?:rispost[ae]|answers?|e|ed|and|mentre|while|sul\w*|on)\b", re.I)
 SITE_SUFFIX = {"co", "com", "org", "net", "ac", "gov"}
+# Platforms whose pages are reviews of a company or its products: the sources slide groups them on one line.
+REVIEW_SITES = frozenset({"trustpilot", "glassdoor", "indeed", "tripadvisor", "yelp", "feedaty", "kununu", "sitejabber",
+                          "trustedshops", "ekomi", "reviews"})
 MOST = re.compile(r"\b(?:soprattutto|più citat[aoie]|cited most|most[- ]cited|mainly|above all)\b", re.I)
 # "the site cited most on these questions, by 25 answers": the count after "by" is the count of the site said to lead.
 MOST_BY = re.compile(r"\b(?:più citat[aoie]|cited most|most[- ]cited)\b[^.;:]{0,60}?\b(?:by|da|con)\s+$", re.I)
@@ -181,6 +194,15 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .versus .meter { height: 17px; background: #fff; }
 .versus .fig { text-align: right; font-weight: 600; }
 .versus .me { font-weight: 700; }
+.markets { display: grid; grid-template-columns: minmax(0, auto) minmax(48px, 1fr) auto minmax(0, 5.5em); gap: 6px 9px;
+           align-items: center; font-size: 16px; line-height: 1.15; }
+.markets.unranked { grid-template-columns: minmax(0, auto) minmax(48px, 1fr) auto; }
+.markets .head { font-size: 13px; line-height: 1.2; color: var(--sl-muted); }
+.markets .span { grid-column: span 2; }
+.markets .meter { height: 17px; background: #fff; }
+.markets .fig { text-align: right; font-weight: 600; }
+.markets .rank { text-align: center; }
+.named-by { margin: 0; padding: 0; list-style: none; font-size: 22px; line-height: 1.3; font-weight: 700; }
 .pair .card-q { font-size: 18px; }
 .pair .card-a { font-size: 25px; line-height: 1.3; }
 .pair .card-cap { font-size: 16px; }
@@ -188,6 +210,9 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .pair .card-fig small { font-size: 30px; }
 .pair .versus { font-size: 19px; gap: 12px 10px; grid-template-columns: auto 1fr 36px; }
 .pair .versus .meter { height: 24px; }
+.pair .markets { font-size: 19px; gap: 12px 10px; }
+.pair .markets .head { font-size: 15px; }
+.pair .markets .meter { height: 24px; }
 .one .card { display: grid; grid-template-columns: 5fr 6fr; grid-template-rows: auto 1fr; gap: 16px 40px; padding: 22px 30px; }
 .one .card-q { grid-column: 1 / -1; font-size: 20px; }
 .one .card-a { align-self: center; font-size: 30px; line-height: 1.3; }
@@ -199,6 +224,10 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .one .card .legend { font-size: 15px; }
 .one .versus { font-size: 21px; gap: 16px 12px; grid-template-columns: auto 1fr 40px; }
 .one .versus .meter { height: 30px; }
+.one .markets { font-size: 21px; gap: 16px 12px; }
+.one .markets .head { font-size: 16px; }
+.one .markets .meter { height: 30px; }
+.one .named-by { font-size: 28px; }
 .reading { background: #F6F7F9; border-radius: 10px; padding: 11px 18px; }
 .reading h2 { margin-bottom: 5px; font-size: 16px; }
 .reading ul { margin: 0; padding: 0 0 0 18px; columns: 2; column-gap: 30px; font-size: 16px; line-height: 1.3; }
@@ -228,6 +257,7 @@ td.class { font-weight: 700; }
 .legend i { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .rows { display: grid; column-gap: 18px; row-gap: 9px; align-items: center; font-size: 17px; line-height: 1.25; }
 .reach-rows { grid-template-columns: 290px 1fr 84px 340px; }
+.reach-rows.former { grid-template-columns: 270px 1fr 84px 120px 280px; }
 .description-rows { grid-template-columns: 370px 1fr 92px 70px 92px; }
 .description-rows.namesakes { grid-template-columns: 330px 1fr 92px 70px 92px 92px; }
 .facts-rows { grid-template-columns: 340px 1fr 92px 84px 84px; }
@@ -334,14 +364,22 @@ def _row(project, dimension, label, items, reader):
     they add up to `judged`, all the rated answers."""
     cells = [scope["total"] for _, scope in items]
     rivals, left_out = _rivals(items, reader)
-    namesakes = Counter()
+    namesakes, by_model, former = Counter(), {}, Counter()
     for c in cells:
         namesakes.update((c.get("namesakes") or {}).get("labels") or {})
+        former.update(dict((c.get("former") or {}).get("pages") or []))
+    for _, scope in items:
+        for model, c in (scope.get("by_model") or {}).items():
+            held = by_model.setdefault(model, [0, 0])
+            held[0] += c["presence"]["named"]
+            held[1] += c["presence"]["given"]
     return {"project": project, "dimension": dimension, "label": label, "judged": sum(c["judged"] for c in cells),
             "named": sum(c["presence"]["named"] for c in cells), "given": sum(c["presence"]["given"] for c in cells),
             "bands": {k: sum(_subject_bands(c)[k] for c in cells) for k in ("1-2", "3", "4-5")},
             "namesake": sum(namesakes.values()), "namesakes": dict(namesakes.most_common()),
-            "foils": sorted(rivals.items(), key=lambda kv: (-kv[1], kv[0]))[:3], "rivals": rivals, "left_out": left_out}
+            "foils": sorted(rivals.items(), key=lambda kv: (-kv[1], kv[0]))[:3], "rivals": rivals, "left_out": left_out,
+            "by_model": by_model, "former": sum((c.get("former") or {}).get("answers", 0) for c in cells),
+            "former_pages": sorted(former.items(), key=lambda kv: (-kv[1], kv[0]))[:TOP_SOURCES]}
 
 
 def _fact_name(question):
@@ -435,31 +473,54 @@ def _parts(key, rows):
             ] + ([(apart, "namesake")] if apart else [])
 
 
-def _block_figures(key, rows, same_audience, names=0):
+def _block_figures(key, rows, same_audience, names=0, by_market=False):
     """The figure of a block, one per project: a count across audiences says nothing, so the projects are added up only
     when the deck says they address the same audience and market. Presence carries what it compares with: the answers
-    naming each competitor, and the subject's place among the `names` monitored."""
+    naming each competitor, and the subject's place among the `names` monitored. `by_market` (the writer's) makes each
+    topic of presence a market of its own, with its own position: a position over a market where the subject leads and
+    one where it is absent describes neither."""
     groups = {}
     for row in rows:
-        groups.setdefault(None if same_audience else row["project"], []).append(row)
-    if len(groups) == 1:
+        market = row["dimension"] if by_market and key == "reach" else None
+        groups.setdefault((None if same_audience else row["project"], market), []).append(row)
+    if len({project for project, _ in groups}) == 1:
         # One project: its name over the figure tells the reader nothing the slide does not.
-        groups = {None: next(iter(groups.values()))}
+        groups = {(None, market): members for (_, market), members in groups.items()}
     out = []
-    for project, members in groups.items():
+    for (project, market), members in groups.items():
         a, b = (sum(_measure(key, r)[i] for r in members) for i in (0, 1))
-        rivals = Counter()
+        rivals, by_model = Counter(), {}
         for r in members:
             rivals.update(r.get("rivals") or {})
+            for model, (named, given) in (r.get("by_model") or {}).items():
+                held = by_model.setdefault(model, [0, 0])
+                held[0], held[1] = held[0] + named, held[1] + given
         ranked = sorted(rivals.items(), key=lambda kv: (-kv[1], kv[0]))
-        out.append({"project": project, "a": a, "b": b, "rivals": ranked, "rank": 1 + sum(n > a for _, n in ranked),
+        out.append({"project": project, "a": a, "b": b, "rivals": ranked, "rank": _rank(a, rivals),
                     "names": names, "left_out": any(r.get("left_out") for r in members),
-                    "parts": [] if key == "reach" else _parts(key, members)})
+                    "parts": [] if key == "reach" else _parts(key, members), "by_model": by_model,
+                    **({"market": market} if market is not None else {})})
     return out
+
+
+def _rank(a, rivals):
+    """The subject's position among the names: those with more answers stand before it, those level share its place."""
+    return 1 + sum(n > a for n in dict(rivals).values())
+
+
+def _figure_label(f):
+    return " / ".join(x for x in (f["project"], f.get("market")) if x)
+
+
+def _review(domain):
+    return _site_name(domain).casefold() in REVIEW_SITES
 
 
 def _sources(responses, reader):
     out = _authors(responses, reader)
+    reviewed = [r for r in responses if any(s["domain"] and _review(s["domain"]) and reader.author(s["domain"]) == "third"
+                                            for s in r["sources"])]
+    review_domains = Counter(d for r in reviewed for d in {s["domain"] for s in r["sources"] if s["domain"] and _review(s["domain"])})
     domains = Counter(d for r in responses for d in {s["domain"] for s in r["sources"] if s["domain"]})
     naming = Counter(d for r in responses if reader.position(r["answer"]) is not None
                      for d in {s["domain"] for s in r["sources"] if s["domain"]})
@@ -474,7 +535,9 @@ def _sources(responses, reader):
             "third_all": {d["domain"]: d["answers"] for d in ranked if d["author"] == "third"},
             "third_naming": {d["domain"]: d["naming"] for d in ranked if d["author"] == "third"},
             "owned_pages": sorted(pages.items(), key=lambda kv: (-kv[1], kv[0]))[:4],
-            "foil_domains": [d for d in ranked if d["author"] not in ("owned", "third")][:5]}
+            "foil_domains": [d for d in ranked if d["author"] not in ("owned", "third")][:5],
+            "reviews": {"answers": len(reviewed), "naming": sum(reader.position(r["answer"]) is not None for r in reviewed),
+                        "domains": [d for d, _ in sorted(review_domains.items(), key=lambda kv: (-kv[1], kv[0]))]}}
 
 
 def _assistant(model, names):
@@ -617,7 +680,8 @@ def build_model(folder, study, period, doc=None):
     for row in blocks["facts"]["rows"]:
         row["telling"] = _telling(row, reader.author)
     for key, block in blocks.items():
-        block["figures"] = _block_figures(key, block["rows"], doc.get("same_audience"), len(study.get("foils") or []) + 1)
+        block["figures"] = _block_figures(key, block["rows"], doc.get("same_audience"), len(study.get("foils") or []) + 1,
+                                          doc.get("by_market"))
         block["sources"] = _sources(block["responses"], reader)
     assistants = {a for row in method for a in row["assistants"]}
     given = Counter(counted.values())
@@ -631,10 +695,14 @@ def build_model(folder, study, period, doc=None):
             "repeated": any(r["answers"] > r["questions"] * len(r["assistants"]) for r in method),
             "by": (narrative.get("criteria") or {}).get("by"), "first": not (period.get("comparison") or {}).get("previous"),
             "snapshot": study.get("kind") == "snapshot",
+            # Every question has fewer answers than FEW_ANSWERS: the deck reads which assistants name the subject.
+            "few": bool(given) and max(given) < FEW_ANSWERS,
             "fidelity": narrative.get("score_axis") == "fidelity", "second": _second(folder, study, period, doc),
             "aliases": (study.get("subject") or {}).get("aliases") or [],
             # The namesakes the period told apart, as it recorded them.
             "namesakes": period.get("namesakes") or [],
+            # The subject's former names, whose answers the period counted apart.
+            "former": period.get("former") or [],
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
                        "answers": sum(r["answers"] for r in method),
                        "by_block": {b: by_block[b] for b in ("reach", "description")}}}
@@ -682,7 +750,7 @@ def _skeleton(date, m):
     slide = {"title": TODO, "read": TODO, "rows": "dimensions", "dimensions": [], "questions": [], "excerpts": [], "action": None}
     shown = present(m)
     second = {"earlier": _earlier_fields(m["second"])} if m.get("second") else {}
-    return {"schema": SCHEMA, "date": date, "same_audience": False, "moved": {}, **second,
+    return {"schema": SCHEMA, "date": date, "same_audience": False, "by_market": False, "moved": {}, **second,
             "opening": {"who": TODO, "questions": {b: TODO for b in shown}, "examples": {b: [] for b in shown}},
             "found": {"title": TODO, "block": shown[0] if len(shown) == 1 else TODO, "answers": {b: TODO for b in shown}},
             "actions_title": TODO,
@@ -714,12 +782,16 @@ def _plan(m, study, date, lang):
            "1 or 2: the deck says favourable, neutral and unfavourable, never the score.", "", "## Blocks", ""]
     for key in present(m):
         block = m["blocks"][key]
-        shown = "; ".join((f"{f['project']}: " if f["project"] else "") + of(f["a"], f["b"]) for f in block["figures"])
+        shown = "; ".join((f"{_figure_label(f)}: " if _figure_label(f) else "") + of(f["a"], f["b"]) for f in block["figures"])
         out += [f"### {key}: {shown}", ""]
         if key == "reach":
+            if len(block["rows"]) > 1 and m["monitored"] and not any(f.get("market") for f in block["figures"]):
+                out += ["Each topic below has its own position. When the topics are different markets (cities, regions, "
+                        "customer segments), set `by_market` to true: the card then draws one position per topic, since a "
+                        "position over all of them adds a market where the subject leads to one where it is absent.", ""]
             for f in block["figures"]:
                 if f["rivals"]:
-                    where = f" ({f['project']})" if f["project"] else ""
+                    where = f" ({_figure_label(f)})" if _figure_label(f) else ""
                     out.append(f"Compared on the same answers{where}: {m['subject']} {of(f['a'], f['b'])}, "
                                + ", ".join(f"{label} {of(n, f['b'])}" for label, n in f["rivals"])
                                + f". Position: {of(f['rank'], f['names'])} names monitored.")
@@ -729,6 +801,10 @@ def _plan(m, study, date, lang):
             line = f"- {row['project']} / {row['label']}: {of(a, b)}"
             if key == "reach" and row["foils"]:
                 line += "; competitors named: " + ", ".join(f"{label} {of(n, row['given'])}" for label, n in row["foils"])
+                line += f"; position {of(_rank(row['named'], row['rivals']), len(m['monitored']) + 1)}"
+            if key == "reach" and row.get("former"):
+                pages = ", ".join(f"{page} ({n})" for page, n in row["former_pages"]) or "none"
+                line += f"; only by a former name ({', '.join(m['former'])}): {of(row['former'], row['given'])}; pages they cite: {pages}"
             if key == "description":
                 line += "; " + rated(row)
             if key == "facts":
@@ -768,7 +844,12 @@ def _plan(m, study, date, lang):
                     f"pages, {s['third']} other sites.",
                 f"other sites cited most: {counted(s['third_domains']) if key == 'reach' else listed(s['third_domains'], True)}",
                 "other pages cited most: " + ", ".join(f"{p} ({n})" for p, n in s["third_pages"]),
-                f"competitors' domains cited most: {listed(s['foil_domains'])}", ""]
+                f"competitors' domains cited most: {listed(s['foil_domains'])}"]
+        reviews = s.get("reviews") or {}
+        if reviews.get("answers"):
+            naming = f", {reviews['naming']} of which name the subject" if key == "reach" else ""
+            out.append(f"review sites: {', '.join(reviews['domains'])} ({reviews['answers']} answers cite at least one{naming})")
+        out.append("")
     out += _namesake_plan(m, of)
     if m["replaced"]:
         out += ["## Facts a later record replaces", "",
@@ -967,10 +1048,12 @@ def _structure(doc, m):
         slides = blocks.get(key) or []
         if not slides:
             problems.append(f"block {key} has no slide")
-        if len(slides) > MAX_BLOCK_SLIDES:
-            problems.append(f"block {key} has {len(slides)} slides: a block holds at most {MAX_BLOCK_SLIDES}")
-        shown = set()
         known = {d for r in block["rows"] for d in _dimensions(r)}
+        room = _block_room(block)
+        if len(slides) > room:
+            problems.append(f"block {key} has {len(slides)} slides: a block holds at most {room}"
+                            + (f", {MAX_BLOCK_SLIDES + 1} above {MANY_TOPICS} topics" if room == MAX_BLOCK_SLIDES else ""))
+        shown = set()
         keys = {r.get("key") for r in block["questions"]}
         for slide in slides:
             for name in slide.get("dimensions") or []:
@@ -1019,9 +1102,16 @@ def _structure(doc, m):
         problems.append(f"the first action is of block {actions[0].get('block')} and the found title is about {about}: "
                         "the reader of the title looks for its action first, so put first an action of that block")
     count = 4 + sum(len(s) for s in blocks.values()) + bool(_any_sources(m)) + 1
-    if count > MAX_SLIDES:
-        problems.append(f"the deck has {count} slides before the list of questions, at most {MAX_SLIDES}")
+    ceiling = MAX_SLIDES + sum(len(blocks.get(k) or []) > MAX_BLOCK_SLIDES for k in present(m)
+                               if _block_room(m["blocks"][k]) > MAX_BLOCK_SLIDES)
+    if count > ceiling:
+        problems.append(f"the deck has {count} slides before the list of questions, at most {ceiling}")
     return problems
+
+
+def _block_room(block):
+    """The slides a block may hold: one more above MANY_TOPICS topics, so no title lists most of them."""
+    return MAX_BLOCK_SLIDES + (len({d for r in block["rows"] for d in _dimensions(r)}) > MANY_TOPICS)
 
 
 def _drawn(key, block, slide):
@@ -1038,7 +1128,7 @@ def _drawn(key, block, slide):
         seen.add(_measure(key, row))
         seen |= {(n, row["judged"]) for n in [*row["bands"].values(), row.get("namesake") or 0]} if key != "facts" else set()
         seen |= {(n, row["given"]) for _, n in row.get("foils") or []}
-        seen |= {(row.get(part), row["given"]) for part in ("outdated", "silent")}
+        seen |= {(row.get(part), row["given"]) for part in ("outdated", "silent", "former")}
         seen |= {(n, row.get("outdated")) for _, n in _pages_shown(row)}
     return seen
 
@@ -1241,21 +1331,6 @@ def _sites_compared(doc):
             problems.append(f"sources {field} compares sites in words: state each site's answers, which the table draws")
         if MOST_CITED.search(text):
             problems.append(f"sources {field} says the site cited most: say among which sites, the subject's own is on the table too")
-    return problems
-
-
-def _top_site(doc, m):
-    """The reader sees the site cited most, with no action on it, and asks why: the sources slide says."""
-    named = " ".join(a.get("what") or "" for a in doc.get("actions") or []).lower()
-    read = ((doc.get("sources") or {}).get("read") or "").lower()
-    problems = []
-    for key in ("reach", "description"):
-        third = ((m["blocks"].get(key) or {}).get("sources") or {}).get("third_domains") or []
-        if third:
-            label = max(third[0]["domain"].split(".")[:-1], key=len)
-            if label not in named and not (label in read and WHY_NOT.search(read)):
-                problems.append(f"{third[0]['domain']} is the third party cited most on block {key} and has no action: "
-                                "name it in sources.read and say why")
     return problems
 
 
@@ -1475,12 +1550,21 @@ def _allowed_figures(m, period):
             else:
                 for _, n in row["foils"]:
                     _ratio(n, row["given"], percents, pairs)
+            if row.get("former"):
+                _ratio(row["former"], row["given"], percents, pairs)
+                _ratio(row["former"], row["named"], percents, pairs)
+                for _, n in row["former_pages"]:
+                    _ratio(n, row["former"], percents, pairs)
         s = block["sources"]
         for n in (s["owned"], s["foil"], s["third"],
                   *(d["answers"] for ds in (s["domains"], s["third_domains"], s["foil_domains"]) for d in ds)):
             _ratio(n, s["answers"], percents, pairs)
         for d in s["third_domains"] if key == "reach" else []:
             _ratio(d["naming"], d["answers"], percents, pairs)
+        reviews = s.get("reviews") or {}
+        if reviews.get("answers"):
+            _ratio(reviews["answers"], s["answers"], percents, pairs)
+            _ratio(reviews["naming"], reviews["answers"], percents, pairs)
     return decimals, percents, pairs
 
 
@@ -1590,6 +1674,78 @@ def _compared(doc, m):
     return problems
 
 
+def _said(part, spellings):
+    """The count a part of a sentence gives a name: "Avoria in 6 su 15", "Avoria (6)"; None when it gives none."""
+    for spelling in spellings:
+        for said in re.finditer(rf"(?<![\w.]){re.escape(spelling)}(?!\w|\.\w)\s*(?:\(|,?\s*{RIVAL_VERB}(?:in|at)\s+)(?=\d)", part):
+            pair = COUNT.match(part, said.end())
+            if pair and not OTHER_UNIT.search(pair.group(2)):
+                return int(pair.group(1))
+            bare = BARE_RIVAL.match(part, said.end())
+            if bare and AFTER_BARE.match(part, bare.end()):
+                return int(bare.group(0))
+    return None
+
+
+def _named_in(part, spellings):
+    return any(re.search(rf"(?<![\w.]){re.escape(s)}(?!\w|\.\w)", part) for s in spellings)
+
+
+def _counts_of(field, slide, m):
+    """The answers naming each name that a found text or a slide speaks of: the block's figure, or the rows the slide
+    draws. {label or None: (subject's count, {competitor: count})}."""
+    block = m["blocks"]["reach"]
+    if slide is not None:
+        rows = rows_of("reach", block, slide)
+        rivals = Counter()
+        for r in rows:
+            rivals.update(r.get("rivals") or {})
+        return {None: (sum(r["named"] for r in rows), dict(rivals))}
+    if field in ("found title", "found answer reach"):
+        return {_figure_label(f) or None: (f["a"], dict(f["rivals"])) for f in block["figures"]}
+    return {}
+
+
+def _one_answer_apart(doc, m):
+    """An order of names, or a position among them, that one answer more or less reverses: 7 of 15 against 6 of 15 says
+    nothing of who is named more."""
+    if not (m["blocks"].get("reach") or {}).get("rows"):
+        return []
+    subject = m["subject"]
+    names = {subject: [subject, *(m.get("aliases") or [])], **{n: [n] for n in m.get("monitored") or [] if n != subject}}
+    texts = [(field, None, text) for field, limit, text in _texts(doc) if limit not in ("who", "question", "ask")
+             and not field.startswith("reach ")]
+    texts += [(f"reach {part}", slide, slide.get(part) or "") for slide in (doc.get("blocks") or {}).get("reach") or []
+              for part in ("title", "read")]
+    problems = []
+    for field, slide, text in texts:
+        for part in re.split(r"(?<=[.!?;])\s+|;\s*", text):
+            compared, ranked = COMPARING.search(part), RANKED.search(part)
+            if not (compared or ranked):
+                continue
+            figures = _counts_of(field, slide, m)
+            labelled = [k for k in figures if k and k in part]
+            held = figures[labelled[0]] if labelled else figures.get(None) if len(figures) == 1 else None
+            counts = {}
+            for name, spellings in names.items():
+                if _named_in(part, spellings):
+                    said = _said(part, spellings)
+                    if said is None and held:
+                        said = held[0] if name == subject else held[1].get(name, 0)
+                    if said is not None:
+                        counts[name] = said
+            if compared:
+                others = [n for n in counts if n != subject]
+                pairs = [(subject, n) for n in others] if subject in counts else list(zip(others, others[1:]))
+                problems += [f"{field} orders {x} and {y} on {counts[x]} and {counts[y]} answers: one answer more or less "
+                             "reverses that, so say they are level" for x, y in pairs if abs(counts[x] - counts[y]) <= 1]
+            if ranked and held and any(abs(n - held[0]) <= 1 for n in held[1].values()):
+                near = ", ".join(f"{n} {c}" for n, c in held[1].items() if abs(c - held[0]) <= 1)
+                problems.append(f"{field} gives {subject} a position resting on one answer ({subject} {held[0]}, {near}): "
+                                "say which names are level instead")
+    return problems
+
+
 def _site_name(domain):
     """The name a sentence gives a site: Trustpilot for it.trustpilot.com, Money for money.co.uk."""
     parts = domain.split(".")[:-1]
@@ -1688,6 +1844,8 @@ def _drawn_pairs(key, rows):
             pairs |= {(r["outdated"], r["given"]), (r["silent"], r["given"])}
         elif key == "reach":
             pairs |= {(n, r["given"]) for _, n in r.get("foils") or []}
+            if r.get("former"):
+                pairs.add((r["former"], r["given"]))
     return pairs
 
 
@@ -1938,8 +2096,8 @@ def problems_of(folder, study, period, doc, layout=True):
     problems += _why_drawn(doc, m) + _named_sites(doc, study, folder, period) + _voices(doc, m) + _too_few(doc, m)
     problems += _read_on_its_slide(doc, study, folder, period, m) + _own_action(doc, study, folder, period) + _same_rows(doc, m)
     problems += _weak_sites(doc, m) + _worst_shown(doc, m) + _same_examples(doc, m) + _doubts(doc, m) + _amounts(doc, study)
-    problems += _sites_compared(doc) + _top_site(doc, m) + _third_pages(doc, study, folder, period, m) + _one_answer(doc)
-    problems += _one_fact(m) + _beside_figure(doc, m)
+    problems += _sites_compared(doc) + _third_pages(doc, study, folder, period, m) + _one_answer(doc)
+    problems += _one_fact(m) + _beside_figure(doc, m) + _one_answer_apart(doc, m)
     problems += [f"{field} gives the judgement to who asks: people ask and the answers judge"
                  for field, _, claim in _texts(doc) if ASKER_JUDGES.search(claim)]
     names = period.get("names") or {}
@@ -2089,6 +2247,9 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
         head[0] = t["question_head"]
     bands = _bands(m, t)
     apart = key == "description" and any(r.get("namesake") for r in rows)
+    former = key == "reach" and any(r.get("former") for r in rows)
+    if former:
+        head.insert(3, t["former_head"])
     if key == "description":
         head_html = _head(head, subject) + _swatch_heads(_chart_legend(key, m, t, apart))
     elif key == "facts":
@@ -2106,7 +2267,9 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
         if key == "reach":
             foils = ", ".join(f"{name} {n}" for name, n in row["foils"]) or "0"
             out.append(f'{label}{_meter(row["named"], row["given"])}'
-                       f'<div class="fig">{_of(row["named"], row["given"], t)}</div><div class="foils">{esc(foils)}</div>')
+                       f'<div class="fig">{_of(row["named"], row["given"], t)}</div>'
+                       + (f'<div class="fig">{row.get("former") or 0}</div>' if former else "")
+                       + f'<div class="foils">{esc(foils)}</div>')
         elif key == "description":
             b, other = row["bands"], row.get("namesake") or 0
             out.append(f'{label}{_bar([(b["4-5"], "good"), (b["3"], "mid"), (b["1-2"], "low"), (other, "namesake")])}'
@@ -2117,7 +2280,8 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
             out.append(f'{_fact_label(row, t, lang)}{_bar([(row["current"], "good"), (row["outdated"], "low"), (row["silent"], "mid")])}'
                        f'<div class="fig">{_of(row["current"], row["given"], t)}</div>'
                        f'<div class="fig">{row["outdated"]}</div><div class="fig">{row["silent"]}</div>')
-    grid = f'<div class="rows {key}-rows{" namesakes" if apart else ""}{long}{few}">' + "".join(out) + "</div>"
+    grid = (f'<div class="rows {key}-rows{" namesakes" if apart else ""}{" former" if former else ""}{long}{few}">'
+            + "".join(out) + "</div>")
     behind = "".join(_old_pages(r, subject, t) for r in rows if key == "facts")
     if apart:
         labels = list(dict.fromkeys(label for r in rows for label in r.get("namesakes") or {}))
@@ -2252,6 +2416,8 @@ def _opening_slide(doc, m, t, lang, list_slides):
     few = ", ".join(str(n) for n in each[:-1]) + f' {t["or"]} {each[-1]}' if len(each) > 1 else str(each[0])
     lines = [t[_reading_key(m)].format(spread=_spread(m["spread"], t), few=few),
              t["reading_assistants"].format(assistants=m["makers"])]
+    if m.get("few") and "reach" in present(m):
+        lines.append(t["reading_few"].format(n=max(n for n, _ in m["spread"]), subject=subject))
     if _rated(m):
         lines.append(t["reading_scores"].format(bands=t["bands_line_fidelity" if m["fidelity"] else "bands_line"].format(subject=subject)))
     if m["first"]:
@@ -2305,11 +2471,44 @@ def _versus(f, subject, t, only=None):
     return f'{label}<div class="versus">{rows}</div><div class="card-cap"><b>{esc(rank)}</b> {esc(" ".join(caption).strip())}</div>'
 
 
+def _markets(figures, subject, t, only=None):
+    """Presence market by market: the answers naming the subject in each, and its position there among the names
+    monitored."""
+    field = figures[0]["names"]
+    ranked = field > 1
+    head = (f'<div></div><div class="head span">{esc(t["markets_named"].format(subject=subject))}</div>'
+            + (f'<div class="head">{esc(t["markets_rank"].format(field=field))}</div>' if ranked else ""))
+    rows = "".join(f'<div>{esc(_figure_label(f))}</div>{_meter(f["a"], f["b"])}<div class="fig">{esc(_of(f["a"], f["b"], t))}</div>'
+                   + (f'<div class="fig rank">{f["rank"]}</div>' if ranked else "") for f in figures)
+    caption = " ".join(x for x in (t["left_out"] if any(f["left_out"] for f in figures) else "",
+                                   t["one_assistant"].format(assistant=only) if only else "") if x)
+    return (f'<div class="markets{"" if ranked else " unranked"}">{head}{rows}</div>'
+            + (f'<div class="card-cap">{esc(caption)}</div>' if caption else ""))
+
+
+def _named_by(f, m, t):
+    """On few answers a question, which assistants name the subject: one answer more or less reverses any count."""
+    subject = m["subject"]
+    named = sorted(_assistant(model, m["names"]) for model, (n, _) in f["by_model"].items() if n)
+    never = sorted(_assistant(model, m["names"]) for model, (n, given) in f["by_model"].items() if given and not n)
+    label = f'<div class="card-cap"><b>{esc(_figure_label(f))}</b></div>' if _figure_label(f) else ""
+    shown = (f'<div class="card-cap">{esc(t["named_by"].format(subject=subject))}</div>'
+             f'<ul class="named-by">' + "".join(f"<li>{esc(a)}</li>" for a in named) + "</ul>") if named else ""
+    if never:
+        shown += f'<div class="card-cap">{esc(t["named_by_none"].format(subject=subject))}: {esc(", ".join(never))}</div>'
+    return label + shown
+
+
 def _visual(key, m, t):
     block, subject = m["blocks"][key], m["subject"]
     if key == "reach":
+        figures = block["figures"]
+        if m.get("few"):
+            return "".join(_named_by(f, m, t) for f in figures)
+        if any(f.get("market") for f in figures):
+            return _markets(figures, subject, t, _only_assistant(key, m))
         return "".join(_versus(f, subject, t, _only_assistant(key, m)) if f["rivals"] else
-                       f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small></div>' for f in block["figures"])
+                       f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small></div>' for f in figures)
     caption = t["card"]["description_fidelity" if key == "description" and m["fidelity"] else key].format(subject=subject)
     labels = dict(_chart_legend(key, m, t, namesake=True))
     shown = "".join(f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small>'
@@ -2519,6 +2718,29 @@ def _site_cell(domain, n, naming, m, t, subject):
     return f"{domain} ({n}{other})"
 
 
+def _reviews_cell(reviews, reach, t, subject):
+    """The review sites a group's answers cite, on one line with the answers citing any of them: each site once, by its
+    domain cited most."""
+    first = {}
+    for d in reviews["domains"]:
+        first.setdefault(_site_name(d).casefold(), d)
+    sites = t["reviews"].format(sites=", ".join(list(first.values())[:SITES_SHOWN]))
+    if reach:
+        return t["site_naming"].format(domain=sites, n=reviews["answers"], k=reviews["naming"], subject=subject)
+    return f"{sites} ({reviews['answers']})"
+
+
+def _action_sites(doc, t):
+    """The sites the actions are about, each with its action's number: the reader sees why these and no others."""
+    sites = {}
+    for n, a in enumerate(doc.get("actions") or [], 1):
+        for d in map(str.lower, DOMAIN.findall(a.get("what") or "")):
+            sites.setdefault(d, n)
+    found = [t["action_ref"].format(site=d, n=n) for d, n in sites.items()]
+    listed = ", ".join(found[:-1]) + f' {t["and"]} ' + found[-1] if len(found) > 1 else "".join(found)
+    return t["sources_actions"].format(sites=listed) if found else ""
+
+
 def _sources_table(doc, m, t, subject):
     head = "".join(f"<th>{esc(c.format(subject=subject))}</th>" for c in t["sources_head"])
     named = " ".join(a.get("what") or "" for a in doc.get("actions") or [])
@@ -2530,22 +2752,28 @@ def _sources_table(doc, m, t, subject):
         overlap = overlap or s["owned"] + s["foil"] + s["third"] > s["with_sources"]
         n = s["answers"]
         cells = "".join(f'<td><span class="fig">{_of(s[k], n, t)}</span>{_meter(s[k], n, True)}</td>' for k in ("owned", "foil", "third"))
-        # A site an action names is on the slide, whatever its rank: the reader asks why that one.
-        shown = {d["domain"]: d["answers"] for d in s["third_domains"]}
-        shown.update({d: n for d, n in s["third_all"].items() if d in named})
+        # A site an action names is on the slide, whatever its rank: the reader asks why that one. Review sites stand
+        # together, on one line.
+        shown = {d["domain"]: d["answers"] for d in s["third_domains"] if not _review(d["domain"])}
+        shown.update({d: n for d, n in s["third_all"].items() if d in named and not _review(d)})
         naming = (s.get("third_naming") or {}) if key == "reach" else {}
         told = told or bool(naming)
-        domains = ", ".join(_site_cell(d, n, naming, m, t, subject) for d, n in shown.items()) or "0"
+        cells_of = [(c, _site_cell(d, c, naming, m, t, subject)) for d, c in shown.items()]
+        reviews = s.get("reviews") or {}
+        if reviews.get("answers") and (len(shown) < 5 or reviews["answers"] >= min(shown.values())):
+            cells_of.append((reviews["answers"], _reviews_cell(reviews, key == "reach", t, subject)))
+        domains = ", ".join(cell for _, cell in sorted(cells_of, key=lambda x: -x[0])) or "0"
         rows.append(f'<tr><td class="class">{esc(t["groups"][key].format(subject=subject))}</td>{cells}<td>{esc(domains)}</td></tr>')
     table = f'<table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
     pages = Counter()
     for key in present(m):
         pages.update(dict(m["blocks"][key]["sources"]["owned_pages"]))
     cited = ", ".join(f"{p} ({n})" for p, n in sorted(pages.items(), key=lambda kv: (-kv[1], kv[0]))[:4])
-    note = t["sources_overlap"] + " " if overlap else ""
-    note += t["site_naming_note"].format(subject=subject) + " " if told else ""
-    note += t["owned_pages"].format(subject=subject, pages=cited) if cited else ""
-    return table + (f'<p class="note">{esc(note.strip())}</p>' if note else "")
+    note = _action_sites(doc, t)
+    note += " " + t["owned_pages"].format(subject=subject, pages=cited) if cited else ""
+    note += " " + t["sources_overlap"] if overlap else ""
+    note += " " + t["site_naming_note"].format(subject=subject) if told else ""
+    return table + (f'<p class="note">{esc(note.strip())}</p>' if note.strip() else "")
 
 
 def _ran(row, t):

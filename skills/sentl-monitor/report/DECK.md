@@ -78,18 +78,21 @@ python3 <skill>/scripts/monitor.py deck --study "$S" --date D
 ```
 
 It writes `history/deck/D.figures.md` and, the first time, `reports/D.deck.json`, the text you fill. Run it again
-after changing `moved` or `same_audience`: it keeps what is written.
+after changing `moved`, `same_audience` or `by_market`: it keeps what is written.
 
 Read `history/deck/D.figures.md` whole. `history/material/D.md` holds the same figures with every answer: it is
 very long, so never read it whole. Search it for the question or the term you need. A question whose fact a later project
 replaces is listed there under its own heading: it counts by rating in `description`, and `check` refuses its term.
 
-Two settings of `reports/D.deck.json` are yours:
+Three settings of `reports/D.deck.json` are yours:
 
 - `same_audience`: `true` when the projects differ in what they measure and address the same people in the same
   market, as `narrative.audience` shows: the usual case, and the reader then sees one figure per block. `false` when
   the study splits its projects by audience or market, such as a project per country or per customer segment: each
   project keeps its figure, because audiences and markets are never added up.
+- `by_market`: `true` when the topics of `reach` are different markets, such as two home cities, the rest of the
+  country and a customer segment. The card then draws one position per topic: one position over all of them adds a market
+  where the subject leads to one where it is absent. The figures file gives each topic its position.
 - `moved`: `{"<question key>": "description"}` for a question that names no subject and scores a position in a debate
   rather than whether the subject is found. Move nothing else.
 
@@ -99,6 +102,11 @@ Start from the comparison. The figures file gives, for `reach`, the answers nami
 each competitor, and the subject's position among the names monitored. **A figure alone says nothing: 72 of 120 is weak
 or strong only against what the others get.** A subject second of ten is doing well, whatever the fraction looks like,
 and you say so. A subject eighth of eleven is far behind, and you say that.
+
+Two names one answer apart are level: one answer more or less reverses their order, and `check` refuses a comparison
+("ahead of", "more often") or a position resting on that gap. When every question has fewer than six answers, slide 2 says
+the deck reads which assistants name the subject, and the presence card lists them instead of a bar: write which assistants
+name the subject, never a position.
 
 Then read in `material` every answer rated unfavourable on a question naming the subject, then the answers behind the
 lowest and the most surprising figures. Look at what those answers describe and at the domains they cite: an answer about
@@ -111,7 +119,7 @@ a company with a similar name is `confused`, whatever its rating. Give each resu
 | `passed_over` | Named, and a competitor is chosen over it | State the grounds of the comparison in public, with facts |
 | `no_information` | The answer says it found no details on the subject | Publish the missing details where they can be read |
 | `named_with_warning` | The answer raises a doubt or advises against | Correct the subject's own pages, ask the owners of the others to update theirs |
-| `wrong_fact` | The answer contradicts a fact recorded in `study.json` | Put the current figure and its date on the subject's page, ask the publishers the models use to update theirs |
+| `wrong_fact` | The answer contradicts a fact recorded in `study.json`, or names the subject only by a former name | Put the current figure and its date on the subject's page, ask the publishers the models use to update theirs |
 | `confused` | The answer describes someone else | Make the identity clear on the subject's own pages; ask for a correction only on a page that mixes the two |
 | `holds` | The answers are favourable and correct | Keep it: one line in the block, no action |
 
@@ -149,8 +157,13 @@ an answer citing a page does not mean the page holds the figure, and a page may 
 answers with the old figure cite, one after the other, until one shows it. When none does, leave the action out and say in
 the facts slide's `read` that the old figure stays in the answers while the pages opened no longer show it.
 
+When `study.json` marks a former name of the subject (`subject.former`), the presence chart counts the answers naming the
+subject by it alone, and the figures file gives that count per topic with the pages those answers cite. A page among them
+that still carries the former name can take a `wrong_fact` action: ask its owners to write the current name, with `shows`
+holding the former name as the page writes it.
+
 Write three to five actions, in `actions`; fewer when the evidence slides allow fewer. Each action needs an evidence
-slide of its own in its block, and a block holds at most three slides, so a deck of one block, as on a snapshot of a
+slide of its own in its block, and a block holds at most three slides (four above eight topics), so a deck of one block, as on a snapshot of a
 few questions, holds at most three actions, and as many as it has slides with something to act on. Rank them by how many answers and how much of the reader's stated purpose
 (`narrative.purpose`, each project's `decision`) they touch. If `themes` or `search-demand.json` carry search volumes,
 use them to break ties. The first action rests on the finding `found.title` states: the reader of the title looks for
@@ -273,9 +286,9 @@ answers apart.
 | `opening.examples.<block>` | The keys of one or two real questions of the block, the ones the manager would recognise at once. Pick questions the deck then shows: not one with fewer than three answers, and not the same question on two cards when the block has another |
 | `found.title` | The single most important finding, as a full sentence the manager could repeat to their boss: "Avenello is eighth of the eleven names monitored when people ask without naming it, and most answers about it by name are favourable". It says who asks in words: "without the name" means nothing yet |
 | `found.block` | The block `found.title` is about: `reach`, `description` or `facts`. The first action is of that block. A deck of one block has it filled in |
-| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence |
+| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. With `by_market`, it gives the position in each market the card draws. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence |
 | `actions_title` | What to do first and why, as a full sentence with a verb of doing. It starts from the first row the slide prints, the subject's own pages when an action is on them, and never announces the list. Shorter words keep the action's claim: a subject with an entry on a site and missing from one of its lists is never "got onto" that site |
-| `blocks.<block>` | One to three slides. Give each finding its own slide, and one slide showing the topics of the block. Two slides never draw the same rows: `check` refuses it |
+| `blocks.<block>` | One to three slides, four when the block has more than eight topics. Give each finding its own slide, and one slide showing the topics of the block. Two slides never draw the same rows: `check` refuses it |
 | `slide.title` | What this slide found, in the manager's words |
 | `slide.read` | The one or two sentences the chart does not say. A slide with an action says, here or in the title, the result the action rests on. Never write that what the slide shows has no action: the reader reads a finding left aside. Why a result has no action goes in the notes to the operator |
 | `slide.dimensions` | The topics this slide draws; empty draws them all. Across a block's slides every topic is drawn. Put together only what one title can say |
@@ -283,7 +296,7 @@ answers apart.
 | `slide.rows` | `dimensions`, or `questions` to draw one row per question |
 | `slide.excerpts` | At most two, each `{"text", "question", "assistant"}`; a slide drawing one row holds up to three, each from a different assistant. A slide with an action shows at least one: what the action rests on, in the assistant's words |
 | `slide.action` | The number of the action this slide supports, or `null` |
-| `sources.title`, `sources.read` | Which sites the assistants read for what, and what the actions do on them, in a full sentence. The slide draws the subject's pages cited most and every site an action names. When the site cited most has no action, say why: another seller, or questions where the subject does well. Say what a site publishes or leaves out only if you opened the pages the answers cite on it, each of them: one page says nothing of the others. On the questions without the name, the slide and the figures file say how many answers citing a site name the subject: when that share is high, that is the reason for no action, and a site with many answers and few naming the subject is where to look for one. Say among which sites a site is cited most, and give counts rather than saying one site overtakes another. The third party cited most on each group has an action, or `read` says why not |
+| `sources.title`, `sources.read` | Which sites the assistants read for what, in a full sentence. The slide draws the subject's pages cited most, says which sites the actions are about, and puts the review sites on one line with the answers citing them. Say what a site publishes or leaves out only if you opened the pages the answers cite on it, each of them: one page says nothing of the others. On the questions without the name, the slide and the figures file say how many answers citing a site name the subject: a site with many answers and few naming the subject is where to look for an action. Say among which sites a site is cited most, and give counts rather than saying one site overtakes another. Why a site has no action goes in the notes to the operator |
 | `method.limits` | Only a limit that changes what the reader may conclude, such as a question type not measured |
 | `method.ask` | Two or three questions the reader can put to Claude or ChatGPT through Sentl's connector about these results |
 
@@ -407,7 +420,7 @@ the study, a project's name, a topic as the subject of a sentence, an excerpt no
 assistant, or cut inside a sentence with no mark, a text longer than its slide holds, a claim of all or nothing the figures
 do not bear out, an address no answer cites, a slide with an action and no excerpt, a term a later record replaces, a count
 on as many answers as a row of its slide that the slide's chart does not draw, a question holding two facts, and a slide
-whose text runs over its page. Fix the text and run it again until it passes. Never fix a failure by changing a figure
+whose text runs over its page, and a comparison or a position resting on a difference of one answer. Fix the text and run it again until it passes. Never fix a failure by changing a figure
 drawn by the code.
 
 `check` lays each slide out with the deck's style before any PDF, its text in Arial: "slide 5 runs over its page by about
