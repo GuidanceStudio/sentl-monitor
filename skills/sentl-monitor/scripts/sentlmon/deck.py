@@ -37,6 +37,8 @@ CLASSES = ("not_named", "named_by_name_only", "passed_over", "no_information", "
            "confused", "holds")
 TODO = "[[...]]"
 MAX_ACTIONS, MAX_SLIDES, MAX_BLOCK_SLIDES, MAX_EXCERPTS, MAX_EXAMPLES, MAX_ROWS, MAX_WORDS = 5, 12, 3, 2, 2, 8, 40
+# A slide drawing one row has room under it for an answer of each assistant, three at most.
+MAX_ONE_ROW_EXCERPTS = 3
 # Figures a sentence holds before it stops being read, and how often the first slides may repeat one.
 MAX_TITLE_FIGURES, MAX_READ_FIGURES, MAX_REPEATS = 2, 3, 2
 # The list of questions: lines a column holds, and the characters of one line.
@@ -161,7 +163,7 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .card.reach { flex-grow: 1.3; }
 .card-q { font-size: 20px; line-height: 1.24; font-weight: 700; color: var(--sl-deep); }
 .found .card-q { font-size: 16px; line-height: 1.25; font-weight: 600; }
-.opening .cards, .cards.one { flex: 0 1 auto; }
+.opening .cards { flex: 0 1 auto; }
 .opening .reading { margin-top: auto; }
 .three .card-q { font-size: 18px; }
 .three .card-ex { font-size: 16px; gap: 7px; }
@@ -186,6 +188,17 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .pair .card-fig small { font-size: 30px; }
 .pair .versus { font-size: 19px; gap: 12px 10px; grid-template-columns: auto 1fr 36px; }
 .pair .versus .meter { height: 24px; }
+.one .card { display: grid; grid-template-columns: 5fr 6fr; grid-template-rows: auto 1fr; gap: 16px 40px; padding: 22px 30px; }
+.one .card-q { grid-column: 1 / -1; font-size: 20px; }
+.one .card-a { align-self: center; font-size: 30px; line-height: 1.3; }
+.one .card-visual { align-self: center; margin-top: 0; gap: 12px; }
+.one .card-cap { font-size: 17px; }
+.one .card-fig { font-size: 76px; }
+.one .card-fig small { font-size: 34px; }
+.one .card .bar { height: 34px; }
+.one .card .legend { font-size: 15px; }
+.one .versus { font-size: 21px; gap: 16px 12px; grid-template-columns: auto 1fr 40px; }
+.one .versus .meter { height: 30px; }
 .reading { background: #F6F7F9; border-radius: 10px; padding: 11px 18px; }
 .reading h2 { margin-bottom: 5px; font-size: 16px; }
 .reading ul { margin: 0; padding: 0 0 0 18px; columns: 2; column-gap: 30px; font-size: 16px; line-height: 1.3; }
@@ -216,7 +229,7 @@ td.class { font-weight: 700; }
 .rows { display: grid; column-gap: 18px; row-gap: 9px; align-items: center; font-size: 17px; line-height: 1.25; }
 .reach-rows { grid-template-columns: 290px 1fr 84px 340px; }
 .description-rows { grid-template-columns: 370px 1fr 92px 70px 92px; }
-.facts-rows { grid-template-columns: 340px 1fr 92px 84px 84px 92px; }
+.facts-rows { grid-template-columns: 340px 1fr 92px 84px 84px; }
 .rows small { display: block; font-size: 13px; line-height: 1.25; color: var(--sl-muted); }
 .long { font-size: 15px; }
 .head { font-size: 14px; line-height: 1.2; font-weight: 600; color: var(--sl-muted); }
@@ -366,7 +379,7 @@ def _fact_row(project, dimension, question, scope, responses=()):
             "fact": _fact_name(question), "source": last.get("source"), "date": last.get("date"), "given": c["given"],
             "current": c["current_only"] + c["both"], "both": c["both"], "outdated": c["outdated_only"], "silent": c["given"] - c["stating"],
             "judged": total["judged"], "bands": dict(total["bands"]), "sites": _sites_by_term(question, responses),
-            "claims": len(question.get("facts") or [])}
+            "claims": len(question.get("facts") or []), "terms": fact_terms(question)}
 
 
 def _by_fact(questions, same_audience):
@@ -413,6 +426,9 @@ def _block_figures(key, rows, same_audience, names=0):
     groups = {}
     for row in rows:
         groups.setdefault(None if same_audience else row["project"], []).append(row)
+    if len(groups) == 1:
+        # One project: its name over the figure tells the reader nothing the slide does not.
+        groups = {None: next(iter(groups.values()))}
     out = []
     for project, members in groups.items():
         a, b = (sum(_measure(key, r)[i] for r in members) for i in (0, 1))
@@ -649,7 +665,7 @@ def _skeleton(date, m):
     second = {"earlier": _earlier_fields(m["second"])} if m.get("second") else {}
     return {"schema": SCHEMA, "date": date, "same_audience": False, "moved": {}, **second,
             "opening": {"who": TODO, "questions": {b: TODO for b in shown}, "examples": {b: [] for b in shown}},
-            "found": {"title": TODO, "answers": {b: TODO for b in shown}},
+            "found": {"title": TODO, "block": shown[0] if len(shown) == 1 else TODO, "answers": {b: TODO for b in shown}},
             "actions_title": TODO,
             "actions": [{"class": TODO, "what": TODO, "why": TODO, "read_next": TODO, "block": TODO, "pages": []}],
             "blocks": {b: [dict(slide)] for b in shown},
@@ -696,7 +712,7 @@ def _plan(m, study, date, lang):
                 line += "; " + rated(row)
             if key == "facts":
                 line += (f"; of which beside an old figure {of(row['both'], row['current'])}; old figure only {of(row['outdated'], row['given'])}, "
-                         f"not stated {of(row['silent'], row['given'])}; {rated(row)}")
+                         f"not stated {of(row['silent'], row['given'])}")
                 if row["outdated"]:
                     pages = "; ".join(f"{kind}: {_listed_pages(found)}" for kind, found in row["telling"].items() if found)
                     line += f"; pages cited by the answers with the old figure and hardly ever by today's: {pages or 'none'}"
@@ -708,7 +724,7 @@ def _plan(m, study, date, lang):
         for q in placed:
             row = rows.get(q["key"])
             shown = (": " + of(*_measure(key, row))) if row else ""
-            if row and key != "reach":
+            if row and key == "description":
                 shown += f"; {rated(row)}"
             out.append(f"- {q['key']} ({q['dimension']}): «{q['text']}»{shown}")
         s = block["sources"]
@@ -925,8 +941,13 @@ def _structure(doc, m):
             if len(rows) > MAX_ROWS:
                 problems.append(f"a slide of block {key} draws {len(rows)} rows, at most {MAX_ROWS}: "
                                 "split them over its slides with `dimensions`")
-            if len(slide.get("excerpts") or []) > MAX_EXCERPTS:
-                problems.append(f"a slide of block {key} holds more than {MAX_EXCERPTS} excerpts")
+            excerpts = slide.get("excerpts") or []
+            room = MAX_ONE_ROW_EXCERPTS if len(rows) == 1 else MAX_EXCERPTS
+            if len(excerpts) > room:
+                problems.append(f"a slide of block {key} holds more than {room} excerpts")
+            elif len(excerpts) > MAX_EXCERPTS and len({e.get("assistant") for e in excerpts}) < len(excerpts):
+                problems.append(f"a slide of block {key} draws one row and holds {len(excerpts)} excerpts: give them "
+                                "each from a different assistant, or keep two")
             if slide.get("action") is not None and not slide.get("excerpts"):
                 problems.append(f"the slide of block {key} supporting action {slide['action']} shows no answer: "
                                 "give an excerpt of what the action rests on")
@@ -949,6 +970,12 @@ def _structure(doc, m):
         for field in ("why", "read_next"):
             if not re.search(r"\d", a.get(field) or ""):
                 problems.append(f"action {n}: {field} carries no figure")
+    about = (doc.get("found") or {}).get("block")
+    if about not in present(m):
+        problems.append(f"found.block {about!r} is not one of {', '.join(present(m))}: name the block the found title is about")
+    elif actions and actions[0].get("block") != about:
+        problems.append(f"the first action is of block {actions[0].get('block')} and the found title is about {about}: "
+                        "the reader of the title looks for its action first, so put first an action of that block")
     count = 4 + sum(len(s) for s in blocks.values()) + bool(_any_sources(m)) + 1
     if count > MAX_SLIDES:
         problems.append(f"the deck has {count} slides before the list of questions, at most {MAX_SLIDES}")
@@ -967,7 +994,7 @@ def _drawn(key, block, slide):
         seen |= {(n, f["b"]) for f in block["figures"] for _, n in f.get("rivals") or []}
     for row in rows + [r for r in block["rows"] if set(_dimensions(r)) & dimensions]:
         seen.add(_measure(key, row))
-        seen |= {(n, row["judged"]) for n in row["bands"].values()}
+        seen |= {(n, row["judged"]) for n in row["bands"].values()} if key != "facts" else set()
         seen |= {(n, row["given"]) for _, n in row.get("foils") or []}
         seen |= {(row.get(part), row["given"]) for part in ("outdated", "silent")}
         seen |= {(n, row.get("outdated")) for _, n in _pages_shown(row)}
@@ -1246,15 +1273,24 @@ def _weak_sites(doc, m):
 
 
 def _worst_shown(doc, m):
-    """A reader told of unfavourable answers looks for one."""
+    """A reader told of unfavourable answers looks for the question that has the most: its own row, and on that slide
+    one of its unfavourable answers. Left inside its topic, it reads as a topic with nothing to say."""
     if "description" not in m["blocks"] or m.get("fidelity"):
         return []
-    worst = sum(r["bands"]["1-2"] for r in m["blocks"]["description"]["rows"])
-    shown = [_rating(e, m, key) for key, slides in (doc.get("blocks") or {}).items() if key != "reach"
-             for slide in slides for e in slide.get("excerpts") or []]
-    if worst and "1-2" not in shown:
-        return [f"{worst} answers are unfavourable and no excerpt shows one: the reader looks for it"]
-    return []
+    block = m["blocks"]["description"]
+    low = [q for q in block["questions"] if q["bands"]["1-2"] and not _thin("description", q)]
+    if not low:
+        return []
+    most = max(q["bands"]["1-2"] for q in low)
+    worst = {match_key(q["label"]) for q in low if q["bands"]["1-2"] == most}
+    for slide in (doc.get("blocks") or {}).get("description") or []:
+        drawn = worst & {match_key(r["label"]) for r in rows_of("description", block, slide) if r.get("key")}
+        if any(match_key(e.get("question") or "") in drawn and _rating(e, m, "description") == "1-2"
+               for e in slide.get("excerpts") or []):
+            return []
+    q = next(q for q in low if q["bands"]["1-2"] == most)
+    return [f"{most} of the {q['judged']} answers to «{q['label']}» are unfavourable, more than on any other question: "
+            f"draw {q['key']} as a row of its own (slide.questions) and quote one of those answers on that slide"]
 
 
 def _too_few(doc, m):
@@ -1603,7 +1639,8 @@ def _drawn_pairs(key, rows):
         a, b = _measure(key, r)
         if a is not None and b:
             pairs |= {(a, b), (b - a, b)}
-        pairs |= {(n, r["judged"]) for n in (r.get("bands") or {}).values() if r.get("judged")}
+        if key != "facts":
+            pairs |= {(n, r["judged"]) for n in (r.get("bands") or {}).values() if r.get("judged")}
         if key == "facts":
             pairs |= {(r["outdated"], r["given"]), (r["silent"], r["given"])}
         elif key == "reach":
@@ -2012,7 +2049,7 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
     elif key == "facts":
         parts = t["facts_heads"]
         head_html = _head(head, subject) + _swatch_heads([("good", parts["current"]), ("low", parts["outdated"]),
-                                                         ("mid", parts["silent"]), ("", parts["favourable"])])
+                                                         ("mid", parts["silent"])])
     else:
         head_html = _head(head, subject)
     out, group = [head_html], None
@@ -2033,8 +2070,7 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
         else:
             out.append(f'{_fact_label(row, t, lang)}{_bar([(row["current"], "good"), (row["outdated"], "low"), (row["silent"], "mid")])}'
                        f'<div class="fig">{_of(row["current"], row["given"], t)}</div>'
-                       f'<div class="fig">{row["outdated"]}</div><div class="fig">{row["silent"]}</div>'
-                       f'<div class="fig">{_of(row["bands"]["4-5"], row["judged"], t)}</div>')
+                       f'<div class="fig">{row["outdated"]}</div><div class="fig">{row["silent"]}</div>')
     grid = f'<div class="rows {key}-rows{long}{few}">' + "".join(out) + "</div>"
     behind = "".join(_old_pages(r, subject, t) for r in rows if key == "facts")
     return f'<div class="chart">{grid}{behind}</div>'
@@ -2069,10 +2105,25 @@ def _rating(excerpt, m, key):
     return "4-5" if score >= 4 else "3" if score >= 3 else "1-2"
 
 
-def _quotes(excerpts, t, names, ratings=()):
+def _stated(excerpt, m):
+    """Which figure the answer an excerpt comes from states: "current", "both", "outdated" or "silent", as the facts
+    chart counts it; None for an answer to no facts question. The reader of a facts slide asks that, not how it was rated."""
+    pieces, asked = _pieces(excerpt.get("text") or ""), match_key(excerpt.get("question") or "")
+    kinds = Counter(classify(r["answer"], q["terms"]) for q in m["blocks"]["facts"]["questions"]
+                    if q.get("terms") and match_key(q["label"]) == asked
+                    for r in m["answers_of"].get(q["key"]) or [] if r["answer"] and _quoted_in(pieces, [_plain(r["answer"])]))
+    if not kinds:
+        return None
+    return {"current_only": "current", "both": "both", "outdated_only": "outdated", None: "silent"}[kinds.most_common(1)[0][0]]
+
+
+def _quotes(excerpts, t, names, ratings=(), labels=None):
+    """The excerpts, each captioned with its question, its assistant and, from `ratings`, what `labels` (by default how
+    the answer was rated) says of it."""
     if not excerpts:
         return ""
-    rated = [f' · {esc(t["rated"][r])}' if r else "" for r in ratings] or [""] * len(excerpts)
+    labels = labels or t["rated"]
+    rated = [f' · {esc(labels[r])}' if r else "" for r in ratings] or [""] * len(excerpts)
     cards = "".join(f'<figure class="quote"><blockquote>«{esc(e["text"])}»</blockquote><figcaption>'
                     f'<b>{esc(t["question"])}:</b> {esc(e["question"])}<br><b>{esc(t["assistant"])}:</b> {esc(_public(e["assistant"], names))}{mark}'
                     "</figcaption></figure>" for e, mark in zip(excerpts, rated))
@@ -2095,9 +2146,9 @@ def _block_assistants(key, m):
 def _count_line(key, block, t):
     n = len(block["questions"])
     answers = sum(_measure(key, r)[1] for r in block["rows"])
-    if key == "facts":
-        return t["overlap"].format(n=n, answers=answers)
-    return f'{n} {t["question_one" if n == 1 else "question_many"]}, {answers} {t["answer_many"]}'
+    count = f'{n} {t["question_one" if n == 1 else "question_many"]}, {answers} {t["answer_many"]}'
+    # The facts card reads the answers of questions the other cards count: added up, they would count twice.
+    return t["overlap"].format(count=count) if key == "facts" else count
 
 
 def _spread(spread, t):
@@ -2107,9 +2158,8 @@ def _spread(spread, t):
     if len(spread) > 3:
         given = [n for n, _ in spread]
         return t["spread_range"].format(low=min(given), high=max(given))
-    (n, q), rest = spread[0], spread[1:]
-    return ", ".join([t["spread_first"].format(q=q, n=n)] +
-                     [t["spread_rest_one" if q == 1 else "spread_rest"].format(q=q, n=n) for n, q in rest])
+    parts = [t["spread_single" if q == 1 else "spread_many"].format(q=q, n=n) for n, q in spread]
+    return ", ".join(parts[:-1]) + f' {t["and"]} ' + parts[-1]
 
 
 def _origins_line(m, t, lang):
@@ -2223,7 +2273,8 @@ def _found_slide(doc, m, t):
     cards = "".join(f'<div class="card {key}"><div class="card-q">{esc(_asked(doc, key))}</div>'
                     f'<p class="card-a">{esc(answers.get(key) or "")}</p><div class="card-visual">{_visual(key, m, t)}</div></div>'
                     for key in present(m))
-    # Two cards leave room: larger type, not a hole in the card. One card is as tall as what it says, with its figure under it.
+    # Two cards leave room: larger type, not a hole in the card. One card fills the slide: what was found on the left in
+    # larger type, its figure on the right, so neither the card nor the slide is left half empty.
     size = {1: " one", 2: " pair"}.get(len(present(m)), "")
     return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="cards{size}">{cards}</div>'
 
@@ -2534,15 +2585,22 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
     block = m["blocks"][key]
     rows = rows_of(key, block, slide)
     grouped = len({r["project"] for r in rows}) > 1 and not doc.get("same_audience")
+    excerpts = slide.get("excerpts") or []
+    marks = (([_stated(e, m) for e in excerpts], t["stated"]) if key == "facts"
+             else ([_rating(e, m, key) for e in excerpts], t["rated"]))
     out = (f'{_kicker(_asked(doc, key))}<h1>{esc(slide.get("title"))}</h1><p class="read">{esc(slide.get("read"))}</p>'
-           + _rows(key, rows, t, lang, m, grouped, len(slide.get("excerpts") or []))
-           + _quotes(slide.get("excerpts"), t, m["names"], [_rating(e, m, key) for e in slide.get("excerpts") or []]))
+           + _rows(key, rows, t, lang, m, grouped, len(excerpts)) + _quotes(excerpts, t, m["names"], *marks))
     n = slide.get("action")
     if n is not None and 1 <= n <= len(doc.get("actions") or []):
         label = t["action"].format(n=n)
         site = _why_site(doc["actions"][n - 1], n, doc, m, t, page=True)
         out += f'<div class="strip"><b>{esc(label)}:</b> {esc(doc["actions"][n - 1].get("what"))}{" " + esc(site) if site else ""}</div>'
     return out
+
+
+def _cover_kind(m, t):
+    """Which report this is: a snapshot promises no next one."""
+    return t["cover_once" if m.get("snapshot") else "cover_first" if m["first"] else "cover_next"]
 
 
 def _cover_line(m, who, t):
@@ -2575,7 +2633,7 @@ def _slides(study, period, doc, m, chosen):
     cover = (f'<section class="slide cover"><div class="band"></div><div class="cover-body">{logo}'
              f'<h1>{esc(t["cover_title"].format(subject=subject))}</h1>'
              f'<div class="cover-what">{esc(_cover_line(m, who, t))}</div>'
-             f'<div class="cover-kind">{esc(t["cover_first" if m["first"] else "cover_next"])} · {esc(days)}</div>{by}</div></section>')
+             f'<div class="cover-kind">{esc(_cover_kind(m, t))} · {esc(days)}</div>{by}</div></section>')
     slides = [cover]
     for n, (kind, key, slide) in enumerate(order[1:], 2):
         foot = (f'<footer class="foot"><span>{logo}{esc(subject)} · {esc(days)}</span><span>{n} / {len(order)}</span></footer>')

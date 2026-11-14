@@ -59,7 +59,7 @@ class DeckCase(InsightCase):
                                       "description": "Chi chiede di Avenello cosa si sente dire?",
                                       "facts": "Il prezzo di Avenello è riportato bene?"},
                         "examples": examples},
-            "found": {"title": "Chi cerca una bevanda all'avena trova Avoria prima di Avenello",
+            "found": {"title": "Chi cerca una bevanda all'avena trova Avoria prima di Avenello", "block": "reach",
                       "answers": {"reach": "Avoria compare in 1 risposta su 2, Avenello in 0 risposte su 2.",
                                   "description": "Le risposte su chi lavora da Avenello sono favorevoli.",
                                   "facts": "Una risposta su due riporta il prezzo di oggi."}},
@@ -280,9 +280,9 @@ class BlocksTest(DeckCase, unittest.TestCase):
         self.assertIn("Scelta", [r["label"] for r in m["blocks"]["description"]["rows"]])
 
     def test_projects_stay_apart_unless_the_deck_says_they_share_an_audience(self):
-        m = self.model(same_audience=True)
-        self.assertEqual(m["blocks"]["reach"]["figures"][0]["project"], None)
-        self.assertEqual(self.model()["blocks"]["reach"]["figures"][0]["project"], "Mercato")
+        rows = [{"project": p, "named": 1, "given": 2, "rivals": {}} for p in ("Mercato", "Marca")]
+        self.assertEqual([f["project"] for f in deck._block_figures("reach", rows, True)], [None])
+        self.assertEqual([f["project"] for f in deck._block_figures("reach", rows, False)], ["Mercato", "Marca"])
 
     def test_sources_are_counted_by_block(self):
         sources = self.model()["blocks"]["description"]["sources"]
@@ -317,7 +317,7 @@ class BlocksTest(DeckCase, unittest.TestCase):
                         {"name": "Marca", "questions": 2, "assistants": ["Acme Chat"], "answers": 4, "runs": 2, "schedule": None}],
              "fidelity": False, "subject": "Avenello", "monitored": [], "blocks": {b: {"rows": []} for b in deck.BLOCKS}}
         it = deck._method({}, m, deck.DECK["it"])
-        self.assertIn("<th>Rilevazioni nel periodo</th>", it)
+        self.assertIn("<th>Quante volte sono state poste</th>", it)
         self.assertIn("<td>7, in programma ogni giorno</td>", it)
         self.assertIn("<td>2</td></tr>", it)
         self.assertNotIn("Frequenza prevista", it)
@@ -569,15 +569,10 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc["actions"][0]["what"] = "Pubblicare su avenello.example il dato corretto e chiedere di correggerlo"
         self.assertEqual(self.problems(doc), "")
 
-    def test_a_facts_row_carries_its_ratings_in_the_figures_file(self):
+    def test_a_facts_row_carries_no_rating_in_the_figures_file(self):
         text = (self.study / "history" / "deck" / f"{DATE}.figures.md").read_text(encoding="utf-8")
-        self.assertRegex(text, r"(?m)^- .*not stated .*favourable \d+ su \d+, neutral \d+ su \d+, unfavourable \d+ su \d+")
-
-    def test_a_rating_count_on_a_facts_question_may_be_cited(self):
-        doc = self.filled()
-        row = deck.build_model(*self.model_args(doc))["blocks"]["facts"]["rows"][0]
-        doc["blocks"]["facts"][0]["read"] = f"Sono favorevoli {row['bands']['4-5']} risposte su {row['judged']}."
-        self.assertEqual(self.problems(doc), "")
+        line = next(l for l in text.splitlines() if l.startswith("- ") and "not stated" in l)
+        self.assertNotIn("favourable", line)
 
     def test_words_about_how_the_answers_were_scored_are_refused(self):
         doc = self.filled()
@@ -780,7 +775,7 @@ class OpeningTest(DeckCase, unittest.TestCase):
     def test_the_cover_says_what_was_done_and_who_asked(self):
         cover = self.slide("cover")
         self.assertIn("Abbiamo fatto 3 domande agli assistenti AI, come le farebbero chi cerca una bevanda all'avena", cover)
-        self.assertIn("Prima rilevazione", cover)
+        self.assertIn("Primo report", cover)
 
     def test_the_second_slide_shows_what_the_report_answers_and_what_was_asked(self):
         opening = self.slide("opening")
@@ -794,7 +789,7 @@ class OpeningTest(DeckCase, unittest.TestCase):
         opening = self.slide("opening")
         self.assertIn("I numeri contano risposte", opening)
         self.assertIn("favorevole se è positiva per Avenello, sfavorevole se è negativa o non trova quello che il criterio chiede", opening)
-        self.assertIn("È la prima rilevazione", opening)
+        self.assertIn("È il primo report", opening)
         self.assertIn("Tutte le domande sono alla slide 10", opening)
 
     def test_the_opening_says_where_the_questions_come_from(self):
@@ -806,8 +801,9 @@ class OpeningTest(DeckCase, unittest.TestCase):
     def test_the_answers_a_question_gives_are_counted_as_they_are(self):
         t = deck.DECK["it"]
         self.assertEqual(deck._spread([(9, 33)], t), "Ogni domanda ha 9 risposte")
-        self.assertEqual(deck._spread([(9, 33), (2, 5)], t), "33 domande hanno 9 risposte ciascuna, 5 ne hanno 2")
-        self.assertEqual(deck._spread([(9, 30), (8, 1), (2, 5)], t), "30 domande hanno 9 risposte ciascuna, 1 ne ha 8, 5 ne hanno 2")
+        self.assertEqual(deck._spread([(9, 33), (2, 5)], t), "33 domande hanno 9 risposte ciascuna e 5 domande hanno 2 risposte ciascuna")
+        self.assertEqual(deck._spread([(9, 30), (8, 1), (2, 5)], t),
+                         "30 domande hanno 9 risposte ciascuna, 1 domanda ha 8 risposte e 5 domande hanno 2 risposte ciascuna")
         self.assertEqual(deck._spread([(9, 4), (8, 3), (7, 2), (2, 1)], t), "Ogni domanda ha tra 2 e 9 risposte")
 
     def test_questions_all_repeated_say_so_without_some(self):
@@ -1108,6 +1104,28 @@ class QuoteRatingTest(DeckCase, unittest.TestCase):
         self.assertNotIn("Risposta", deck._quotes([excerpt], t, {"m": "Acme Chat"}))
 
 
+class FactCaptionTest(DeckCase, unittest.TestCase):
+    """Under an excerpt of the facts slide the reader asks which figure that answer states, not how it was rated."""
+
+    def test_an_excerpt_says_which_figure_its_answer_states(self):
+        m = deck.build_model(*self.model_args({}))
+        self.assertEqual(deck._stated({"text": OUTDATED[0], "question": PRICE_Q}, m), "outdated")
+        self.assertEqual(deck._stated({"text": CURRENT[0], "question": PRICE_Q}, m), "current")
+        self.assertIsNone(deck._stated({"text": CURRENT[0], "question": CHOICE_Q}, m))
+
+    def test_the_facts_slide_prints_it_under_the_excerpt(self):
+        doc = self.filled()
+        doc["blocks"]["facts"][0]["excerpts"] = [{"text": OUTDATED[0], "question": PRICE_Q, "assistant": "Acme Chat"}]
+        self.save_doc(doc)
+        facts = deck.page_of(self.study, DATE)[0].split('<section class="slide facts')[1].split("</section>")[0]
+        self.assertIn("Riporta solo un dato vecchio", facts)
+        self.assertNotIn("Risposta sfavorevole", facts)
+
+    def test_every_kind_has_its_words_in_both_languages(self):
+        for lang in ("it", "en"):
+            self.assertEqual(set(deck.DECK[lang]["stated"]), {"current", "both", "outdated", "silent"})
+
+
 class OpeningExamplesTest(DeckCase, unittest.TestCase):
     """The first slide promises the questions the deck then answers."""
 
@@ -1202,6 +1220,104 @@ class AmountShownTest(DeckCase, unittest.TestCase):
             self.assertEqual(deck._amounts(doc, {}), [])
 
 
+class OneRowExcerptsTest(DeckCase, unittest.TestCase):
+    """A slide of one row has room for an answer of each assistant, under the row they answer."""
+
+    def doc(self, *voices, key="reach"):
+        doc = self.filled()
+        doc["blocks"][key][0]["excerpts"] = [{"text": OUTDATED[0], "question": PRICE_Q, "assistant": v} for v in voices]
+        return doc
+
+    def structure(self, doc):
+        return "\n".join(deck._structure(doc, deck.build_model(*self.model_args(doc))))
+
+    def test_a_slide_of_one_row_holds_three_excerpts_of_three_assistants(self):
+        self.assertNotIn("excerpt", self.structure(self.doc("Acme Chat", "Orbit Reason", "Nova Mind")))
+
+    def test_three_excerpts_repeating_an_assistant_are_refused(self):
+        self.assertIn("each from a different assistant", self.structure(self.doc("Acme Chat", "Orbit Reason", "Acme Chat")))
+
+    def test_four_are_refused(self):
+        self.assertIn("more than 3 excerpts", self.structure(self.doc("A", "B", "C", "D")))
+
+    def test_a_slide_of_two_rows_holds_two(self):
+        self.assertIn("more than 2 excerpts", self.structure(self.doc("Acme Chat", "Orbit Reason", "Nova Mind", key="description")))
+
+    def test_the_slide_prints_the_three(self):
+        self.save_doc(self.doc("Acme Chat", "Orbit Reason", "Nova Mind"))
+        text = deck.page_of(self.study, DATE)[0]
+        reach = text[text.index('<section class="slide reach'):]
+        self.assertEqual(reach[:reach.index("</section>")].count('<figure class="quote">'), 3)
+
+
+class LabelTest(unittest.TestCase):
+    """Shown a label and one value under it, a reader can say what the value asserts."""
+
+    def test_every_part_of_the_spread_names_its_questions_and_answers(self):
+        cases = (("it", [(18, 33), (14, 14), (9, 1)],
+                  "33 domande hanno 18 risposte ciascuna, 14 domande hanno 14 risposte ciascuna e 1 domanda ha 9 risposte"),
+                 ("en", [(18, 33), (14, 14), (9, 1)],
+                  "33 questions have 18 answers each, 14 questions have 14 answers each and 1 question has 9 answers"),
+                 ("it", [(14, 1), (9, 1)], "1 domanda ha 14 risposte e 1 domanda ha 9 risposte"))
+        for lang, spread, line in cases:
+            with self.subTest(lang=lang, spread=spread):
+                self.assertEqual(deck._spread(spread, deck.DECK[lang]), line)
+
+    def test_the_facts_card_says_its_answers_are_also_counted_in_the_other_columns(self):
+        one = {"questions": [{}], "rows": [{"current": 10, "given": 64}]}
+        self.assertEqual(deck._count_line("facts", one, deck.DECK["it"]), "1 domanda, 64 risposte, contate anche nelle altre colonne")
+        four = {"questions": [{}] * 4, "rows": [{"current": 10, "given": 64}]}
+        self.assertEqual(deck._count_line("facts", four, deck.DECK["en"]), "4 questions, 64 answers, also counted in the other columns")
+
+    def test_the_description_card_says_what_it_counts_and_why_competitors_have_no_figure(self):
+        self.assertEqual(deck.DECK["it"]["card"]["description"].format(subject="Avenello"),
+                         "Risposte favorevoli a Avenello. Le stesse domande non sono state fatte sui concorrenti.")
+        self.assertEqual(deck.DECK["en"]["card"]["description"].format(subject="Avenello"),
+                         "Answers favourable to Avenello. The same questions were not asked about competitors.")
+
+    def test_the_cover_says_which_report_it_is_and_the_method_counts_times_asked(self):
+        for lang, first, update, once in (("it", "Primo report", "Aggiornamento", "Rilevazione singola"),
+                                          ("en", "First report", "Update", "Single reading")):
+            with self.subTest(lang):
+                t = deck.DECK[lang]
+                self.assertEqual(deck._cover_kind({"first": True}, t), first)
+                self.assertEqual(deck._cover_kind({"first": False}, t), update)
+                self.assertEqual(deck._cover_kind({"first": True, "snapshot": True}, t), once)
+        self.assertEqual(deck.DECK["it"]["method_head"][-1], "Quante volte sono state poste")
+
+    def test_a_block_of_one_project_names_no_project_on_its_card(self):
+        row = {"project": "Snapshot · Avenello, Milano · 2026-11-10", "named": 1, "given": 3, "rivals": {"Avoria": 2}}
+        self.assertIsNone(deck._block_figures("reach", [row], False)[0]["project"])
+        other = {**row, "project": "Marca"}
+        self.assertEqual([f["project"] for f in deck._block_figures("reach", [row, other], False)], [row["project"], "Marca"])
+
+
+class FoundBlockTest(DeckCase, unittest.TestCase):
+    """The reader of the found title looks for its action first: the first action is of the block the title is about."""
+
+    def test_the_skeleton_asks_which_block_the_found_title_is_about(self):
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8"))["found"]["block"], deck.TODO)
+
+    def test_the_skeleton_of_one_block_names_it(self):
+        m = deck.build_model(*self.model_args({}))
+        for key in ("description", "facts"):
+            m["blocks"][key]["rows"] = []
+        self.assertEqual(deck._skeleton(DATE, m)["found"]["block"], "reach")
+
+    def test_a_found_title_with_no_block_is_refused(self):
+        doc = self.filled()
+        del doc["found"]["block"]
+        self.assertIn("found.block", self.problems(doc))
+
+    def test_a_first_action_of_another_block_is_refused(self):
+        doc = self.filled()
+        doc["found"]["block"] = "description"
+        self.assertIn("the first action is of block reach and the found title is about description", self.problems(doc))
+
+    def test_a_first_action_of_the_found_block_passes(self):
+        self.assertNotIn("found", self.problems(self.filled()))
+
+
 class ActionOrderTest(DeckCase, unittest.TestCase):
     """The writer ranks the actions by the answers and the part of the reader's purpose each moves, and the deck keeps
     that order: sorting the subject's own pages first put the largest gap of one study third. Each action says who acts."""
@@ -1212,6 +1328,7 @@ class ActionOrderTest(DeckCase, unittest.TestCase):
         doc["actions"] = [first, doc["actions"][0]]
         doc["blocks"]["reach"][0]["action"] = 2
         doc["blocks"]["description"][0]["action"] = 1
+        doc["found"]["block"] = "description"
         return doc
 
     def rows(self):
@@ -1693,13 +1810,55 @@ class WhyThatSiteTest(DeckCase, unittest.TestCase):
 class WorstShownTest(DeckCase, unittest.TestCase):
     """A reader told of unfavourable answers looks for one."""
 
-    def test_unfavourable_answers_with_no_excerpt_of_one_are_refused(self):
+    def test_the_worst_question_with_no_unfavourable_excerpt_of_it_is_refused(self):
         doc = self.filled()
         doc["blocks"]["description"][0]["excerpts"].pop()
-        self.assertIn("no excerpt shows one", self.problems(doc))
+        self.assertIn("are unfavourable, more than on any other question", self.problems(doc))
 
-    def test_an_unfavourable_excerpt_passes(self):
-        self.assertNotIn("no excerpt shows one", self.problems(self.filled()))
+    def test_an_unfavourable_excerpt_of_the_worst_question_on_its_row_passes(self):
+        self.assertNotIn("more than on any other question", self.problems(self.filled()))
+
+
+class WorstQuestionTest(unittest.TestCase):
+    """The question most answers are unfavourable on is the one the reader looks for: a row of its own, one of its answers."""
+
+    BAD, LESS = "Domanda uno?", "Domanda due?"
+
+    def model(self, ties=False):
+        def question(key, label, dimension, low):
+            return {"key": key, "label": label, "dimension": dimension, "judged": 4,
+                    "bands": {"1-2": low, "3": 4 - low, "4-5": 0}}
+        questions = [question("uno", self.BAD, "D1", 3), question("due", self.LESS, "D2", 3 if ties else 1),
+                     question("tre", "Domanda tre?", "D3", 0)]
+        rows = [{k: v for k, v in q.items() if k != "key"} for q in questions]
+        responses = [{"answer": "Risposta dura uno.", "score": 1, "question": "uno"},
+                     {"answer": "Risposta dura due.", "score": 2, "question": "due"},
+                     {"answer": "Risposta buona uno.", "score": 5, "question": "uno"}]
+        return {"blocks": {"description": {"rows": rows, "questions": questions, "responses": responses}}}
+
+    def doc(self, excerpt, **slide):
+        return {"blocks": {"description": [{"dimensions": [], "questions": [], "rows": "dimensions", **slide,
+                                            "excerpts": [excerpt]}]}}
+
+    def test_the_worst_question_on_its_own_row_with_an_unfavourable_answer_passes(self):
+        doc = self.doc({"text": "Risposta dura uno.", "question": self.BAD}, questions=["uno"])
+        self.assertEqual(deck._worst_shown(doc, self.model()), [])
+
+    def test_the_worst_question_inside_its_topic_is_refused(self):
+        doc = self.doc({"text": "Risposta dura uno.", "question": self.BAD}, dimensions=["D1", "D2", "D3"])
+        self.assertIn("3 of the 4 answers to «Domanda uno?»", "".join(deck._worst_shown(doc, self.model())))
+
+    def test_an_unfavourable_answer_to_another_question_is_refused(self):
+        doc = self.doc({"text": "Risposta dura due.", "question": self.LESS}, questions=["uno", "due"])
+        self.assertTrue(deck._worst_shown(doc, self.model()))
+
+    def test_a_favourable_answer_to_the_worst_question_is_refused(self):
+        doc = self.doc({"text": "Risposta buona uno.", "question": self.BAD}, questions=["uno"])
+        self.assertTrue(deck._worst_shown(doc, self.model()))
+
+    def test_either_of_two_questions_tied_for_worst_passes(self):
+        doc = self.doc({"text": "Risposta dura due.", "question": self.LESS}, questions=["due"])
+        self.assertEqual(deck._worst_shown(doc, self.model(ties=True)), [])
 
 
 class WeakSiteTest(unittest.TestCase):
@@ -1860,6 +2019,14 @@ class ComparisonTest(DeckCase, unittest.TestCase):
 
 
 class FactsRowsTest(unittest.TestCase):
+
+    def test_a_facts_chart_lets_no_rating_be_cited(self):
+        row = {**self.row("a", "Prezzo", ["7 €"], 10, 4), "bands": {"1-2": 1, "3": 2, "4-5": 7}}
+        rows = deck._by_fact([row], True)
+        block, slide = {"rows": rows, "questions": [row], "figures": []}, {"dimensions": [], "questions": [], "rows": "dimensions"}
+        self.assertIn((4, 10), deck._drawn("facts", block, slide))
+        self.assertNotIn((7, 10), deck._drawn("facts", block, slide))
+        self.assertNotIn((7, 10), deck._drawn_pairs("facts", rows))
 
     def question(self, key, fact, current):
         return {"key": key, "text": f"Domanda {key}?", "facts": [{"fact": fact, "source": "https://www.acme.example/prezzi/",
@@ -2120,13 +2287,11 @@ class RenderTest(DeckCase, unittest.TestCase):
     def test_evidence_slides_are_numbered_from_the_block(self):
         self.assertIn('<td class="num">5</td>', self.page())
 
-    def test_the_facts_chart_shows_the_favourable_answers(self):
+    def test_the_facts_chart_draws_no_rating(self):
         self.save_doc(self.filled())
-        chart = deck.page_of(self.study, DATE)[0].split('class="rows facts-rows')[1]
-        row = deck.build_model(*self.model_args(self.filled()))["blocks"]["facts"]["rows"][0]
-        self.assertIn('<div class="head">Risposte favorevoli</div>', chart)
+        chart = deck.page_of(self.study, DATE)[0].split('class="rows facts-rows')[1].split("</section>")[0]
+        self.assertNotIn("favorevol", chart)
         self.assertIn('<div class="head"><i class="low"></i>Solo un dato vecchio</div>', chart)
-        self.assertIn(f'<div class="fig">{row["bands"]["4-5"]} su {row["judged"]}</div>', chart)
 
     def test_a_slide_shows_its_action_in_words(self):
         self.assertIn("Azione 1: Pubblicare una pagina di confronto", re.sub(r"<[^>]+>", "", self.page()))

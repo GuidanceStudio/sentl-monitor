@@ -1335,16 +1335,16 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the operator has approved the prototype's shape, and the skill draws a quick deck from a period with `check` passing.
 
-## M34: What a reader of the full deck stops on, the small fixes 🔄
+## M34: What a reader of the full deck stops on, the small fixes ✅
 
 **Why:** on 2026-11-14 an independent reviewer read three full decks sent to clients as their marketing manager would, then traced each problem to the skill. The operator approved every fix ("falle tutte"). These five are small and touch the drawn slides, the labels and `check`.
 
 **Tasks:**
-- [ ] T1 The question with the most unfavourable answers in a block is drawn as a row of its own on an evidence slide and carries an excerpt: `_worst_shown` asks for that question, not for any unfavourable excerpt. In one deck, a question on public controversies (12 of 18 unfavourable) and one on complaints (10 of 14) were folded into topics without an excerpt. DECK.md: "no action" is never written in the deck; the reason goes in the notes to the operator.
-- [ ] T2 `found.title` and the first action rest on the same finding: the deck records `found.block`, the block the title is about, and `check` refuses a first action of another block. Two readers asked why the first action was about one topic when the title spoke of another.
-- [ ] T3 The facts slide shows no favourable column: an answer stating today's figure was drawn as neutral or unfavourable by its rating, a visible contradiction with a hidden criterion. Under a facts excerpt the slide prints whether the answer states today's figure or an old one.
-- [ ] T4 Labels the test readers stopped on in every round, and the writer cannot change: the overlap note ("4 of the questions of the other columns, 64 answers"), the spread line on the method slide, the presence card's note on competitors not measured, the cover's "first reading" beside the method's "readings in the period", and a single project's name with an ISO date as a slide's kicker. Each label passes the label test (shown one value under it, a reader can say what it asserts).
-- [ ] T5 A snapshot with one block draws its card and its actions without a half-empty slide, and an evidence slide with one row carries up to three excerpts, one per assistant.
+- [x] T1 The question with the most unfavourable answers in a block is drawn as a row of its own on an evidence slide and carries an excerpt: `_worst_shown` asks for that question, not for any unfavourable excerpt. In one deck, a question on public controversies (12 of 18 unfavourable) and one on complaints (10 of 14) were folded into topics without an excerpt. DECK.md: "no action" is never written in the deck; the reason goes in the notes to the operator.
+- [x] T2 `found.title` and the first action rest on the same finding: the deck records `found.block`, the block the title is about, and `check` refuses a first action of another block. Two readers asked why the first action was about one topic when the title spoke of another.
+- [x] T3 The facts slide shows no favourable column: an answer stating today's figure was drawn as neutral or unfavourable by its rating, a visible contradiction with a hidden criterion. Under a facts excerpt the slide prints whether the answer states today's figure or an old one.
+- [x] T4 Labels the test readers stopped on in every round, and the writer cannot change: the overlap note ("4 of the questions of the other columns, 64 answers"), the spread line on the method slide, the presence card's note on competitors not measured, the cover's "first reading" beside the method's "readings in the period", and a single project's name with an ISO date as a slide's kicker. Each label passes the label test (shown one value under it, a reader can say what it asserts).
+- [x] T5 A snapshot with one block draws its card and its actions without a half-empty slide, and an evidence slide with one row carries up to three excerpts, one per assistant.
 
 **Done when:** each fix has a test, the full suite passes, and a trial deck redrawn from a copy of a real three-project period shows them.
 

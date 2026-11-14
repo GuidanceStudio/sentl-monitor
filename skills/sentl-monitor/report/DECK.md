@@ -36,9 +36,9 @@ method as subject has no presence to measure: `reach` is empty. A block appears 
 
 The deck's slides, in order, for every client:
 
-1. **Cover**: what was done, in one sentence, who prepared it, and whether this is the first reading.
+1. **Cover**: what was done, in one sentence, who prepared it, and whether this is the first report, an update or a single reading.
 2. **What this report shows**: the purpose, the two or three questions the report answers with real examples, and how to read a figure.
-3. **What we found**: the same questions in the same order, each with its answer and its figure.
+3. **What we found**: the same questions in the same order, each with its answer and its figure. A deck of one block draws its card across the slide, the answer on the left and the figure on the right.
 4. **What to do**: three to five actions, each with its reason; fewer when the evidence slides allow fewer.
 5. **The evidence**, block by block: each slide carries the question it belongs to, and shows the real answers.
 6. **How many answers cite each source**, the sources.
@@ -153,7 +153,9 @@ Write three to five actions, in `actions`; fewer when the evidence slides allow 
 slide of its own in its block, and a block holds at most three slides, so a deck of one block, as on a snapshot of a
 few questions, holds at most three actions, and as many as it has slides with something to act on. Rank them by how many answers and how much of the reader's stated purpose
 (`narrative.purpose`, each project's `decision`) they touch. If `themes` or `search-demand.json` carry search volumes,
-use them to break ties. A wrong fact or a confusion comes first, then the largest gaps, where the subject is absent or a
+use them to break ties. The first action rests on the finding `found.title` states: the reader of the title looks for
+its action first, so set `found.block` to the block the title is about, and `check` refuses a first action of another block.
+Choose the first action, then write the title about the finding it answers. A wrong fact or a confusion comes first, then the largest gaps, where the subject is absent or a
 competitor is chosen, then what is missing on topics mostly favourable: "0 of 18" before "12 of 18 favourable". The deck
 prints the actions in your order and marks each one, from the domains its `what` names, as work on the subject's own pages
 or a request to a third party. Never refer to an action by its number: `check` refuses it.
@@ -264,15 +266,16 @@ The favourable figure counts the answers to the questions on the subject, so wri
 | `opening.questions.<block>` | The question this block answers, in the manager's words, about their own market. It ends with "?", has a subject of its own ("People looking for an oat drink without naming Avenello: which names do they find?") and never says "block", "presence" or "description". It holds no count: the card draws it |
 | `opening.examples.<block>` | The keys of one or two real questions of the block, the ones the manager would recognise at once. Pick questions the deck then shows: not one with fewer than three answers, and not the same question on two cards when the block has another |
 | `found.title` | The single most important finding, as a full sentence the manager could repeat to their boss: "Avenello is eighth of the eleven names monitored when people ask without naming it, and most answers about it by name are favourable". It says who asks in words: "without the name" means nothing yet |
+| `found.block` | The block `found.title` is about: `reach`, `description` or `facts`. The first action is of that block. A deck of one block has it filled in |
 | `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence |
 | `actions_title` | What to do first and why, as a full sentence with a verb of doing. It starts from the first row the slide prints, the subject's own pages when an action is on them, and never announces the list. Shorter words keep the action's claim: a subject with an entry on a site and missing from one of its lists is never "got onto" that site |
 | `blocks.<block>` | One to three slides. Give each finding its own slide, and one slide showing the topics of the block. Two slides never draw the same rows: `check` refuses it |
 | `slide.title` | What this slide found, in the manager's words |
-| `slide.read` | The one or two sentences the chart does not say. A slide with an action says, here or in the title, the result the action rests on |
+| `slide.read` | The one or two sentences the chart does not say. A slide with an action says, here or in the title, the result the action rests on. Never write that what the slide shows has no action: the reader reads a finding left aside. Why a result has no action goes in the notes to the operator |
 | `slide.dimensions` | The topics this slide draws; empty draws them all. Across a block's slides every topic is drawn. Put together only what one title can say |
 | `slide.questions` | The keys of the questions this slide draws, when it is about them. Use it whenever title or read cite a question's figure: a slide about one finding draws that finding, never the topics around it |
 | `slide.rows` | `dimensions`, or `questions` to draw one row per question |
-| `slide.excerpts` | At most two, each `{"text", "question", "assistant"}`. A slide with an action shows at least one: what the action rests on, in the assistant's words |
+| `slide.excerpts` | At most two, each `{"text", "question", "assistant"}`; a slide drawing one row holds up to three, each from a different assistant. A slide with an action shows at least one: what the action rests on, in the assistant's words |
 | `slide.action` | The number of the action this slide supports, or `null` |
 | `sources.title`, `sources.read` | Which sites the assistants read for what, and what the actions do on them, in a full sentence. The slide draws the subject's pages cited most and every site an action names. When the site cited most has no action, say why: another seller, or questions where the subject does well. Say what a site publishes or leaves out only if you opened the pages the answers cite on it, each of them: one page says nothing of the others. On the questions without the name, the slide and the figures file say how many answers citing a site name the subject: when that share is high, that is the reason for no action, and a site with many answers and few naming the subject is where to look for one. Say among which sites a site is cited most, and give counts rather than saying one site overtakes another. The third party cited most on each group has an action, or `read` says why not |
 | `method.limits` | Only a limit that changes what the reader may conclude, such as a question type not measured |
@@ -324,8 +327,9 @@ question's figure the question. Never give a topic's count to one of its questio
 it to the figures. Elsewhere `check` refuses "none", "all", "never" and "always". The first slides may give a figure at
 most twice: say it once, then say something else. A facts figure counts the answers stating the current term, and the same
 answer can get the rest wrong, adding a price or a plan the facts do not hold: write that they state today's figure, as the
-chart does, and `check` refuses "correct". A facts row also shows how many answers are favourable: when the fact is carried
-and the answers are weak, say so. A figure per assistant only when the difference between assistants is itself the finding.
+chart does, and `check` refuses "correct". The facts slide draws no rating and its text cites none: an answer stating today's
+figure can be rated low on the rest of what it says, and a rating beside it reads as a contradiction. Under each excerpt the
+slide prints whether that answer states today's figure, an old one, both or neither. A figure per assistant only when the difference between assistants is itself the finding.
 A price or term from `facts` goes in «», so it is read as a term and not as a figure.
 
 A slide drawing some of a topic's questions and citing the topic's figure leaves the reader adding up rows that do not
@@ -335,8 +339,10 @@ add up: draw every question of the topic, or cite only the rows drawn. Never wri
 **Favourable answers show.** A reader told that 112 of 141 answers are favourable asks what a favourable answer says. Every
 slide of `description` carries an excerpt, and `check` refuses one without: a slide saying the answers are favourable shows a
 favourable answer. Across the deck the excerpts show what holds as well as what does not: five excerpts against the subject
-beside a favourable headline read as bias. Where answers are unfavourable, one excerpt shows one: the reader looks for it, and
-`check` refuses a deck without. The slide prints each excerpt's rating: for a doubt quote a neutral or unfavourable answer, since `check` refuses a doubt from a favourable one,
+beside a favourable headline read as bias. Where answers are unfavourable, the reader looks for the question that has the
+most: draw it as a row of its own on a slide of `description` (`slide.questions`, or `rows: "questions"`), with an excerpt of
+one of its unfavourable answers on that slide. `check` refuses a deck without. Folded into its topic, it reads as a topic with
+nothing to say. Outside the facts slide, the slide prints each excerpt's rating: for a doubt quote a neutral or unfavourable answer, since `check` refuses a doubt from a favourable one,
 since a doubt quoted from a favourable answer reads as a contradiction.
 
 **A fact keeps the name `study.json` gives it.** The reader knows their own company better than anyone: a word added to a
@@ -488,7 +494,7 @@ Copy the deck's copy to send, in `reports/share/`, to the same folder and offer 
 the deck and the new pack and, when the host has Projects, to put the pack in the Project's files in place of the
 previous one: the next conversation reads it from there.
 
-In the chat, never in the deck: where the copy to send is, the choices open to doubt, anything in the data that looks
+In the chat, never in the deck: where the copy to send is, why a result the deck shows has no action, the choices open to doubt, anything in the data that looks
 wrong, what you could not check on the subject's site, what the reader's test and the last audit left open, and the results left
 out for resting on too few answers. When the deck follows `report`, add what `report/REPORT.md` step 7 lists. The operator
 sends the deck: never send it yourself.

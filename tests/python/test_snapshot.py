@@ -406,7 +406,7 @@ def snapshot_deck(doc):
                                       "description": "What do shoppers who ask about Avenello hear?",
                                       "facts": "Do the answers give the price of Avenello right?"},
                         "examples": {"reach": ["recommendation-1"], "description": ["reputation-1"], "facts": ["price-1"]}},
-            "found": {"title": "Shoppers who ask for an oat milk hear of Avoria before Avenello",
+            "found": {"title": "Shoppers who ask for an oat milk hear of Avoria before Avenello", "block": "reach",
                       "answers": {"reach": "Avenello is named in 1 of the 2 answers, Avoria in 2 of 2.",
                                   "description": "3 of the 6 answers about Avenello are favourable.",
                                   "facts": "1 of the 2 answers gives the price of today."}},
@@ -516,16 +516,19 @@ class SnapshotDeckSlidesTest(SnapshotDeckCase):
                 self.assertEqual(t["reading_scores"].split(":")[0] in opening, used)
                 self.assertEqual(t["scores_title"] in method, used)
 
-    def test_the_found_slide_of_one_block_keeps_its_card_as_tall_as_its_content(self):
+    def test_the_found_slide_of_one_block_fills_the_page_with_its_card_in_two_columns(self):
         from sentlmon import fit
-        for blocks, grows in ((["reach"], False), (["reach", "description"], True), (list(deck.BLOCKS), True)):
+        for blocks, columns in ((["reach"], True), (["description"], True), (["reach", "description"], False),
+                                (list(deck.BLOCKS), False)):
             with self.subTest(blocks):
                 doc, m = self.model(blocks)
                 tree = fit._Tree()
                 tree.feed(f'<section class="slide found">{deck._found_slide(doc, m, deck.DECK["en"])}</section>')
                 cards = next(n for n in _nodes(tree.root) if "cards" in n.classes)
+                card = next(n for n in _nodes(tree.root) if "card" in n.classes)
                 layout = fit.Layout(deck.STYLE)
-                self.assertEqual(fit._flex(layout.style(cards).props)[0] > 0, grows)
+                self.assertGreater(fit._flex(layout.style(cards).props)[0], 0)
+                self.assertEqual(layout.style(card).display == "grid", columns)
                 section = tree.root.elements()[0]
                 self.assertLessEqual(layout.box(section, fit.PAGE_WIDTH), fit.PAGE_HEIGHT)
 

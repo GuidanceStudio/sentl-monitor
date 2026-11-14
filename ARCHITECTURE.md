@@ -1164,13 +1164,18 @@ finds. Description: favourable answers (a score of 4 or 5), x of y, drawn with t
 draws no mean and never says "score", since a score means nothing to a reader who has not seen its criteria. Facts: answers
 stating today's figure, x of y, one row per fact however many questions bring it out, with the fact's source and date, and the
 pages cited by the answers with an old figure and hardly ever by those with today's, by who wrote them: a site usually feeds
-both kinds of answer, so a site's count says nothing about where an old figure comes from. A
-block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing. Sources count
+both kinds of answer, so a site's count says nothing about where an old figure comes from. The facts chart draws no rating,
+and its slide may cite none: an answer stating today's figure was drawn as neutral or unfavourable by a criterion the reader
+never sees. Under a facts excerpt the slide prints which figure that answer states (today's, today's and an old one, only an
+old one, none), classified with the fact's terms as the chart counts it. A
+block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing. A block of one
+project prints no project name over its figure: on a snapshot that name is the Sentl project's, an ISO date included. Sources count
 over all the block's answers, so one base serves the whole deck.
 
 **The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one or two real
 questions per block, one answer per block, one to five actions (fewer than three when the evidence slides allow fewer), each with a class, a block, an evidence slide and a reason
-carrying a figure), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
+carrying a figure, and `found.block`, the block the found title is about, which the first action must share: two readers
+asked why the first action was about one topic when the title spoke of another), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
 own question and assistant, the figures against the period and the figures the deck draws, and the leaks below.
 A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
 the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
@@ -1212,10 +1217,15 @@ whose name is the subject's or an alias, and which `study.json` does not own, is
 name. The method table says how many times each project's questions were asked in the period, beside how often they are
 scheduled; a snapshot's row says it has no schedule. Slide 2 says each question was asked once when every project ran once,
 one round. The rating scale (favourable, neutral, unfavourable) is explained on slide 2 and the method slide only when the
-description or facts block draws it. The found slide of a deck with one block keeps its card as tall as its content, with
-the figure under the finding; with two or three, the cards share the slide's height. A question with fewer than three answers counts in its topic and in the list of
-questions, and draws no row and no excerpt: one answer of two is no finding. A deck with unfavourable answers shows one, and its
-excerpts come from more than one assistant, because a deck quoting only the good answers hides what the reader has to fix. An amount
+description or facts block draws it. The found slide of a deck with one block fills the slide with its card in two
+columns, the finding on the left in larger type and its figure on the right: a card as tall as its content left half the slide
+empty. With two or three blocks, the cards share the slide's height. A slide drawing one row holds up to three excerpts, each
+from a different assistant; any other slide holds two. A question with fewer than three answers counts in its topic and in the list of
+questions, and draws no row and no excerpt: one answer of two is no finding. The description question with the most unfavourable answers
+is drawn as a row of its own on an evidence slide, with an excerpt of one of those answers on that slide, and the excerpts
+come from more than one assistant: a deck quoting only the good answers hides what the reader has to fix, and a question on
+public controversies, 12 of its 18 answers unfavourable, folded into its topic with no excerpt, read as a topic with nothing
+to say. An amount
 in a sentence is a recorded fact or stands in an excerpt of its slide, and a doubt comes from an answer not rated favourable, or the
 rating printed beside it contradicts it. An
 excerpt that starts or ends inside a sentence needs a `[…]`, because a part of a sentence can say what the sentence does not; a sentence starts after a stop, a list marker or a Markdown rule (`---`). Passing records the deck in `history/reports.json` as `deck` in the entry of its date, written again from the period the deck read, beside the `file` of a long report an earlier version wrote while that report is in the folder.
