@@ -258,7 +258,7 @@ class EveryCountIsReadTest(DeckCase, unittest.TestCase):
 
     def test_a_site_count_stands_in_a_reason_and_over_a_chart_that_do_not_draw_it(self):
         doc = self.filled()
-        doc["actions"][0]["why"] += "; prezzi.example è citato in 1 delle 6 risposte"
+        doc["actions"][0]["why"] = "Avenello compare in 0 risposte su 2; prezzi.example è citato in 1 delle 6 risposte"
         doc["blocks"]["reach"][0]["read"] = "prezzi.example è citato in 1 su 6 risposte."
         self.assertEqual(self.problems(doc), "")
 

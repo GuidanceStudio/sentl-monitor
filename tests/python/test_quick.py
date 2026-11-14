@@ -44,7 +44,7 @@ class QuickCase(InsightCase):
         texts = {
             "prezzo": ("Una risposta riporta il prezzo di oggi, l'altra un prezzo vecchio.",
                        excerpt(CURRENT[0], PRICE_Q, "Orbit Reason")),
-            "scelta": ("Avoria compare in 1 risposta su 2, Avenello in nessuna delle 2.",
+            "scelta": ("Chi chiede la bevanda migliore si sente indicare Avoria.",
                        excerpt("La migliore è Avoria.", CHOICE_Q, "Acme Chat")),
             "lavoro": ("Entrambe le risposte descrivono Avenello come un buon posto dove lavorare.",
                        excerpt("Si lavora bene da Avenello.", WORK_Q, "Orbit Reason")),
@@ -178,10 +178,10 @@ class RefusalTest(QuickCase, unittest.TestCase):
         self.assertIn("title holds 161 characters, at most 160", found)
         self.assertIn("says holds 171 characters, at most 170", found)
 
-    def test_an_excerpt_over_forty_words_is_refused(self):
+    def test_an_excerpt_over_thirty_words_is_refused(self):
         doc = self.filled()
-        self.row(doc, "lavoro")["excerpt"]["text"] = ("parola " * 41).strip()
-        self.assertIn("over 40 words", self.problems(doc))
+        self.row(doc, "lavoro")["excerpt"]["text"] = ("parola " * 31).strip()
+        self.assertIn("over 30 words", self.problems(doc))
 
     def test_an_excerpt_of_a_question_of_another_topic_is_refused(self):
         doc = self.filled()

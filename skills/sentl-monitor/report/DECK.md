@@ -37,10 +37,11 @@ method as subject has no presence to measure: `reach` is empty. A block appears 
 The deck's slides, in order, for every client:
 
 1. **Cover**: what was done, in one sentence, who prepared it, and whether this is the first report, an update or a single reading.
-2. **What this report shows**: the purpose, the two or three questions the report answers with real examples, and how to read a figure.
-3. **What we found**: the same questions in the same order, each with its answer and its figure. A deck of one block draws its card across the slide, the answer on the left and the figure on the right.
+2. **What this report shows**: the purpose, the two or three questions the report answers with one real example each, and how to read a figure.
+3. **What we found**: the same groups of questions in the same order, each named in a few words (slide 2 asked its
+   question), with its answer and its figure. A deck of one block draws its card across the slide, the answer on the left and the figure on the right.
 4. **What to do**: three to five actions, each with its reason; fewer when the evidence slides allow fewer.
-5. **The evidence**, block by block: each slide carries the question it belongs to, and shows the real answers.
+5. **The evidence**, block by block: each slide opens with the group it belongs to, and shows the real answers.
 6. **How many answers cite each source**, the sources.
 7. **How the reading was made**, the method.
 8. **The questions**, all of them.
@@ -282,11 +283,11 @@ answers apart.
 | Field | What it holds |
 |---|---|
 | `opening.who` | Who asks, as the cover's sentence needs it: "as {who} would ask them". Plain and short: "parents of small children and nutritionists" |
-| `opening.questions.<block>` | The question this block answers, in the manager's words, about their own market. It ends with "?", has a subject of its own ("People looking for an oat drink without naming Avenello: which names do they find?") and never says "block", "presence" or "description". It holds no count: the card draws it |
-| `opening.examples.<block>` | The keys of one or two real questions of the block, the ones the manager would recognise at once. Pick questions the deck then shows: not one with fewer than three answers, and not the same question on two cards when the block has another |
+| `opening.questions.<block>` | The question this block answers, in the manager's words, about their own market. It ends with "?", has a subject of its own ("People looking for an oat drink without naming Avenello: which names do they find?") and never says "block", "presence" or "description". It holds no count: the card draws it. Slide 2 alone prints it; the slides after it name the group in a few words |
+| `opening.examples.<block>` | The key of one real question of the block, the one the manager would recognise at once. Pick a question the deck then shows: not one with fewer than three answers, and not the same question on two cards when the block has another |
 | `found.title` | The single most important finding, as a full sentence the manager could repeat to their boss: "Avenello is eighth of the eleven names monitored when people ask without naming it, and most answers about it by name are favourable". It says who asks in words: "without the name" means nothing yet |
 | `found.block` | The block `found.title` is about: `reach`, `description` or `facts`. The first action is of that block. A deck of one block has it filled in |
-| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. With `by_market`, it gives the position in each market the card draws. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence |
+| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. With `by_market`, it gives the position in each market the card draws. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence. It says what lies behind the card's figure, never the figure again: the card draws its x of y and its legend the parts, and `check` refuses a count the card draws |
 | `actions_title` | What to do first and why, as a full sentence with a verb of doing. It starts from the first row the slide prints, the subject's own pages when an action is on them, and never announces the list. Shorter words keep the action's claim: a subject with an entry on a site and missing from one of its lists is never "got onto" that site |
 | `blocks.<block>` | One to three slides, four when the block has more than eight topics. Give each finding its own slide, and one slide showing the topics of the block. Two slides never draw the same rows: `check` refuses it |
 | `slide.title` | What this slide found, in the manager's words |
@@ -296,7 +297,7 @@ answers apart.
 | `slide.rows` | `dimensions`, or `questions` to draw one row per question |
 | `slide.excerpts` | At most two, each `{"text", "question", "assistant"}`; a slide drawing one row holds up to three, each from a different assistant. A slide with an action shows at least one: what the action rests on, in the assistant's words |
 | `slide.action` | The number of the action this slide supports, or `null` |
-| `sources.title`, `sources.read` | Which sites the assistants read for what, in a full sentence. The slide draws the subject's pages cited most, says which sites the actions are about, and puts the review sites on one line with the answers citing them. Say what a site publishes or leaves out only if you opened the pages the answers cite on it, each of them: one page says nothing of the others. On the questions without the name, the slide and the figures file say how many answers citing a site name the subject: a site with many answers and few naming the subject is where to look for an action. Say among which sites a site is cited most, and give counts rather than saying one site overtakes another. Why a site has no action goes in the notes to the operator |
+| `sources.title`, `sources.read` | Which sites the assistants read for what, in a full sentence. The slide draws the subject's pages cited most, says which sites the actions are about, and puts the review sites on one line with the answers citing them. Say what a site publishes or leaves out only if you opened the pages the answers cite on it, each of them: one page says nothing of the others. On the questions without the name, the figures file says how many answers citing a site name the subject, and the slide prints it beside a site an action names: a site with many answers and few naming the subject is where to look for an action. Say among which sites a site is cited most, and give counts rather than saying one site overtakes another. Why a site has no action goes in the notes to the operator |
 | `method.limits` | Only a limit that changes what the reader may conclude, such as a question type not measured |
 | `method.ask` | Two or three questions the reader can put to Claude or ChatGPT through Sentl's connector about these results |
 
@@ -318,6 +319,13 @@ sentence: "Avenello lo trova" and "la citano" in one deck read as two companies.
 
 A topic name ("Cash flow", "Pricing") is fine as a label in the chart. In a sentence, say what people ask about. The word
 "answers" needs no explanation, because slide 2 gives it; "questions" means the questions a person would type.
+
+**Length.** A slide says each thing once. One fact per sentence, and never a figure the slide already draws: the card,
+the chart and the table print their figures, and the sentence beside them says what lies behind. `check` counts words as
+the reader reads them, a figure or an address being one: a title at most 20, a found answer and a slide's read at most 25,
+an action's what and its why at most 20 each. A content slide holds at most 230 words, counting what the code draws on it
+and leaving out the footer; the cover and the list of questions are not counted. Over the ceiling, `check` names the slide
+and its longest texts: cut those first, then an excerpt to the clause that shows the finding.
 
 **Titles.** Plain declarative sentences saying what was found, in words the manager would use with a colleague. Say the
 content, not the statistic: "People looking for an oat drink find Avoria and Oatfield long before Avenello" says more
@@ -368,10 +376,12 @@ since a doubt quoted from a favourable answer reads as a contradiction.
 fact is the first thing they catch. An "issuer" does not become a "bank", a "plan" does not become a "subscription", and
 what the subject is called stays what its site calls it.
 
-**Excerpts.** Show more than one assistant wherever more than one answers: `check` refuses a set from one alone, which reads as a study of that assistant. Copied verbatim from `material`, at most 40 words, with `[…]` where you skip or cut. An excerpt keeps
+**Excerpts.** Show more than one assistant wherever more than one answers: `check` refuses a set from one alone, which reads as a study of that assistant. Copied verbatim from `material`, at most 30 words, with `[…]` where you skip or cut. An excerpt keeps
 the meaning of the sentence it comes from: a condition or a comparison stays whole, including its "if", "while" or
 "but". Read the sentence before it and the sentence after it first. An excerpt that loses its condition says what
-the answer does not say. Give the question as `figures` writes it and the assistant's name. Pick the excerpt that shows
+the answer does not say. Give the question as `figures` writes it and the assistant's name. A slide drawing its questions numbers them, and an
+excerpt of one of them is captioned with its number instead of the question; excerpts sharing a question outside the
+table print it once, above them. Pick the excerpt that shows
 the finding at a glance: on a `reach` slide, what the assistant recommends in place of the subject.
 
 **Framing.** Neutral. State what holds as well as what does not. A sentence about a set holds for the whole set: if one

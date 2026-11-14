@@ -225,13 +225,14 @@ class DeckTest(NamesakeDeckCase, unittest.TestCase):
         self.assertEqual((figure["a"], figure["b"]), (5, 8))
         self.assertEqual(figure["parts"], [(5, "good"), (0, "mid"), (2, "low"), (1, "namesake")])
 
-    def test_check_accepts_the_namesake_count_and_refuses_another(self):
-        said = "5 delle 8 risposte su Avenello sono favorevoli; 1 delle 8 descrive Avenello Arredi."
+    def test_the_card_draws_the_namesake_count_and_check_refuses_another(self):
+        """The card's legend carries the namesake's part: the text under it says what lies behind it, not the count."""
+        said = "Le favorevoli lodano il lavoro; 1 delle 8 descrive Avenello Arredi."
         doc = self.filled()
         doc["found"]["answers"]["description"] = said
-        self.assertNotIn("found answer description says", self.problems(doc))
+        self.assertIn("found answer description says 1 of 8, which the card beside it draws", self.problems(doc))
         doc["found"]["answers"]["description"] = said.replace("1 delle 8", "4 delle 8")
-        self.assertIn("found answer description says 4 of 8", self.problems(doc))
+        self.assertIn("found answer description says 4 of 8, and the chart beside it draws", self.problems(doc))
 
     def test_the_chart_and_the_card_draw_the_namesake_part_with_its_label(self):
         self.save_doc(self.filled())

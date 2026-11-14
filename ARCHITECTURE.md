@@ -1176,8 +1176,8 @@ operator is told.
 competitors, and have never seen the questions, the ratings or the project names. So the slides run: cover, what this
 report shows, what was found, what to do, the evidence block by block, the sources, the method, the list of questions.
 The first four must be enough to decide. The second gives the two or three questions the report answers, in the reader's
-words, each with real questions; the third answers them in the same order; every evidence slide carries the question it
-belongs to.
+words, each with real questions; the third answers them in the same order; every evidence slide opens with the group it
+belongs to. Slide 2 alone prints each group's question: the slides after it name the group in a few words (`_group`).
 
 **The second edition.** A deck that follows a final deck adds two slides after what was found. `_second` reads the earlier
 deck's text and the two period files, no run: each block's figure on both dates over the questions the same assistants
@@ -1224,10 +1224,10 @@ so no title has to list most of a block's topics. A block of one
 project prints no project name over its figure: on a snapshot that name is the Sentl project's, an ISO date included. Sources count
 over all the block's answers, so one base serves the whole deck.
 
-**The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one or two real
-questions per block, one answer per block, one to five actions (fewer than three when the evidence slides allow fewer), each with a class, a block, an evidence slide and a reason
+**The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one real
+question per block, one answer per block, one to five actions (fewer than three when the evidence slides allow fewer), each with a class, a block, an evidence slide and a reason
 carrying a figure, and `found.block`, the block the found title is about, which the first action must share: two readers
-asked why the first action was about one topic when the title spoke of another), the length of each text against what its slide holds (`LIMITS`), each excerpt against the answers of its
+asked why the first action was about one topic when the title spoke of another), the length of each text against what its slide holds (`LIMITS`) and in words (`WORD_LIMITS`: a title 20, a found answer and a read 25, an action's what and why 20 each), each content slide at 230 words at most (`SLIDE_WORDS`, the code's words included, the footer, the cover and the list of questions left out), a found answer giving a count its card draws, each excerpt against the answers of its
 own question and assistant, the figures against the period and the figures the deck draws, and the leaks below.
 A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
 the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
@@ -1246,7 +1246,7 @@ the first slides repeat a figure at most twice; a presence figure comes with a c
 is not played down; words of the study, project names and a topic as the subject of a sentence are refused; "none" and "all"
 pass only beside the count that says so. It keeps an action answerable: its reason is on its own slide and rests on more than one
 answer, since one answer in a hundred can come from a document years old, it names a site cited by at least five answers, and one in twenty, on that slide's questions, it does not dictate what the study does not record, and one action at
-least is on the subject's own pages, since those are the only ones the reader controls. The sources slide says how many answers citing a site name the subject on the questions without the name: the reason for acting
+least is on the subject's own pages, since those are the only ones the reader controls. The sources slide prints beside each site the answers citing it and, beside a site an action names on the questions without the name, how many of them name the subject: the reason for acting
 on a site is that count, and a sentence on what the site publishes was a guess the audit kept finding false. The slide
 also says which sites the actions are about, with each action's number, and groups the review sites (`REVIEW_SITES`, read
 from the site's name) on one line with the answers citing any of them. It asks nobody why a site has no action: a rule
@@ -1270,9 +1270,13 @@ answers it has more or fewer. Beside an action, a site's count takes the base of
 the site a count on one row of its slide, and names the row; otherwise it counts the slide's questions. A third party's site
 whose name is the subject's or an alias, and which `study.json` does not own, is labelled as another organisation of that
 name. The method table says how many times each project's questions were asked in the period, beside how often they are
-scheduled; a snapshot's row says it has no schedule. Slide 2 says each question was asked once when every project ran once,
-one round. The rating scale (favourable, neutral, unfavourable) is explained on slide 2 and the method slide only when the
-description or facts block draws it. The found slide of a deck with one block fills the slide with its card in two
+scheduled; a snapshot's row says it has no schedule. Slide 2 gives each block's question, its count and one question asked, then says once how the questions are
+asked and to which assistants (each question asked once when every project ran once, one round) and, only when the
+description or facts block draws it, how an answer is rated (favourable, neutral, unfavourable); the method slide does not
+repeat it. A competitor's count leaving out the questions that name it is said on the method slide, and the note under the
+presence card is one line: the subject's position and the names it could swap with. Evidence slides drawing their questions
+number them, and an excerpt of one is captioned with its number; the action under them prints its what and its page, and the
+count of the site it names stands once, on the actions slide, unless its reason already gives it. The found slide of a deck with one block fills the slide with its card in two
 columns, the finding on the left in larger type and its figure on the right: a card as tall as its content left half the slide
 empty. With two or three blocks, the cards share the slide's height. A slide drawing one row holds up to three excerpts, each
 from a different assistant; any other slide holds two. A question with fewer than three answers counts in its topic and in the list of
@@ -1344,7 +1348,7 @@ x of y with the neutral and unfavourable answers otherwise; both when a topic ha
 eight sites cited most on each kind of question and how the answers were read. The writer fills each slide's question
 and title, and each row's sentence and excerpt.
 
-`check` on a `.quick.json` reads the slides and rows against the period, the lengths, each excerpt against that
+`check` on a `.quick.json` reads the slides and rows against the period, the lengths (a row's sentence at most 25 words, with no count its row draws), each excerpt against that
 assistant's answers to a question of the row's topic, with any cut inside a sentence marked, the figures against the
 period's (`_allowed_figures`, the counts tied to a site or a competitor, all-or-nothing words), the words of the study
 and of the machine, and each slide's height. A quick deck that passes records its period (`history/reports.json`, above). It is never the

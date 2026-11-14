@@ -60,7 +60,7 @@ class DeckCase(InsightCase):
                                       "facts": "Il prezzo di Avenello è riportato bene?"},
                         "examples": examples},
             "found": {"title": "Chi cerca una bevanda all'avena trova Avoria", "block": "reach",
-                      "answers": {"reach": "Avoria compare in 1 risposta su 2, Avenello in 0 risposte su 2.",
+                      "answers": {"reach": "Chi chiede la bevanda migliore si sente indicare Avoria.",
                                   "description": "Le risposte su chi lavora da Avenello sono favorevoli.",
                                   "facts": "Una risposta su due riporta il prezzo di oggi."}},
             "actions_title": "La prima cosa da fare è pubblicare una pagina di confronto",
@@ -438,8 +438,6 @@ class CheckTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         figure = deck.build_model(*self.model_args(doc))["blocks"]["reach"]["figures"][0]
         doc["actions"][0]["why"] = f"Avenello compare in {figure['a']} risposte su {figure['b']}"
-        doc["found"]["answers"]["reach"] = f"Avoria compare in {dict(figure['rivals'])['Avoria']} risposte su {figure['b']}, " \
-                                           f"Avenello in {figure['a']} risposte su {figure['b']}."
         return doc
 
     def excerpt(self, doc, text, question=PRICE_Q, assistant="Acme Chat"):
@@ -463,8 +461,8 @@ class CheckTest(DeckCase, unittest.TestCase):
     def test_an_excerpt_names_an_assistant_of_the_period(self):
         self.assertIn("is not an assistant", self.problems(self.excerpt(self.filled(), OUTDATED[0], assistant="Nessuno")))
 
-    def test_an_excerpt_over_forty_words_is_refused(self):
-        self.assertIn("40 words", self.problems(self.excerpt(self.filled(), "parola " * 41)))
+    def test_an_excerpt_over_thirty_words_is_refused(self):
+        self.assertIn("30 words", self.problems(self.excerpt(self.filled(), "parola " * 31)))
 
     def test_an_excerpt_cut_inside_a_sentence_must_show_the_cut(self):
         self.ingest_market(9102, OCT[1], rows(price=((LONG, 2, []), CURRENT)))
@@ -804,8 +802,8 @@ class OpeningTest(DeckCase, unittest.TestCase):
     def test_it_says_how_to_read_a_figure_and_where_the_questions_are(self):
         opening = self.slide("opening")
         self.assertIn("I numeri contano risposte", opening)
-        self.assertIn("favorevole se è positiva per Avenello, sfavorevole se è negativa o non trova quello che il criterio chiede", opening)
-        self.assertIn("È il primo report", opening)
+        self.assertIn("favorevole se positiva per Avenello, sfavorevole se negativa o se manca quello che il criterio chiede", opening)
+        self.assertNotIn("primo report", opening)
         self.assertIn("Tutte le domande sono alla slide 10", opening)
 
     def test_the_opening_says_where_the_questions_come_from(self):
@@ -814,19 +812,11 @@ class OpeningTest(DeckCase, unittest.TestCase):
         self.assertIn("Le domande vengono dalle analisi su Avenello e dalle ricerche su Google", line)
         self.assertEqual(deck._origins_line({"origins": set(), "subject": "Avenello"}, t, "it"), "")
 
-    def test_the_answers_a_question_gives_are_counted_as_they_are(self):
-        t = deck.DECK["it"]
-        self.assertEqual(deck._spread([(9, 33)], t), "Ogni domanda ha 9 risposte")
-        self.assertEqual(deck._spread([(9, 33), (2, 5)], t), "33 domande hanno 9 risposte ciascuna e 5 domande hanno 2 risposte ciascuna")
-        self.assertEqual(deck._spread([(9, 30), (8, 1), (2, 5)], t),
-                         "30 domande hanno 9 risposte ciascuna, 1 domanda ha 8 risposte e 5 domande hanno 2 risposte ciascuna")
-        self.assertEqual(deck._spread([(9, 4), (8, 3), (7, 2), (2, 1)], t), "Ogni domanda ha tra 2 e 9 risposte")
-
     def test_questions_all_repeated_say_so_without_some(self):
         t = deck.DECK["en"]
         self.assertEqual(deck._reading_key({"totals": {"assistants": 3}, "spread": [(10, 12), (75, 13)],
                                             "method": [{"assistants": ["a", "b", "c"]}]}), "reading_answers_always")
-        self.assertIn("several times.", t["reading_answers_always"])
+        self.assertIn("several times to", t["reading_answers_always"])
         self.assertEqual(deck._reading_key({"totals": {"assistants": 3}, "spread": [(2, 5), (9, 33)],
                                             "method": [{"assistants": ["a", "b", "c"]}]}), "reading_answers")
         self.assertEqual(deck._reading_key({"totals": {"assistants": 1}, "spread": [(9, 33)],
@@ -876,34 +866,33 @@ class OpeningTest(DeckCase, unittest.TestCase):
     def test_the_chart_says_how_many_names_it_shows(self):
         t = deck.DECK["it"]
         f = {"a": 14, "b": 90, "rivals": [(f"R{i}", 40 - i) for i in range(8)], "rank": 9, "names": 11, "left_out": False, "project": None}
-        self.assertIn("posizione 9 su 11 nomi monitorati; qui i primi 4 e Avenello", deck._versus(f, "Avenello", t))
-        f = {**f, "a": 39, "rank": 2}
-        self.assertIn("posizione 2 su 11 nomi monitorati; qui i primi 5", deck._versus(f, "Avenello", t))
+        self.assertIn("Avenello: posizione 9 su 11 nomi monitorati.", deck._versus(f, "Avenello", t))
+        self.assertEqual(deck._versus(f, "Avenello", t).count('<div class="me">'), 1)
+        self.assertNotIn("qui i primi", deck._versus(f, "Avenello", t))
 
     def test_names_a_few_answers_apart_are_said_to_be_close(self):
         t = deck.DECK["it"]
         f = {"a": 39, "b": 180, "rivals": [("Avoria", 62), ("Oatfield", 37), ("Nordic", 36), ("Altro", 25)], "rank": 2,
              "names": 5, "left_out": False, "project": None}
-        self.assertIn("Nel confronto con Avenello, Oatfield ha 2 risposte in meno e Nordic 3 in meno: una nuova rilevazione "
-                      "può invertire l'ordine.", deck._versus(f, "Avenello", t))
+        self.assertIn("Con Oatfield (2 in meno) e Nordic (3 in meno) l'ordine può invertirsi.", deck._versus(f, "Avenello", t))
         far = {**f, "rivals": [("Avoria", 62), ("Altro", 25)]}
-        self.assertNotIn("Nel confronto con", deck._versus(far, "Avenello", t))
+        self.assertNotIn("invertirsi", deck._versus(far, "Avenello", t))
 
     def test_each_close_name_says_whether_it_has_more_answers_or_fewer(self):
         f = {"a": 39, "b": 180, "rivals": [("Avoria", 41), ("Oatfield", 38), ("Nordic", 39)], "rank": 2,
              "names": 4, "left_out": False, "project": None}
-        self.assertIn("Nel confronto con Avenello, Avoria ha 2 risposte in più, Oatfield 1 in meno e Nordic lo stesso numero:",
+        self.assertIn("Con Avoria (2 in più), Oatfield (1 in meno) e Nordic (stesso numero) l'ordine",
                       deck._versus(f, "Avenello", deck.DECK["it"]))
-        self.assertIn("Compared with Avenello, Avoria has 2 more answers, Oatfield 1 fewer and Nordic the same number:",
+        self.assertIn("With Avoria (2 more), Oatfield (1 fewer) and Nordic (same number) the order",
                       deck._versus(f, "Avenello", deck.DECK["en"]))
         one = {**f, "rivals": [("Oatfield", 38), ("Altro", 5)]}
-        self.assertIn("Nel confronto con Avenello, Oatfield ha 1 risposta in meno:", deck._versus(one, "Avenello", deck.DECK["it"]))
-        self.assertIn("Compared with Avenello, Oatfield has 1 fewer answer:", deck._versus(one, "Avenello", deck.DECK["en"]))
+        self.assertIn("Con Oatfield (1 in meno) l'ordine", deck._versus(one, "Avenello", deck.DECK["it"]))
+        self.assertIn("With Oatfield (1 fewer) the order", deck._versus(one, "Avenello", deck.DECK["en"]))
 
     def test_a_subject_named_in_no_answer_has_nobody_close_to_report(self):
         t = deck.DECK["it"]
         f = {"a": 0, "b": 90, "rivals": [("Avoria", 1)], "rank": 2, "names": 2, "left_out": False, "project": None}
-        self.assertNotIn("Nel confronto con", deck._versus(f, "Avenello", t))
+        self.assertNotIn("invertirsi", deck._versus(f, "Avenello", t))
 
     def test_every_count_stands_beside_its_bar(self):
         """A thin part of a bar has no room for its number: 12, 5 and 1 must all be readable."""
@@ -922,9 +911,6 @@ class OpeningTest(DeckCase, unittest.TestCase):
         self.assertNotIn("scala da 1 a 5", method)
         self.assertNotIn("4 o 5", method)
         self.assertIn("Concorrenti monitorati", method)
-
-    def test_each_card_says_which_assistants_answered(self):
-        self.assertIn("Assistenti: ", self.slide("opening"))
 
     def test_the_sources_show_the_subjects_pages_and_every_site_an_action_names(self):
         t = deck.DECK["it"]
@@ -946,10 +932,9 @@ class OpeningTest(DeckCase, unittest.TestCase):
                   "third_all": {"a.example": 5}, "third_naming": {"a.example": 2}, "owned_pages": []}
         m = {"blocks": {"reach": {"rows": [1], "sources": source}, "description": {"rows": [1], "sources": source},
                         "facts": {"rows": [], "sources": source}}}
-        page = deck._sources_table({"actions": []}, m, t, "Avenello")
+        page = deck._sources_table({"actions": [{"what": "Chiedere a a.example di aggiungere Avenello"}]}, m, t, "Avenello")
         self.assertEqual(page.count("a.example (5 risposte, 2 con Avenello)"), 1)
         self.assertIn("a.example (5)", page)
-        self.assertIn("quante nominano Avenello", page)
 
     def test_a_stray_line_on_a_last_page_of_questions_is_drawn_tighter(self):
         placed = [{"text": "Una domanda abbastanza corta?", "dimension": "Tema"} for _ in range(56)]
@@ -961,11 +946,11 @@ class OpeningTest(DeckCase, unittest.TestCase):
 
     def test_the_finding_answers_the_same_questions_in_the_same_order(self):
         found = self.slide("found")
-        self.assertLess(found.index("trova Avenello?"), found.index("cosa si sente dire?"))
-        self.assertIn("Avoria compare in 1 risposta su 2", found)
+        self.assertLess(found.index("Domande senza il nome di Avenello"), found.index("Domande su Avenello"))
+        self.assertIn("Chi chiede la bevanda migliore si sente indicare Avoria.", found)
 
-    def test_an_evidence_slide_carries_the_question_it_belongs_to(self):
-        self.assertIn('<div class="kicker">Chi cerca una bevanda senza fare nomi trova Avenello?</div>', self.slide("reach"))
+    def test_an_evidence_slide_carries_the_group_it_belongs_to(self):
+        self.assertIn('<div class="kicker">Domande senza il nome di Avenello</div>', self.slide("reach"))
 
     def test_the_list_of_questions_closes_the_deck(self):
         questions = self.slide("questions")
@@ -1269,16 +1254,6 @@ class OneRowExcerptsTest(DeckCase, unittest.TestCase):
 class LabelTest(unittest.TestCase):
     """Shown a label and one value under it, a reader can say what the value asserts."""
 
-    def test_every_part_of_the_spread_names_its_questions_and_answers(self):
-        cases = (("it", [(18, 33), (14, 14), (9, 1)],
-                  "33 domande hanno 18 risposte ciascuna, 14 domande hanno 14 risposte ciascuna e 1 domanda ha 9 risposte"),
-                 ("en", [(18, 33), (14, 14), (9, 1)],
-                  "33 questions have 18 answers each, 14 questions have 14 answers each and 1 question has 9 answers"),
-                 ("it", [(14, 1), (9, 1)], "1 domanda ha 14 risposte e 1 domanda ha 9 risposte"))
-        for lang, spread, line in cases:
-            with self.subTest(lang=lang, spread=spread):
-                self.assertEqual(deck._spread(spread, deck.DECK[lang]), line)
-
     def test_the_facts_card_says_its_answers_are_also_counted_in_the_other_columns(self):
         one = {"questions": [{}], "rows": [{"current": 10, "given": 64}]}
         self.assertEqual(deck._count_line("facts", one, deck.DECK["it"]), "1 domanda, 64 risposte, contate anche nelle altre colonne")
@@ -1418,15 +1393,13 @@ class DrawnLabelsTest(unittest.TestCase):
                 self.assertIn("<td>0</td></tr>", table)
                 self.assertNotIn(word, drawn + table)
 
-    def test_columns_that_overlap_carry_a_note(self):
+    def test_columns_that_overlap_carry_no_note(self):
+        """Each column counts its own answers; a note on how they add up is a sum the reader is not asked to make."""
         for lang, note in (("it", "Una risposta può citare più tipi di fonte"),
                            ("en", "An answer can cite more than one kind of source")):
             with self.subTest(lang):
-                t = deck.DECK[lang]
                 overlapping = _model(_sources(2, 1, 2, 3, [("guida.example", 2)]))
-                self.assertIn(note, deck._sources_table({"actions": []}, overlapping, t, "Avenello"))
-                apart = _model(_sources(1, 0, 2, 3, [("guida.example", 2)]))
-                self.assertNotIn(note, deck._sources_table({"actions": []}, apart, t, "Avenello"))
+                self.assertNotIn(note, deck._sources_table({"actions": []}, overlapping, deck.DECK[lang], "Avenello"))
 
 
 class NamesakeTest(unittest.TestCase):
@@ -1759,18 +1732,17 @@ class WhyThatSiteTest(DeckCase, unittest.TestCase):
         line = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"])
         self.assertIn("prezzi.example: citato da 1 delle", line)
 
-    def test_a_site_count_takes_the_base_of_the_reason_beside_it(self):
+    def test_a_site_count_takes_the_base_of_the_reason_beside_it_and_is_not_said_twice(self):
         doc = self.doc()
         doc["actions"][0]["why"] = "prezzi.example è citato da 1 delle 2 risposte sul prezzo."
         m = deck.build_model(*self.model_args(doc))
-        line = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"])
-        self.assertIn("prezzi.example: citato da 1 delle 2 risposte su «Quanto costa un litro di latte d'avena Avenello?».", line)
-        en = deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["en"])
-        self.assertIn("prezzi.example: cited by 1 of the 2 answers on «Quanto costa un litro di latte d'avena Avenello?».", en)
+        site, citing, total, _, label = deck._site_counts(doc["actions"][0], 1, doc, m)[0]
+        self.assertEqual((site, citing, total, label), ("prezzi.example", 1, 2, "Quanto costa un litro di latte d'avena Avenello?"))
+        self.assertEqual(deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"]), "")
 
     def test_a_reason_with_another_base_keeps_the_slide_count(self):
         doc = self.doc()
-        doc["actions"][0]["why"] = "prezzi.example è citato da 1 delle 4 risposte."
+        doc["actions"][0]["why"] = "prezzi.example è citato da 1 delle 3 risposte."
         m = deck.build_model(*self.model_args(doc))
         self.assertIn("prezzi.example: citato da 1 delle 4 risposte alle domande di questa slide.",
                       deck._why_site(doc["actions"][0], 1, doc, m, deck.DECK["it"]))
@@ -2165,7 +2137,7 @@ class ReaderWordsTest(DeckCase, unittest.TestCase):
         doc = self.filled()
         doc["actions_title"] = "La prima cosa da fare riguarda 0 risposte su 2"
         doc["actions"][0]["what"] = "Pubblicare una pagina su avenello.example per le 0 risposte su 2"
-        self.assertIn("appears 4 times", self.problems(doc))
+        self.assertIn("0 of 2 appears 3 times", self.problems(doc))
 
 
 def fullest(doc):

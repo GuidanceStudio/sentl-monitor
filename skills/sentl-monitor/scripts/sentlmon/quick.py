@@ -274,6 +274,35 @@ def _excerpts(doc, layout, by_answer, names):
     return problems
 
 
+def _drawn(row):
+    """The x of y a row draws: the answers naming the subject and those that do not, the competitors beside them, and
+    the favourable, neutral, unfavourable and namesake answers."""
+    pairs = set()
+    reach, rated = row.get("reach"), row.get("description")
+    if reach:
+        pairs |= {(reach["named"], reach["given"]), (reach["given"] - reach["named"], reach["given"])}
+        pairs |= {(n, reach["given"]) for _, n in reach.get("foils") or []}
+    if rated:
+        pairs |= {(n, rated["judged"]) for n in [*rated["bands"].values(), rated.get("namesake") or 0]}
+    return pairs
+
+
+def _restated(doc, layout):
+    """A row's sentence giving a count its row draws: the sentence is for what lies behind the figure."""
+    rows = {(p["key"], r["key"]): r for p in layout for r in p["rows"]}
+    problems = []
+    for n, slide in enumerate(_slides_of(doc), 2):
+        for filled in _rows_of(slide):
+            row = rows.get((slide.get("project"), filled.get("dimension")))
+            if row is None:
+                continue
+            drawn = _drawn(row)
+            problems += [f"slide {n} {filled.get('dimension')}.says says {a} of {b}, which its row draws: say what lies "
+                         "behind it" for part in deck.SENTENCE.split(str(filled.get("says") or ""))
+                         for _, _, a, b in deck._spans(part) if (a, b) in drawn]
+    return problems
+
+
 def _allowed(m, period):
     """The figures a text may cite: the full deck's, and the sites the last slide lists."""
     decimals, percents, pairs = deck._allowed_figures(m, period)
@@ -302,8 +331,12 @@ def problems_of(folder, study, period, doc, layout=True):
     for field, limit, text in texts:
         if len(text) > LIMITS[limit]:
             problems.append(f"{field} holds {len(text)} characters, at most {LIMITS[limit]}: {text[:60]!r}")
+        # A row's sentence is held to the full deck's ceiling for a reading; a slide's title keeps its own.
+        if limit == "read" and deck.words(text) > deck.WORD_LIMITS["read"]:
+            problems.append(f"{field} holds {deck.words(text)} words, at most {deck.WORD_LIMITS['read']}: {text[:60]!r}")
         if not text.strip():
             problems.append(f"{field} is empty")
+    problems += _restated(doc, plan)
     text = "\n".join(t for _, _, t in texts)
     allowed = _allowed(m, period)
     problems += [f"a word about how the deck was built appears: {w.group(0)}" for w in deck.UNSAID.finditer(text)]

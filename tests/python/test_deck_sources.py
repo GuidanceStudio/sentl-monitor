@@ -43,10 +43,11 @@ class SourcesSlideTest(unittest.TestCase):
         page = deck._sources_table({"actions": []}, model(source(THIRD, reviews)), deck.DECK["it"], "Avenello")
         self.assertIn("siti di recensioni: it.trustpilot.com, it.indeed.com (8)", page)
 
-    def test_on_the_questions_without_the_name_the_review_line_says_how_many_name_the_subject(self):
+    def test_the_review_line_gives_only_the_answers_citing_it(self):
         m = model(source(THIRD, REVIEWS, naming={"a.example": 1}), key="reach")
         page = deck._sources_table({"actions": []}, m, deck.DECK["it"], "Avenello")
-        self.assertIn("siti di recensioni: it.trustpilot.com, it.indeed.com (8 risposte, 2 con Avenello)", page)
+        self.assertIn("siti di recensioni: it.trustpilot.com, it.indeed.com (8)", page)
+        self.assertNotIn("con Avenello", page)
 
     def test_the_slide_says_which_sites_the_actions_are_about(self):
         doc = {"actions": [{"what": "Pubblicare su avenello.example una pagina sui prezzi"},

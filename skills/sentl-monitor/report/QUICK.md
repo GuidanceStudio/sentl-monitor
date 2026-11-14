@@ -26,8 +26,8 @@ the text in `reports/D.quick.json`, and you never change a figure the code draws
 |---|---|
 | `slides[].question` | The question the project answers, in the reader's words, ending with "?": "People looking for an oat drink without naming Avenello: which names do they find?". At most 120 characters |
 | `slides[].title` | What the slide's rows say together, in one declarative sentence: where the figures are high and where they are low, and the one thing behind it. At most two figures, 160 characters |
-| `rows[].says` | The fact behind the row's figure, from the answers. One sentence, at most 170 characters |
-| `rows[].excerpt` | `text`: one passage of one answer to a question of this topic, copied verbatim, at most 40 words; `question`: that question, as the figures file gives it; `assistant`: the assistant, as the figures file names it |
+| `rows[].says` | The fact behind the row's figure, from the answers. One sentence, at most 25 words and 170 characters |
+| `rows[].excerpt` | `text`: one passage of one answer to a question of this topic, copied verbatim, at most 30 words; `question`: that question, as the figures file gives it; `assistant`: the assistant, as the figures file names it |
 
 ## 1. Preflight
 
@@ -59,7 +59,7 @@ whole. Look for what the figure alone hides:
 
 ## 4. Write
 
-**`says`** gives the fact behind the figure, never the figure again: "The unfavourable answers are about the price of
+**`says`** gives one fact behind the figure, never the figure again (`check` refuses a count its row draws): "The unfavourable answers are about the price of
 the 1-litre carton; on the barista version all 9 answers are favourable." Cite only the figures the figures file holds,
 as they stand: the topic's, a question's, a competitor's count. `check` refuses any other count, and sums of your own. A
 count you read in the answers yourself has no place in the deck: say what the answers do without it. A figure an

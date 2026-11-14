@@ -407,9 +407,9 @@ def snapshot_deck(doc):
                                       "facts": "Do the answers give the price of Avenello right?"},
                         "examples": {"reach": ["recommendation-1"], "description": ["reputation-1"], "facts": ["price-1"]}},
             "found": {"title": "Shoppers who ask for an oat milk hear of Avoria and not of Avenello", "block": "reach",
-                      "answers": {"reach": "Avenello is named in 1 of the 2 answers, Avoria in 2 of 2.",
-                                  "description": "3 of the 6 answers about Avenello are favourable.",
-                                  "facts": "1 of the 2 answers gives the price of today."}},
+                      "answers": {"reach": "The answer that leaves Avenello out recommends Avoria instead.",
+                                  "description": "The favourable answers praise the taste of Avenello.",
+                                  "facts": "The other answer gives a rounded price."}},
             "actions_title": "The first thing to do is to get Avenello into the guide the answers cite",
             "actions": [{"class": "not_named", "what": "Ask guide.example to add Avenello to its oat milk guide",
                          "why": "Avoria is named in 2 of the 2 answers, Avenello in fewer",
@@ -493,18 +493,15 @@ class SnapshotDeckSlidesTest(SnapshotDeckCase):
         for lang in ("en", "it"):
             with self.subTest(lang):
                 t = deck.DECK[lang]
-                opening = deck._opening_slide(doc, m, t, lang, (9, 9))
-                self.assertIn(deck.esc(t["reading_once"]), opening)
-                self.assertNotIn(deck.esc(t["reading_first"]), opening)
+                self.assertNotIn("report", deck._opening_slide(doc, m, t, lang, (9, 9)).split("</h1>", 1)[1])
                 self.assertEqual(deck._actions_note(m, t), t["actions_note_once"])
-                for text in (t["reading_once"], t["actions_note_once"], t["close"]):
+                for text in (t["actions_note_once"], t["close"]):
                     self.assertNotIn("report", text)
 
     def test_a_monitored_deck_keeps_the_next_report(self):
         doc, m = self.model()
         m = {**m, "snapshot": False}
         t = deck.DECK["en"]
-        self.assertIn(deck.esc(t["reading_first"]), deck._opening_slide(doc, m, t, "en", (9, 9)))
         self.assertEqual(deck._actions_note(m, t), t["actions_note"])
 
     def test_the_rating_scale_is_explained_only_when_a_slide_uses_it(self):
@@ -512,9 +509,8 @@ class SnapshotDeckSlidesTest(SnapshotDeckCase):
         for blocks, used in ((["reach"], False), (["reach", "description"], True), (["reach", "facts"], True)):
             with self.subTest(blocks):
                 doc, m = self.model(blocks)
-                opening, method = deck._opening_slide(doc, m, t, "en", (9, 9)), deck._method(doc, m, t)
+                opening = deck._opening_slide(doc, m, t, "en", (9, 9))
                 self.assertEqual(t["reading_scores"].split(":")[0] in opening, used)
-                self.assertEqual(t["scores_title"] in method, used)
 
     def test_the_found_slide_of_one_block_fills_the_page_with_its_card_in_two_columns(self):
         from sentlmon import fit
