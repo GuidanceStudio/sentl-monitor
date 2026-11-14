@@ -172,6 +172,9 @@ def _parser():
     di.add_argument("file", help="the export file")
     action("summary", "print each theme's suggestions, volume per class and top queries, then each persona's "
                       "suggestions and the sources to watch")
+    dn = action("namesakes", "propose other organisations sharing the subject's name, from the suggestions and the "
+                             "answers ingested; writes nothing")
+    dn.add_argument("--seeds")
 
     v = command("validate", "check a designed study.json against Sentl's limits and the design rules")
     v.add_argument("--study", default=".")
@@ -316,6 +319,8 @@ def main(argv=None):
                 print(demand.merge_volumes(study, args.file, seeds))
             elif args.demand_command == "import":
                 print(demand.import_export(study, args.file, seeds, args.provider, args.tool, args.theme, args.date))
+            elif args.demand_command == "namesakes":
+                print(demand.namesakes(study, seeds))
             else:
                 print(demand.summary(study, seeds))
         elif args.command == "validate":

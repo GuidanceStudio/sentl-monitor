@@ -52,7 +52,9 @@ whole. Look for what the figure alone hides:
 - the question that pulls the topic's figure up or down, and what its answers say;
 - the names the answers give instead of the subject, and where they give the subject;
 - what the unfavourable answers are about, and whether they speak of the subject at all: an answer about a company with
-  the same name, an old name, another city, a product the subject does not sell;
+  the same name, an old name, another city, a product the subject does not sell. With namesakes recorded in
+  `study.json`, the bar already draws the answers about one as a part of its own, with its count: give that count where
+  it explains the row, and never write that the measure is unreliable;
 - a fact every answer repeats, such as a phone number, a price or a share, as the figures file states it.
 
 ## 4. Write

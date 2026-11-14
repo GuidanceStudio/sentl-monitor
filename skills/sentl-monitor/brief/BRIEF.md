@@ -38,6 +38,8 @@ Ask for, and write to `$S/seeds.json`:
 - the subject's label, kind (brand, category, method, organisation) and aliases, as people
   type them;
 - the foils it is measured against, each with its aliases;
+- where the subject is (its towns, regions, sites) and any other organisation that shares its
+  name (step 5 proposes candidates);
 - the components (an ingredient, a material, a technology), each with the terms people use for
   it;
 - the market: country and language;
@@ -158,11 +160,27 @@ the persona as without search evidence, and then the sources to watch on a line 
 A persona without search evidence stays in the inventory: some people ask an assistant what
 they never type into a search box. Tell the operator which personas have none.
 
+Then look for namesakes, other organisations with the subject's name, whose answers would be
+counted as answers about the subject:
+
+```bash
+python3 <skill>/scripts/monitor.py demand namesakes --study "$S"
+```
+
+It writes nothing. It lists the words that suggestions naming the subject add and the study never
+uses ("sofas", "shares" for a dairy brand), and, once runs are ingested, the cited sites named like
+the subject that it does not own, the pages of other sites carrying its name and the places the
+answers say it is based in. Show the list to the operator and ask which are another organisation.
+For each one they confirm, record a label and at least one marker: its `places`, `domains`,
+`products` and `listings` (address fragments of the pages listing it, such as a job site's company
+page). `design` writes them to `subject.namesakes` and the subject's places to `subject.places`.
+
 ## 6. Write `$S/brief.md`
 
 In the operator's language, with these sections:
 
-1. The subject: label, kind, aliases, foils, components, owned domains, market and language.
+1. The subject: label, kind, aliases, foils, components, owned domains, places, market and
+   language, and the namesakes with their markers, or the line that none was found.
 2. The theme inventory: one row for each theme, with its origin, the detail of the origin and
    its search demand.
 3. Search demand: a table of each theme's distinct suggestions and volume for each class, with

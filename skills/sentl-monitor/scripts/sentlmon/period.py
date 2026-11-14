@@ -3,10 +3,11 @@ and the material the report is written from."""
 
 import calendar
 import datetime as dt
+import re
 from collections import Counter, defaultdict
 
-from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, fmt_decimal, fmt_percent, first_mention, folded,
-                     is_owned, load_json, mean, parse_time, prose, public_name, require_language, write_json,
+from .common import (FIGURE_FLOOR, RUN_FLOOR, Refused, Study, domain_of, fmt_decimal, fmt_percent, first_mention,
+                     folded, is_owned, load_json, mean, parse_time, prose, public_name, require_language, write_json,
                      write_text)
 from . import schema
 from .ingest import resettle
@@ -113,6 +114,34 @@ def latest_criteria(runs, versions):
     return out, dropped
 
 
+# The addresses an answer's text cites: its links and bare addresses, and a numbered citation [n] read as its n-th source.
+_INLINE = re.compile(r"(?:https?://|www\.)[^\s<>\[\]\"'()]+", re.I)
+_NUMBERED = re.compile(r"\[(\d{1,3})\](?![(:])")
+
+
+def _cited_inline(answer, sources):
+    urls = [u.rstrip(".,;:!?*_") for u in _INLINE.findall(answer)]
+    return urls + [sources[int(n) - 1].get("url") or "" for n in _NUMBERED.findall(answer) if 0 < int(n) <= len(sources)]
+
+
+def _found(text, terms, domain=False):
+    """How many times the terms stand in a folded text, each on word boundaries; a domain also counts inside a longer
+    host (shop.example.com holds example.com)."""
+    edge = r"[\w-]" if domain else r"\w"
+    return sum(len(re.findall(rf"(?<!{edge}){re.escape(folded(t))}(?!{edge})", text)) for t in terms if folded(t))
+
+
+def _listed(url, listings):
+    """Whether an address holds one of the listings, the pages that list a namesake, ignoring case."""
+    url = folded(url)
+    return any(re.search(rf"(?<!\w){re.escape(folded(f))}(?![\w-])", url) for f in listings if folded(f))
+
+
+def _of_namesake(url, domain, namesake):
+    return bool(url or domain) and (is_owned(domain, namesake.get("domains") or [])
+                                    or _listed(url, namesake.get("listings") or []))
+
+
 class Reader:
     """Subject and foil lookup over answers, from the study as it stands now. A name counts in the answer's text as its
     reader reads it (`common.prose`); with `prose_only` false it counts anywhere in the answer, links included, as in the
@@ -123,6 +152,11 @@ class Reader:
         subject = study.get("subject") or {}
         self.aliases = subject.get("aliases") or []
         self.owned = subject.get("owned_domains") or []
+        self.places = subject.get("places") or []
+        self.namesakes = [n for n in subject.get("namesakes") or [] if isinstance(n, dict) and n.get("label")]
+        # The names a namesake shares with the subject (those its label holds) mark neither of them.
+        shared = {a for a in self.aliases for n in self.namesakes if first_mention(folded(n["label"]), [a]) is not None}
+        self.distinct = [a for a in self.aliases if a not in shared]
         self.foils = [f.get("aliases") or [] for f in study.get("foils") or []]
         self.foil_names = [(f.get("label") or f.get("id"), f.get("aliases") or []) for f in study.get("foils") or []]
         self.foil_domains = [(f.get("label") or f.get("id"), f["domains"]) for f in study.get("foils") or []
@@ -146,6 +180,53 @@ class Reader:
         """The labels of the foils an answer names."""
         text = self._text(answer)
         return [label for label, aliases in self.foil_names if first_mention(text, aliases) is not None]
+
+    def _alias_marks(self, text):
+        """The distinctive aliases standing in a folded text, the longest read first and none inside another."""
+        spans, found = [], 0
+        for alias in sorted(self.aliases, key=lambda a: -len(folded(a))):
+            for m in re.finditer(rf"(?<!\w){re.escape(folded(alias))}(?!\w)", text) if folded(alias) else ():
+                if not any(m.start() < end and start < m.end() for start, end in spans):
+                    spans.append((m.start(), m.end()))
+                    found += alias in self.distinct
+        return found
+
+    def namesake(self, answer, sources):
+        """The label of the namesake an answer to a question on the subject describes, or None when it is about the
+        subject (ARCHITECTURE.md, §Namesakes). Each side weighs its marks in the answer's text and in the addresses the
+        text cites: the subject its places, its distinctive aliases and its own sites; a namesake its places, products,
+        listings and sites. The heavier namesake wins over a lighter subject; on a tie the cited pages decide, and the
+        namesake needs more of its own pages among them than the subject has. An answer whose text bears no mark of a
+        namesake stays with the subject, whatever it cites."""
+        if not self.namesakes or not answer:
+            return None
+        text, cited = folded(prose(answer)), _cited_inline(answer, sources)
+        own = (_found(text, self.places) + self._alias_marks(text) + _found(text, self.owned, domain=True)
+               + sum(is_owned(domain_of(u), self.owned) for u in cited))
+        weights = []
+        for n in self.namesakes:
+            terms = [*(n.get("places") or []), *(n.get("products") or []), *(n.get("listings") or [])]
+            weights.append((_found(text, terms) + _found(text, n.get("domains") or [], domain=True)
+                            + sum(_of_namesake(u, domain_of(u), n) for u in cited), n))
+        best = max(w for w, _ in weights)
+        if not best or best < own:
+            return None
+        pages = [(sum(_of_namesake(s.get("url") or "", s.get("domain") or "", n) for s in sources), n)
+                 for w, n in weights if w == best]
+        most, top = max(pages, key=lambda p: p[0])
+        if best > own or most > sum(is_owned(s.get("domain") or "", self.owned) for s in sources):
+            return top["label"]
+        return None
+
+    def namesake_sentence(self, answer, label, sources=()):
+        """The first sentence of an answer's text holding a mark of the namesake `label`, in its words or in a numbered
+        citation of one of its pages, else its first sentence."""
+        n = next(x for x in self.namesakes if x["label"] == label)
+        terms = [*(n.get("places") or []), *(n.get("products") or []), *(n.get("listings") or []), *(n.get("domains") or [])]
+        sentences = [x.strip() for x in re.split(r"(?<=[.!?])\s+|\n+", prose(answer)) if x.strip()]
+        return next((x for x in sentences if _found(folded(x), terms)
+                     or any(_of_namesake(u, domain_of(u), n) for u in _cited_inline(x, list(sources)))),
+                    sentences[0] if sentences else "")
 
     def position(self, answer):
         """None when the subject is not named; else 1 + the foils named before it."""
@@ -180,7 +261,7 @@ def cell(responses, expected, reader):
             citing += any(is_owned(d, reader.owned) for d in found)
     coverage = len(judged) / expected if expected else None
     foils = Counter(label for r in given for label in reader.foils_named(r["answer"]))
-    return {
+    out = {
         "mean": mean(judged),
         "figure": coverage is not None and coverage >= FIGURE_FLOOR and bool(judged),
         "received": len(responses), "judged": len(judged), "expected": expected, "coverage": coverage,
@@ -197,6 +278,20 @@ def cell(responses, expected, reader):
         "authors": _authors(responses, reader),
         "foils": dict(sorted(foils.items(), key=lambda kv: (-kv[1], kv[0]))),
     }
+    if reader.namesakes:
+        out["namesakes"] = _namesake_cell(responses)
+    return out
+
+
+def _namesake_cell(responses):
+    """The answers about a namesake among `responses` (marked by `_period`): given, judged, their bands and the judged
+    ones by namesake. The cell's own figures still count them: the deck draws them apart."""
+    about = [r for r in responses if r.get("namesake")]
+    scores = [r["score"] for r in about if r["score"] is not None]
+    labels = Counter(r["namesake"] for r in about if r["score"] is not None)
+    return {"given": sum(r["answer"] is not None for r in about), "judged": len(scores),
+            "bands": {"1-2": sum(s <= 2 for s in scores), "3": sum(s == 3 for s in scores), "4-5": sum(s >= 4 for s in scores)},
+            "labels": dict(sorted(labels.items(), key=lambda kv: (-kv[1], kv[0])))}
 
 
 def _authors(responses, reader):
@@ -315,6 +410,11 @@ def _period(study, date, chosen, reader, versions):
         models = sorted({m for run in runs for m in run["plan"]["models"]})
         numbers = [r["version"] for r in runs if r["version"] is not None]
         layout = next((v for v in versions[key] if v["version"] == max(numbers, default=0)), versions[key][0])
+        if reader.namesakes:
+            # Only an answer to a question on the subject can describe a namesake in its place.
+            on_subject = {q["key"] for d in layout["dimensions"] for q in d["questions"] if reader.position(q["text"])}
+            responses = [{**r, "namesake": reader.namesake(r["answer"], r["sources"])}
+                         if r["question"] in on_subject else r for r in responses]
         block, asked = {"dimensions": {}}, []
         for d in (d for d in layout["dimensions"] if not d["archived"]):
             questions = [q for q in d["questions"] if _expected(runs, {q["key"]})]
@@ -324,8 +424,13 @@ def _period(study, date, chosen, reader, versions):
             entry = _scope(responses, runs, set(qkeys), models, reader)
             entry["questions"] = {q: _scope(responses, runs, {q}, models, reader) for q in qkeys}
             for q in questions:
-                _question_insights(entry["questions"][q["key"]], [r for r in responses if r["question"] == q["key"]],
-                                   runs, models, studied.get(q["key"]), q["text"], reader, lang)
+                mine = [r for r in responses if r["question"] == q["key"]]
+                _question_insights(entry["questions"][q["key"]], mine, runs, models, studied.get(q["key"]), q["text"],
+                                   reader, lang)
+                if reader.namesakes:
+                    entry["questions"][q["key"]]["namesake_answers"] = [
+                        {"run_id": r["run"], "response_id": r["response_id"], "namesake": r["namesake"]}
+                        for r in mine if r.get("namesake")]
             block["dimensions"][d["key"]] = entry
             asked.append({"key": d["key"], "name": d["name"],
                           "questions": [{"key": q["key"], "text": q["text"]} for q in questions]})
@@ -345,6 +450,8 @@ def _period(study, date, chosen, reader, versions):
         period["projects"][key] = block
     if starts:
         period["from"], period["to"] = min(starts, key=parse_time), max(starts, key=parse_time)
+    if reader.namesakes:
+        period["namesakes"] = reader.namesakes
     return period
 
 
@@ -553,7 +660,7 @@ def build(root, date, models_file=None):
     for proj in study["projects"]:
         kept = chosen[proj["key"]][0]
         if kept:
-            responses = [r for run in kept for r in run["responses"] if r["match"] != "unmatched"]
+            responses = [{**r, "run": run["run_id"]} for run in kept for r in run["responses"] if r["match"] != "unmatched"]
             material += _material(proj, current["asked"][proj["key"]], current["projects"][proj["key"]],
                                   responses, kept, names, reader, study.get("report_language") or "en")
     material += _changes_material(study, current, versions, names, lambda key, ref: next(
@@ -585,8 +692,12 @@ def _runs_of(period, key, run_of):
     return [(run_of(key, i), tuple(dropped.get(str(i), ()))) for i in period["runs"].get(key, [])]
 
 
-def _answers_to(runs, question, models=None):
-    return [r for run, gone in runs if question not in gone for r in run["responses"]
+def _answers_to(runs, question, models=None, about=None):
+    """The answers to a question in `runs`; with `about`, a question scope's `namesake_answers`, each answer about a
+    namesake carries its label as `namesake`."""
+    marked = {(a["run_id"], a["response_id"]): a["namesake"] for a in about or ()}
+    return [{**r, "namesake": marked[run["run_id"], r["response_id"]]} if (run["run_id"], r["response_id"]) in marked else r
+            for run, gone in runs if question not in gone for r in run["responses"]
             if r["question"] == question and r["match"] != "unmatched" and (models is None or r["model"] in models)]
 
 
@@ -800,10 +911,26 @@ def _fmt(value, lang):
 def _cell_line(c, lang):
     p = c["presence"]
     rate = f" ({fmt_percent(p['rate'])})" if p["rate"] is not None else ""
+    about = (c.get("namesakes") or {}).get("judged")
+    namesakes = c["namesakes"]["bands"] if about else None
     return (f"mean {_fmt(c['mean'], lang)} | figure {'yes' if c['figure'] else 'no'} | judged {c['judged']} of "
             f"{c['expected']} | bands 1-2:{c['bands']['1-2']} 3:{c['bands']['3']} 4-5:{c['bands']['4-5']} | "
-            f"subject named in {p['named']} of {_n_answers(p['given'])}{rate}, mean position {_fmt(p['position'], lang)}"
+            + (f"of the judged, about a namesake {about} (1-2:{namesakes['1-2']} 3:{namesakes['3']} 4-5:{namesakes['4-5']}), "
+               "which the deck draws apart from the rated answers | " if about else "")
+            + f"subject named in {p['named']} of {_n_answers(p['given'])}{rate}, mean position {_fmt(p['position'], lang)}"
             + (f", resting on {c['readings']} readings of {_n_answers(p['given'])}" if c["readings"] < p["given"] else ""))
+
+
+def _namesake_lines(reader):
+    """The namesakes the period tells apart, with the marks it reads, for the writer."""
+    if not reader.namesakes:
+        return []
+    out = ["Namesakes recorded: " + "; ".join(
+        n["label"] + " (" + ", ".join(f"{kind} " + ", ".join(n[kind]) for kind in ("places", "products", "domains", "listings")
+                                     if n.get(kind)) + ")" for n in reader.namesakes),
+           "An answer to a question on the subject that describes one of them instead is marked «about a namesake»: the "
+           "deck draws those answers as a part of their own, apart from the favourable, neutral and unfavourable ones."]
+    return out
 
 
 def _material(proj, dims, block, responses, runs, names, reader, lang):
@@ -813,7 +940,7 @@ def _material(proj, dims, block, responses, runs, names, reader, lang):
 
     out = [f"## Project {proj['name']}", "",
            "Each answer is between ~~~~ lines, exactly as Sentl returned it.",
-           f"Runs: {', '.join(str(r['run_id']) for r in runs)}",
+           f"Runs: {', '.join(str(r['run_id']) for r in runs)}", *_namesake_lines(reader),
            f"Project: {_cell_line(block['total'], lang)}", ""]
     for m, c in block["by_model"].items():
         out.append(f"- {name(m)}: {_cell_line(c, lang)}")
@@ -833,11 +960,19 @@ def _material(proj, dims, block, responses, runs, names, reader, lang):
             out += ["", f"#### Question: {q['text']}", f"names the subject: {names_subject}",
                     f"{_cell_line(e['questions'][q['key']]['total'], lang)}"]
             out += _foil_line(e["questions"][q["key"]]["total"])
+            marked = {(a["run_id"], a["response_id"]): a["namesake"]
+                      for a in e["questions"][q["key"]].get("namesake_answers") or []}
+            if marked:
+                labels = Counter(marked.values())
+                out.append(f"answers about a namesake: {len(marked)} ("
+                           + ", ".join(f"{label} {n}" for label, n in labels.most_common()) + ")")
             out += _question_lines(e["questions"][q["key"]], name, lang)
             for r in responses:
                 if r["question"] != q["key"]:
                     continue
                 score = "not judged" if r["score"] is None else f"score {r['score']}"
+                about = marked.get((r.get("run"), r["response_id"]))
+                score += f", about a namesake: {about}" if about else ""
                 out += ["", f"**{name(r['model'])}**, {score}, sources: "
                         + (", ".join(s["domain"] for s in r["sources"]) or "none"), "",
                         "~~~~", r["answer"] if r["answer"] is not None else "(no answer)", "~~~~"]

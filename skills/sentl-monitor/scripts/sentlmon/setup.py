@@ -105,7 +105,7 @@ def _settings_update(project, bound, saved, is_snapshot=False):
     return out
 
 
-def _questions(project, bound, saved):
+def _questions(project, bound, saved, study):
     """The save-project-questions-tool arguments. Every item the study holds keeps its Sentl id; a
     text that differs from Sentl's only by its normalization is sent as Sentl has it; a dimension
     the study dropped is sent archived, since one left out would be deleted."""
@@ -126,7 +126,7 @@ def _questions(project, bound, saved):
             qid = bound["questions"].get(q["key"])
             was = held.get(qid)
             text = was["question"] if was and norm(was["question"]) == norm(q["text"]) else q["text"]
-            entry = {"label": q["label"], "question": text, "grading_rubric": dict(q["rubric"]),
+            entry = {"label": q["label"], "question": text, "grading_rubric": design.compose_rubric(q, study),
                      "additional_instructions": _judge_text(q)}
             questions.append({"id": qid, **entry} if qid is not None else entry)
         item["questions"] = questions
@@ -175,7 +175,7 @@ def payload(root, key, models_file, saved_file=None, runs_file=None):
     update = _settings_update(project, bound, saved, is_snapshot)
     if update:
         out["update-project-settings-tool"] = update
-    arguments, left_out = _questions(project, bound, saved)
+    arguments, left_out = _questions(project, bound, saved, study)
     out["save-project-questions-tool"] = arguments
     out["notes"] = notes + left_out
     if is_snapshot and saved.get("schedule_frequency"):
@@ -216,7 +216,7 @@ def _check_latest_run(saved, run, project, latest):
                       + "\n  ".join(dict.fromkeys(lost)) + "\nSave get-project-tool's response again and rerun bind.")
 
 
-def _match(project, bound, saved):
+def _match(project, bound, saved, study):
     """(dimension key -> saved dimension, question key -> saved question, problems): the study's
     items found in the saved project, by the id bound before and otherwise by name or text."""
     by_id = {d["id"]: d for d in saved["dimensions"]}
@@ -248,7 +248,7 @@ def _match(project, bound, saved):
                 problems.append(f"question {q['key']} still has its earlier text in the saved project: the save "
                                 "did not apply")
             elif criteria_hash(sq.get("grading_rubric"), sq.get("additional_instructions")) != \
-                    criteria_hash(q["rubric"], _judge_text(q)):
+                    criteria_hash(design.compose_rubric(q, study), _judge_text(q)):
                 problems.append(f"question {q['key']} has another rubric or judge instructions in the saved "
                                 "project than in study.json: the save did not apply")
     return dims, questions, problems
@@ -351,7 +351,7 @@ def bind(root, key, saved_file, run_file=None):
 
     # A project just created holds no dimension: its ids are bound and its questions follow with the save.
     empty = not saved["dimensions"] and not bound["dimensions"]
-    dims, questions, problems = ({}, {}, []) if empty else _match(project, bound, saved)
+    dims, questions, problems = ({}, {}, []) if empty else _match(project, bound, saved, study)
     if problems:
         raise Refused("the saved project does not hold study.json:\n  - " + "\n  - ".join(problems)
                       + "\nSave the project again if it was changed after, or run the save that failed.")

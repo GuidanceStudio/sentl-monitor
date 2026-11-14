@@ -257,6 +257,12 @@ An amount in a sentence is a recorded fact or stands in an excerpt on the same s
 An action rests on at least three answers: one answer can stand in a `read`, and `check` refuses a reason written on one.
 The favourable figure counts the answers to the questions on the subject, so write "answers to questions on X", never
 "answers naming X": other answers name it too.
+When `study.json` records namesakes, the answers to those questions that describe one are drawn as a part of their own,
+with its count and the namesake's label, and the favourable, neutral and unfavourable parts count only the answers about
+the subject. The figures file gives the count per question under "Answers about a namesake", with the sentence of each
+answer that names it. Give that count where it bears on the finding ("8 of the 40 answers on jobs describe Avenello Arredi,
+a furniture maker in Borgoverde"), and never write that the measure is unreliable or wrong: the deck has already set those
+answers apart.
 
 ## 5. Write the text
 

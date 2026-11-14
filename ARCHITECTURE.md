@@ -177,7 +177,11 @@ share a label with a source to watch (exit 2).
   "schema": "sentl-monitor/study@1",
   "kind": "study",
   "subject": {"id": "avenello", "label": "Avenello", "kind": "brand",
-              "aliases": ["Avenello", "Avenello Oat"], "owned_domains": ["avenello.example"]},
+              "aliases": ["Avenello", "Avenello Oat"], "owned_domains": ["avenello.example"],
+              "places": ["Valdoria"],
+              "namesakes": [{"label": "Avenello Arredi", "places": ["Borgoverde"], "products": ["divani"],
+                             "domains": ["avenelloarredi.example"],
+                             "listings": ["lavoro.example/azienda/avenello-arredi"]}]},
   "foils": [{"id": "cow-milk", "label": "latte vaccino", "aliases": ["latte vaccino", "latte di mucca"]},
             {"id": "avoria", "label": "Avoria", "aliases": ["Avoria"], "domains": ["avoria.example"]}],
   "components": [{"id": "oat-drink", "label": "bevanda all'avena",
@@ -260,6 +264,14 @@ share a label with a source to watch (exit 2).
 - A fact may carry `current` and `outdated` terms, as answers write them; `period` counts the
   answers stating each (§Insights). A foil may carry `domains`, the sites it owns; a cited page
   on one of them, or on a subdomain, is the foil's.
+- `subject.places` (optional) lists where the subject is: its towns, regions, sites. `subject.namesakes`
+  (optional) lists other organisations sharing the subject's name, each a `label` (unique) and at least one
+  marker: `places`, `domains` (the sites it owns), `products` (what it makes or sells, as answers write it) and
+  `listings` (address fragments of the pages listing it on other sites, such as a job site's company page).
+  §Namesakes says how the markers are read. Without the field nothing changes. When a question names the
+  subject, the sentence of `NAMESAKE_ANCHOR` (in the market's language, English otherwise) is appended to its
+  rubric's anchor 1 as Sentl receives it (`compose_rubric`): an answer describing a namesake also rates 1.
+  `validate` counts it in the anchor's length; `bind` and the criteria hash compare the rubric as sent.
 
 **Sentl's limits, checked before any save:** dimension name and question label at most 100
 characters; question at most 500; each rubric anchor at most 300; judge instructions,
@@ -423,7 +435,8 @@ per cell `given`, `stating`, `current_only`, `outdated_only`, `both`, `current_s
 assistants, `by_model` and per run in `runs`), `group_sources` (per group, `outdated`, `current`,
 `low` or `high`, up to five domains, each with `citing`, `answers` and `share` in the group and
 the same under `other` for the opposite group), `presence_runs` (per run `named` of
-`given`, for a question naming no brand), `episodes` (`measure`, `first`, `last`, `first_at`, `last_at` (the start
+`given`, for a question naming no brand), `namesake_answers` (`run_id`, `response_id` and the `namesake`
+label of each answer about a namesake, §Namesakes), `episodes` (`measure`, `first`, `last`, `first_at`, `last_at` (the start
 times of the episode's first and last run), `runs`,
 `values`, `range`, `earlier`, `side`, `closed`, and on a closed episode `later`: the runs of the
 period after it whose value lies on its side of `range`, each `date` and `value`) and `missing`
@@ -480,7 +493,9 @@ their `rate`, and the mean `position`), `unstable_pairs` (question–model pairs
 in the period differ by two points or more), `domains` (domain → answers citing it) and
 `owned` (answers citing an owned domain out of the answers citing any). `names` maps each
 model of the period and of the periods compared with it to its public name, which the deck
-prints and its `check` needs to tell a name from a figure. A question's or a dimension's `mean` is the mean of its
+prints and its `check` needs to tell a name from a figure. When `study.json` records namesakes, each cell also
+carries `namesakes` (the answers about a namesake: `given`, `judged`, their `bands` and the judged ones per `labels`),
+and the period carries the `namesakes` it read; the cell's own figures still count those answers. A question's or a dimension's `mean` is the mean of its
 judged answers; a project's `mean` is the mean of its dimension means, the way Sentl
 computes a run's score (A4). A period rebuilt from a project's history carries
 `"rebuilt": true` and no comparison (see Periods).
@@ -561,6 +576,12 @@ makes a row a related search of the keyword it names), writes `volumes.json` and
 `volumes` does. A JSON file in the `volumes.json` shape is merged as it is. A volume that is
 not a whole number refuses the file (exit 2), and so does a theme absent from `seeds.json`; a
 refused file changes nothing.
+
+`monitor.py demand namesakes` proposes, for the operator to judge, other organisations sharing the subject's name: the
+words that suggestions naming the subject add and the study never uses, the cited sites named like the subject that it
+does not own, the pages of other sites whose address carries its name, and the places the answers say it is based in that
+`subject.places` does not hold. It reads `search-demand.json`, `seeds.json`, `study.json` and the runs ingested, skips
+the namesakes already recorded and writes nothing; the operator's choice goes to `subject.namesakes`.
 
 `monitor.py demand summary` prints, per theme, the distinct suggestions, the volume per
 class or none, and the top queries (by volume when there is one, else the first suggestions).
@@ -700,7 +721,8 @@ that run is not found (see Responses saved by the assistant), and the assistant 
 project again. Every question gets a key; every dimension a theme placeholder. The agent
 then asks the operator for what Sentl does not hold: purpose, research question, who asks
 and why, the origin of each dimension's themes, subject aliases, foils with their domains and
-owned domains, market and language, the deck's language (`report_language`), `report_every`, who wrote the criteria
+owned domains, the subject's places and its namesakes (`demand namesakes` proposes candidates once runs are ingested),
+market and language, the deck's language (`report_language`), `report_every`, who wrote the criteria
 and when, and for the questions whose facts carry a figure or a name (prices, fees, people in
 charge) the current and outdated terms.
 `list-runs-tool`, saved and read by `monitor.py runs`, names the latest completed run by start
@@ -1117,6 +1139,17 @@ the deck's writer reads.
   previous one, and the reverse, on the questions and models compared; the five cited by
   most answers in each list, ties broken by domain name.
 
+### Namesakes
+
+An answer to a question naming the subject is about a namesake when the marks of a namesake in its text, and the
+pages it cites inline, outweigh the subject's: a namesake's marks are its places, products and listings, its domains
+written in the text and the inline citations of its pages; the subject's are its places, the aliases no namesake's label
+holds, its domains in the text and inline citations of its own pages. On a tie the cited sources decide, and the
+namesake needs more of its pages among them than the subject has; an answer whose text holds no namesake mark is about
+the subject whatever it cites, so an answer that names a namesake only to tell it apart, beside the subject's own places
+and site, stays with the subject. The rule is `Reader.namesake` in `period.py`; it runs on answers to questions naming the
+subject only, and the questions naming no subject (reach) are left as they are.
+
 ### Coverage
 
 A run with fewer than 90% of its expected answers judged is left out of the period and
@@ -1161,7 +1194,11 @@ question that names no subject and scores a position in a debate.
 the names monitored. A figure alone misleads: 72 of 120 reads as weak and can be second of ten. A competitor the question
 itself names does not count on that question, because an assistant repeating a name it was given says nothing of who it
 finds. Description: favourable answers (a score of 4 or 5), x of y, drawn with the neutral and unfavourable parts; the deck
-draws no mean and never says "score", since a score means nothing to a reader who has not seen its criteria. Facts: answers
+draws no mean and never says "score", since a score means nothing to a reader who has not seen its criteria. When the
+period told answers about a namesake apart (§Namesakes), the favourable, neutral and unfavourable parts count the answers
+about the subject, and those about a namesake are a fourth part with its count and the namesake's label; y stays all the
+answers, so the parts still add to it. `check` accepts those counts, and the figures file lists the questions with such
+answers and the sentence of each that names the namesake. Facts: answers
 stating today's figure, x of y, one row per fact however many questions bring it out, with the fact's source and date, and the
 pages cited by the answers with an old figure and hardly ever by those with today's, by who wrote them: a site usually feeds
 both kinds of answer, so a site's count says nothing about where an old figure comes from. The facts chart draws no rating,

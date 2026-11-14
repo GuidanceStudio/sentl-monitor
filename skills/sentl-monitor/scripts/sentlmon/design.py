@@ -6,7 +6,7 @@ import copy
 import json
 
 from . import demand, schema
-from .adopt import AUDIENCES, ORIGIN_KINDS, criteria_hash, _terms
+from .adopt import AUDIENCES, ORIGIN_KINDS, criteria_hash, namesake_problems, _terms
 from .common import Refused, Study, fold, first_mention, folded, match_key, public_name, write_json, write_text
 
 DIMENSION_NAME, LABEL, QUESTION, ANCHOR, INSTRUCTIONS = 100, 100, 500, 300, 500
@@ -43,6 +43,45 @@ def compose_instructions(instructions, facts):
     if lines:
         parts.append("Facts: " + " ".join(lines))
     return " ".join(p for p in parts if p)
+
+
+# The sentence a question on the subject adds to anchor 1 of its rubric when the study records namesakes, in the
+# language the questions are asked in (English for another).
+NAMESAKE_ANCHOR = {"it": ("Vale 1 anche una risposta che descrive {labels} invece di {subject}.", "o"),
+                   "en": ("An answer that describes {labels} instead of {subject} also rates 1.", "or")}
+
+
+def compose_rubric(q, study):
+    """The rubric Sentl receives. On a question whose text names the subject, in a study recording namesakes, anchor 1
+    ends with the sentence saying that an answer describing a namesake rates 1, so the runs after the save rate those
+    answers alike. A rubric already holding the sentence is sent as it is."""
+    rubric = dict(q.get("rubric") or {})
+    subject = study.get("subject") or {}
+    labels = [n["label"] for n in subject.get("namesakes") or [] if isinstance(n, dict) and _text(n.get("label"))]
+    if not labels or not _text(rubric.get("1")) or first_mention(folded(q.get("text") or ""), subject.get("aliases") or []) is None:
+        return rubric
+    sentence, either = NAMESAKE_ANCHOR.get((study.get("market") or {}).get("language"), NAMESAKE_ANCHOR["en"])
+    listed = ", ".join(labels[:-1]) + f" {either} " + labels[-1] if len(labels) > 1 else labels[0]
+    sentence = sentence.format(labels=listed, subject=subject.get("label") or subject["aliases"][0])
+    if sentence not in rubric["1"]:
+        base = rubric["1"].rstrip()
+        rubric["1"] = base + ("" if base.endswith((".", "!", "?")) else ".") + " " + sentence
+    return rubric
+
+
+def namesake_anchor_problems(study):
+    """The anchors over Sentl's limit once the sentence on namesakes is added."""
+    out = []
+    for p in study.get("projects") or []:
+        for _, q in _questions(p):
+            rubric = q.get("rubric")
+            if not isinstance(rubric, dict) or not all(_text(v) for v in rubric.values()):
+                continue
+            composed = compose_rubric(q, study)
+            out += [f"{q.get('key')}: rubric anchor {a} is {len(text)} characters with the sentence on namesakes, over "
+                    f"Sentl's limit of {ANCHOR}" for a, text in sorted(composed.items())
+                    if text != rubric.get(a) and len(text) > ANCHOR]
+    return out
 
 
 def runs_per_period(project, report_every):
@@ -211,6 +250,7 @@ def problems_of(study, model_ids, recorded):
     if audience.get("choice") not in AUDIENCES or not _text(audience.get("reason")):
         problems.append(f"narrative.audience needs a choice ({', '.join(AUDIENCES)}) and a reason")
     subject = study.get("subject") or {}
+    problems += [f"{field}: {what}" for field, what in namesake_problems(subject)]
     aliases = list(subject.get("aliases") or [])
     for foil in study.get("foils") or []:
         aliases += foil.get("aliases") or []
@@ -221,6 +261,7 @@ def problems_of(study, model_ids, recorded):
         problems.append("the study has no project")
     for project in projects:
         _check_project(project, study, model_ids, audience.get("choice"), aliases, problems, warnings)
+    problems += namesake_anchor_problems(study)
     known = set().union(*recorded[0].values(), *recorded[1].values())
     problems += [unrecorded(q) for p in projects for _, q in _questions(p)
                  if _text(q.get("suggestion")) and folded(q["suggestion"]) not in known]
@@ -373,7 +414,8 @@ def question_lines(study):
                 if q.get("suggestion"):
                     out.append(f"- Google suggestion: {q['suggestion']}")
                 out.append("- rubric:")
-                out += [f"  {a}. {q['rubric'][a]}" for a in "12345"]
+                composed = compose_rubric(q, study)
+                out += [f"  {a}. {composed[a]}" for a in "12345"]
                 text = compose_instructions(q.get("instructions"), q.get("facts"))
                 out += [f"- judge instructions as Sentl receives them: {text or 'none'}", ""]
     return out
@@ -420,8 +462,8 @@ def review(root, models_file):
 
 # --- revision -----------------------------------------------------------------
 
-def _criteria(q):
-    return (criteria_hash(q.get("rubric"), q.get("instructions")), json.dumps(q.get("facts") or [], sort_keys=True))
+def _criteria(q, study):
+    return (criteria_hash(compose_rubric(q, study), q.get("instructions")), json.dumps(q.get("facts") or [], sort_keys=True))
 
 
 def _index(study):
@@ -468,7 +510,7 @@ def revise(old, new, new_intent=()):
                 if match_key(q["text"]) != match_key(was["text"]):
                     lineage.append({"version": number, "change": "reworded"})
                     changes.append(f"{q['key']} reworded: «{was['text']}» → «{q['text']}»")
-                if _criteria(q) != _criteria(was):
+                if _criteria(q, new) != _criteria(was, old):
                     lineage.append({"version": number, "change": "criteria"})
                     changes.append(f"{q['key']}: rubric, judge instructions or facts changed")
                 q["lineage"] = lineage

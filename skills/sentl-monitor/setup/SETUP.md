@@ -138,6 +138,10 @@ from Sentl, `save-project-questions-tool` with every dimension and question and 
 
 1. **Settings.** When `update-project-settings-tool` is there, show what it changes and ask for
    the go; then call it with exactly its arguments. It never sets `is_active`.
+   With `subject.namesakes` in `study.json`, the rubric of each question naming the subject carries,
+   at anchor 1, the sentence that an answer describing a namesake also rates 1: a project set up
+   before the namesakes were recorded shows those questions as changed. Say so to the operator;
+   the change goes to Sentl only through the steps below, each on their go.
 2. **Dry run.** Show the questions to be created, changed and archived, then ask for the go to
    call `save-project-questions-tool` with its arguments and `dry_run: true`. Save the response
    to `$S/inbox/dry-run-<key>.json` and show the operator what it lists as created, updated,

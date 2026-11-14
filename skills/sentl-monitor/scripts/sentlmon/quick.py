@@ -149,7 +149,10 @@ def _plan(layout, m, lang):
             if row["description"]:
                 r = row["description"]
                 shown.append(", ".join(f"{word} {r['bands'][band]} {of} {r['judged']}" for word, band in
-                                       (("favourable", "4-5"), ("neutral", "3"), ("unfavourable", "1-2"))))
+                                       (("favourable", "4-5"), ("neutral", "3"), ("unfavourable", "1-2")))
+                             + (f", about a namesake {r['namesake']} {of} {r['judged']} ("
+                                + ", ".join(f"{label} {n}" for label, n in r["namesakes"].items()) + ")"
+                                if r.get("namesake") else ""))
             out.append(f"- {d} ({row['name']}): {'; '.join(shown)}")
             out += [f"  - «{text}»" for text in row["questions"]]
         out.append("")
@@ -363,10 +366,11 @@ def _figures_html(row, m, t, q):
                    f'{deck._meter(reach["named"], reach["given"])}<div class="q-lab">{esc(label)}</div></div>')
     rated = row.get("description")
     if rated:
-        bands, judged = rated["bands"], rated["judged"]
+        bands, judged, other = rated["bands"], rated["judged"], rated.get("namesake") or 0
         label = q["bands_fidelity" if m.get("fidelity") else "bands"].format(mid=bands["3"], bad=bands["1-2"])
+        label += f' · {q["bands_namesake"].format(n=other)}' if other else ""
         out.append(f'<div class="q-fig"><div class="q-n">{bands["4-5"]} <span>{esc(t["of"])} {judged}</span></div>'
-                   f'{deck._bar([(bands["4-5"], "good"), (bands["3"], "mid"), (bands["1-2"], "low")])}'
+                   f'{deck._bar([(bands["4-5"], "good"), (bands["3"], "mid"), (bands["1-2"], "low"), (other, "namesake")])}'
                    f'<div class="q-lab">{esc(label)}</div></div>')
     return "".join(out)
 

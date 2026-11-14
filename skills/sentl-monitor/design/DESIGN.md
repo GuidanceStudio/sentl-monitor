@@ -108,6 +108,11 @@ A fact is read from a primary source and dated the day it was read; a statement 
 answer is not a fact. `monitor.py` composes Sentl's `additional_instructions` from the
 instructions and the facts.
 
+Copy the subject's places and namesakes from `brief.md` into `subject.places` and
+`subject.namesakes`. Do not write the namesakes into the rubrics: on a question naming the
+subject, `monitor.py` adds to anchor 1 the sentence that an answer describing a namesake, by its
+label, also rates 1, and `validate` counts that sentence in the anchor's 300 characters.
+
 ## 8. Narrative
 
 Write `narrative`: the research question (neutral: what is monitored, never one valence of it),

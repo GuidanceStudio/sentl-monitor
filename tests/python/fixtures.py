@@ -142,6 +142,11 @@ MARKET_DIMS = [(31, "Prezzo", [(801, PRICE_Q)]), (32, "Scelta", [(802, CHOICE_Q)
 QUESTION_DIM = {PRICE_Q: "Prezzo", CHOICE_Q: "Scelta", WORK_Q: "Lavoro"}
 PRICE_TERMS = {"current": ["2,10 €"], "outdated": ["1,90 €"]}
 AVORIA = {"id": "avoria", "label": "Avoria", "aliases": ["Avoria"], "domains": ["avoria.example"]}
+# A furniture maker sharing the subject's name, with its own town, products, site and job-site page; the subject is
+# made in Valdoria.
+NAMESAKE = {"label": "Avenello Arredi", "places": ["Borgoverde"], "products": ["divani", "arredamento"],
+            "domains": ["avenelloarredi.example"], "listings": ["lavoro.example/azienda/avenello-arredi"]}
+HOME = ["Valdoria"]
 
 
 def market_project(rounds=1):

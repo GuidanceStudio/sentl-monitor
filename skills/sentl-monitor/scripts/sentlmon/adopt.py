@@ -16,6 +16,12 @@ QUESTIONS_FOR_THE_OPERATOR = [
     ("narrative.audience", '{"choice": one of ' + ", ".join(AUDIENCES) + ', "reason": "..."}'),
     ("narrative.criteria", '{"by": who wrote the rubrics, "date": "YYYY-MM-DD"}'),
     ("subject.label, subject.aliases, subject.owned_domains", "the subject as answers name it, and its websites"),
+    ("subject.places", '["..."], the towns or regions the subject is based in, as answers write them (optional)'),
+    ("subject.namesakes", '[{"label": "...", "places": ["..."], "domains": ["..."], "products": ["..."], '
+                          '"listings": ["..."]}], other organisations sharing the subject\'s name, each with what marks '
+                          "it in an answer: where it is, its sites, what it makes or sells and any name of its own, and "
+                          "the pages that list it (a stock-exchange listing, a job site's company page); "
+                          "`demand namesakes` proposes candidates (optional)"),
     ("foils", '[{"id": "...", "label": "...", "aliases": ["..."], "domains": ["..."]}], competitors or alternatives '
               "and the websites they own (optional)"),
     ("market", '{"country": ISO 3166 code such as "IT" or "GB", "language": ISO 639 code such as "it" or "en"}'),
@@ -34,6 +40,34 @@ def criteria_hash(rubric, instructions):
 def _terms(value):
     """A list of non-empty strings, as foil domains and fact terms must be."""
     return isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
+
+
+NAMESAKE_MARKERS = ("places", "domains", "products", "listings")
+
+
+def namesake_problems(subject):
+    """(field, what is wrong) for the subject's places and namesakes; both are optional."""
+    out = []
+    if "places" in subject and not _terms(subject["places"]):
+        out.append(("subject.places", "a list of the places the subject is based in, each a non-empty text"))
+    namesakes = subject.get("namesakes")
+    if namesakes is None:
+        return out
+    if not isinstance(namesakes, list) or not all(isinstance(n, dict) for n in namesakes):
+        return out + [("subject.namesakes", "a list of namesakes, each with a label and its markers")]
+    labels = set()
+    for n, entry in enumerate(namesakes):
+        where = f"subject.namesakes[{n}]"
+        label = entry.get("label")
+        if not isinstance(label, str) or not label.strip() or label.strip().casefold() in labels:
+            out.append((f"{where}.label", "a label of its own, as the deck names the namesake"))
+        else:
+            labels.add(label.strip().casefold())
+        out += [(f"{where}.{kind}", f"a list of {kind}, each a non-empty text")
+                for kind in NAMESAKE_MARKERS if kind in entry and not _terms(entry[kind])]
+        if not any(entry.get(kind) for kind in NAMESAKE_MARKERS):
+            out.append((f"{where}.markers", "a namesake needs at least one place, domain, product or listing"))
+    return out
 
 
 def missing_answers(study):
@@ -55,6 +89,7 @@ def missing_answers(study):
         missing.append("subject.label")
     if not subject.get("aliases"):
         missing.append("subject.aliases")
+    missing += [field for field, _ in namesake_problems(subject)]
     market = study.get("market") or {}
     if not market.get("country") or not market.get("language"):
         missing.append("market")

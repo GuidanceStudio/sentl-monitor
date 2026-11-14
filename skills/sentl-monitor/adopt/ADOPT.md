@@ -99,6 +99,14 @@ the deck as written, so they are written in the deck's language:
   domains. **Foils**: competitors or alternatives, each `{"id", "label", "aliases",
   "domains"}`, if the decks should say who is named before the subject; `domains` are the
   sites the competitor owns, so the deck can say which cited pages it wrote.
+- **Where the subject is and its namesakes**: `subject.places` (towns, regions, sites) and
+  `subject.namesakes`, other organisations with the subject's name, each `{"label", "places",
+  "domains", "products", "listings"}` with at least one marker. Run
+  `python3 <skill>/scripts/monitor.py demand namesakes --study "$S"` once the run is ingested: it
+  proposes the cited sites named like the subject that it does not own, the pages of other sites
+  carrying its name and the places the answers say it is based in. The operator decides which
+  are another organisation. Answers that describe one are then counted apart in the decks, and
+  the rubrics of the questions naming the subject rate them 1 on the next `setup`.
 - **Facts that carry a figure or a name** (a price, a fee, the person in charge), for each
   question whose rubric or judge instructions state one: a `facts` list under that question in
   `study.json`, each `{"fact", "source", "date", "current": [...], "outdated": [...]}`, the

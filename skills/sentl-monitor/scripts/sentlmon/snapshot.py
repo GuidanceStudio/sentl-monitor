@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from . import demand, design, schema
+from .adopt import namesake_problems
 from .common import (FINAL, Refused, Study, folded, load_json, match_key, now_iso, passed_deck, public_name,
                      write_json, write_text)
 
@@ -114,10 +115,12 @@ def problems_of(study, model_ids, recorded, ids=None):
             problems.append(f"narrative.{field} is missing")
     rationale = {match_key(c.get("choice")) for c in narrative.get("design_rationale") or [] if isinstance(c, dict)}
     subject = study.get("subject") or {}
+    problems += [f"{field}: {what}" for field, what in namesake_problems(subject)]
     aliases = list(subject.get("aliases") or [])
     for foil in study.get("foils") or []:
         aliases += foil.get("aliases") or []
     projects = study.get("projects") or []
+    problems += design.namesake_anchor_problems(study)
     if len(projects) != 1:
         problems.append(f"a snapshot has one project; study.json lists {len(projects)}")
     for project in projects[:1]:

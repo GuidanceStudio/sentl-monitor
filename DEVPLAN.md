@@ -1348,16 +1348,16 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** each fix has a test, the full suite passes, and a trial deck redrawn from a copy of a real three-project period shows them.
 
-## M35: Answers about a namesake are counted apart 🔄
+## M35: Answers about a namesake are counted apart ✅
 
 **Why:** in one deck many answers to questions on the subject described another company with the same name (a listed company elsewhere, a furniture maker), and the ratings counted them among the favourable ones. The deck then told the reader the measure could not be trusted. Any subject whose name another company shares has this problem. Approved 2026-11-14.
 
 **Tasks:**
-- [ ] T1 `study.json` records `subject.namesakes`: each with a label and the markers that identify it in an answer or a cited page (place, domain, product, listing). `schema` validates it; `adopt` and `brief` ask the operator for namesakes, and `brief` looks for them in the search suggestions and in a probe of the answers.
-- [ ] T2 `period` marks an answer that describes a namesake (its markers in the answer or its cited domains) and counts those answers per question, dimension, project and model; the material and the figures file show the count and the excerpts.
-- [ ] T3 The deck's favourable figure counts only the answers about the subject: the bar gets a part of its own for the answers about a namesake, with its count and label; the description rows, cards and tables do the same, and `check` accepts those counts. DECK.md: the writer gives the count, never says the measure is wrong.
-- [ ] T4 `design` writes into the rubric of a question on the subject that an answer describing a namesake rates 1, so later runs agree; `setup` saves it on the operator's go.
-- [ ] T5 Tests on a fixture with a namesake; a copy of a real period redrawn with its namesakes recorded.
+- [x] T1 `study.json` records `subject.namesakes`: each with a label and the markers that identify it in an answer or a cited page (place, domain, product, listing). `schema` validates it; `adopt` and `brief` ask the operator for namesakes, and `brief` looks for them in the search suggestions and in a probe of the answers.
+- [x] T2 `period` marks an answer that describes a namesake (its markers in the answer or its cited domains) and counts those answers per question, dimension, project and model; the material and the figures file show the count and the excerpts.
+- [x] T3 The deck's favourable figure counts only the answers about the subject: the bar gets a part of its own for the answers about a namesake, with its count and label; the description rows, cards and tables do the same, and `check` accepts those counts. DECK.md: the writer gives the count, never says the measure is wrong.
+- [x] T4 `design` writes into the rubric of a question on the subject that an answer describing a namesake rates 1, so later runs agree; `setup` saves it on the operator's go.
+- [x] T5 Tests on a fixture with a namesake; a copy of a real period redrawn with its namesakes recorded.
 
 **Done when:** a period with namesake answers draws them apart, with the favourable figure on the subject's answers alone.
 

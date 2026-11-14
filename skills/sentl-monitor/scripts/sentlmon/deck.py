@@ -229,6 +229,7 @@ td.class { font-weight: 700; }
 .rows { display: grid; column-gap: 18px; row-gap: 9px; align-items: center; font-size: 17px; line-height: 1.25; }
 .reach-rows { grid-template-columns: 290px 1fr 84px 340px; }
 .description-rows { grid-template-columns: 370px 1fr 92px 70px 92px; }
+.description-rows.namesakes { grid-template-columns: 330px 1fr 92px 70px 92px 92px; }
 .facts-rows { grid-template-columns: 340px 1fr 92px 84px 84px; }
 .rows small { display: block; font-size: 13px; line-height: 1.25; color: var(--sl-muted); }
 .long { font-size: 15px; }
@@ -248,6 +249,7 @@ td.class { font-weight: 700; }
 .good { background: var(--sl-good); color: #fff; }
 .mid { background: var(--sl-mid); color: var(--sl-text); }
 .low { background: var(--sl-bad); color: #fff; }
+.namesake { background: repeating-linear-gradient(135deg, var(--sl-rival) 0 2px, #fff 2px 5px); color: var(--sl-text); }
 .meter { height: 28px; background: var(--sl-line); border-radius: 4px; overflow: hidden; }
 .meter span { display: block; height: 100%; background: var(--sl-primary); border-radius: 0 4px 4px 0; }
 .meter span.rival { background: var(--sl-rival); }
@@ -321,12 +323,24 @@ def _rivals(items, reader):
     return counts, left_out
 
 
+def _subject_bands(cell):
+    """A cell's bands on the answers about the subject: those about a namesake (`period`) are drawn apart."""
+    apart = (cell.get("namesakes") or {}).get("bands") or {}
+    return {k: n - apart.get(k, 0) for k, n in cell["bands"].items()}
+
+
 def _row(project, dimension, label, items, reader):
+    """A row of a chart. Its bands count the answers about the subject, and `namesake` those about a namesake: together
+    they add up to `judged`, all the rated answers."""
     cells = [scope["total"] for _, scope in items]
     rivals, left_out = _rivals(items, reader)
+    namesakes = Counter()
+    for c in cells:
+        namesakes.update((c.get("namesakes") or {}).get("labels") or {})
     return {"project": project, "dimension": dimension, "label": label, "judged": sum(c["judged"] for c in cells),
             "named": sum(c["presence"]["named"] for c in cells), "given": sum(c["presence"]["given"] for c in cells),
-            "bands": {k: sum(c["bands"][k] for c in cells) for k in ("1-2", "3", "4-5")},
+            "bands": {k: sum(_subject_bands(c)[k] for c in cells) for k in ("1-2", "3", "4-5")},
+            "namesake": sum(namesakes.values()), "namesakes": dict(namesakes.most_common()),
             "foils": sorted(rivals.items(), key=lambda kv: (-kv[1], kv[0]))[:3], "rivals": rivals, "left_out": left_out}
 
 
@@ -378,7 +392,7 @@ def _fact_row(project, dimension, question, scope, responses=()):
     return {"project": project, "dimension": dimension, "key": question["key"], "label": question["text"],
             "fact": _fact_name(question), "source": last.get("source"), "date": last.get("date"), "given": c["given"],
             "current": c["current_only"] + c["both"], "both": c["both"], "outdated": c["outdated_only"], "silent": c["given"] - c["stating"],
-            "judged": total["judged"], "bands": dict(total["bands"]), "sites": _sites_by_term(question, responses),
+            "judged": total["judged"], "bands": _subject_bands(total), "sites": _sites_by_term(question, responses),
             "claims": len(question.get("facts") or []), "terms": fact_terms(question)}
 
 
@@ -412,11 +426,13 @@ def _measure(key, row):
 
 
 def _parts(key, rows):
-    """The parts of a block's figure as its bar draws them."""
+    """The parts of a block's figure as its bar draws them: the answers about a namesake are a part of their own."""
     if key == "facts":
         return [(sum(r["current"] for r in rows), "good"), (sum(r["outdated"] for r in rows), "low"),
                 (sum(r["silent"] for r in rows), "mid")]
-    return [(sum(r["bands"][band] for r in rows), kind) for band, kind in (("4-5", "good"), ("3", "mid"), ("1-2", "low"))]
+    apart = sum(r.get("namesake") or 0 for r in rows)
+    return [(sum(r["bands"][band] for r in rows), kind) for band, kind in (("4-5", "good"), ("3", "mid"), ("1-2", "low"))
+            ] + ([(apart, "namesake")] if apart else [])
 
 
 def _block_figures(key, rows, same_audience, names=0):
@@ -504,7 +520,8 @@ def _counted(study, period, doc):
             for q in d["questions"]:
                 scope = part["dimensions"][d["key"]]["questions"][q["key"]]
                 block = moved.get(q["key"]) or _block(study, reader, q["text"])
-                out[block, q["key"]] = (name, asked, *_measure(block, {**scope["total"], **scope["total"]["presence"]}))
+                out[block, q["key"]] = (name, asked, *_measure(block, {**scope["total"], **scope["total"]["presence"],
+                                                                      "bands": _subject_bands(scope["total"])}))
                 facts = None if _later_record(study, q) else scope.get("facts")
                 if facts and (block == "description" or facts["total"]["stating"]):
                     c = facts["total"]
@@ -578,7 +595,7 @@ def build_model(folder, study, period, doc=None):
                 reach = block == "reach"
                 counted[q["key"]] = scope["total"]["presence"]["given"] if reach else scope["total"]["judged"]
                 by_block[block] += counted[q["key"]]
-                answers_of[q["key"]] = _answers_to(runs, q["key"])
+                answers_of[q["key"]] = _answers_to(runs, q["key"], about=scope.get("namesake_answers"))
                 blocks[block]["responses"] += [r for r in answers_of[q["key"]] if reach or r["score"] is not None]
                 if facts and (block == "description" or facts["total"]["stating"]):
                     blocks["facts"]["questions"].append(_fact_row(name, d["name"], q, scope, _answers_to(runs, q["key"])))
@@ -616,6 +633,8 @@ def build_model(folder, study, period, doc=None):
             "snapshot": study.get("kind") == "snapshot",
             "fidelity": narrative.get("score_axis") == "fidelity", "second": _second(folder, study, period, doc),
             "aliases": (study.get("subject") or {}).get("aliases") or [],
+            # The namesakes the period told apart, as it recorded them.
+            "namesakes": period.get("namesakes") or [],
             "totals": {"questions": sum(r["questions"] for r in method), "assistants": len(assistants),
                        "answers": sum(r["answers"] for r in method),
                        "by_block": {b: by_block[b] for b in ("reach", "description")}}}
@@ -685,8 +704,10 @@ def _plan(m, study, date, lang):
         return f"{a} {t['of']} {b}"
 
     def rated(row):
+        apart = (f", about a namesake {of(row['namesake'], row['judged'])} ("
+                 + ", ".join(f"{label} {n}" for label, n in row["namesakes"].items()) + ")" if row.get("namesake") else "")
         return (f"favourable {of(row['bands']['4-5'], row['judged'])}, neutral {of(row['bands']['3'], row['judged'])}, "
-                f"unfavourable {of(row['bands']['1-2'], row['judged'])}")
+                f"unfavourable {of(row['bands']['1-2'], row['judged'])}{apart}")
     out = [f"# Figures of the deck of {date}", "",
            "What the deck draws. The text may cite these figures as they stand here, and the figures of the sections "
            "that follow. Each question shows its block and its key. Favourable is a score of 4 or 5, neutral 3, unfavourable "
@@ -748,6 +769,7 @@ def _plan(m, study, date, lang):
                 f"other sites cited most: {counted(s['third_domains']) if key == 'reach' else listed(s['third_domains'], True)}",
                 "other pages cited most: " + ", ".join(f"{p} ({n})" for p, n in s["third_pages"]),
                 f"competitors' domains cited most: {listed(s['foil_domains'])}", ""]
+    out += _namesake_plan(m, of)
     if m["replaced"]:
         out += ["## Facts a later record replaces", "",
                 "These questions count by rating, in their block. Their terms no longer say what is current: never write one "
@@ -770,6 +792,26 @@ def _plan(m, study, date, lang):
         out += [f"{n}. {a['what']}. Figure then: {a['then']}" for n, a in enumerate(second["actions"], 1)]
         out.append("")
     return out
+
+
+def _namesake_plan(m, of, shown=2):
+    """The answers about a namesake, question by question, with the sentence of a few that marks the namesake."""
+    rows = [r for r in m["blocks"]["description"]["questions"] if r.get("namesake")]
+    if not rows:
+        return []
+    reader = Reader({"subject": {"namesakes": m["namesakes"]}})
+    out = ["## Answers about a namesake", "",
+           "Answers to a question on the subject that describe another organisation with its name. The deck draws them as a "
+           "part of the bar of their own, apart from the favourable, neutral and unfavourable answers, which count the answers "
+           "about the subject; all the answers stay the base of every x of y. Give their count where the reader needs it, "
+           "and never write that the measure is wrong or unreliable.", ""]
+    for row in rows:
+        out.append(f"- {row['key']} «{row['label']}»: {of(row['namesake'], row['judged'])} about a namesake ("
+                   + ", ".join(f"{label} {n}" for label, n in row["namesakes"].items()) + ")")
+        about = [r for r in m["answers_of"][row["key"]] if r.get("namesake") and r["score"] is not None]
+        out += [f"  - {_assistant(r['model'], m['names'])}: «{reader.namesake_sentence(r['answer'], r['namesake'], r.get('sources') or ())}»"
+                for r in about[:shown]]
+    return out + [""]
 
 
 def _without_answers(material):
@@ -994,7 +1036,7 @@ def _drawn(key, block, slide):
         seen |= {(n, f["b"]) for f in block["figures"] for _, n in f.get("rivals") or []}
     for row in rows + [r for r in block["rows"] if set(_dimensions(r)) & dimensions]:
         seen.add(_measure(key, row))
-        seen |= {(n, row["judged"]) for n in row["bands"].values()} if key != "facts" else set()
+        seen |= {(n, row["judged"]) for n in [*row["bands"].values(), row.get("namesake") or 0]} if key != "facts" else set()
         seen |= {(n, row["given"]) for _, n in row.get("foils") or []}
         seen |= {(row.get(part), row["given"]) for part in ("outdated", "silent")}
         seen |= {(n, row.get("outdated")) for _, n in _pages_shown(row)}
@@ -1422,7 +1464,7 @@ def _allowed_figures(m, period):
         _ratio(*pooled, percents, pairs)
         for row in block["rows"] + block["questions"]:
             _ratio(*_measure(key, row), percents, pairs)
-            for n in row["bands"].values():
+            for n in [*row["bands"].values(), *([row["namesake"]] if row.get("namesake") else [])]:
                 _ratio(n, row["judged"], percents, pairs)
             if key == "facts":
                 _ratio(row["outdated"], row["given"], percents, pairs)
@@ -1640,7 +1682,8 @@ def _drawn_pairs(key, rows):
         if a is not None and b:
             pairs |= {(a, b), (b - a, b)}
         if key != "facts":
-            pairs |= {(n, r["judged"]) for n in (r.get("bands") or {}).values() if r.get("judged")}
+            pairs |= {(n, r["judged"]) for n in [*(r.get("bands") or {}).values(), *([r["namesake"]] if r.get("namesake") else [])]
+                      if r.get("judged")}
         if key == "facts":
             pairs |= {(r["outdated"], r["given"]), (r["silent"], r["given"])}
         elif key == "reach":
@@ -2017,12 +2060,13 @@ def _bands(m, t):
     return t["bands_fidelity" if m["fidelity"] else "bands"]
 
 
-def _chart_legend(key, m, t):
+def _chart_legend(key, m, t, namesake=False):
     if key == "facts":
         parts = t["fact_parts"]
         return [("good", parts["current"]), ("low", parts["outdated"]), ("mid", parts["silent"])]
     bands = _bands(m, t)
-    return [("good", bands["4-5"]), ("mid", bands["3"]), ("low", bands["1-2"])]
+    return [("good", bands["4-5"]), ("mid", bands["3"]), ("low", bands["1-2"])] + ([("namesake", t["namesake_part"])]
+                                                                                   if namesake else [])
 
 
 def _fact_label(row, t, lang):
@@ -2044,8 +2088,9 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
     if rows and rows[0].get("key"):
         head[0] = t["question_head"]
     bands = _bands(m, t)
+    apart = key == "description" and any(r.get("namesake") for r in rows)
     if key == "description":
-        head_html = _head(head, subject) + _swatch_heads(_chart_legend(key, m, t))
+        head_html = _head(head, subject) + _swatch_heads(_chart_legend(key, m, t, apart))
     elif key == "facts":
         parts = t["facts_heads"]
         head_html = _head(head, subject) + _swatch_heads([("good", parts["current"]), ("low", parts["outdated"]),
@@ -2063,16 +2108,21 @@ def _rows(key, rows, t, lang, m, grouped, excerpts):
             out.append(f'{label}{_meter(row["named"], row["given"])}'
                        f'<div class="fig">{_of(row["named"], row["given"], t)}</div><div class="foils">{esc(foils)}</div>')
         elif key == "description":
-            b = row["bands"]
-            out.append(f'{label}{_bar([(b["4-5"], "good"), (b["3"], "mid"), (b["1-2"], "low")])}'
+            b, other = row["bands"], row.get("namesake") or 0
+            out.append(f'{label}{_bar([(b["4-5"], "good"), (b["3"], "mid"), (b["1-2"], "low"), (other, "namesake")])}'
                        f'<div class="fig">{_of(b["4-5"], row["judged"], t)}</div>'
-                       f'<div class="fig">{b["3"]}</div><div class="fig">{b["1-2"]}</div>')
+                       f'<div class="fig">{b["3"]}</div><div class="fig">{b["1-2"]}</div>'
+                       + (f'<div class="fig">{other}</div>' if apart else ""))
         else:
             out.append(f'{_fact_label(row, t, lang)}{_bar([(row["current"], "good"), (row["outdated"], "low"), (row["silent"], "mid")])}'
                        f'<div class="fig">{_of(row["current"], row["given"], t)}</div>'
                        f'<div class="fig">{row["outdated"]}</div><div class="fig">{row["silent"]}</div>')
-    grid = f'<div class="rows {key}-rows{long}{few}">' + "".join(out) + "</div>"
+    grid = f'<div class="rows {key}-rows{" namesakes" if apart else ""}{long}{few}">' + "".join(out) + "</div>"
     behind = "".join(_old_pages(r, subject, t) for r in rows if key == "facts")
+    if apart:
+        labels = list(dict.fromkeys(label for r in rows for label in r.get("namesakes") or {}))
+        listed = ", ".join(labels[:-1]) + f" {t['or']} " + labels[-1] if len(labels) > 1 else labels[0]
+        behind += f'<p class="note">{esc(t["namesake_note"].format(labels=listed, subject=subject))}</p>'
     return f'<div class="chart">{grid}{behind}</div>'
 
 
@@ -2098,11 +2148,12 @@ def _rating(excerpt, m, key):
     if key == "reach" or m.get("fidelity"):
         return None
     pieces = _pieces(excerpt.get("text") or "")
-    scores = Counter(r["score"] for r in m["blocks"]["description"]["responses"] if _quoted_in(pieces, [_plain(r["answer"])]))
+    scores = Counter("namesake" if r.get("namesake") else r["score"] for r in m["blocks"]["description"]["responses"]
+                     if _quoted_in(pieces, [_plain(r["answer"])]))
     if not scores:
         return None
     score = scores.most_common(1)[0][0]
-    return "4-5" if score >= 4 else "3" if score >= 3 else "1-2"
+    return "namesake" if score == "namesake" else "4-5" if score >= 4 else "3" if score >= 3 else "1-2"
 
 
 def _stated(excerpt, m):
@@ -2260,7 +2311,7 @@ def _visual(key, m, t):
         return "".join(_versus(f, subject, t, _only_assistant(key, m)) if f["rivals"] else
                        f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small></div>' for f in block["figures"])
     caption = t["card"]["description_fidelity" if key == "description" and m["fidelity"] else key].format(subject=subject)
-    labels = dict(_chart_legend(key, m, t))
+    labels = dict(_chart_legend(key, m, t, namesake=True))
     shown = "".join(f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small>'
                     + (f' <span>{esc(f["project"])}</span>' if f["project"] else "") + f'</div>{_bar(f["parts"])}'
                     + _legend([(kind, f"{labels[kind]}: {n}") for n, kind in f["parts"]]) for f in block["figures"])
@@ -2448,7 +2499,11 @@ def _actions_table(doc, order, m, t):
 
 def _namesake(domain, m, subject=None):
     """The name a third party's site shares with the subject, or None: avenello.it beside a subject called Avenello that does
-    not own it is another organisation, which a reader takes for the subject's own site."""
+    not own it is another organisation, which a reader takes for the subject's own site. A site of a namesake the period
+    recorded is named by that namesake's label."""
+    recorded = next((n["label"] for n in m.get("namesakes") or [] if is_owned(domain, n.get("domains") or [])), None)
+    if recorded:
+        return recorded
     name = _site_name(domain)
     names = {re.sub(r"[\s-]", "", n).casefold() for n in [subject or m.get("subject"), *(m.get("aliases") or [])] if n}
     return name if re.sub(r"[\s-]", "", name).casefold() in names else None

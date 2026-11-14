@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
-from .common import Refused, Study, first_mention, folded, load_json, now_iso, write_json
+from .common import Refused, Study, first_mention, folded, is_owned, load_json, now_iso, prose, write_json
 
 SEEDS_SCHEMA = "sentl-monitor/seeds@1"
 DEMAND_SCHEMA = "sentl-monitor/search-demand@1"
@@ -440,3 +440,118 @@ def summary(root, seeds_file=None):
     lines.append(NO_VOLUME if not source else
                  f"volume source: {', '.join(source['providers'])}, {source['from']} to {source['to']}")
     return "\n".join(lines + _persona_lines(data, seeds))
+
+
+# --- namesakes ----------------------------------------------------------------
+
+# Where an answer says a company is based: the capitalised words that follow name the place.
+BASED = re.compile(r"\b(?:(?:con |ha )?sede(?: legale| operativa)? (?:a|in|di)|based in|headquartered in|located in)\s+"
+                   r"([A-ZÀ-Ý][\w'’-]+(?:\s+(?:(?:di|del|della|de|da|sul|sulla)\s+)?[A-ZÀ-Ý][\w'’-]+){0,3})")
+SHOWN = 10
+
+
+def _bare(text):
+    return re.sub(r"[\s._'’-]", "", folded(text))
+
+
+def _starts_with_name(text, names):
+    """Whether a host or a path segment holds one of the names at its start or after a separator."""
+    return any(re.search(rf"(?:^|[.\-_+]){re.escape(n)}", folded(text)) for n in names)
+
+
+def _listed_by(url, listings):
+    return any(folded(f) in folded(url) for f in listings if folded(f))
+
+
+def namesakes(root, seeds_file=None):
+    """Candidates for subject.namesakes, for the operator to judge: the words that search suggestions naming the subject
+    add and the study never uses, the cited sites named like the subject that it does not own, the pages of other sites
+    carrying its name, and the places the answers say it is based in that subject.places does not hold. A namesake
+    already recorded is not proposed again. It reads the folder and writes nothing."""
+    folder = Study(root)
+    path = folder.path("study.json")
+    study = load_json(path) if path.exists() else {}
+    seeds = _load_seeds(seeds_file) if seeds_file and Path(seeds_file).exists() else {}
+    subject = study.get("subject") or {}
+    aliases = subject.get("aliases") or (seeds.get("subject") or {}).get("aliases") or []
+    if not aliases:
+        raise Refused("no subject alias in study.json or seeds.json: the candidates are read against them")
+    recorded = [n for n in subject.get("namesakes") or [] if isinstance(n, dict)]
+    owned = subject.get("owned_domains") or []
+    known = owned + [d for f in study.get("foils") or [] for d in f.get("domains") or []]
+    known += [d for n in recorded for d in n.get("domains") or []]
+    listings = [x for n in recorded for x in n.get("listings") or []]
+    places = {folded(x) for x in [*(subject.get("places") or []), *(x for n in recorded for x in n.get("places") or [])]}
+    names = [b for b in map(_bare, aliases) if len(b) >= 4]
+
+    used = set()
+    for text in [*aliases, *(a for f in [*(study.get("foils") or []), *(seeds.get("foils") or [])] for a in f.get("aliases") or []),
+                 *(t for c in seeds.get("components") or [] for t in c.get("terms") or []),
+                 *(q for qs in (seeds.get("themes") or {}).values() for q in qs),
+                 *(q["text"] for p in study.get("projects") or [] for d in p["dimensions"] for q in d["questions"]),
+                 *(x for n in recorded for kind in ("places", "products") for x in n.get(kind) or [])]:
+        used.update(_tokens(text))
+    demand_path = folder.path("search-demand.json")
+    data = load_json(demand_path) if demand_path.exists() else {}
+    suggestions = {}
+    for kind in ("themes", "personas"):
+        for block in (data.get(kind) or {}).values():
+            suggestions.update(distinct(block))
+    words, examples = {}, {}
+    for text in suggestions.values():
+        if first_mention(folded(text), aliases) is None:
+            continue
+        for w in dict.fromkeys(_tokens(text)):
+            if w not in used and len(w) > 2 and not w.isdigit():
+                words[w] = words.get(w, 0) + 1
+                examples.setdefault(w, []).append(text)
+
+    sites, pages, based = {}, {}, {}
+    for proj in study.get("projects") or []:
+        on_subject = {q["key"] for d in proj["dimensions"] for q in d["questions"]
+                      if first_mention(folded(q["text"]), aliases) is not None}
+        for run in folder.runs(proj["key"]):
+            for r in run["responses"]:
+                cited_sites, cited_pages = set(), set()
+                for src in r.get("sources") or []:
+                    domain, url = src.get("domain") or "", src.get("url") or ""
+                    if not domain or is_owned(domain, known) or _listed_by(url, listings):
+                        continue
+                    host = domain.rsplit(".", 1)[0]
+                    if _starts_with_name(host, names):
+                        cited_sites.add(domain)
+                        continue
+                    segments = [x for x in re.sub(r"^[a-z]+://[^/]+", "", url, flags=re.I).split("?")[0].split("/") if x]
+                    for n, segment in enumerate(segments):
+                        if _starts_with_name(segment, names):
+                            cited_pages.add(folded("/".join([domain, *segments[:n + 1]])))
+                            break
+                for x in cited_sites:
+                    sites[x] = sites.get(x, 0) + 1
+                for x in cited_pages:
+                    pages[x] = pages.get(x, 0) + 1
+                if r.get("question") in on_subject and r.get("answer"):
+                    for place in dict.fromkeys(m.group(1) for m in BASED.finditer(prose(r["answer"]))):
+                        if folded(place) not in places:
+                            based[place] = based.get(place, 0) + 1
+
+    def top(counts):
+        return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:SHOWN]
+    lines = ["Namesake candidates: the operator decides which are another organisation with the subject's name, and they "
+             "are recorded under subject.namesakes with their places, domains, products and listings."]
+    if words:
+        lines += ["Words that search suggestions naming the subject add, and the study never uses:"]
+        lines += [f"  - {w}: {_plural(n, 'suggestion', 'suggestions')} ({'; '.join(examples[w][:3])})" for w, n in top(words)]
+    if sites:
+        lines += ["Cited sites named like the subject that it does not own:"]
+        lines += [f"  - {d}: cited by {_plural(n, 'answer', 'answers')}" for d, n in top(sites)]
+    if pages:
+        lines += ["Pages of other sites carrying the subject's name:"]
+        lines += [f"  - {x}: cited by {_plural(n, 'answer', 'answers')}" for x, n in top(pages)]
+    if based:
+        lines += ["Places the answers say the subject is based in, which subject.places does not hold:"]
+        lines += [f"  - {x}: {_plural(n, 'answer', 'answers')}" for x, n in top(based)]
+    if len(lines) == 1:
+        lines.append("No candidate found.")
+    return "\n".join(lines)
+
