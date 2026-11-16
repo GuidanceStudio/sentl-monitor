@@ -15,7 +15,8 @@ from pathlib import Path
 from . import schema
 from .common import Refused, write_json
 
-SCHEMA_VERSIONS = (1,)
+# Version 2 (Sentl, 2026-11-09): a snapshot's project has no schedule_frequency and no is_active, which schema reads.
+SCHEMA_VERSIONS = (1, 2)
 HOSTS = ("sentl.ai",)
 DOWNLOAD_CAP = 64 * 1024 * 1024
 UNPACKED_CAP = 512 * 1024 * 1024

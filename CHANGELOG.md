@@ -41,6 +41,9 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
 - `brief` keeps the fallback for a host with no network: questions with no `suggestion`, and the operator told. The
   `snapshot` playbook says that every start of a snapshot run sends `confirm: true`, after the operator's yes on that
   run's estimate.
+- `download` and `import` read an `export-runs-tool` file of `schema_version` 2, where a snapshot's project has no
+  `schedule_frequency` and no `is_active`; `get-project-tool`'s response of that shape is read too. A later version is
+  still refused with exit 5.
 
 ## 0.12.0 (2026-11-16)
 

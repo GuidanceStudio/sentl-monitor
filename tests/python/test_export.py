@@ -115,10 +115,25 @@ class ImportTest(StudyCase, unittest.TestCase):
         self.cli("import", "--study", self.study, path, check=2)
 
     def test_an_unknown_schema_version_is_refused_with_exit_5(self):
-        path, _ = self.export_file(export_of(with_ids(run(9001)), schema_version=2))
+        path, _ = self.export_file(export_of(with_ids(run(9001)), schema_version=3))
         proc = self.cli("import", "--study", self.study, path, check=5)
         self.assertIn("schema_version", proc.stderr)
         self.assertEqual(list((self.study / "inbox").glob("*.json")), [])
+
+    def test_a_version_2_export_of_a_snapshot_is_imported_and_ingested(self):
+        """Since version 2 a snapshot's project has no schedule_frequency and no is_active (Sentl, 2026-11-09)."""
+        data = export_of(with_ids(run(9001)), with_ids(run(9002, started="2026-10-08T06:00:00Z")), schema_version=2)
+        data["project"]["project"]["kind"] = "snapshot"
+        data["project"]["project"].pop("schedule_frequency", None)
+        data["project"]["project"].pop("is_active", None)
+        path, digest = self.export_file(data)
+        self.cli("import", "--study", self.study, "--sha256", digest, path, check=0)
+        inbox = self.study / "inbox"
+        self.assertNotIn("schedule_frequency", self.read("inbox/project-501.json")["project"])
+        self.cli("adopt", "--study", self.study, "--project", inbox / "project-501.json",
+                 "--run", inbox / "run-9001.json", "--key", "brand", check=0)
+        self.cli("ingest", "--study", self.study, "--project", "brand", "--results", inbox / "run-9002.json", check=0)
+        self.assertEqual(self.read_run("brand", 9002)["received"], 6)
 
     def test_a_run_not_final_is_imported_for_its_status_only(self):
         path, _ = self.export_file(export_of(with_ids(run(9001, status="running"))))

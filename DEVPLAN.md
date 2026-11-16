@@ -1436,7 +1436,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 ## M39: A snapshot is designed as a study is, and differs only in what the schedule brings 🔄
 
-**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T1–T9 and T11 done; T10 runs before R15.
+**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T1–T9, T11 and T12 done; T10 runs before R15.
 
 **Why:** the operator's principle (2026-11-16): a snapshot is a project without a schedule. The depth of the analysis, the starting points and the choice of models follow the same reasoning on both routes; only what the schedule brings differs. A project has a frequency and a monthly credit budget, set against the plan's monthly credits and the credits available; a snapshot has one cost, set against the credits available. Today the two routes part at the first step:
 
@@ -1498,6 +1498,11 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `resume`: a closed snapshot's listing is ignored, and a folder whose snapshots were all deleted before a run says so instead of sending the operator to the deck.
   - The test fixtures' runs carry the rounds of the design, so the comparison tests after `promote` compare figures.
   - A snapshot created in Sentl answers `get-project-tool` without `schedule_frequency` (read live on 2026-11-16, snapshot of a prospect study); `bind` refused it with exit 5. The field becomes optional in the schema of `get-project-tool`, with a test on a saved snapshot response of that shape.
+- [x] T12 `download` and `import` read an `export-runs-tool` file of `schema_version` 2. Found live on 2026-11-17: the exports of three snapshots of a prospect study were refused with exit 5 ("has schema_version 2; this skill reads 1"). Sentl moved its read tools to version 2 on 2026-11-09, and the only change it records for that version is that a snapshot's row has no `schedule_frequency` and no `is_active`. The skill reads such a row since T11. Changes:
+  - `exportfile.SCHEMA_VERSIONS` becomes `(1, 2)`.
+  - A test imports a version-2 export of a snapshot whose project has no `schedule_frequency` and no `is_active`, then ingests one of its runs.
+  - A test checks that a version-3 export is still refused with exit 5 and that nothing is written.
+  - The ARCHITECTURE and CHANGELOG lines that name the version read are updated.
   - BRIEF.md §4 keeps the fallback for a host with no network (no `suggestion`, tell the operator), and SNAPSHOT.md says that every start of a snapshot run sends `confirm: true` after the operator's yes.
 
 **Decisions of 2026-11-16 (operator):**
