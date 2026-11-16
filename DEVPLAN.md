@@ -1497,6 +1497,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `period` with a snapshot of `study.json` never created or never run: no crash, and the message names the snapshots left out of the deck.
   - `resume`: a closed snapshot's listing is ignored, and a folder whose snapshots were all deleted before a run says so instead of sending the operator to the deck.
   - The test fixtures' runs carry the rounds of the design, so the comparison tests after `promote` compare figures.
+  - A snapshot created in Sentl answers `get-project-tool` without `schedule_frequency` (read live on 2026-11-16, snapshot of a prospect study); `bind` refused it with exit 5. The field becomes optional in the schema of `get-project-tool`, with a test on a saved snapshot response of that shape.
   - BRIEF.md §4 keeps the fallback for a host with no network (no `suggestion`, tell the operator), and SNAPSHOT.md says that every start of a snapshot run sends `confirm: true` after the operator's yes.
 
 **Decisions of 2026-11-16 (operator):**
