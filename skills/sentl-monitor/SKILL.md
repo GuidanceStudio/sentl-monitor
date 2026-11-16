@@ -51,7 +51,7 @@ Choose the route by the state of the study:
   unattended, which follows the last section of `report/REPORT.md`.
 - The operator is starting a study and has no Sentl project yet: `sentl-monitor brief <subject>`, then `sentl-monitor design` once `brief.md` is approved.
 - The study is designed and approved and its projects are not in Sentl yet, or `study.json` changed since they were saved: `sentl-monitor setup`.
-- Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, `brief` and `design` start from the snapshot's deck and period as the first look.
+- Someone wants a first look at a subject, with no study to keep: `sentl-monitor snapshot <subject>`, in a folder of its own. To follow the subject afterwards, the snapshot's last step adds a schedule to the same design and `setup` creates its projects; the snapshot's deck and period are the first look.
 - Someone wants what to send a client, or asks for a deck, for slides or for suggested actions: `sentl-monitor report`: it writes the deck after the period. When the period of that date is built already, `sentl-monitor deck`.
 - Someone wants to know what the assistants say, topic by topic, with a few actions the client can take alone, or a first look before the full deck: `sentl-monitor report --quick`, or `sentl-monitor deck --quick` when the period is built.
 - Someone asks what changed between two moments: `sentl-monitor report` in the study's folder; it compares each period with the one before.
@@ -68,8 +68,8 @@ Choose the route by the state of the study:
 | `brief <subject>` | `brief/BRIEF.md` | lists the themes to monitor with the origin of each, collects Google suggestions and search volumes, and writes `brief.md` and `search-demand.json` |
 | `design` | `design/DESIGN.md` | turns the approved themes into dimensions, projects, questions with rubrics and a narrative, validates them against Sentl's limits and writes `study.json` and `study-review.md` for the operator's approval |
 | `setup` | `setup/SETUP.md` | creates the study's projects in Sentl, or saves their changed questions without losing the results linked to them, records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or a schedule only on the operator's go |
-| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a small study of the subject on Sentl once, as a snapshot in Sentl that takes no project slot: 4 or 5 dimensions from the catalogue, one run on the operator's go after the credit estimate, the deck of that run, then the operator chooses to keep the snapshot, delete it, or follow the subject; invoked again in the same folder, it resumes |
-| `compare <folder> <folder>` | `compare/COMPARE.md` | sets two folders with the same questions side by side, each dimension's score and presence on both, in `reports/<date>.compare.md` of the later one |
+| `snapshot <subject>` | `snapshot/SNAPSHOT.md` | runs a study of the subject on Sentl once, designed through `brief` and `design` as a study is, each project as one snapshot in Sentl that takes no project slot: one run per snapshot on the operator's go after its credit estimate, one deck from every run, then the operator keeps each snapshot, deletes it, or follows the subject on the same design; invoked again in the same folder, it resumes |
+| `compare <folder> <folder>` | `compare/COMPARE.md` | sets two folders of one snapshot each, with the same questions, side by side, each dimension's score and presence on both, in `reports/<date>.compare.md` of the later one |
 
 Read the playbook of the route invoked and follow it step by step.
 

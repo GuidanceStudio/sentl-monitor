@@ -1482,14 +1482,14 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `ingest`, `resume` and `period` accept every completed run of each snapshot, however many there are;
   - the period pools every completed run of every snapshot, as a study's period pools a project's runs;
   - the full and quick decks are the study's, on that one period, and count the answers per question and model from what was pooled.
-- [ ] T7 Following a snapshot becomes `setup` on the same `study.json` with a schedule, `rounds` and `report_every` added. The snapshot's period stays as the first look. SNAPSHOT.md §10 drops "go on with `brief` and `design`".
-- [ ] T8 Tests:
+- [x] T7 Following a snapshot becomes `setup` on the same `study.json` with a schedule, `rounds` and `report_every` added. The snapshot's period stays as the first look. SNAPSHOT.md §10 drops "go on with `brief` and `design`".
+- [x] T8 Tests:
   - `validate` gives the same verdict on a study and on the same study as a snapshot, apart from schedule and report cadence.
   - A fixture of a fictional subject, written both ways, carries the same themes, personas and models; a snapshot cut to a budget records what it left out in `design_rationale`.
   - A snapshot folder of the old shape validates, reports and compares.
   - `resume` finds the next step across several snapshots.
   - One snapshot with three completed runs at rounds 1 gives one period with three answers per question and model.
-- [ ] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
+- [x] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
 - [ ] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
 
 **Decisions of 2026-11-16 (operator):**
@@ -1499,6 +1499,21 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 3. A snapshot proposes 3 rounds by default, as a project, and `review` shows the cost of 1 round as well.
 
 **Change of 2026-11-16 (operator), replacing the first version of decisions 2 and 3:** a snapshot takes `rounds` exactly as a project does, and nothing but the schedule differs. Sentl does not allow it yet: `create-snapshot-tool` has no rounds parameter and `update-project-settings-tool` refuses rounds other than 1 on a snapshot. It is filed with Sentl as a feature request, and the skill is built as if Sentl had it. Until Sentl ships rounds on snapshots, a snapshot of more than 1 round is refused at creation, and the route stops with Sentl's code and message. Meanwhile the operator runs a snapshot of 1 round several times by hand, three runs one after the other, to reach three answers per question and model. The skill does not drive those runs and has no `runs` field; it reads every completed run each snapshot holds.
+
+**Choices the plan left open (executor, 2026-11-16), each the smallest change:**
+
+1. `create-snapshot-tool` carries `rounds` only above one, so today's Sentl still takes a snapshot of 1 round; `update-project-settings-tool` sends `rounds` only when they differ from Sentl's (T3).
+2. The one rule lives in DESIGN.md steps 2 to 9; SNAPSHOT.md refers to it, with no separate shared file (T1).
+3. A snapshot with no themes is of the earlier shape and keeps its rules; one with themes is checked as a study (T3).
+4. The organization's credits come in as `review --monthly-credits --credits-available`, read by the assistant from `get-organization-tool`, whose response has no schema in the skill (T5).
+5. A study's monthly budget is its credits per 30 days, a weekly schedule counting 4.3 runs, as SETUP.md's recap does (T5).
+6. A model's family is the maker prefix of its id, before `/`; a project of one family is a warning. The model that searches the web is a playbook rule only, since `list-ai-models` carries no such field (T4).
+7. The origin `probe` is a theme raised by an assistant's answer to a question asked before the study (T2).
+8. `resume` needs no run listing for a closed snapshot, since a deleted one has none to read; it goes to the deck only once every snapshot has a completed run, and before that to the next snapshot's cost (T6).
+9. `compare` refuses a folder of several snapshots instead of being extended to several projects (T8).
+10. `promote` on a snapshot designed as a study does not require the snapshots closed; SNAPSHOT.md asks to keep or delete each first. The bindings move to `snapshots` in `sentl.json`, each project's name drops `Snapshot` and the date, and `schedule` and `rounds` are one value or one per project key (T7).
+11. `bind` of a project created for a key whose questions were asked before records its empty bind with no change, and compares its full bind with the last version that held questions; `check` looks for the kept snapshots' ids too (T7).
+12. A snapshot of the earlier shape created as a snapshot in Sentl is still not followed: a study is designed for it (T7).
 
 **Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, report cadence and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
 

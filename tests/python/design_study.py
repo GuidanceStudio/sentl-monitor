@@ -180,20 +180,22 @@ def one_snapshot(rounds=1):
     return snap
 
 
-def run_of(study, key, run_id, project_id, started, status="completed", score=4):
-    """The get-run-results-tool response of one run of project `key`: every question answered once by each of its
-    models, as a run of one round gives."""
+def run_of(study, key, run_id, project_id, started, status="completed", score=4, rounds=1):
+    """The get-run-results-tool response of one run of project `key`: every question answered by each of its models
+    once per round."""
     project = next(p for p in study["projects"] if p["key"] == key)
     responses, n = [], run_id * 100
     for d in project["dimensions"]:
         for q in d["questions"]:
             for model in project["models"]:
-                n += 1
-                answer = ("Avenello oat milk is a good choice, as reviews say." if q["branded"]
-                          else "Several brands sell oat milk, Avenello among them.")
-                responses.append({"id": n, "model_id": model, "question": q["text"], "dimension": d["name"],
-                                  "answer": answer, "judge_score": score, "sentiment": "positive",
-                                  "sources": [{"url": "https://guide.example/oat", "title": "guide"}]})
+                for round_ in range(1, rounds + 1):
+                    n += 1
+                    answer = ("Avenello oat milk is a good choice, as reviews say." if q["branded"]
+                              else "Several brands sell oat milk, Avenello among them.")
+                    responses.append({"id": n, "model_id": model, "question": q["text"], "dimension": d["name"],
+                                      "round": round_, "answer": answer, "judge_score": score,
+                                      "sentiment": "positive",
+                                      "sources": [{"url": "https://guide.example/oat", "title": "guide"}]})
     return {"run": {"id": run_id, "project_id": project_id, "organization": "example-org", "status": status,
                     "trigger": "manual", "reputation_score": 4.0, "error": None, "started_at": started,
                     "finished_at": started, "responses": responses}}

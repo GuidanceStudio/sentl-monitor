@@ -3,6 +3,34 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+A snapshot is designed exactly as a study is, and differs from it only in schedule, report cadence and the cost shown.
+
+- `snapshot` starts from `brief`, with what a prospect gives: with no client material the themes come from the
+  operator's remarks, the search suggestions and a probe (the new origin `probe`), and the personas are a list, as in a
+  study. It hands over to `design` steps 2 to 9, the one rule for both: themes with their origins, five to seven
+  dimensions per project, each fed by a theme, two or three questions each, projects split by persona group and by
+  naming the subject or no brand, and the funnel offered as a default for spreading each persona's questions.
+- `validate` runs the study's checks on a snapshot, plus the absence of a schedule and of a report cadence. A snapshot
+  folder of the earlier shape (four or five dimensions of one question, no themes) keeps its rules, and `period`,
+  `deck` and `compare` still read it.
+- Each project of a snapshot is one snapshot in Sentl with `rounds`, 3 proposed: `payload` puts them in
+  `create-snapshot-tool` above one round and in `update-project-settings-tool` when they differ. A Sentl that refuses
+  them stops the route with its code and message.
+- Models: two families or more, one that searches the web, the audience's assistants; `review` prints each project's
+  models with their tariff per call and the credits of one run, and warns on a project of one family.
+- Cost: `review --monthly-credits --credits-available` sets a study's credits per 30 days against the plan, and a
+  snapshot's credits per run, at its rounds and at 1 round, against the credits available. `snapshot` shows
+  `estimate-run-tool` before each snapshot's run.
+- Several snapshots in one folder: `resume` takes one run listing per snapshot and names the snapshot each step
+  concerns; the snapshots run one after the other, each on its own go; `period` pools every completed run of every
+  snapshot, a snapshot run again by hand included, and the deck counts the answers from what it pooled. `close` takes
+  `--project`. `compare` refuses a folder of several snapshots.
+- Following the subject: `promote` adds a schedule, `rounds` and `report_every` to the same `study.json`, keeps the
+  snapshots' bindings under `snapshots` in `sentl.json`, and `setup` creates each project. `bind` of a project created
+  for a key asked before keeps its questions comparable, so the first report compares with the snapshots' period.
+
 ## 0.12.0 (2026-11-16)
 
 Both decks open with a summary, and the quick deck closes on suggested actions.

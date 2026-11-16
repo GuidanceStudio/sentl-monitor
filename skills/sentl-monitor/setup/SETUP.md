@@ -57,7 +57,9 @@ Without `$S/study.json`, run `design` first. Then:
 ## 2. Plan
 
 For each project of `study.json`, say whether `sentl.json` binds it to a Sentl project. A project
-that is not bound is created; a bound one is brought in line. Tell the operator the list, the
+that is not bound is created; a bound one is brought in line. A study followed from a snapshot
+(`promote`) keeps its snapshots under `snapshots` in `sentl.json`, so each of its projects is created,
+and the snapshots' runs stay the first look its first report compares with. Tell the operator the list, the
 organization, and that nothing is written until each step has their go. Handle the projects one
 at a time, in the order of `study.json`.
 

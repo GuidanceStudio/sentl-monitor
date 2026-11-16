@@ -1,7 +1,8 @@
 # Compare two snapshots
 
 For a second snapshot of one subject, taken later with the same questions, when neither was promoted. A promoted study
-compares its periods with `report`. Both folders need their report done. Nothing goes to Sentl and no credit is spent.
+compares its periods with `report`. Both folders need their report done, and each holds one snapshot: a folder of
+several snapshots is refused, and its deck is read beside the other. Nothing goes to Sentl and no credit is spent.
 
 Exit codes: 0 done. 1 `check` found problems. 2 refused: the message says what to fix. 6 an unexpected error; stop, give the
 operator the message, and run the command again with `--debug`.

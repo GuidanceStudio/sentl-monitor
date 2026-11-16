@@ -118,7 +118,7 @@ to leave out to fit it; the operator chooses. Tell what is left out in the chat,
 `narrative.design_rationale` with its reason, and run step 4 again. Show the review and stop for
 the operator's approval. Nothing is written to Sentl before it.
 
-## 6. Project
+## 6. Snapshots
 
 Steps 6 to 8 are done for each snapshot of `study.json`, in its order: create and bind every
 snapshot first, then run them one after the other, each after its own estimate and go. Nothing
@@ -234,12 +234,33 @@ python3 <skill>/scripts/monitor.py close --study "$S" --project K --saved "$S/in
 python3 <skill>/scripts/monitor.py close --study "$S" --project K --deleted
 ```
 
-**Follow the subject over time.** A snapshot takes no schedule, so following it means a project:
-go on with `brief` and `design`, keeping this snapshot's deck and period as the first look. `promote` exists only for
-a snapshot that was created as a project before Sentl had snapshots; for a snapshot it exits 2
-and says so. When the project of such a snapshot is no longer needed, archive it with
-`archive-project-tool` on the operator's go (`undo-project-archive-tool` reverts it in the first
-ten minutes), then run `close` with `--saved` after reading it again.
+**Follow the subject over time.** The snapshot's `study.json` becomes the study, with a schedule,
+rounds and a report cadence added; nothing else changes. A snapshot takes no schedule, so each one
+is followed by a project of the same design, and the period and deck of this folder are the first
+look the first report compares with. Keep or delete each snapshot first, as above. Then ask the
+operator for the schedule (`daily`, `weekly` or `monthly`, one for every project or one per project
+key), the rounds when they differ from the snapshot's, and the report cadence (`weekly` or
+`monthly`); save them to `$S/inbox/follow.json`, as
+`{"schedule": "weekly", "rounds": 3, "report_every": "monthly"}`, and run:
+
+```bash
+python3 <skill>/scripts/monitor.py promote --study "$S" --answers "$S/inbox/follow.json" \
+  --models "$S/inbox/models.json"
+```
+
+It writes `study.json` as a study, drops `Snapshot` and the date from each project's name, and
+keeps each snapshot's binding under `snapshots` in `sentl.json`; it sends nothing. Exit 2 names
+what is missing. Then follow `setup/SETUP.md` from its step 4 for each project, on the operator's
+go for each write: `payload` creates the project, and each question kept as it was stays
+comparable with the snapshot's answers.
+
+A snapshot of the earlier shape, with no themes in `study.json`, is not followed this way: design a
+study for the subject (`brief`, `design`) and keep this folder's deck as the first look. Such a
+snapshot created as a project before Sentl had snapshots keeps its project instead: `promote` with
+the answers ARCHITECTURE.md §`snapshot <subject>` lists schedules it. When the project of such a snapshot is no
+longer needed, archive it with `archive-project-tool` on the operator's go
+(`undo-project-archive-tool` reverts it in the first ten minutes), then run `close` with `--saved`
+after reading it again.
 
 On a host without a lasting folder, pack the snapshot before the conversation ends:
 `monitor.py pack --study "$S" --out <the folder the host offers for download>`, and offer the

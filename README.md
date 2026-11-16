@@ -20,15 +20,15 @@ question. The skill reads Sentl through Sentl's MCP server and makes no model ca
 | `brief <subject>` | Lists the themes to monitor, each with its origin (the client's material, the issues the client raised, Google searches), and the personas who ask about the subject, each with its situation, its decision and the Google suggestions that show it searches; keeps regulators, consumer associations and the press apart as sources to watch; collects how people search and writes `brief.md` for your review |
 | `design` | Turns the approved themes into dimensions, projects, questions as people type them and a 1–5 rubric for each, ties each question to a persona of the brief, checks them against Sentl's limits and the design rules, and writes `study.json` and `study-review.md`, with the credit estimate, for your review |
 | `setup` | Creates the study's projects in Sentl, paused, and later saves changed questions without cutting the link between a question and its past results; records the ids in `sentl.json`, shows Sentl's credit estimate, and starts a run or activates a schedule only on your explicit go |
-| `snapshot <subject>` | Runs a small study of a subject on Sentl once, in a folder of its own: four or five dimensions from the catalogue, each with one question that starts from Google's top suggestion and names the person who asks it, one snapshot in Sentl, which takes none of the plan's project slots, one run on your go after Sentl's credit estimate, and the deck of that run; then you keep the snapshot, delete it, or follow the subject with `brief` and `design`. Invoked again in the same folder, it resumes where it stopped |
-| `compare <folder> <folder>` | Writes what changed between two snapshots of one subject with the same questions, neither promoted: each dimension's score and presence on both sides. It reads the two folders only and spends nothing. |
+| `snapshot <subject>` | Runs a study of a subject on Sentl once, in a folder of its own: designed as a study is, through `brief` and `design` (themes with their origins, five to seven dimensions per project, two or three questions each, personas, models of two families or more), each project run as one snapshot in Sentl, which takes none of the plan's project slots, one run per snapshot on your go after Sentl's credit estimate, and one deck from every run; then you keep each snapshot, delete it, or follow the subject on the same design with a schedule added. Invoked again in the same folder, it resumes where it stopped |
+| `compare <folder> <folder>` | Writes what changed between two snapshots of one subject with the same questions, neither promoted, one snapshot per folder: each dimension's score and presence on both sides. It reads the two folders only and spends nothing. |
 
 `adopt` and `report` only read from Sentl: they create and change nothing in your account and
 spend no credits. `brief` does not call Sentl at all, and `design` reads only the list of models
 and their tariffs. `setup` writes to your account, and each write (creating a project, a dry
 run and a save of its questions, a change of settings, a run, a schedule) waits for your go;
 it needs the Owner or Admin role, and only a run spends credits. `snapshot` writes in the same way and needs the same
-role; its one run spends the credits Sentl's estimate showed before your go. You invoke a route by asking the
+role; each snapshot's run spends the credits Sentl's estimate showed before your go. You invoke a route by asking the
 assistant, for example `sentl-monitor adopt Avenello` or `sentl-monitor report`.
 
 The routes run `monitor.py`, the skill's command-line script. Besides the steps of the

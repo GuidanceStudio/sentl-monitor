@@ -16,8 +16,8 @@ calls Sentl.
 | `setup` | `study.json`, `sentl.json` | Sentl projects; `sentl.json`, `history/versions/` | the operator's go before a run starts or a schedule is activated |
 | `adopt <project>` | saved `get-project-tool` and `get-run-results-tool` responses (the latest completed run) | `study.json`, `sentl.json`, `history/versions/` | the operator's answers on purpose, audience, theme origins, market, the deck's language and the period, who wrote the criteria, and optionally the foils' domains and the current and outdated terms of facts that carry a figure or a name |
 | `report` | `study.json`, `sentl.json`, saved `list-runs-tool`, `get-run-results-tool` and `get-project-tool` responses | `history/versions/` (a detected edit; an adopted project's `study.json` and `sentl.json` follow it), `history/runs/`, `history/unavailable.json`, `history/periods/`, `history/material/`, then, through `report/DECK.md`, `history/deck/`, `reports/<date>.deck.json`, `reports/<date>.deck.pdf`, `reports/share/` and `history/reports.json`; with `--quick`, through `report/QUICK.md`, `reports/<date>.quick.json` and `.quick.pdf` in place of the deck's | nothing when run unattended |
-| `snapshot <subject>` | the operator's answers and facts, `catalogue.md`, saved `list-ai-models`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `study.json` (`kind: snapshot`), `study-review.md`, one Sentl project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, then the deck as in `report` | the operator's review of the questions and rubrics, then the go after the credit estimate |
-| `compare` | two snapshot folders with their periods | `reports/<date>.compare.md` and `history/compare/<date>.json` in the later folder |
+| `snapshot <subject>` | what `brief` and `design` read, saved `list-ai-models`, `get-organization-tool`, `estimate-run-tool`, `list-runs-tool` and `get-run-results-tool` responses | `brief.md`, `study.json` (`kind: snapshot`), `study-review.md`, one snapshot in Sentl per project; `sentl.json`, `history/versions/`, `history/runs/`, `history/periods/`, `history/material/`, then the deck as in `report` | the operator's review of the themes, then of the questions, rubrics and credits, then the go after each snapshot's estimate |
+| `compare` | two snapshot folders of one snapshot each, with their periods | `reports/<date>.compare.md` and `history/compare/<date>.json` in the later folder |
 
 ## The study folder
 
@@ -50,12 +50,12 @@ is a new version inside the same folder, so the history stays in one place.
   reports/share/                 the copy of each deck to send
 ```
 
-A snapshot folder has the same layout without `brief.md` and `volumes.json`, and holds one run
-and one deck. Its `seeds.json` holds one seed per dimension and its `search-demand.json` their
-Google suggestions. On a host with no network, `seeds.json` is written before `demand
-autocomplete` runs, and `autocomplete` writes `search-demand.json` with no suggestion in any
-dimension's block before it exits 1. A snapshot made before personas and suggestions has
-neither file.
+A snapshot folder has the same layout, `volumes.json` only when a keyword-data tool was used, and
+holds the runs of its snapshots and one deck. A snapshot of the earlier shape has no `brief.md`;
+its `seeds.json` holds one seed per dimension and its `search-demand.json` their Google
+suggestions. On a host with no network, `seeds.json` is written before `demand autocomplete`
+runs, and `autocomplete` writes `search-demand.json` with no suggestion in any dimension's block
+before it exits 1. A snapshot made before personas and suggestions has neither file.
 
 On a host that deletes its files when the conversation ends, the folder travels between
 conversations as a pack (§Hosts without a lasting folder).
@@ -303,7 +303,10 @@ organization.
 A snapshot also carries `closed`, written by the route's last step:
 `{"closed_at": "<time>", "how": "kept" | "archived" | "deleted"}`. `kind` is the `kind` of the
 saved `get-project-tool` response (`project` or `snapshot`) and is written only when Sentl returns
-it; `promote` refuses a binding whose kind is `snapshot`, since a snapshot takes no schedule.
+it. When a snapshot designed as a study is followed (`promote`), each snapshot's binding moves from
+`projects` to `snapshots`, under the same key, so `setup` creates a project for it; the runs it
+holds stay in `history/runs/<key>/`. `promote` refuses a binding of kind `snapshot` in a folder of
+the earlier shape, whose `study.json` has no themes.
 
 ### Version snapshot, `history/versions/<project>-<NNN>.json`
 
@@ -796,7 +799,7 @@ them (see Periods).
 
 Two snapshots of one subject, taken at two moments with no study between them. `report` already compares a
 promoted study with its snapshot, so this serves only snapshots that were not promoted. The earlier folder comes first; a
-folder with no period, or that is no snapshot, is refused. Questions are matched by Sentl's id when both folders bind one
+folder with no period, that is no snapshot, or that holds several snapshots, is refused. Questions are matched by Sentl's id when both folders bind one
 project and by text otherwise, and a question on one side only is refused by name, as is a dimension whose questions sit in
 two dimensions of the other side. The figures are the periods', pooled on the assistants both sides asked; the limits name
 them when the two differ. A change follows §What counts as a change with a single previous period. The report takes the
@@ -806,98 +809,96 @@ tool and spends nothing.
 
 ### `snapshot <subject>`
 
-A one-off check in its own folder: a small study, one snapshot in Sentl, one run, one deck,
-and nothing left running in Sentl. Run end to end on Sentl on 2026-11-07 with skill 0.6.0 (M10). `study.json` carries `"kind": "snapshot"`. Invoked again
-in the same folder, the route resumes at the first step whose output is missing: no
-`study.json` → design; no binding in `sentl.json`, or a binding with no question → project; no
-run → cost and go; a run open → follow it; a completed run not in `history/runs/`, or an ingested
-run with no deck that passed `check` → deck; no `closed` in `sentl.json` → end.
-`monitor.py resume [--runs <list-runs-tool, read now>]` reads the folder and prints
-`Next step: design`, `project`, `cost`, `run`, `deck`, `end` or `done`, with the step of the
-playbook; it needs `--runs` once the project holds questions, and refuses a listing of another
-project.
-
-The last step offers a choice (step 10). For a snapshot created as a project before Sentl had
-snapshots, `monitor.py promote --answers <json> --models <list-ai-models>` turns it, finished and
-not closed, into a monitored study: `kind` becomes `study`; the
-schedule, `report_every`, the audience and the project's question and decision come from the
-operator's answers; each dimension gets a theme whose origin is `probe` (the snapshot of that date);
-questions, rubrics and rounds are untouched; `sentl.json` is untouched and `closed` is never written.
-It validates the study as `design` does and writes nothing when that fails. It sends nothing to
-Sentl: `setup` saves the schedule and activates on the operator's go. The snapshot's run and period
-stay in `history/`, so the first `report` of the study compares its period with the snapshot's.
+A one-off check in its own folder: a study designed by the rule of `brief` and `design`, run once
+as snapshots in Sentl, one deck, and nothing left running in Sentl. A snapshot differs from a study
+only in schedule, report cadence and the cost shown. `study.json` carries `"kind": "snapshot"`,
+no `report_every`, no schedule on its projects, `rounds` on each project (3 proposed, as for a
+study) and `narrative.reader`. Each project is one snapshot in Sentl, named
+`Snapshot · <subject> · <project> · <date>`; a snapshot takes none of the plan's project slots.
+The earlier version ran on Sentl end to end on 2026-11-07 with skill 0.6.0 (M10).
 
 1. **Preflight.** `list-organizations` (connection, and the Owner or Admin role in the
    organization the operator picks), `get-organization-tool` (credits, subscription),
    `list-projects-tool` (the operator is told of any project already named after the
-   subject).
-2. **Subject and facts.** What the reader needs to decide; the subject's label, kind,
-   aliases, competitors as foils, owned domains, market and language; 5–10 facts from
-   primary sources, each with its source and the date it was read. `catalogue.md` lists the
-   facts each dimension needs. A statement taken from an AI answer is not accepted as a fact.
-3. **Dimensions.** 4–5 entries of `catalogue.md`, chosen from what the reader needs to
-   decide and by the catalogue's rules: at least one dimension naming no brand unless the
-   operator wants reputation only; a dimension whose facts cannot be found is replaced by
-   another. Each dimension records its catalogue id, and the reason it was picked goes in
-   `design_rationale`. The operator then names who will read the deck (`narrative.reader`)
-   and the persona behind each question, one line each.
-4. **Questions and rubrics.** One seed per dimension goes to `monitor.py demand autocomplete`,
-   keyed by the dimension in `seeds.json`; `demand summary` gives each dimension's top
-   suggestion. The question starts from it and from the persona's situation, and records it in
-   `suggestion`. A host with no network skips the suggestions: the questions come from the
-   catalogue entry's pattern alone, and the operator is told the suggestions could not be
-   collected. One question per dimension, written as the person types it,
-   from the catalogue entry's pattern, in the market's language. Five anchors per question,
-   adapted from the entry; judge instructions carry the dated facts. Researcher models are
-   the operator's choice from a saved `list-ai-models` response, with each model's tariff
-   shown; one round; no schedule.
-5. **Gate.** `monitor.py validate` in snapshot mode (below) and `monitor.py review`, which
-   writes `study-review.md` with the questions, the rubrics and a credit estimate from the
-   tariffs. Stops for the operator's approval.
-6. **Snapshot.** `create-snapshot-tool` with the name `Snapshot · <subject> · <date>`, its
-   models and one round; a snapshot takes none of the plan's project slots and has no schedule.
-   `save-project-questions-tool` with `dry_run: true`, then for real, with the snapshot's id as
-   `project_id`. `get-project-tool` saved; `monitor.py bind` records the ids and a `setup` version.
-   `monitor.py payload` builds both calls in snapshot mode: `create-snapshot-tool` carries the
-   name, models and rounds only, and the questions call is the one `setup` builds.
-7. **Cost.** `estimate-run-tool`: credits per researcher model, the
-   total, the credits available in the organization, and whether the run can start. Shown
-   to the operator in Sentl credits. Stops for the go.
-8. **Run.** On the go, `trigger-run-tool` once. `list-runs-tool` follows the run until its
-   status is final. If the session ends first, the next invocation follows the same run and
-   starts nothing.
-9. **Period and deck.** `get-run-results-tool` saved to `inbox/`; `monitor.py ingest`, then `period`
-   on the one run, with no comparison, then the deck of that period (`report/DECK.md`, §The deck).
-   The deck's `check` records the period in `history/reports.json` as final; `pdf` writes the
-   copy to send.
-10. **End.** The operator keeps the snapshot, deletes it, or follows the subject. Deleting is
-    `delete-snapshot-tool` on the operator's go, then `monitor.py close --deleted`; keeping is
-    `monitor.py close --saved <get-project-tool, read now>`, which refuses a project still active
-    and records `archived` when Sentl says so. Both write `closed` to `sentl.json`; closing a
-    closed snapshot changes nothing. Deleting loses nothing the deck needs, because the run is
-    saved in the snapshot folder. Following the subject is `brief` and `design`, keeping the
-    snapshot's deck and period as the first look: a snapshot takes no schedule. A snapshot created as a project before
-    Sentl had snapshots is still promoted with `promote`, and archived with `archive-project-tool`.
+   subject), `list-ai-models` saved.
+2. **Brief.** `brief/BRIEF.md` with what a prospect gives: its step 2 is skipped when there is
+   no client material; themes come from the operator's remarks (`client_issue`), the search
+   suggestions (`search`) and a probe (`probe`); personas as a list; seeds per theme and persona;
+   volumes only with a keyword-data tool and the operator's yes; who will read the deck and in
+   which language.
+3. **Design.** `design/DESIGN.md` steps 2 to 9, the study's rule: themes with origins, five to
+   seven dimensions per project, each fed by a theme, two or three questions each, projects split
+   by persona group and by naming the subject or no brand, models of two families or more.
+4. **Gate.** `monitor.py validate` runs the study's checks plus the absence of a schedule and of
+   a report cadence; `monitor.py review --credits-available <n>` writes `study-review.md` with the
+   credits of each snapshot's run at its rounds and at 1 round, and the total, against the credits
+   available.
+5. **Budget and approval.** A budget below the design's cost: the operator chooses which
+   snapshots or dimensions to leave out, recorded in `narrative.design_rationale`. Stops for the
+   operator's approval.
+6. **Snapshots.** For each project: `monitor.py payload` builds `create-snapshot-tool` with the
+   name, the models and, above one round, `rounds`; on the go it is created, `get-project-tool`
+   saved and bound; then `save-project-questions-tool` with `dry_run: true` and for real, and bound
+   again. A Sentl that refuses rounds on a snapshot stops the route with its code and message; there
+   is no fallback to several runs.
+7. **Cost.** Before each snapshot's run, `estimate-run-tool` saved to `inbox/estimate-<key>.json`
+   and shown in Sentl credits. Stops for the go.
+8. **Run.** On the go, `trigger-run-tool` once for that snapshot. The snapshots run one after the
+   other, each once the previous run is final and after its own estimate and go. The operator may
+   run a snapshot again by hand; every completed run is read.
+9. **Period and deck.** Each completed run saved from `get-run-results-tool` and ingested under its
+   snapshot's key; `period` pools every run of every snapshot, with no window, no floor and no
+   comparison, and needs no `report_every`; then the deck of that period (`report/DECK.md` or
+   `report/QUICK.md`). The deck's `check` records the period in `history/reports.json` as final.
+10. **End.** For each snapshot the operator keeps it, deletes it, or follows the subject. Deleting
+    is `delete-snapshot-tool` on the operator's go, then `monitor.py close --project <key>
+    --deleted`; keeping is `monitor.py close --project <key> --saved <get-project-tool, read now>`,
+    which refuses a project still active and records `archived` when Sentl says so; `--project` may
+    be left out when the folder holds one snapshot. Both write `closed` to `sentl.json`; closing a
+    closed snapshot changes nothing. Deleting loses nothing the deck needs, because the runs are
+    saved in the folder.
 
-**`validate` in snapshot mode** refuses: fewer than 4 or more than 5 dimensions; a
-dimension with more or fewer than one question; a dimension without a catalogue id or with
-an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a question marked
-as naming no brand; a model id absent from `list-ai-models`; rounds other than 1; a
-schedule; a narrative without research question and purpose; a study with other than one
+**Where it resumes.** `monitor.py resume [--runs <one list-runs-tool response per snapshot not
+closed>]` reads the folder and prints `Next step: design`, `project`, `cost`, `run`, `deck`, `end`
+or `done`, naming the snapshot and the runs: no `study.json` → design; a snapshot not bound, or
+bound with no question → project; a run open in any snapshot → follow it and start nothing; the
+first snapshot whose runs ended with no results → run, told to the operator; the first snapshot with
+no run → cost and go; a completed run not in `history/runs/`, or no deck that passed `check` →
+deck; a snapshot not closed → end. A listing of a project no snapshot of the folder is bound to is
+refused, and so is a missing listing.
+
+**Following the subject.** `monitor.py promote --answers <json> --models <list-ai-models>` on a
+snapshot designed as a study, every snapshot bound and run and the deck passed: `kind` becomes
+`study`; the answers give `schedule` (one value, or one per project key), `report_every`, and
+optionally `rounds` (one value, or per project key); each project's name drops `Snapshot` and the
+date. Themes, personas, dimensions, questions and models are untouched. The study is validated as
+`design` does and nothing is written when that fails. The snapshots' bindings move to `snapshots`
+in `sentl.json`, and `setup` creates each project from its step 4. `bind` of a project created for
+a key whose questions were asked before records no question as retired on its empty bind, and
+compares its full bind with the last version that held questions, so a question kept as it was
+stays comparable: the first `report` compares its period with the snapshots'.
+
+**A snapshot of the earlier shape** (no themes in `study.json`: one project of four or five
+catalogue dimensions with one question each, rounds 1) still validates under its earlier rules,
+and `period`, `deck`, `check` and `compare` still read it. Its `validate` refuses: fewer than 4
+or more than 5 dimensions; a dimension with more or fewer than one question; a dimension without a
+catalogue id or with an id absent from `catalogue.md`; a field over Sentl's limits; an alias in a
+question marked as naming no brand; a model id absent from `list-ai-models`; rounds other than 1;
+a schedule; a narrative without research question and purpose; a study with other than one
 project; a dimension without `measures` or without an entry in `design_rationale`; a question
 without a `persona`; a `suggestion` that `search-demand.json` does not record under the
-question's dimension; a question with no `suggestion` when its dimension's block there holds
-one; duplicate keys. It warns when every dimension names the subject. The study rules on themes, origins, pairs, search lean and answers per
-period do not apply.
+question's dimension; a question with no `suggestion` when its dimension's block there holds one;
+duplicate keys. It warns when every dimension names the subject. Such a snapshot created as a
+project before Sentl had snapshots is promoted on its own project: the schedule, `report_every`,
+the audience and the project's question and decision come from the operator's answers, each
+dimension gets a theme whose origin is `probe`, and `sentl.json` is untouched. Such a snapshot
+created as a snapshot in Sentl is not followed: a study is designed for the subject.
 
-**Reading a snapshot.** Its one project mixes questions that name the subject with questions
-that name no brand, so Sentl's run score mixes two readings. The deck places each question
-in its block and reads each dimension on its own: by its score when the question names the subject, by whether and where the
-subject appears when it names no brand. It gives no figure for the whole project. The run
-floor of §Coverage does not apply to a snapshot's single run; a dimension under 80% judged is
-shown without a figure, and the operator is told. `period` takes the project's one run with no
-window, no floor and no comparison, and needs no `report_every`; it refuses a folder holding more
-than one run.
+**Reading a snapshot.** The deck places each question in its block and reads each dimension on
+its own: by its score when the question names the subject, by whether and where the subject
+appears when it names no brand. The run floor of §Coverage does not apply to a snapshot's runs; a
+dimension under 80% judged is shown without a figure, and the operator is told. The deck counts
+the answers per question and model from every run the period pooled.
 
 ## MCP mapping
 
@@ -915,10 +916,12 @@ operator's approval in that session.
 | `estimate-run-tool` (R) | | | credit estimate | | | credit estimate before the go |
 | `list-runs-tool` (R) | | | pending runs | runs available | new runs | follow the run |
 | `get-run-results-tool` (R) | | | ingest pending runs | | ingest | ingest |
-| `create-project-tool` (W) | | | new project, paused | | | snapshot project, paused, no schedule |
-| `update-project-settings-tool` (W) | | | settings, activation on go | | | pause after the report |
+| `create-project-tool` (W) | | | new project, paused | | | a project of the earlier shape, paused, no schedule |
+| `create-snapshot-tool` (W) | | | | | | one snapshot per project, with its rounds above one |
+| `update-project-settings-tool` (W) | | | settings, activation on go | | | rounds that differ, or a pause |
 | `save-project-questions-tool` (W) | | | dry run, then save | | | dry run, then save |
-| `trigger-run-tool` (W) | | | first run on go | | | the single run, on go |
+| `trigger-run-tool` (W) | | | first run on go | | | one run per snapshot, each on its own go |
+| `delete-snapshot-tool` (W) | | | | | | a snapshot the operator deletes, on go |
 
 `brief` also uses Google autocomplete and, when present, the keyword-data source.
 

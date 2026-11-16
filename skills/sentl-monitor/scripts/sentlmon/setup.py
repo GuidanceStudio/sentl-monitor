@@ -367,7 +367,12 @@ def bind(root, key, saved_file, run_file=None):
     settings = {"models": list(saved.get("researcher_model_ids") or []), "rounds": saved.get("rounds") or 1,
                 "schedule": saved.get("schedule_frequency"), "active": bool(saved.get("is_active"))}
     layout = _layout(project, bound, saved, dims, questions, versions)
-    changes = _changes(project, latest, layout, settings)
+    # A project created for a key whose questions were asked before, as when a snapshot is followed by a project: its
+    # empty bind retires nothing, and its full bind is compared with the last version that held questions, so a
+    # question kept as it was stays comparable with the snapshot's answers.
+    again = empty and latest is not None and bool(latest["dimensions"])
+    base = next((v for v in reversed(versions) if v["dimensions"]), latest) if not empty else latest
+    changes = [] if again else _changes(project, base, layout, settings)
     now = now_iso()
     notes = []
     wanted = {"models": project["models"], "rounds": project["rounds"], "schedule": project.get("schedule")}
@@ -377,7 +382,7 @@ def bind(root, key, saved_file, run_file=None):
     notes += [f"dimension {d['key']} is in Sentl and not in study.json" + ("" if d["archived"] else " and is not archived")
               for d in layout if d["key"] not in kept]
 
-    unchanged = latest is not None and not changes and latest["settings"] == settings
+    unchanged = not again and base is latest and latest is not None and not changes and latest["settings"] == settings
     if unchanged:
         latest["seen_at"] = now
         write_json(folder.path("history", "versions", f"{key}-{latest['version']:03d}.json"), latest)

@@ -342,11 +342,86 @@ def _promote_gaps(answers):
     return gaps
 
 
+def _per_project(answers, field, keys, allowed, gaps, required=True):
+    """{key: value} from an answer given once for every project or as a map by project key."""
+    value = answers.get(field)
+    if value is None and not required:
+        return {}
+    given = value if isinstance(value, dict) else {k: value for k in keys}
+    wrong = [k for k in keys if (k in given or required) and not allowed(given.get(k))]
+    extra = sorted(set(given) - set(keys))
+    if wrong or extra:
+        detail = ([f"wrong or missing for {', '.join(wrong)}"] if wrong else []) + (
+            [f"no project {', '.join(extra)}"] if extra else [])
+        gaps.append(f"{field}: one value for every project, or one for each of {', '.join(keys)} "
+                    f"({'; '.join(detail)})")
+    return {k: v for k, v in given.items() if k in keys}
+
+
+def _study_name(name):
+    """`<subject> · <project>` from a snapshot named `Snapshot · <subject> · <project> · <D>`."""
+    parts = name.split(" · ")
+    if len(parts) >= 3 and parts[0] == "Snapshot" and re.fullmatch(r"\d{4}-\d{2}-\d{2}", parts[-1]):
+        return " · ".join(parts[1:-1])
+    return name
+
+
+def _follow(root, study, answers_file, models_file):
+    """A snapshot designed as a study becomes that study: the same study.json with a schedule, rounds and a report
+    cadence. The snapshots' bindings move to `snapshots` in sentl.json, so `payload` creates each project; their runs,
+    period and deck stay as the first look."""
+    folder = Study(root)
+    keys = [p["key"] for p in study["projects"]]
+    binding = load_json(folder.path("sentl.json")) if folder.path("sentl.json").exists() else {"projects": {}}
+    unbound = [k for k in keys if not (binding["projects"].get(k) or {}).get("questions")]
+    if unbound:
+        raise Refused(f"snapshot {', '.join(unbound)} is not created in Sentl: a snapshot is followed after its run")
+    unrun = [k for k in keys if not any(folder.path("history", "runs", k).glob("*.json.gz"))]
+    if unrun:
+        raise Refused(f"snapshot {', '.join(unrun)} has no run in history/runs: the snapshots' runs are the first "
+                      "look, so they are ingested first")
+    if not any(passed_deck(e) for e in folder.reports()):
+        raise Refused("the snapshots have no deck that passed check: write their deck (SNAPSHOT.md step 9) before "
+                      "following the subject")
+    answers = load_json(answers_file)
+    gaps = []
+    schedules = _per_project(answers, "schedule", keys, lambda v: v in design.SCHEDULES, gaps)
+    rounds = _per_project(answers, "rounds", keys, lambda v: isinstance(v, int) and not isinstance(v, bool) and v >= 1,
+                          gaps, required=False)
+    if answers.get("report_every") not in ("weekly", "monthly"):
+        gaps.append("report_every: weekly or monthly")
+    if gaps:
+        raise Refused("answers missing for a monitored study:\n  - " + "\n  - ".join(gaps))
+    followed = copy.deepcopy(study)
+    followed["kind"] = "study"
+    followed["report_every"] = answers["report_every"]
+    for p in followed["projects"]:
+        p.update(name=_study_name(p["name"]), schedule=schedules[p["key"]], rounds=rounds.get(p["key"], p["rounds"]))
+    problems, _ = design.problems_of(followed, set(schema.models(models_file)), demand.recorded(root))
+    if problems:
+        raise Refused("the study fails validate:\n  - " + "\n  - ".join(problems))
+    for k in keys:
+        binding.setdefault("snapshots", {})[k] = binding["projects"].pop(k)
+    when = min(e["date"] for e in folder.reports() if passed_deck(e))
+    write_json(folder.path("study.json"), followed)
+    write_json(folder.path("sentl.json"), binding)
+    shown = ", ".join(f"{p['key']} ({p['schedule']}, {p['rounds']} round{'s' * (p['rounds'] != 1)})"
+                      for p in followed["projects"])
+    return (f"Following: study.json is a study with {shown}, reporting {answers['report_every']}. The snapshots' "
+            "bindings are kept under `snapshots` in sentl.json; their runs, period and deck stay as the first look. "
+            "Nothing was sent to Sentl. Next: SETUP.md from `payload`, which creates each project on the operator's "
+            f"go; activation only on a further go. `report` compares the first period with the snapshots of {when}.")
+
+
 def promote(root, answers_file, models_file):
-    """Turn a finished snapshot whose project is still open into a monitored study: the questions, the
-    rounds and the run stay, so the run is the baseline of the first report. Writes study.json only."""
+    """Turn a finished snapshot into a monitored study. A snapshot designed as a study keeps its study.json, with a
+    schedule, rounds and a report cadence added, and is set up as projects. A snapshot of the earlier shape, created
+    as a project before Sentl had snapshots, keeps its project: the questions, the rounds and the run stay, so the run
+    is the baseline of the first report. Writes study.json, and sentl.json for the first."""
     folder = Study(root)
     study = _load(root)
+    if designed(study):
+        return _follow(root, study, answers_file, models_file)
     project = study["projects"][0]
     key = project["key"]
     binding = load_json(folder.path("sentl.json")) if folder.path("sentl.json").exists() else {"projects": {}}

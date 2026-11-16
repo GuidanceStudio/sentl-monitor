@@ -177,7 +177,7 @@ every question with its persona, framing, rubric and the judge instructions Sent
 and the credit estimate from the tariffs. For a study, the estimate gives each project's credits
 per run, per report period and per 30 days (a weekly schedule runs 4.3 times in 30 days, the
 cycle in which Sentl renews the credits), and sets the 30 days against the plan's credits and the
-credits available. For a snapshot, it gives the credits of each snapshot's one run at its rounds
+credits available. For a snapshot, it gives the credits of each snapshot's run at its rounds
 and at 1 round, and the total, against the credits available. Without the two figures the review
 says they were not given. Judging costs no credits; `setup` shows Sentl's own figure before any
 run. Show the

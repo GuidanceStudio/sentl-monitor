@@ -348,6 +348,14 @@ holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 6. ")" "one after the other
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 8. ")" "every completed run of every snapshot" "SNAPSHOT.md reads a snapshot run again by hand"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 9. ")" "pools every ingested run of every snapshot" "SNAPSHOT.md draws one deck from every snapshot's runs"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 10. ")" "--project K" "SNAPSHOT.md closes each snapshot by its key"
+SNAPSHOT_FOLLOW=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 10. ")
+holds "$SNAPSHOT_FOLLOW" "monitor.py promote" "SNAPSHOT.md follows the subject with promote on the same study.json"
+holds "$SNAPSHOT_FOLLOW" "setup/SETUP.md" "SNAPSHOT.md hands a followed study over to setup"
+if grep -qF "go on with \`brief\` and \`design\`" <<<"$SNAPSHOT_FOLLOW"; then
+    bad "SNAPSHOT.md still follows the subject by going on with brief and design"
+else
+    ok "SNAPSHOT.md no longer follows the subject by going on with brief and design"
+fi
 for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
     if grep -qiE "four or five|4 or 5 dimensions|4 or 5 entries" "$f"; then
         bad "$(basename "$f") still sets four or five dimensions for a snapshot"
@@ -355,6 +363,14 @@ for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
         ok "$(basename "$f") sets no four-or-five rule for a snapshot"
     fi
 done
+for f in "$PAYLOAD/SKILL.md" "$REPO_ROOT/README.md"; do
+    if grep -qiE "four or five dimensions|4 or 5 dimensions" "$f"; then
+        bad "$(basename "$f") still describes a snapshot of four or five dimensions"
+    else
+        ok "$(basename "$f") describes a snapshot designed as a study"
+    fi
+done
+holds "$(section "$REPO_ROOT/ARCHITECTURE.md" "### \`snapshot <subject>\`")" "Following the subject" "ARCHITECTURE.md describes following a snapshot"
 if grep -qF "A snapshot has one project, 4–5 dimensions" "$REPO_ROOT/ARCHITECTURE.md"; then
     bad "ARCHITECTURE.md §study.json still sets the four-or-five rule"
 else

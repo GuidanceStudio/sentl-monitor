@@ -224,7 +224,8 @@ def leaks(folder, study, period, text, binding):
     model_ids |= set(period.get("names", {}))
     problems += [f"model id {m} appears" for m in sorted(model_ids) if m in text]
     ids = {str(run_id) for ids in period["runs"].values() for run_id in ids}
-    for proj in binding["projects"].values():
+    # The snapshots a followed study kept aside under `snapshots` have ids of their own.
+    for proj in [*binding["projects"].values(), *(binding.get("snapshots") or {}).values()]:
         ids.add(str(proj["project_id"]))
         ids.update(str(v) for v in proj["dimensions"].values())
         ids.update(str(v) for v in proj["questions"].values())

@@ -25,7 +25,11 @@ class _Side:
             raise Refused(f"{root} has no period: run period there first")
         self.period = load_json(max(dated))
         self.date = self.period["date"]
-        self.project, dimensions = measured(self.study, self.period)[0]
+        projects = measured(self.study, self.period)
+        if len(projects) > 1:
+            raise Refused(f"{root} holds {len(projects)} snapshots ({', '.join(p['key'] for p, _ in projects)}): "
+                          "compare reads folders of one snapshot each; read the two decks side by side")
+        self.project, dimensions = projects[0]
         self.bound = self.folder.binding["projects"][self.project["key"]]
         self.block = self.period["projects"][self.project["key"]]
         self.dimensions = dimensions

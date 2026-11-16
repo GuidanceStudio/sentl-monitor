@@ -5,10 +5,11 @@ import json
 import re
 import unittest
 
-from design_study import READER, as_snapshot, clean_snapshot_study, mutated, one_snapshot, run_of
+from design_study import READER, as_snapshot, clean_snapshot_study, clean_study, mutated, one_snapshot, run_of
 from fixtures import StudyCase, listing, models
 
-from sentlmon import deck
+from sentlmon import check, deck, snapcompare
+from sentlmon.common import Refused, Study
 from test_design import REFUSALS, WARNINGS
 from test_setup import empty_project, sentl_project
 
@@ -38,9 +39,9 @@ class SnapshotDesignCase(StudyCase, unittest.TestCase):
         self.put(study)
         return self.cli("validate", "--study", self.study, "--models", self.models)
 
-    def bind(self, saved, key="brand"):
+    def bind(self, saved, key="brand", at="2026-11-16T09:00:00Z"):
         return self.cli("bind", "--study", self.study, "--project", key, "--saved",
-                        self.save("project-now.json", saved), check=0, at="2026-11-16T09:00:00Z")
+                        self.save("project-now.json", saved), check=0, at=at)
 
     def payload(self, key="brand", saved=None, runs=None, check=0):
         args = ["payload", "--study", self.study, "--project", key, "--models", self.models]
@@ -215,12 +216,13 @@ class SeveralSnapshotsCase(SnapshotDesignCase):
         self.cli("ingest", "--study", self.study, "--project", key, "--results",
                  self.save(f"run-{run_id}.json", run_of(self.design, key, run_id, IDS[key], started)), check=0)
 
-    def reported(self):
+    def reported(self, runs=None):
         """The period's deck recorded as passed, as `check` records it."""
         (self.study / "history").mkdir(exist_ok=True)
         (self.study / "history" / "reports.json").write_text(json.dumps([
-            {"date": DATE, "status": "final", "deck": f"reports/{DATE}.deck.json", "runs": {}, "previous": None,
-             "period": {"from": "2026-11-16T00:00:00Z", "to": "2026-11-16T23:00:00Z"}}]), encoding="utf-8")
+            {"date": DATE, "status": "final", "deck": f"reports/{DATE}.deck.json", "runs": runs or {},
+             "previous": None, "period": {"from": "2026-11-16T00:00:00Z", "to": "2026-11-16T23:00:00Z"}}]),
+            encoding="utf-8")
 
 
 class ResumeAcrossSnapshotsTest(SeveralSnapshotsCase):
@@ -362,6 +364,205 @@ class PooledPeriodTest(SeveralSnapshotsCase):
         self.ingest("category", 7003, "2026-11-16T12:00:00Z")
         self.period()
         self.assertEqual(self.read(f"history/periods/{DATE}.json")["runs"], {"brand": [7001], "category": [7002, 7003]})
+
+
+class OneSubjectBothWaysTest(SnapshotDesignCase):
+    """The fixture of one fictional subject written as a study and as a snapshot."""
+
+    def test_the_study_and_the_snapshot_carry_the_same_themes_personas_and_models(self):
+        study, snap = clean_study(), clean_snapshot_study()
+        for field in ("subject", "foils", "components", "market", "themes", "personas"):
+            self.assertEqual(snap[field], study[field], field)
+        self.assertEqual([(p["key"], p["models"], p["dimensions"]) for p in snap["projects"]],
+                         [(p["key"], p["models"], p["dimensions"]) for p in study["projects"]])
+
+    def test_they_differ_only_in_kind_schedule_report_cadence_reader_name_and_rounds(self):
+        study, snap = clean_study(), clean_snapshot_study()
+        self.assertEqual({k for k in study.keys() | snap.keys() if study.get(k) != snap.get(k)},
+                         {"kind", "report_every", "narrative", "projects"})
+        self.assertEqual({k for k in study["narrative"].keys() | snap["narrative"].keys()
+                          if study["narrative"].get(k) != snap["narrative"].get(k)}, {"reader"})
+        for a, b in zip(study["projects"], snap["projects"]):
+            self.assertEqual({k for k in a.keys() | b.keys() if a.get(k) != b.get(k)} - {"rounds"},
+                             {"schedule", "name"})
+
+    def test_a_snapshot_cut_to_a_budget_records_what_it_left_out(self):
+        snap = one_snapshot(rounds=3)
+        snap["narrative"]["design_rationale"].append(
+            {"choice": "The snapshot without the brand is left out",
+             "reason": "The budget of 200 credits covers one snapshot at 3 rounds."})
+        self.put(snap)
+        self.cli("validate", "--study", self.study, "--models", self.models, check=0)
+        out = self.cli("review", "--study", self.study, "--models", self.models, check=0).stdout
+        self.assertIn("- Design choice: The snapshot without the brand is left out. The budget of 200 credits covers "
+                      "one snapshot at 3 rounds.", out)
+
+
+class CompareSeveralTest(SeveralSnapshotsCase):
+
+    def test_compare_refuses_a_folder_of_several_snapshots_and_says_why(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=0)
+        with self.assertRaises(Refused) as caught:
+            snapcompare._Side(self.study)
+        self.assertIn("brand, category", str(caught.exception))
+        self.assertIn("one snapshot", str(caught.exception))
+
+    def test_compare_reads_a_folder_of_one_snapshot_designed_as_a_study(self):
+        self.put(one_snapshot(rounds=1))
+        self.create("brand")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=0)
+        self.assertEqual(snapcompare._Side(self.study).project["key"], "brand")
+
+
+# --- following the subject ------------------------------------------------------
+
+FOLLOW = {"schedule": "weekly", "report_every": "monthly"}
+FOLLOWED_IDS = {"brand": 950, "category": 951}
+FOLLOWED_AT = "2026-11-20T09:00:00Z"
+
+
+class FollowTest(SeveralSnapshotsCase):
+    """`promote` on a snapshot designed as a study: the same study.json with a schedule, rounds and a report cadence,
+    set up as projects; the snapshots' period is the first look the first report compares with."""
+
+    def finished(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=0)
+        self.reported({"brand": [7001], "category": [7002]})
+
+    def follow(self, answers=None, check=0):
+        return self.cli("promote", "--study", self.study, "--answers",
+                        self.save("follow.json", FOLLOW if answers is None else answers),
+                        "--models", self.models, check=check)
+
+    def set_up_project(self, key):
+        """SETUP.md on the followed study: the project created, bound while empty, its questions saved, bound again."""
+        study = self.read("study.json")
+        self.bind(empty_project(study, key, FOLLOWED_IDS[key]), key, at=FOLLOWED_AT)
+        self.bind(sentl_project(study, key, FOLLOWED_IDS[key], first_id=3000), key, at=FOLLOWED_AT)
+
+    def test_the_snapshot_becomes_the_same_study_with_a_schedule_and_a_report_cadence(self):
+        self.finished()
+        before = self.read("study.json")
+        self.follow()
+        after = self.read("study.json")
+        self.assertEqual(after["kind"], "study")
+        self.assertEqual(after["report_every"], "monthly")
+        self.assertEqual([p["schedule"] for p in after["projects"]], ["weekly", "weekly"])
+        self.assertEqual([p["rounds"] for p in after["projects"]], [p["rounds"] for p in before["projects"]])
+        for field in ("themes", "personas", "subject", "foils"):
+            self.assertEqual(after.get(field), before.get(field), field)
+        self.assertEqual([[d for d in p["dimensions"]] for p in after["projects"]],
+                         [[d for d in p["dimensions"]] for p in before["projects"]])
+        self.assertEqual([p["models"] for p in after["projects"]], [p["models"] for p in before["projects"]])
+
+    def test_each_project_drops_the_snapshot_from_its_name(self):
+        self.finished()
+        self.follow()
+        names = [p["name"] for p in self.read("study.json")["projects"]]
+        self.assertTrue(all(not n.startswith("Snapshot") and DATE not in n for n in names), names)
+
+    def test_rounds_and_a_schedule_may_be_set_per_project(self):
+        self.finished()
+        self.follow({**FOLLOW, "schedule": {"brand": "weekly", "category": "monthly"}, "rounds": {"brand": 2}})
+        projects = {p["key"]: p for p in self.read("study.json")["projects"]}
+        self.assertEqual((projects["brand"]["schedule"], projects["category"]["schedule"]), ("weekly", "monthly"))
+        self.assertEqual(projects["brand"]["rounds"], 2)
+
+    def test_the_followed_study_validates(self):
+        self.finished()
+        self.follow()
+        self.cli("validate", "--study", self.study, "--models", self.models, check=0)
+
+    def test_the_snapshots_are_kept_aside_so_payload_creates_projects(self):
+        self.finished()
+        out = self.follow().stdout
+        binding = self.read("sentl.json")
+        self.assertEqual(binding["projects"], {})
+        self.assertEqual({k: v["project_id"] for k, v in binding["snapshots"].items()}, IDS)
+        created = self.payload("brand")
+        self.assertIn("create-project-tool", created)
+        self.assertEqual(created["create-project-tool"]["schedule_frequency"], "weekly")
+        self.assertIn("payload", out)
+        self.assertNotIn('"is_active": true', out)
+
+    def test_check_still_finds_a_snapshots_id_in_the_deck(self):
+        self.finished()
+        self.follow()
+        folder = Study(self.study)
+        period = self.read(f"history/periods/{DATE}.json")
+        problems = check.leaks(folder, folder.study, period, "The first look came from project 900.",
+                               self.read("sentl.json"))
+        self.assertIn("an id appears: 'project 900'", problems)
+
+    def test_a_snapshot_with_no_run_is_refused_and_nothing_is_written(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.reported({"brand": [7001]})
+        self.assertIn("category", self.follow(check=2).stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+        self.assertIn("brand", self.read("sentl.json")["projects"])
+
+    def test_a_snapshot_without_a_passing_deck_is_refused(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        self.assertIn("deck", self.follow(check=2).stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+
+    def test_missing_or_wrong_answers_are_named_and_nothing_is_written(self):
+        self.finished()
+        stderr = self.follow({"schedule": "hourly", "report_every": "yearly"}, check=2).stderr
+        for word in ("schedule", "report_every"):
+            self.assertIn(word, stderr)
+        stderr = self.follow({**FOLLOW, "schedule": {"brand": "weekly"}}, check=2).stderr
+        self.assertIn("category", stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+
+    def test_a_project_created_again_for_a_snapshot_records_no_question_as_new_or_retired(self):
+        self.finished()
+        self.follow()
+        self.set_up_project("brand")
+        versions = [json.loads(v.read_text(encoding="utf-8"))
+                    for v in sorted((self.study / "history" / "versions").glob("brand-*.json"))]
+        followed = [v for v in versions if v["recorded_at"] == FOLLOWED_AT]
+        self.assertEqual([len(v["dimensions"]) for v in followed], [0, 5])
+        changes = [c for v in followed for c in v["changes"]]
+        self.assertFalse([c for c in changes if c.get("change") in ("created", "retired", "new_intent")], changes)
+        self.assertEqual(self.read("sentl.json")["projects"]["brand"]["project_id"], FOLLOWED_IDS["brand"])
+
+    def test_the_first_report_after_following_compares_with_the_snapshot(self):
+        self.finished()
+        self.follow()
+        study = self.read("study.json")
+        for key in ("brand", "category"):
+            self.set_up_project(key)
+        self.cli("ingest", "--study", self.study, "--project", "brand", "--results",
+                 self.save("run-8001.json", run_of(study, "brand", 8001, 950, "2026-11-23T09:00:00Z", score=5,
+                                                   rounds=3)),
+                 check=0)
+        self.cli("ingest", "--study", self.study, "--project", "category", "--results",
+                 self.save("run-8002.json", run_of(study, "category", 8002, 951, "2026-11-23T10:00:00Z", score=5,
+                                                   rounds=3)),
+                 check=0)
+        out = self.cli("period", "--study", self.study, "--date", "2026-11-23", "--models", self.models,
+                       check=0).stdout
+        self.assertIn(f"Compared with the period of {DATE}", out)
+        period = self.read("history/periods/2026-11-23.json")
+        self.assertEqual(period["runs"], {"brand": [8001], "category": [8002]})
+        statuses = {e["status"] for dims in period["comparison"]["dimensions"].values() for e in dims.values()}
+        self.assertNotIn("new_baseline", statuses)
+        self.assertNotIn("new", statuses)
 
 
 if __name__ == "__main__":
