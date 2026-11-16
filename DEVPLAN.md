@@ -1449,8 +1449,8 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 | | Project | Snapshot |
 |---|---|---|
 | Schedule | daily, weekly or monthly | none |
-| Answers per question and model | rounds × the runs a period pools | one per run: Sentl refuses `rounds` other than 1 on a snapshot, so three answers take three runs of the same snapshot, one after the other, since a snapshot holds one open run |
-| Cost shown | credits per run, runs per month, monthly budget against the plan's monthly credits and the credits available | credits per run × runs, per snapshot and in total, against the credits available |
+| Answers per question and model | rounds × the runs a period pools | rounds per run, as a project; a snapshot runs once |
+| Cost shown | credits per run, runs per month, monthly budget against the plan's monthly credits and the credits available | the credits of its one run, which include the rounds, per snapshot and in total, against the credits available |
 | Plan slot | one | none |
 | After the deck | the next period | keep, delete, or follow the subject |
 
@@ -1465,8 +1465,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   The funnel is a suggestion, not a check: the playbook proposes it as the default way to spread each persona's questions (discovery naming no brand, comparison with the foils, the decision on the subject's offer, the experience after), and the operator is free to set the questions another way or by another framework. `narrative.design_rationale` records the framework used. No new field and no `validate` rule.
 - [ ] T2 A snapshot starts from `brief`, with what a prospect gives. Step 2 is skipped when there is no client material. Themes come from the operator's remarks, the search suggestions and a probe. Personas are written as a list, as in a study. Volumes are fetched only when a keyword-data tool is connected and after the operator's yes. SNAPSHOT.md §2–4 hands over to `brief` and `design`. The seeds are the brief's, per theme and persona, no longer one per dimension.
 - [ ] T3 A `study.json` of kind `snapshot` has the fields and checks of a study:
-  - `runs`, the answers per question and model, default 3;
-  - `rounds` 1, no `schedule`, no `report_every`.
+  - `rounds` on each project, default 3, as a project has;
+  - no `runs` field, no `schedule`, no `report_every`.
+  `payload` puts `rounds` in the `create-snapshot-tool` arguments, as it does for `create-project-tool`, and sends it through `update-project-settings-tool` when the snapshot exists. A refusal of the rounds stops the route with Sentl's code and message, as any write refusal does; there is no fallback to several runs.
   `validate` and `review` run the study's checks on it, plus the absence of a schedule. A snapshot folder made before M39 (four or five dimensions, empty `themes`) still validates under its old rules, and `report`, `deck` and `compare` still read it.
 - [ ] T4 Models, one reasoning for both routes, written once. For each project or snapshot:
   - the assistants its audience uses, from what the operator or the brief records, never an invented share of use;
@@ -1474,28 +1475,30 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - at least one model that searches the web and cites its sources;
   - the tariff per call.
   `review` prints, per project, each model with its tariff and the credits of one run. Projects of one study may have different models.
-- [ ] T5 Cost. For a study, `review` prints the credits per run and the monthly budget from the schedule and rounds, against the plan's monthly credits and the credits available. For a snapshot, it prints credits per run × runs, per snapshot and in total, against the credits available. Before any run, `snapshot` shows Sentl's `estimate-run-tool` for each snapshot.
+- [ ] T5 Cost. For a study, `review` prints the credits per run and the monthly budget from the schedule and rounds, against the plan's monthly credits and the credits available. For a snapshot, it prints the credits of its one run, which include the rounds, per snapshot and in total, against the credits available, at the proposed 3 rounds and at 1 round. Before any run, `snapshot` shows Sentl's `estimate-run-tool` for each snapshot.
 - [ ] T6 Several snapshots in one folder:
   - `payload`, `bind`, `resume` and `ingest` treat each project of a snapshot study as one Sentl snapshot;
-  - runs start one after the other, each once the previous is final, and each after its own yes on the estimate: Sentl's `trigger-run-tool` asks a new yes for every run of a snapshot;
+  - each snapshot runs once; the runs start one after the other, each once the previous is final, and each after its own yes on its estimate, since Sentl's `trigger-run-tool` asks a new yes for every run of a snapshot;
   - the period pools every run of every snapshot;
   - the full and quick decks are the study's, on that one period.
 - [ ] T7 Following a snapshot becomes `setup` on the same `study.json` with a schedule, `rounds` and `report_every` added. The snapshot's period stays as the first look. SNAPSHOT.md §10 drops "go on with `brief` and `design`".
 - [ ] T8 Tests:
-  - `validate` gives the same verdict on a study and on the same study as a snapshot, apart from schedule and runs.
+  - `validate` gives the same verdict on a study and on the same study as a snapshot, apart from schedule and report cadence.
   - A fixture of a fictional subject, written both ways, carries the same themes, personas and models; a snapshot cut to a budget records what it left out in `design_rationale`.
   - A snapshot folder of the old shape validates, reports and compares.
-  - `resume` finds the next step across several snapshots and several runs.
+  - `resume` finds the next step across several snapshots, one run each.
 - [ ] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
 - [ ] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
 
 **Decisions of 2026-11-16 (operator):**
 
 1. The funnel is a suggestion the playbook offers; the operator may set the questions another way or by another framework (T1).
-2. Each run of a snapshot gets its own yes after the estimate, as Sentl's `trigger-run-tool` requires; the question of one go for a series does not arise.
-3. A snapshot proposes 3 runs by default and shows the cost of 1 as well.
+2. Each snapshot runs once, and its run gets its own yes after the estimate, as Sentl's `trigger-run-tool` requires.
+3. A snapshot proposes 3 rounds by default, as a project, and `review` shows the cost of 1 round as well.
 
-**Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, runs and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
+**Change of 2026-11-16 (operator), replacing the first version of decisions 2 and 3:** a snapshot takes `rounds` exactly as a project does, and nothing but the schedule differs. Sentl does not allow it yet: `create-snapshot-tool` has no rounds parameter and `update-project-settings-tool` refuses rounds other than 1 on a snapshot. It is filed with Sentl as a feature request, and the skill is built as if Sentl had it. Until Sentl ships rounds on snapshots, a snapshot of more than 1 round is refused at creation, and the route stops with Sentl's code and message.
+
+**Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, report cadence and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
 
 ## R15: Release 0.13.0
 
