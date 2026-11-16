@@ -1408,3 +1408,26 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] Version 0.11.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.11.0.
+
+## M38: A summary after the opening and the suggested actions at the end
+
+**Status:** planned 2026-11-16, waits for the operator's go.
+
+**Why:** on 2026-11-16 the operator relayed the feedback of a client's executive who read a full deck: executives and managers want a summary slide right after the introduction and a closing slide with the suggested actions. The full deck already has both, in a form that does not serve that reader. Slide 3 ("Cosa abbiamo trovato") is three cards of charts with one sentence each, and it does not read as a summary in thirty seconds. Slide 4 ("Cosa fare") comes before the evidence, so a reader who goes through the deck closes it on the list of questions. The quick deck has neither slide. The operator's choices (2026-11-16): the actions only at the end of the full deck, not at both ends; in the quick deck, actions drawn from what the answers show, on the subject's own pages or as checks, never requests to third parties.
+
+**Tasks:**
+- [ ] T1 Full deck, slide 3 "In sintesi" ("In short"): `found.title`, then per block its group label, the block's headline figure drawn by the code (x of y) and the sentence of `found.answers`, then one line with the first action, drawn by the code from `actions[0].what`. The presence ranking (the subject against the names monitored) moves to the first evidence slide of `reach`; the bars of the description and facts cards are dropped, since their evidence slides draw them. `check` holds the slide to a ceiling of its own, set from the trial decks at about 100 words with what the code draws, and the found answers keep their 25 words.
+- [ ] T2 Full deck order: cover, slide 2, "In sintesi", the evidence slides, the sources slide, "Azioni suggerite" ("Suggested actions"), then an appendix with the method and the list of questions, each page of it marked as appendix. The slide of an earlier edition's actions, when a period has one, stands just before the suggested actions. The actions table keeps pointing each action to its evidence slide by number.
+- [ ] T3 Quick deck, slide 2 "In sintesi": a title (the period's main finding, at most 20 words) and per project its name, the project's headline figure drawn by the code and one sentence (at most 25 words, not the project slide's title again). `check` applies the full deck's rules on figures and words.
+- [ ] T4 Quick deck, last slide before the sites and method "Azioni suggerite": one to three actions, each with `what` and `why` at most 20 words. An action works on the subject's own pages or asks to check a page the answers cite; `check` refuses a `what` asking a third party for a change, and a `why` without a count the quick deck draws on a row.
+- [ ] T5 Playbooks and docs: DECK.md (the summary, the order, the appendix), QUICK.md (summary and actions, how to find an action without opening pages), ARCHITECTURE, CHANGELOG; Italian and English labels.
+- [ ] T6 Trial: the aggregated trial deck and a real three-project period redrawn as full and quick decks under the new rules, with the same findings and actions; both pass `check` and print one page per slide; sent to the operator.
+
+**Done when:** each rule has a test, the full suite passes, and the trial decks open with a summary a reader takes in under a minute and close on the suggested actions.
+
+## R14: Release 0.12.0
+
+**Tasks:**
+- [ ] Version 0.12.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+
+**Done when:** the release page holds the zip and both installed copies report 0.12.0.
