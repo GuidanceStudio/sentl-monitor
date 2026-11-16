@@ -1522,6 +1522,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 10. `promote` on a snapshot designed as a study does not require the snapshots closed; SNAPSHOT.md asks to keep or delete each first. The bindings move to `snapshots` in `sentl.json`, each project's name drops `Snapshot` and the date, and `schedule` and `rounds` are one value or one per project key (T7).
 11. `bind` of a project created for a key whose questions were asked before records its empty bind with no change, and compares its full bind with the last version that held questions; `check` looks for the kept snapshots' ids too (T7).
 12. A snapshot of the earlier shape created as a snapshot in Sentl is still not followed: a study is designed for it (T7).
+13. A snapshot's deck that passes `check` removes the entries of the snapshot's earlier dates from `history/reports.json`, so the folder records one deck and the first period of a followed study compares with that deck's period alone. `resume` and `promote` read the latest deck that passed. A deck of a followed study can still be the second edition of the snapshot's deck, since their runs do not overlap (T11).
 
 **Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, report cadence and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
 

@@ -547,7 +547,11 @@ def _full_deck(entry):
 
 
 def _earlier(folder, date):
-    """(date, text) of the latest full deck before `date` that passed check and still has its period."""
+    """(date, text) of the latest full deck before `date` that passed check and still has its period. A snapshot's deck
+    has none: its period pools every run, those an earlier deck of the snapshot read included, so the new deck replaces
+    that one instead of comparing with it."""
+    if folder.study.get("kind") == "snapshot":
+        return None
     days = {e["date"] for e in folder.reports() if _full_deck(e) and e["date"] < date}
     for day in sorted(days, reverse=True):
         path = folder.path("reports", f"{day}.deck.json")
@@ -2170,6 +2174,9 @@ def _record(folder, day, period, path, problems, unattended, what="deck"):
     shown = entry["deck"] if what != "deck" and entry and _full_deck(entry) and entry.get("deck") else _shown(folder, Path(path))
     if not problems:
         folder.record_period(day, period, deck=shown, **kept)
+        if folder.study.get("kind") == "snapshot":
+            # A snapshot has one deck: the one that passed last replaces the entries of its earlier decks.
+            write_json(folder.path("history", "reports.json"), [e for e in folder.reports() if e["date"] == day])
         folder.record_outcome("written", f"{what} of {day} passed check")
     elif unattended:
         if entry is None:

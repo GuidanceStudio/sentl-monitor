@@ -346,6 +346,8 @@ holds "$(cat "$PAYLOAD/snapshot/SNAPSHOT.md")" "DESIGN.md steps 2 to 9" "SNAPSHO
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 1. ")" "each snapshot of \`sentl.json\` not closed" "SNAPSHOT.md resumes with one run listing per snapshot"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 6. ")" "one after the other" "SNAPSHOT.md runs the snapshots one after the other"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 8. ")" "every completed run of every snapshot" "SNAPSHOT.md reads a snapshot run again by hand"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 8. ")" "Every start of a snapshot run sends \`confirm: true\`" "SNAPSHOT.md sends confirm: true on every start of a snapshot run"
+holds "$(section "$PAYLOAD/brief/BRIEF.md" "## 4. ")" "leave \`suggestion\` out of every question" "BRIEF.md keeps the fallback for a host with no network"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 9. ")" "pools every ingested run of every snapshot" "SNAPSHOT.md draws one deck from every snapshot's runs"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 10. ")" "--project K" "SNAPSHOT.md closes each snapshot by its key"
 SNAPSHOT_FOLLOW=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 10. ")

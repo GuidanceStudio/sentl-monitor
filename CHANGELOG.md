@@ -32,6 +32,12 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   for a key asked before keeps its questions comparable, so the first report compares with the snapshots' period.
 - `ingest` refuses a run whose `project_id` is not the project `--project` is bound to, with exit 2 and both ids; after
   `promote`, a run of a snapshot set aside under `snapshots` is refused the same way.
+- A run ingested after a snapshot's deck passed, such as one run again by hand, brings `resume` back to the period and
+  the deck, and `promote` refuses it until then. The snapshot's new deck replaces the earlier one in
+  `history/reports.json` and is no second edition of it.
+- `brief` keeps the fallback for a host with no network: questions with no `suggestion`, and the operator told. The
+  `snapshot` playbook says that every start of a snapshot run sends `confirm: true`, after the operator's yes on that
+  run's estimate.
 
 ## 0.12.0 (2026-11-16)
 

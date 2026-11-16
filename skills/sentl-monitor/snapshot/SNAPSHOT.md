@@ -175,8 +175,10 @@ the run cannot start, say why (credits, subscription) and stop: the folder resum
 
 Call `list-runs-tool` first. A run already open, of this snapshot or another: follow it, start
 nothing, and tell the operator. Otherwise, only on the operator's explicit go after the estimate,
-call `trigger-run-tool` once, with the snapshot's project id. Once its run is final, `resume`
-moves to the next snapshot's step 7. The operator may run a snapshot again by hand, for instance
+call `trigger-run-tool` once, with the snapshot's project id.
+Every start of a snapshot run sends `confirm: true`, which Sentl requires on a snapshot, and only
+after the operator's yes on that run's estimate. This holds for a run started again after a stall
+or by hand. Once its run is final, `resume` moves to the next snapshot's step 7. The operator may run a snapshot again by hand, for instance
 one of 1 round three times: every completed run of every snapshot goes in the period.
 
 If it is refused, tell the operator the code and message as Sentl gave them, and activate
@@ -203,7 +205,9 @@ python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inb
 If Sentl returns an error for a run twice, tell the operator and stop: the deck waits for it, and
 the folder resumes here. `period` pools every ingested run of every snapshot into one period, with
 no comparison and no floor on the judged share, and one deck is drawn from it. A dimension with under 80% of its answers judged is shown
-without a figure; tell the operator. Keep what `period` printed for the chat; none of it goes in
+without a figure; tell the operator. A run ingested after the deck passed, such as a snapshot run again by
+hand, brings `resume` back to this step: build the period again with today's `D` and write its deck,
+which replaces the earlier one. Until then `promote` refuses that run. Keep what `period` printed for the chat; none of it goes in
 the deck.
 
 Ask the operator which deck the reader of step 2 receives: the deck, with what was found and

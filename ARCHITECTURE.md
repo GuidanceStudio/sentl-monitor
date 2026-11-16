@@ -524,7 +524,7 @@ next period starts after the runs of the latest entry, a draft included, and a d
 entry an earlier version wrote for its long report carries `file`, `reports/<date>.md` or `.draft.md`, and is read like
 any other: its period bounds the next one and it is the previous period. The deck's `check` keeps that `file` while the
 report is in the folder and drops it once the report is gone; a `file` that names a deck, as earlier versions wrote it,
-is dropped too. The next deck compares with the latest earlier entry whose deck passed, and a pack holds that deck's text. `previous` is the date of the period the entry's period compared with, a rebuilt one included; it is
+is dropped too. The next deck compares with the latest earlier entry whose deck passed, and a pack holds that deck's text. In a snapshot folder the deck that passes replaces the entries of the earlier dates, so the folder records one deck, the one that read every run. `previous` is the date of the period the entry's period compared with, a rebuilt one included; it is
 null on a first period, including one that compares the two halves of its period. `last-report.json` holds `{at, outcome, detail}`, where `outcome` is
 `written`, `draft`, `nothing_new` or `below_floor`.
 
@@ -865,12 +865,14 @@ closed>]` reads the folder and prints `Next step: design`, `project`, `cost`, `r
 or `done`, naming the snapshot and the runs: no `study.json` → design; a snapshot not bound, or
 bound with no question → project; a run open in any snapshot → follow it and start nothing; the
 first snapshot whose runs ended with no results → run, told to the operator; the first snapshot with
-no run → cost and go; a completed run not in `history/runs/`, or no deck that passed `check` →
+no run → cost and go; a completed run not in `history/runs/`, no deck that passed `check`, or a run
+ingested that the latest deck to pass did not read (a snapshot run again by hand after the deck) →
 deck; a snapshot not closed → end. A listing of a project no snapshot of the folder is bound to is
 refused, and so is a missing listing.
 
 **Following the subject.** `monitor.py promote --answers <json> --models <list-ai-models>` on a
-snapshot designed as a study, every snapshot bound and run and the deck passed: `kind` becomes
+snapshot designed as a study, every snapshot bound and run and the deck passed after reading every
+run ingested (a later run is refused, naming it, until the period and the deck are built again): `kind` becomes
 `study`; the answers give `schedule` (one value, or one per project key), `report_every`, and
 optionally `rounds` (one value, or per project key); each project's name drops `Snapshot` and the
 date. Themes, personas, dimensions, questions and models are untouched. The study is validated as
@@ -922,7 +924,7 @@ operator's approval in that session.
 | `create-snapshot-tool` (W) | | | | | | one snapshot per project, with its rounds above one |
 | `update-project-settings-tool` (W) | | | settings, activation on go | | | rounds that differ, or a pause |
 | `save-project-questions-tool` (W) | | | dry run, then save | | | dry run, then save |
-| `trigger-run-tool` (W) | | | first run on go | | | one run per snapshot, each on its own go |
+| `trigger-run-tool` (W) | | | first run on go | | | one run per snapshot, each on its own go, with `confirm: true` |
 | `delete-snapshot-tool` (W) | | | | | | a snapshot the operator deletes, on go |
 
 `brief` also uses Google autocomplete and, when present, the keyword-data source.
@@ -1206,6 +1208,8 @@ deck's text and the two period files, no run: each block's figure on both dates 
 answered in both, grouped by project unless `same_audience`, and a change by `compare.called` with the step of a rate with a
 single previous period. The second slide prints each earlier action, its `read_next` and the writer's `earlier.now`. `check`
 refuses a missing part, a `now` with no figure and a stated cause, since the deck does not know whether the client acted.
+A snapshot's deck has no second edition: its period pools every run of the snapshot, those an earlier deck read
+included, so a deck built again after more runs replaces the earlier one.
 
 **Who writes what.** `deck.py` draws everything that is a figure: cards, charts, tables, sources, the method table,
 every label (`DECK` in `i18n.py`), the list of questions. The writer fills only text, in `reports/<date>.deck.json`. A weaker model can then

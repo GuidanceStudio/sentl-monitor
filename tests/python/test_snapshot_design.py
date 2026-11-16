@@ -216,11 +216,11 @@ class SeveralSnapshotsCase(SnapshotDesignCase):
         self.cli("ingest", "--study", self.study, "--project", key, "--results",
                  self.save(f"run-{run_id}.json", run_of(self.design, key, run_id, IDS[key], started)), check=0)
 
-    def reported(self, runs=None):
-        """The period's deck recorded as passed, as `check` records it."""
+    def reported(self, runs):
+        """The period's deck recorded as passed, as `check` records it, with the runs it read."""
         (self.study / "history").mkdir(exist_ok=True)
         (self.study / "history" / "reports.json").write_text(json.dumps([
-            {"date": DATE, "status": "final", "deck": f"reports/{DATE}.deck.json", "runs": runs or {},
+            {"date": DATE, "status": "final", "deck": f"reports/{DATE}.deck.json", "runs": runs,
              "previous": None, "period": {"from": "2026-11-16T00:00:00Z", "to": "2026-11-16T23:00:00Z"}}]),
             encoding="utf-8")
 
@@ -304,7 +304,7 @@ class ResumeAcrossSnapshotsTest(SeveralSnapshotsCase):
         self.create("category")
         self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
         self.ingest("category", 7002, "2026-11-16T10:00:00Z")
-        self.reported()
+        self.reported({"brand": [7001], "category": [7002]})
         listings = (self.runs("brand", (7001, "completed", "2026-11-16T09:00:00Z")),
                     self.runs("category", (7002, "completed", "2026-11-16T10:00:00Z")))
         self.assertEqual(self.step(*listings), "end")
@@ -381,6 +381,63 @@ class PooledPeriodTest(SeveralSnapshotsCase):
         # Each run answers every question at the design's 3 rounds, so every dimension is judged in full.
         self.assertEqual({d: e["total"]["figure"] for b in period["projects"].values() for d, e in b["dimensions"].items()},
                          {d["key"]: True for p in self.design["projects"] for d in p["dimensions"]})
+
+
+LATER = "2026-11-17"
+
+
+class AfterTheDeckTest(SeveralSnapshotsCase):
+    """One snapshot of 1 round whose deck passed after its first run, then run twice more by hand."""
+
+    def setUp(self):
+        super().setUp()
+        self.put(one_snapshot(rounds=1))
+        self.create("brand")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.decked(DATE)
+        self.ingest("brand", 7002, "2026-11-17T09:00:00Z")
+        self.ingest("brand", 7003, "2026-11-17T11:00:00Z")
+
+    def decked(self, date):
+        """The period of `date` built and its deck, with one action, recorded by `check` as passed."""
+        (self.study / "reports").mkdir(exist_ok=True)
+        (self.study / "reports" / f"{date}.deck.json").write_text(json.dumps(
+            {"schema": deck.SCHEMA, "date": date, "actions": [{"what": "Fix the price page", "read_next": "price"}]}),
+            encoding="utf-8")
+        self.publish(date)
+
+    def listing(self):
+        return self.runs("brand", (7003, "completed", "2026-11-17T11:00:00Z"),
+                         (7002, "completed", "2026-11-17T09:00:00Z"), (7001, "completed", "2026-11-16T09:00:00Z"))
+
+    def test_runs_ingested_after_the_deck_passed_send_the_folder_back_to_the_deck(self):
+        out = self.resume(self.listing()).stdout
+        self.assertIn("Next step: deck", out)
+        for said in ("run 7002 of brand", "run 7003 of brand", f"the deck of {DATE}"):
+            self.assertIn(said, out)
+        self.assertNotIn("run 7001", out)
+        self.decked(LATER)
+        self.assertEqual(self.step(self.listing()), "end")
+
+    def test_the_deck_built_again_replaces_the_snapshots_deck_and_is_no_second_edition(self):
+        self.cli("period", "--study", self.study, "--date", LATER, "--models", self.models, check=0)
+        folder, _, study, period, doc = deck.load(self.study, LATER)
+        self.assertEqual(period["runs"], {"brand": [7001, 7002, 7003]})
+        m = deck.build_model(folder, study, period, doc)
+        self.assertIsNone(m["second"])
+        self.assertTrue(m["first"])
+        self.decked(LATER)
+        self.assertEqual([e["date"] for e in self.read("history/reports.json")], [LATER])
+
+    def test_promote_refuses_runs_the_snapshots_deck_did_not_read(self):
+        proc = self.cli("promote", "--study", self.study, "--answers", self.save("follow.json", FOLLOW),
+                        "--models", self.models, check=2)
+        self.assertIn("run 7002 of brand, run 7003 of brand were ingested after the deck of", proc.stderr)
+        self.assertIn("step 9", proc.stderr)
+        self.assertEqual(self.read("study.json")["kind"], "snapshot")
+        self.decked(LATER)
+        self.cli("promote", "--study", self.study, "--answers", self.save("follow.json", FOLLOW),
+                 "--models", self.models, check=0)
 
 
 class OneSubjectBothWaysTest(SnapshotDesignCase):

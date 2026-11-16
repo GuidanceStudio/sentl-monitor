@@ -221,6 +221,25 @@ def _listings(binding, keys, runs_files):
     return rows_of
 
 
+def _ingested(folder, keys):
+    """{key: run ids in history/runs}."""
+    return {k: {int(p.name.split(".")[0]) for p in folder.path("history", "runs", k).glob("*.json.gz")} for k in keys}
+
+
+def _latest_deck(folder):
+    """The reports.json entry of the latest deck that passed check, or None."""
+    passed = [e for e in folder.reports() if passed_deck(e)]
+    return max(passed, key=lambda e: e["date"]) if passed else None
+
+
+def _unread(entry, ingested):
+    """[(key, run id)] of the runs ingested that the deck of `entry` did not read. An entry with no `runs` names none."""
+    if "runs" not in entry:
+        return []
+    read = entry["runs"] or {}
+    return [(k, i) for k, ids in ingested.items() for i in sorted(ids) if i not in read.get(k, [])]
+
+
 def resume(root, runs_files=None):
     """Which step of SNAPSHOT.md the folder is at, from its files and the run listing of each snapshot read now. The
     folder may hold several snapshots, run one after the other and pooled in one deck."""
@@ -240,8 +259,7 @@ def resume(root, runs_files=None):
     if isinstance(runs_files, (str, Path)):
         runs_files = [runs_files]
     rows_of = _listings(binding, keys, runs_files)
-    ingested = {k: {int(p.name.split(".")[0]) for p in folder.path("history", "runs", k).glob("*.json.gz")}
-                for k in keys}
+    ingested = _ingested(folder, keys)
     open_ = [(k, r) for k in rows_of for r in rows_of[k] if r["status"] in schema.OPEN]
     if open_:
         shown = ", ".join(f"run {r['id']} of {k}" for k, r in open_)
@@ -268,9 +286,16 @@ def resume(root, runs_files=None):
         shown = ", ".join(f"run {r['id']} of {k}" for k, r in pending)
         return _step("deck", f"A completed run is not in history/runs: {shown}. Fetch its results, ingest them, "
                              "build the period, which pools every run of every snapshot, and write the deck (step 9).")
-    if not any(passed_deck(e) for e in folder.reports()):
+    latest = _latest_deck(folder)
+    if latest is None:
         return _step("deck", "Every run is ingested and no deck has passed check: build the period and write the deck "
                              "(step 9).")
+    later = _unread(latest, ingested)
+    if later:
+        shown = ", ".join(f"run {i} of {k}" for k, i in later)
+        return _step("deck", f"Ingested after the deck of {latest['date']} passed: {shown}. Build the period again, which "
+                             "pools every run of every snapshot, and write its deck (step 9); the new deck replaces the "
+                             f"deck of {latest['date']}.")
     open_ends = [k for k in keys if "closed" not in binding["projects"][k]]
     if open_ends:
         return _step("end", f"The deck is final and {', '.join(open_ends)} is not closed: ask the operator whether to "
@@ -380,9 +405,17 @@ def _follow(root, study, answers_file, models_file):
     if unrun:
         raise Refused(f"snapshot {', '.join(unrun)} has no run in history/runs: the snapshots' runs are the first "
                       "look, so they are ingested first")
-    if not any(passed_deck(e) for e in folder.reports()):
+    latest = _latest_deck(folder)
+    if latest is None:
         raise Refused("the snapshots have no deck that passed check: write their deck (SNAPSHOT.md step 9) before "
                       "following the subject")
+    later = _unread(latest, _ingested(folder, keys))
+    if later:
+        shown = ", ".join(f"run {i} of {k}" for k, i in later)
+        raise Refused(f"{shown} {'were' if len(later) > 1 else 'was'} ingested after the deck of {latest['date']} "
+                      "passed: build the period again and "
+                      "write its deck (SNAPSHOT.md step 9), so the snapshots' deck reads every run, before following the "
+                      "subject")
     answers = load_json(answers_file)
     gaps = []
     schedules = _per_project(answers, "schedule", keys, lambda v: v in design.SCHEDULES, gaps)
@@ -402,7 +435,7 @@ def _follow(root, study, answers_file, models_file):
         raise Refused("the study fails validate:\n  - " + "\n  - ".join(problems))
     for k in keys:
         binding.setdefault("snapshots", {})[k] = binding["projects"].pop(k)
-    when = min(e["date"] for e in folder.reports() if passed_deck(e))
+    when = latest["date"]
     write_json(folder.path("study.json"), followed)
     write_json(folder.path("sentl.json"), binding)
     shown = ", ".join(f"{p['key']} ({p['schedule']}, {p['rounds']} round{'s' * (p['rounds'] != 1)})"

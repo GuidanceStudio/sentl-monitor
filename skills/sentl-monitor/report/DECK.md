@@ -411,7 +411,7 @@ answer stating an outdated term) counts by its fact in the deck, and goes in the
 
 ### The second edition
 
-When a deck that passed `check` comes before this one, `deck` adds `earlier` to the text to fill and a section "Compared with the deck of ..." to the figures file. A deck started before that one became final gains the field the next time `deck` runs. The code draws the rest: each block's figure on both dates, on the questions asked of the same assistants in both, and each earlier action with its earlier `read_next`. A figure rose or fell when it moved by 20 points or more.
+When a deck that passed `check` comes before this one, `deck` adds `earlier` to the text to fill and a section "Compared with the deck of ..." to the figures file. A deck started before that one became final gains the field the next time `deck` runs. The code draws the rest: each block's figure on both dates, on the questions asked of the same assistants in both, and each earlier action with its earlier `read_next`. A figure rose or fell when it moved by 20 points or more. A snapshot's deck has no second edition: a deck built again after more runs replaces the snapshot's earlier deck.
 
 - `earlier.title` and `earlier.read`: what moved, or that the figures stayed where they were. With no question asked of the same assistants on both dates the slide is not drawn and the fields are not there;
 - `earlier.actions_title`: what the figures of the earlier actions show, as a sentence;

@@ -109,7 +109,9 @@ Each persona's seeds are sent the same way, and their suggestions are recorded u
 persona in `search-demand.json`. Sources to watch are never sent.
 
 Exit 1: some prefixes could not be fetched, and the command lists them. Run it again; it
-fetches only the prefixes still missing. Exit 2: the seeds file or the stems are not usable;
+fetches only the prefixes still missing. When every prefix fails again, the host has no network:
+leave `suggestion` out of every question and write them from the themes and the personas alone,
+and tell the operator that Google's suggestions could not be collected. Exit 2: the seeds file or the stems are not usable;
 the message says which.
 
 **Volumes, when the operator has a keyword-data server connected.** Look in the connected
