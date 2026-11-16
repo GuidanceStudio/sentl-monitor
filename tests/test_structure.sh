@@ -343,6 +343,11 @@ holds "$(section "$PAYLOAD/design/DESIGN.md" "## 11. ")" "--monthly-credits" "DE
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")" "--credits-available" "SNAPSHOT.md sets the snapshots' cost against the credits available"
 holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 7. ")" "each snapshot's run" "SNAPSHOT.md shows estimate-run-tool for each snapshot"
 holds "$(cat "$PAYLOAD/snapshot/SNAPSHOT.md")" "DESIGN.md steps 2 to 9" "SNAPSHOT.md refers to the rule in DESIGN.md"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 1. ")" "each snapshot of \`sentl.json\` not closed" "SNAPSHOT.md resumes with one run listing per snapshot"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 6. ")" "one after the other" "SNAPSHOT.md runs the snapshots one after the other"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 8. ")" "every completed run of every snapshot" "SNAPSHOT.md reads a snapshot run again by hand"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 9. ")" "pools every ingested run of every snapshot" "SNAPSHOT.md draws one deck from every snapshot's runs"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 10. ")" "--project K" "SNAPSHOT.md closes each snapshot by its key"
 for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
     if grep -qiE "four or five|4 or 5 dimensions|4 or 5 entries" "$f"; then
         bad "$(basename "$f") still sets four or five dimensions for a snapshot"

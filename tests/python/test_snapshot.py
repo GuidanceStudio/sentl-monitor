@@ -380,10 +380,11 @@ class SnapshotPeriodTest(SnapshotCase):
         self.period(check=0)
         self.assertEqual(self.read(f"history/periods/{DATE}.json")["runs"], {KEY: [RUN_ID]})
 
-    def test_a_snapshot_holding_two_runs_is_refused(self):
+    def test_a_snapshot_run_again_pools_both_runs_in_its_period(self):
         self.ingest_run(run_id=7002, started="2026-10-22T10:00:00Z")
-        proc = self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=2)
-        self.assertIn("one run", proc.stderr)
+        out = self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=0).stdout
+        self.assertIn("pools 2 runs", out)
+        self.assertEqual(sorted(self.read(f"history/periods/{DATE}.json")["runs"][KEY]), [RUN_ID, 7002])
 
     def test_a_dimension_under_80_percent_judged_is_shown_without_a_figure(self):
         self.forget_run()

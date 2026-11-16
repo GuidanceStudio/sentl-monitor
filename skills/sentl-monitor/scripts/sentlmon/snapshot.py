@@ -197,63 +197,104 @@ def _step(name, *lines):
     return "\n".join([f"Next step: {name}", *lines])
 
 
-def resume(root, runs_file=None):
-    """Which step of SNAPSHOT.md the folder is at, from its files and the run listing read now."""
+def _listings(binding, keys, runs_files):
+    """{key: rows of its run listing}, one listing per snapshot not closed; a listing of a project no snapshot of the
+    folder is bound to is refused."""
+    by_id = {binding["projects"][k]["project_id"]: k for k in keys}
+    rows_of = {}
+    for path in runs_files or []:
+        listing = schema.run_listing(path)
+        key = by_id.get(listing["project_id"])
+        if key is None:
+            if len(keys) == 1:
+                raise Refused(f"the saved run listing is of project {listing['project_id']}, but {keys[0]} is bound "
+                              f"to project {binding['projects'][keys[0]]['project_id']}: save list-runs-tool's "
+                              "response for the right project")
+            bound = ", ".join(f"{k} {binding['projects'][k]['project_id']}" for k in keys)
+            raise Refused(f"the run listing of project {listing['project_id']} is of no snapshot bound in this folder "
+                          f"({bound}): save list-runs-tool's response for each snapshot")
+        rows_of[key] = listing["runs"]
+    absent = [k for k in keys if k not in rows_of and "closed" not in binding["projects"][k]]
+    if absent:
+        raise Refused(f"project {', '.join(absent)} is bound: pass --runs, the list-runs-tool response read now, one "
+                      "for each snapshot not closed")
+    return rows_of
+
+
+def resume(root, runs_files=None):
+    """Which step of SNAPSHOT.md the folder is at, from its files and the run listing of each snapshot read now. The
+    folder may hold several snapshots, run one after the other and pooled in one deck."""
     folder = Study(root)
     if not folder.path("study.json").exists():
         return _step("design", "No study.json: design the snapshot (SNAPSHOT.md steps 2 to 5).")
     study = _load(root)
-    key = study["projects"][0]["key"]
+    keys = [p["key"] for p in study["projects"]]
     binding = load_json(folder.path("sentl.json")) if folder.path("sentl.json").exists() else {"projects": {}}
-    bound = binding["projects"].get(key)
-    if bound is None or not bound.get("questions"):
-        return _step("project", "The project is not created in Sentl, or holds no question yet: create it, save its "
-                                "questions and bind it (step 6).")
-    if runs_file is None:
-        raise Refused(f"project {key} is bound: pass --runs, the list-runs-tool response read now")
-    listing = schema.run_listing(runs_file)
-    if listing["project_id"] != bound["project_id"]:
-        raise Refused(f"the saved run listing is of project {listing['project_id']}, but {key} is bound to project "
-                      f"{bound['project_id']}: save list-runs-tool's response for the right project")
-    rows = listing["runs"]
-    ingested = {int(p.name.split(".")[0]) for p in folder.path("history", "runs", key).glob("*.json.gz")}
-    reported = any(passed_deck(e) for e in folder.reports())
-    opened = [r for r in rows if r["status"] in schema.OPEN]
-    pending = [r for r in rows if r["status"] in FINAL and r["id"] not in ingested]
-    ended = [r for r in rows if r["status"] in schema.ENDED]
-    unseen = [r for r in rows if r["status"] not in schema.STATUSES]
-    if opened:
-        return _step("run", "A run is open: follow it with list-runs-tool until its status is final (step 8). A run "
-                            "is already started, so do not call trigger-run-tool.")
-    if pending:
-        ids = ", ".join(f"run {r['id']}" for r in pending)
-        return _step("deck", f"A completed run is not in history/runs: {ids}. Fetch its results, ingest them, "
-                             "build the period and write the deck (step 9).")
-    if ended and not ingested:
-        shown = ", ".join(f"run {r['id']} ({r['status']})" for r in ended)
-        return _step("run", f"The run ended with no results: {shown}. Tell the operator, with Sentl's error; a stalled "
-                            "run was not charged. Call trigger-run-tool again only on a new go.")
-    if unseen and not ingested:
-        shown = ", ".join(f"run {r['id']} ({r['status']})" for r in unseen)
-        return _step("run", f"Status never seen: {shown}. Tell the operator and do not call trigger-run-tool "
-                            "again without a new go.")
-    if not rows and not ingested:
-        return _step("cost", "The project has no run: show estimate-run-tool and wait for the operator's go "
+    missing = [k for k in keys if not (binding["projects"].get(k) or {}).get("questions")]
+    if missing:
+        if len(keys) == 1:
+            return _step("project", "The project is not created in Sentl, or holds no question yet: create it, save "
+                                    "its questions and bind it (step 6).")
+        return _step("project", f"Not created in Sentl, or holding no question yet: {', '.join(missing)}. Create each, "
+                                "save its questions and bind it (step 6).")
+    if isinstance(runs_files, (str, Path)):
+        runs_files = [runs_files]
+    rows_of = _listings(binding, keys, runs_files)
+    ingested = {k: {int(p.name.split(".")[0]) for p in folder.path("history", "runs", k).glob("*.json.gz")}
+                for k in keys}
+    open_ = [(k, r) for k in rows_of for r in rows_of[k] if r["status"] in schema.OPEN]
+    if open_:
+        shown = ", ".join(f"run {r['id']} of {k}" for k, r in open_)
+        return _step("run", f"A run is open: {shown}. Follow it with list-runs-tool until its status is final "
+                            "(step 8). A run is already started, so do not call trigger-run-tool.")
+    for k in keys:
+        rows = rows_of.get(k)
+        if rows is None or ingested[k] or any(r["status"] in FINAL for r in rows):
+            continue
+        ended = [r for r in rows if r["status"] in schema.ENDED]
+        unseen = [r for r in rows if r["status"] not in schema.STATUSES]
+        if ended:
+            shown = ", ".join(f"run {r['id']} ({r['status']})" for r in ended)
+            return _step("run", f"The run of {k} ended with no results: {shown}. Tell the operator, with Sentl's "
+                                "error; a stalled run was not charged. Call trigger-run-tool again only on a new go.")
+        if unseen:
+            shown = ", ".join(f"run {r['id']} ({r['status']})" for r in unseen)
+            return _step("run", f"Status never seen: {shown}. Tell the operator and do not call trigger-run-tool "
+                                "again without a new go.")
+        return _step("cost", f"Snapshot {k} has no run: show estimate-run-tool for it and wait for the operator's go "
                              "(step 7).")
-    if not reported:
-        return _step("deck", "The run is ingested and no deck has passed check: build the period and write the deck "
+    pending = [(k, r) for k in rows_of for r in rows_of[k] if r["status"] in FINAL and r["id"] not in ingested[k]]
+    if pending:
+        shown = ", ".join(f"run {r['id']} of {k}" for k, r in pending)
+        return _step("deck", f"A completed run is not in history/runs: {shown}. Fetch its results, ingest them, "
+                             "build the period, which pools every run of every snapshot, and write the deck (step 9).")
+    if not any(passed_deck(e) for e in folder.reports()):
+        return _step("deck", "Every run is ingested and no deck has passed check: build the period and write the deck "
                              "(step 9).")
-    if "closed" not in bound:
-        return _step("end", "The deck is final and the snapshot is not closed: ask the operator whether to keep it, "
-                            "delete it, or follow the subject over time (step 10).")
-    return _step("done", "The snapshot is finished: the deck is final and the project is closed.")
+    open_ends = [k for k in keys if "closed" not in binding["projects"][k]]
+    if open_ends:
+        return _step("end", f"The deck is final and {', '.join(open_ends)} is not closed: ask the operator whether to "
+                            "keep each snapshot, delete it, or follow the subject over time (step 10).")
+    return _step("done", "The snapshot is finished: the deck is final and every project is closed.")
 
 
-def close(root, saved_file=None, deleted=False):
-    """Record in sentl.json how the snapshot ended: kept in Sentl, archived, or deleted."""
+def _key_to_close(study, project):
+    keys = [p["key"] for p in study["projects"]]
+    if project is None:
+        if len(keys) > 1:
+            raise Refused(f"this folder holds {len(keys)} snapshots ({', '.join(keys)}): pass --project, the one "
+                          "to close")
+        return keys[0]
+    if project not in keys:
+        raise Refused(f"no snapshot {project!r} in study.json: one of {', '.join(keys)}")
+    return project
+
+
+def close(root, saved_file=None, deleted=False, project=None):
+    """Record in sentl.json how one snapshot ended: kept in Sentl, archived, or deleted."""
     folder = Study(root)
     study = _load(root)
-    key = study["projects"][0]["key"]
+    key = _key_to_close(study, project)
     if not folder.path("sentl.json").exists():
         raise Refused(f"sentl.json not found in {root}: the snapshot is created and bound first (SNAPSHOT.md step 6)")
     binding = load_json(folder.path("sentl.json"))

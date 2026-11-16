@@ -6,7 +6,7 @@ and nothing left running in Sentl. It writes to the
 operator's Sentl account and spends credits: every write has its own go.
 
 `<skill>` below is this skill's directory, `$S` the snapshot's folder, `D` today's date
-(`YYYY-MM-DD`) and `K` the project's key, `snapshot`. Run every `monitor.py` command with
+(`YYYY-MM-DD`) and `K` a snapshot's key in `study.json`. Run every `monitor.py` command with
 `--study "$S"`. The fields are in ARCHITECTURE.md §`study.json`, §`sentl.json` and §`snapshot
 <subject>`; the dimension catalogue is `<skill>/design/catalogue.md`.
 
@@ -47,17 +47,18 @@ Exit 1: the folder cannot be written; choose another. On a web sandbox, unpack t
 4. `list-ai-models`; save the response unchanged to `$S/inbox/models.json`. It holds each
    model's public name and its `credits`, the tariff per call.
 5. Invoked again in a folder that already holds a snapshot, find the step to resume at. Without
-   `$S/sentl.json`, or with a project that holds no question, run it without `--runs`; otherwise
-   call `list-runs-tool` with the project id of `sentl.json` and save it to
-   `$S/inbox/runs-<project id>.json`:
+   `$S/sentl.json`, or with a snapshot that holds no question, run it without `--runs`; otherwise
+   call `list-runs-tool` with the project id of each snapshot of `sentl.json` not closed and save
+   each response to `$S/inbox/runs-<project id>.json`:
 
    ```bash
-   python3 <skill>/scripts/monitor.py resume --study "$S" --runs "$S/inbox/runs-<project id>.json"
+   python3 <skill>/scripts/monitor.py resume --study "$S" \
+     --runs "$S/inbox/runs-<project id>.json" "$S/inbox/runs-<project id>.json"
    ```
 
-   It prints `Next step: design`, `project`, `cost`, `run`, `deck`, `end` or `done`, and
-   the step of this playbook that follows. Go to that step and skip the ones before it. A new
-   folder is at `design`.
+   It prints `Next step: design`, `project`, `cost`, `run`, `deck`, `end` or `done`, the
+   snapshot and the runs it concerns, and the step of this playbook that follows. Go to that step
+   and skip the ones before it. A new folder is at `design`.
 
 ## 2. Brief
 
@@ -107,7 +108,7 @@ python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models
 1 lists the problems: correct `study.json` and run it again. Tell the operator each warning, as
 DESIGN.md step 10 says. `review` writes `$S/study-review.md`: the narrative, the themes, the
 personas, each snapshot with its dimensions and its models, every question with its rubric and
-judge instructions, and the credits from the tariffs: each snapshot's one run at its rounds and
+judge instructions, and the credits from the tariffs: each snapshot's run at its rounds and
 at 1 round, and the total, against the credits available (DESIGN.md step 11).
 
 ## 5. Budget and approval
@@ -119,7 +120,9 @@ the operator's approval. Nothing is written to Sentl before it.
 
 ## 6. Project
 
-Nothing here starts a run. First, the project:
+Steps 6 to 8 are done for each snapshot of `study.json`, in its order: create and bind every
+snapshot first, then run them one after the other, each after its own estimate and go. Nothing
+here starts a run. First, the snapshot:
 
 ```bash
 python3 <skill>/scripts/monitor.py payload --study "$S" --project K --models "$S/inbox/models.json"
@@ -162,7 +165,7 @@ second failure stop and show the operator what it lists.
 
 ## 7. Cost
 
-Before each snapshot's run, call `estimate-run-tool` for that snapshot and save the response to
+`resume` names the snapshot whose run comes next. Before each snapshot's run, call `estimate-run-tool` for that snapshot and save the response to
 `$S/inbox/estimate-<key>.json`. Show the operator, in Sentl credits: the credits per researcher
 model, the total, the credits available in the organization, and whether the run can start. This tool reads
 only and starts nothing. Then stop and ask for the go to start the run. When the estimate says
@@ -170,9 +173,11 @@ the run cannot start, say why (credits, subscription) and stop: the folder resum
 
 ## 8. Run
 
-Call `list-runs-tool` first. A run already open: follow it, start nothing, and tell the
-operator. Otherwise, only on the operator's explicit go after the estimate, call
-`trigger-run-tool` once, with the project id.
+Call `list-runs-tool` first. A run already open, of this snapshot or another: follow it, start
+nothing, and tell the operator. Otherwise, only on the operator's explicit go after the estimate,
+call `trigger-run-tool` once, with the snapshot's project id. Once its run is final, `resume`
+moves to the next snapshot's step 7. The operator may run a snapshot again by hand, for instance
+one of 1 round three times: every completed run of every snapshot goes in the period.
 
 If it is refused, tell the operator the code and message as Sentl gave them, and activate
 nothing: a snapshot is not activated. A run that ends `stalled` (the queue did not pick it up) was
@@ -186,18 +191,18 @@ step and starts nothing. A status the skill has never seen is told to the operat
 
 ## 9. Period and deck
 
-Take the completed run's id from `resume`. Call `get-run-results-tool`, save the response to
-`$S/inbox/run-<id>.json` (copy the host's file when the response was large) and ingest it, then
-build the period of the one run:
+Take the completed runs not yet ingested, and their snapshots, from `resume`. For each, call
+`get-run-results-tool`, save the response to `$S/inbox/run-<id>.json` (copy the host's file when
+the response was large) and ingest it with its snapshot's key; then build the period:
 
 ```bash
 python3 <skill>/scripts/monitor.py ingest --study "$S" --project K --results "$S/inbox/run-<id>.json"
 python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inbox/models.json"
 ```
 
-If Sentl returns an error for the run twice, tell the operator and stop: a snapshot has one run
-and no deck without it; the folder resumes here. `period` reads the one run, with no comparison
-and no floor on the judged share. A dimension with under 80% of its answers judged is shown
+If Sentl returns an error for a run twice, tell the operator and stop: the deck waits for it, and
+the folder resumes here. `period` pools every ingested run of every snapshot into one period, with
+no comparison and no floor on the judged share, and one deck is drawn from it. A dimension with under 80% of its answers judged is shown
 without a figure; tell the operator. Keep what `period` printed for the chat; none of it goes in
 the deck.
 
@@ -212,19 +217,21 @@ the deck. On a host without a lasting folder, the pack waits for step 10, after 
 
 ## 10. Keep it, delete it, or follow the subject
 
-Ask the operator which of three. The run, its period and the deck stay in this folder whichever they choose.
+Ask the operator which of three, for each snapshot. The runs, the period and the deck stay in this
+folder whichever they choose. `--project K` names the snapshot; it may be left out when the folder
+holds one.
 
 **Keep it.** The snapshot stays in Sentl, readable, and costs nothing more. Call `get-project-tool`,
 saved to `$S/inbox/project.json`, and:
 
 ```bash
-python3 <skill>/scripts/monitor.py close --study "$S" --saved "$S/inbox/project.json"
+python3 <skill>/scripts/monitor.py close --study "$S" --project K --saved "$S/inbox/project.json"
 ```
 
 **Delete it.** On the operator's go, call `delete-snapshot-tool`, then:
 
 ```bash
-python3 <skill>/scripts/monitor.py close --study "$S" --deleted
+python3 <skill>/scripts/monitor.py close --study "$S" --project K --deleted
 ```
 
 **Follow the subject over time.** A snapshot takes no schedule, so following it means a project:

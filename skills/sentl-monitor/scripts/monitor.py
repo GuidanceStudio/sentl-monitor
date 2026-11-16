@@ -209,12 +209,14 @@ def _parser():
 
     z = command("resume", "say which step of the snapshot route a folder is at, from its files and the run listing read now")
     z.add_argument("--study", default=".")
-    z.add_argument("--runs", help="saved list-runs-tool response, read now (required once the project is bound)")
+    z.add_argument("--runs", nargs="+", help="saved list-runs-tool responses read now, one for each bound snapshot not "
+                                             "closed (required once the projects are bound)")
 
     l = command("close", "record how a snapshot ended: kept in Sentl, archived, or deleted")
     l.add_argument("--study", default=".")
     l.add_argument("--saved", help="saved get-project-tool response, read now (not needed with --deleted)")
     l.add_argument("--deleted", action="store_true", help="the snapshot was deleted in Sentl, so there is nothing to read")
+    l.add_argument("--project", help="local key of the snapshot to close (required when the folder holds several)")
 
     r = command("promote", "turn a finished snapshot whose project is still open into a monitored study")
     r.add_argument("--study", default=".")
@@ -341,7 +343,7 @@ def main(argv=None):
         elif args.command == "resume":
             print(snapshot.resume(args.study, args.runs))
         elif args.command == "close":
-            print(snapshot.close(args.study, args.saved, args.deleted))
+            print(snapshot.close(args.study, args.saved, args.deleted, args.project))
         elif args.command == "promote":
             print(snapshot.promote(args.study, args.answers, args.models))
         elif args.command == "unpack":

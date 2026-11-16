@@ -558,12 +558,14 @@ def build(root, date, models_file=None):
         return out
 
     if snapshot:
-        held = sum(len(r) for r in runs.values())
-        if held > 1:
-            raise Refused(f"a snapshot holds one run, and this folder holds {held}: the run to report is the "
-                          "operator's choice, and the others are removed from history/runs first")
+        # Every run of every snapshot in the folder is pooled: a snapshot run again by hand adds answers as rounds do.
         chosen = pick(lambda k: {})
-        lines = ["Snapshot: the period is the project's one run, compared with nothing."]
+        held = {k: len(chosen[k][0]) for k in keys if chosen[k][0]}
+        if sum(held.values()) == 1 and len(keys) == 1:
+            lines = ["Snapshot: the period is the project's one run, compared with nothing."]
+        else:
+            lines = [f"Snapshot: the period pools {sum(held.values())} runs "
+                     f"({', '.join(f'{k} {n}' for k, n in held.items())}), compared with nothing."]
     elif reports:
         last = reports[-1]
         cut = {k: previous_cut(last, k, {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]}) for k in keys}

@@ -2,10 +2,13 @@
 cadence, `review` prints it, and `payload` sends each project's rounds to Sentl as one snapshot."""
 
 import json
+import re
 import unittest
 
-from design_study import READER, as_snapshot, clean_snapshot_study, mutated
+from design_study import READER, as_snapshot, clean_snapshot_study, mutated, one_snapshot, run_of
 from fixtures import StudyCase, listing, models
+
+from sentlmon import deck
 from test_design import REFUSALS, WARNINGS
 from test_setup import empty_project, sentl_project
 
@@ -181,6 +184,184 @@ class PayloadTest(SnapshotDesignCase):
         saved = sentl_project(self.design, project_id=PROJECT_ID)
         self.bind(saved)
         self.assertNotIn("update-project-settings-tool", self.payload(saved=saved))
+
+
+# --- several snapshots in one folder --------------------------------------------
+
+IDS = {"brand": 900, "category": 901}
+DATE = "2026-11-16"
+
+
+class SeveralSnapshotsCase(SnapshotDesignCase):
+
+    def create(self, key):
+        """Snapshot `key` created, bound while empty, its questions saved and bound again."""
+        self.bind(empty_project(self.design, key, IDS[key]), key)
+        self.bind(sentl_project(self.design, key, IDS[key]), key)
+
+    def runs(self, key, *rows):
+        return self.save(f"runs-{key}.json", listing(list(rows), IDS[key]))
+
+    def resume(self, *listings, check=0):
+        args = ["resume", "--study", self.study]
+        if listings:
+            args += ["--runs", *listings]
+        return self.cli(*args, check=check)
+
+    def step(self, *listings):
+        return re.search(r"^Next step: (\w+)", self.resume(*listings).stdout, re.M).group(1)
+
+    def ingest(self, key, run_id, started):
+        self.cli("ingest", "--study", self.study, "--project", key, "--results",
+                 self.save(f"run-{run_id}.json", run_of(self.design, key, run_id, IDS[key], started)), check=0)
+
+    def reported(self):
+        """The period's deck recorded as passed, as `check` records it."""
+        (self.study / "history").mkdir(exist_ok=True)
+        (self.study / "history" / "reports.json").write_text(json.dumps([
+            {"date": DATE, "status": "final", "deck": f"reports/{DATE}.deck.json", "runs": {}, "previous": None,
+             "period": {"from": "2026-11-16T00:00:00Z", "to": "2026-11-16T23:00:00Z"}}]), encoding="utf-8")
+
+
+class ResumeAcrossSnapshotsTest(SeveralSnapshotsCase):
+
+    def test_a_snapshot_not_created_yet_is_named_and_the_folder_resumes_at_the_project(self):
+        self.create("brand")
+        out = self.resume().stdout
+        self.assertIn("Next step: project", out)
+        self.assertIn("category", out)
+        self.assertNotIn("brand", out.split("\n", 1)[1])
+
+    def test_each_bound_snapshot_needs_its_run_listing(self):
+        self.create("brand")
+        self.create("category")
+        proc = self.resume(self.runs("brand"), check=2)
+        self.assertIn("--runs", proc.stderr)
+        self.assertIn("category", proc.stderr)
+
+    def test_a_listing_of_a_project_no_snapshot_is_bound_to_is_refused(self):
+        self.create("brand")
+        self.create("category")
+        other = self.save("runs-other.json", listing([], 111))
+        self.resume(self.runs("brand"), other, check=2)
+
+    def test_the_first_snapshot_with_no_run_is_at_cost(self):
+        self.create("brand")
+        self.create("category")
+        out = self.resume(self.runs("brand"), self.runs("category")).stdout
+        self.assertIn("Next step: cost", out)
+        self.assertIn("brand", out)
+
+    def test_an_open_run_of_one_snapshot_is_followed_and_no_other_run_starts(self):
+        self.create("brand")
+        self.create("category")
+        out = self.resume(self.runs("brand", (7001, "researching", "2026-11-16T09:00:00Z")),
+                          self.runs("category")).stdout
+        self.assertIn("Next step: run", out)
+        self.assertIn("run 7001 of brand", out)
+        self.assertIn("do not call trigger-run-tool", out)
+
+    def test_once_a_run_is_final_the_next_snapshot_is_at_cost(self):
+        self.create("brand")
+        self.create("category")
+        out = self.resume(self.runs("brand", (7001, "completed", "2026-11-16T09:00:00Z")),
+                          self.runs("category")).stdout
+        self.assertIn("Next step: cost", out)
+        self.assertIn("category", out)
+
+    def test_a_run_that_ended_with_no_results_is_told_before_the_next_snapshot(self):
+        self.create("brand")
+        self.create("category")
+        out = self.resume(self.runs("brand", (7001, "failed", "2026-11-16T09:00:00Z")), self.runs("category")).stdout
+        self.assertIn("Next step: run", out)
+        self.assertIn("run 7001 (failed)", out)
+
+    def test_with_a_run_of_every_snapshot_the_runs_not_ingested_go_to_the_deck(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        out = self.resume(self.runs("brand", (7001, "completed", "2026-11-16T09:00:00Z")),
+                          self.runs("category", (7002, "completed", "2026-11-16T10:00:00Z"))).stdout
+        self.assertIn("Next step: deck", out)
+        self.assertIn("run 7002 of category", out)
+        self.assertNotIn("run 7001", out)
+
+    def test_a_run_started_again_by_hand_is_read_like_the_first(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        out = self.resume(self.runs("brand", (7003, "completed", "2026-11-16T11:00:00Z"),
+                                    (7001, "completed", "2026-11-16T09:00:00Z")),
+                          self.runs("category", (7002, "completed", "2026-11-16T10:00:00Z"))).stdout
+        self.assertIn("Next step: deck", out)
+        self.assertIn("run 7003 of brand", out)
+
+    def test_the_folder_ends_once_every_snapshot_is_closed(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        self.reported()
+        listings = (self.runs("brand", (7001, "completed", "2026-11-16T09:00:00Z")),
+                    self.runs("category", (7002, "completed", "2026-11-16T10:00:00Z")))
+        self.assertEqual(self.step(*listings), "end")
+        self.cli("close", "--study", self.study, "--project", "brand", "--deleted", check=0)
+        out = self.resume(*listings).stdout
+        self.assertIn("Next step: end", out)
+        self.assertIn("category", out)
+        self.cli("close", "--study", self.study, "--project", "category", "--deleted", check=0)
+        self.assertEqual(self.step(*listings), "done")
+
+
+class CloseSeveralTest(SeveralSnapshotsCase):
+
+    def test_close_needs_the_snapshot_when_the_folder_holds_several(self):
+        self.create("brand")
+        self.create("category")
+        proc = self.cli("close", "--study", self.study, "--deleted", check=2)
+        self.assertIn("--project", proc.stderr)
+
+    def test_close_records_the_snapshot_it_names_and_no_other(self):
+        self.create("brand")
+        self.create("category")
+        saved = sentl_project(self.design, "category", IDS["category"])
+        self.cli("close", "--study", self.study, "--project", "category", "--saved",
+                 self.save("closed.json", saved), check=0)
+        bound = self.read("sentl.json")["projects"]
+        self.assertEqual(bound["category"]["closed"]["how"], "kept")
+        self.assertNotIn("closed", bound["brand"])
+
+
+class PooledPeriodTest(SeveralSnapshotsCase):
+
+    def period(self):
+        return self.cli("period", "--study", self.study, "--date", DATE, "--models", self.models, check=0)
+
+    def test_one_snapshot_with_three_runs_of_one_round_gives_three_answers_per_question_and_model(self):
+        self.put(one_snapshot(rounds=1))
+        self.create("brand")
+        for n, hour in enumerate(("09", "11", "13")):
+            self.ingest("brand", 7001 + n, f"2026-11-16T{hour}:00:00Z")
+        self.assertIn("3 runs", self.period().stdout)
+        period = self.read(f"history/periods/{DATE}.json")
+        self.assertEqual(period["runs"], {"brand": [7001, 7002, 7003]})
+        folder, _, study, period, doc = deck.load(self.study, DATE)
+        m = deck.build_model(folder, study, period, doc)
+        questions = sum(len(d["questions"]) for d in study["projects"][0]["dimensions"])
+        self.assertEqual(m["method"][0]["runs"], 3)
+        self.assertEqual(m["method"][0]["answers"], questions * 2 * 3)
+        self.assertEqual([n for n, _ in m["spread"]], [6])
+        self.assertNotEqual(deck._reading_key(m), "reading_answers_once")
+
+    def test_the_period_pools_every_completed_run_of_every_snapshot(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.ingest("category", 7002, "2026-11-16T10:00:00Z")
+        self.ingest("category", 7003, "2026-11-16T12:00:00Z")
+        self.period()
+        self.assertEqual(self.read(f"history/periods/{DATE}.json")["runs"], {"brand": [7001], "category": [7002, 7003]})
 
 
 if __name__ == "__main__":
