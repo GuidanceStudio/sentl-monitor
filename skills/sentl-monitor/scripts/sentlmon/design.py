@@ -175,6 +175,10 @@ def _check_question(q, dim, audience, subject_aliases, problems, personas=None):
             problems.append(f"{qid} is marked as naming no brand but contains the alias {alias}")
 
 
+def is_snapshot(study):
+    return study.get("kind") == "snapshot"
+
+
 def _check_project(project, study, model_ids, audience, aliases, problems, warnings):
     key = project.get("key")
     where = f"project {key}"
@@ -186,7 +190,10 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
     rounds = project.get("rounds")
     if not isinstance(rounds, int) or isinstance(rounds, bool) or rounds < 1:
         problems.append(f"{where}: rounds must be an integer of 1 or more")
-    if project.get("schedule") not in SCHEDULES:
+    if is_snapshot(study):
+        if "schedule" in project:
+            problems.append(f"{where}: a snapshot has no schedule")
+    elif project.get("schedule") not in SCHEDULES:
         problems.append(f"{where}: schedule must be {', '.join(SCHEDULES[:-1])} or {SCHEDULES[-1]}")
     models = project.get("models")
     if not isinstance(models, list) or not models:
@@ -235,10 +242,12 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
     if branded == {True, False}:
         warnings.append(f"{where} mixes questions that name the brand with questions that name none: Sentl's "
                         "score for it would blend two readings")
-    runs = runs_per_period(project, study.get("report_every"))
+    # A snapshot's skill starts one run: its answers per question and model are its rounds.
+    runs = 1 if is_snapshot(study) else runs_per_period(project, study.get("report_every"))
     if runs is not None and isinstance(rounds, int) and rounds * runs < ANSWERS_PER_PERIOD:
-        warnings.append(f"{where} gives {_count(rounds * runs, 'answer', 'answers')} per question and model in a "
-                        f"report period ({ANSWERS_PER_PERIOD} or more are expected)")
+        where_from = "its run" if is_snapshot(study) else "a report period"
+        warnings.append(f"{where} gives {_count(rounds * runs, 'answer', 'answers')} per question and model in "
+                        f"{where_from} ({ANSWERS_PER_PERIOD} or more are expected)")
 
 
 def problems_of(study, model_ids, recorded):
@@ -259,6 +268,8 @@ def problems_of(study, model_ids, recorded):
         aliases += foil.get("aliases") or []
     if "personas" in study:
         problems += demand.persona_problems(study["personas"])
+    if is_snapshot(study) and "report_every" in study:
+        problems.append("a snapshot has no report cadence: report_every is left out")
     projects = study.get("projects") or []
     if not projects:
         problems.append("the study has no project")
@@ -317,14 +328,18 @@ def _model_ids(models_file):
     return schema.models(models_file)
 
 
-def validate(root, models_file):
+def verdict(problems, warnings):
     """(text, ok): every refusal, then every warning."""
-    study = _load(root)
-    problems, warnings = problems_of(study, set(_model_ids(models_file)), demand.recorded(root))
     lines = [f"validate failed: {len(problems)} problem(s)"] if problems else [
         f"validate passed: {_count(len(warnings), 'warning', 'warnings')}"]
     lines += [f"  - {p}" for p in problems] + [f"  warning: {w}" for w in warnings]
     return "\n".join(lines), not problems
+
+
+def validate(root, models_file):
+    """(text, ok): every refusal, then every warning."""
+    study = _load(root)
+    return verdict(*problems_of(study, set(_model_ids(models_file)), demand.recorded(root)))
 
 
 # --- review -------------------------------------------------------------------
@@ -428,9 +443,11 @@ def review_text(study, root, models_file):
     names = schema.models(models_file)
     audience = study["narrative"]["audience"]
     narrative = study["narrative"]
-    out = [f"# Study review: {study['subject']['label']}", "", "## Narrative", "",
-           f"- Research question: {narrative['research_question']}", f"- Purpose: {narrative['purpose']}",
-           f"- Audience: {audience['choice']}. {audience['reason']}"]
+    out = [f"# {'Snapshot' if is_snapshot(study) else 'Study'} review: {study['subject']['label']}", "",
+           "## Narrative", "", f"- Research question: {narrative['research_question']}",
+           f"- Purpose: {narrative['purpose']}", f"- Audience: {audience['choice']}. {audience['reason']}"]
+    if narrative.get("reader"):
+        out.append(f"- Reader: {narrative['reader']}")
     if narrative.get("criteria"):
         out.append(f"- Rubrics written by: {narrative['criteria'].get('by')} ({narrative['criteria'].get('date')})")
     if narrative.get("score_axis"):
@@ -443,7 +460,8 @@ def review_text(study, root, models_file):
     for p in study["projects"]:
         out += [f"### {p['name']} ({p['key']})", "", f"- Question: {p['question']}", f"- Decision: {p['decision']}",
                 f"- Models: {', '.join(public_name(m, names) for m in p['models'])}",
-                f"- Rounds: {p['rounds']}; schedule: {p['schedule']}", "- Dimensions:"]
+                (f"- Rounds: {p['rounds']}; no schedule: the snapshot is created paused" if is_snapshot(study)
+                 else f"- Rounds: {p['rounds']}; schedule: {p['schedule']}"), "- Dimensions:"]
         for d in p["dimensions"]:
             out.append(f"  - {d['name']}: {_count(len(d['questions']), 'question', 'questions')} "
                        f"(search leans {d.get('search_lean', 'none')}; axis {d.get('axis', 'stance')})")

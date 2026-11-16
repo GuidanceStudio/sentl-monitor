@@ -77,6 +77,10 @@ def _create(project, binding, study):
                       "slug list-organizations gives")
     out = {"organization": organization, "name": project["name"], "researcher_model_ids": list(project["models"])}
     if study.get("kind") == "snapshot":
+        # A snapshot of one round leaves the rounds to Sentl, which runs one; more are sent, and refused by a Sentl
+        # that does not take rounds on a snapshot yet.
+        if project["rounds"] != 1:
+            out["rounds"] = project["rounds"]
         return out
     out["rounds"] = project["rounds"]
     if project.get("schedule"):
@@ -87,18 +91,20 @@ def _create(project, binding, study):
 def _settings_update(project, bound, saved, is_snapshot=False):
     """The update call when the study's name, models, rounds or schedule differ from the project in Sentl,
     and, for a snapshot, when the project is active. Activation is never part of it: the study route sets
-    it only on the operator's go, and a snapshot's call can only pause."""
+    it only on the operator's go, and a snapshot's call can only pause. A snapshot has no schedule, and its
+    rounds are sent only when they differ from Sentl's."""
+    rounds = saved["rounds"] != project["rounds"]
     differs = (norm(saved["name"]) != norm(project["name"])
-               or set(saved.get("researcher_model_ids") or []) != set(project["models"])
-               or (not is_snapshot and (saved["rounds"] != project["rounds"]
-                                        or saved.get("schedule_frequency") != project["schedule"])))
+               or set(saved.get("researcher_model_ids") or []) != set(project["models"]) or rounds
+               or (not is_snapshot and saved.get("schedule_frequency") != project["schedule"]))
     pause = is_snapshot and bool(saved.get("is_active"))
     if not (differs or pause):
         return None
     out = {"project_id": bound["project_id"], "name": project["name"],
            "researcher_model_ids": list(project["models"])}
-    if not is_snapshot:
+    if not is_snapshot or rounds:
         out["rounds"] = project["rounds"]
+    if not is_snapshot:
         out["schedule_frequency"] = project["schedule"]
     if pause:
         out["is_active"] = False

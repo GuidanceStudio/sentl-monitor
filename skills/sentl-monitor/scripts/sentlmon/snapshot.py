@@ -19,6 +19,12 @@ def is_snapshot(root):
     return path.exists() and load_json(path).get("kind") == "snapshot"
 
 
+def designed(study):
+    """Whether a snapshot was designed as a study is, through `brief` and `design`: it lists its themes. One with no
+    theme is of the earlier shape, one project of four or five dimensions of one question each, and keeps its rules."""
+    return bool(study.get("themes"))
+
+
 def catalogue_ids():
     try:
         text = CATALOGUE.read_text(encoding="utf-8")
@@ -106,7 +112,10 @@ def _suggestion_problems(dims, given):
 
 
 def problems_of(study, model_ids, recorded, ids=None):
-    """(refusals, warnings) of a snapshot study. `recorded` is what `demand.recorded` reads from the folder."""
+    """(refusals, warnings) of a snapshot study. `recorded` is what `demand.recorded` reads from the folder. A
+    snapshot designed as a study is checked as one; one of the earlier shape, under its own rules."""
+    if designed(study):
+        return design.problems_of(study, model_ids, recorded)
     ids = catalogue_ids() if ids is None else ids
     problems, warnings = [], []
     narrative = study.get("narrative") or {}
@@ -140,10 +149,12 @@ def validate(root, models_file):
     """(text, ok): every refusal, then every warning."""
     study = _load(root)
     problems, warnings = problems_of(study, set(schema.models(models_file)), demand.recorded(root))
-    lines = [f"validate failed: {len(problems)} problem(s)"] if problems else [
-        f"validate passed: {design._count(len(warnings), 'warning', 'warnings')}"]
-    lines += [f"  - {p}" for p in problems] + [f"  warning: {w}" for w in warnings]
-    return "\n".join(lines), not problems
+    text, ok = design.verdict(problems, warnings)
+    if problems and not designed(study):
+        text += ("\n  note: its themes are empty, so it is checked as a snapshot of the earlier shape (one project of "
+                 "four or five dimensions of one question each); a snapshot designed through `brief` and `design` "
+                 "lists its themes")
+    return text, ok
 
 
 def review_text(study, models_file):
@@ -171,7 +182,10 @@ def review(root, models_file):
     problems, _ = problems_of(study, set(schema.models(models_file)), demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so there is nothing to review yet:\n  - " + "\n  - ".join(problems))
-    text = "\n".join(review_text(study, models_file)).rstrip() + "\n"
+    if designed(study):
+        text = design.review_text(study, root, models_file)
+    else:
+        text = "\n".join(review_text(study, models_file)).rstrip() + "\n"
     write_text(Study(root).path("study-review.md"), text)
     return text.rstrip()
 

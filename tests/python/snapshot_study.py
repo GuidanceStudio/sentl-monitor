@@ -1,4 +1,5 @@
-"""A fictional snapshot study, valid under `validate`, with the Sentl responses of its project and its run."""
+"""A fictional snapshot study of the earlier shape (empty themes, one project of four dimensions of one question
+each), valid under `validate`, with the Sentl responses of its project and its run."""
 
 import copy
 
@@ -40,7 +41,7 @@ READER = "the marketing manager of Avenello, deciding whether to monitor the bra
 
 
 def seeds_file():
-    """The seeds.json SNAPSHOT.md step 4 writes: one seed per dimension, keyed by the dimension."""
+    """The seeds.json a snapshot of the earlier shape wrote: one seed per dimension, keyed by the dimension."""
     return {"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
             "subject": {"aliases": ["Avenello"]}, "foils": [{"aliases": ["Avoria"]}],
             "components": [{"terms": ["oat milk"]}], "themes": {key: [seed] for key, seed in SEEDS.items()}}

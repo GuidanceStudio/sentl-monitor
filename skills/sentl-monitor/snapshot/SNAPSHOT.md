@@ -123,9 +123,12 @@ Nothing here starts a run. First, the project:
 python3 <skill>/scripts/monitor.py payload --study "$S" --project K --models "$S/inbox/models.json"
 ```
 
-The output holds `create-snapshot-tool` with the snapshot's name and models. A snapshot has no
-schedule, runs one round and takes none of the plan's project slots, so the plan's project limit
-does not apply to it. Show it and ask for the go; on the go call it with exactly those arguments.
+The output holds `create-snapshot-tool` with the snapshot's name, its models and, above one round,
+its `rounds`. A snapshot has no schedule and takes none of the plan's project slots, so the plan's
+project limit does not apply to it. Show it and ask for the go; on the go call it with exactly those
+arguments. A Sentl that does not take rounds on a snapshot yet refuses them, at creation or in the
+`update-project-settings-tool` call the next payload holds: stop, and give the operator Sentl's
+code and message. There is no fallback to several runs.
 Call `get-project-tool` on the id it returns, save the response to `$S/inbox/created.json` and
 bind it:
 

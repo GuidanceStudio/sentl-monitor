@@ -122,6 +122,31 @@ def clean_study():
                      "Which topics to write pages for", category_dims)]}
 
 
+READER = "the marketing manager of Avenello, deciding whether to monitor the brand"
+SNAPSHOT_DATE = "2026-11-16"
+
+
+def as_snapshot(study, rounds=None):
+    """The same design as a snapshot: kind snapshot, no report cadence, no schedule on its projects, a reader, and
+    each project named as a snapshot. `rounds` sets every project's rounds; None keeps the study's."""
+    snap = copy.deepcopy(study)
+    snap["kind"] = "snapshot"
+    snap.pop("report_every", None)
+    snap.setdefault("narrative", {})["reader"] = READER
+    for project in snap.get("projects") or []:
+        project.pop("schedule", None)
+        if rounds is not None:
+            project["rounds"] = rounds
+        if isinstance(project.get("name"), str):
+            project["name"] = f"Snapshot · {project['name']} · {SNAPSHOT_DATE}"
+    return snap
+
+
+def clean_snapshot_study():
+    """The clean study written as a snapshot, at the 3 rounds a snapshot proposes."""
+    return as_snapshot(clean_study(), rounds=3)
+
+
 def mutated(change):
     """A clean study after `change(study)` has altered it."""
     study = copy.deepcopy(clean_study())

@@ -30,7 +30,7 @@ def sentl_project(study, key=KEY, project_id=PROJECT_ID, edit=None, first_id=100
                               "additional_instructions": compose_instructions(q.get("instructions"), q.get("facts"))})
         dimensions.append({"id": did, "name": d["name"], "archived": False, "questions": questions})
     data = {"project": {"id": project_id, "name": project["name"], "organization": "example-org",
-                        "schedule_frequency": project["schedule"], "rounds": project["rounds"], "is_active": False,
+                        "schedule_frequency": project.get("schedule"), "rounds": project["rounds"], "is_active": False,
                         "researcher_model_ids": list(project["models"]), "dimensions": dimensions}}
     if edit:
         edit(data["project"])
