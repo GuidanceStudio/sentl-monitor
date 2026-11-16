@@ -857,17 +857,20 @@ class OpeningTest(DeckCase, unittest.TestCase):
         self.assertEqual(sum(r["answers"] for r in m["method"]), cards)
         self.assertEqual(sum(n * q for n, q in m["spread"]), cards)
 
-    def test_the_chart_says_when_one_assistant_answers(self):
+    def test_the_ranking_says_when_one_assistant_answers(self):
         t = deck.DECK["it"]
         f = {"a": 72, "b": 120, "rivals": [("Avoria", 75)], "rank": 2, "names": 10, "left_out": False, "project": None}
-        self.assertIn("A queste domande risponde solo Perplexity Sonar", deck._versus(f, "Avenello", t, "Perplexity Sonar"))
-        self.assertNotIn("risponde solo", deck._versus(f, "Avenello", t))
+        m = {"subject": "Avenello", "blocks": {"reach": {"figures": [f], "questions": [{"project": "P"}]}}, "names": {},
+             "method": [{"name": "P", "assistants": ["Perplexity Sonar"]}]}
+        self.assertIn("A queste domande risponde solo Perplexity Sonar", deck._ranking(m, t))
+        m["method"][0]["assistants"].append("Acme Chat")
+        self.assertNotIn("risponde solo", deck._ranking(m, t))
 
     def test_the_chart_says_how_many_names_it_shows(self):
         t = deck.DECK["it"]
         f = {"a": 14, "b": 90, "rivals": [(f"R{i}", 40 - i) for i in range(8)], "rank": 9, "names": 11, "left_out": False, "project": None}
         self.assertIn("Avenello: posizione 9 su 11 nomi monitorati.", deck._versus(f, "Avenello", t))
-        self.assertEqual(deck._versus(f, "Avenello", t).count('<div class="me">'), 1)
+        self.assertEqual(deck._versus(f, "Avenello", t).count('<b class="me">'), 1)
         self.assertNotIn("qui i primi", deck._versus(f, "Avenello", t))
 
     def test_names_a_few_answers_apart_are_said_to_be_close(self):
@@ -1260,11 +1263,13 @@ class LabelTest(unittest.TestCase):
         four = {"questions": [{}] * 4, "rows": [{"current": 10, "given": 64}]}
         self.assertEqual(deck._count_line("facts", four, deck.DECK["en"]), "4 questions, 64 answers, also counted in the other columns")
 
-    def test_the_description_card_says_what_it_counts_and_why_competitors_have_no_figure(self):
-        self.assertEqual(deck.DECK["it"]["card"]["description"].format(subject="Avenello"),
-                         "Risposte favorevoli a Avenello. Le stesse domande non sono state fatte sui concorrenti.")
-        self.assertEqual(deck.DECK["en"]["card"]["description"].format(subject="Avenello"),
-                         "Answers favourable to Avenello. The same questions were not asked about competitors.")
+    def test_the_description_figure_says_what_it_counts_and_the_method_why_competitors_have_none(self):
+        self.assertEqual(deck.DECK["it"]["summary_caption"]["description"].format(subject="Avenello"),
+                         "risposte favorevoli a Avenello")
+        self.assertEqual(deck.DECK["en"]["summary_caption"]["description"].format(subject="Avenello"),
+                         "answers favourable to Avenello")
+        self.assertIn("non sono state fatte sui concorrenti", deck.DECK["it"]["limit_unasked"])
+        self.assertIn("not asked about competitors", deck.DECK["en"]["limit_unasked"])
 
     def test_the_cover_says_which_report_it_is_and_the_method_counts_times_asked(self):
         for lang, first, update, once in (("it", "Primo report", "Aggiornamento", "Rilevazione singola"),
@@ -1958,13 +1963,13 @@ class ComparisonTest(DeckCase, unittest.TestCase):
         self.assertEqual(dict(counts), {"Oatly": 2, "Avoria": 1})
         self.assertTrue(left_out)
 
-    def test_the_found_slide_draws_the_subject_beside_the_competitors(self):
+    def test_the_first_slide_of_presence_draws_the_subject_beside_the_competitors(self):
         self.save_doc(self.filled())
         with mock.patch.object(deck, "FEW_ANSWERS", 1):  # the fixture's two answers a question read as enough
             text = deck.page_of(self.study, DATE)[0]
-        versus = text[text.index('class="versus"'):]
-        self.assertIn("Avoria", versus)
-        self.assertIn('<div class="me">Avenello</div>', versus)
+        ranking = text[text.index('class="ranking"'):]
+        self.assertIn("Avoria", ranking)
+        self.assertIn('<b class="me">Avenello 0</b>', ranking)
 
     def test_the_answer_on_presence_must_name_a_competitor(self):
         doc = self.filled()

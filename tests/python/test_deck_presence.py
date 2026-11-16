@@ -2,6 +2,7 @@
 and one where it is absent; and, on few answers per question, which assistants name the subject rather than how often."""
 
 import json
+import re
 import unittest
 from collections import Counter
 from unittest import mock
@@ -25,6 +26,10 @@ def card_model(figures, few=False, names=None):
             "names": names or {}, "few": few}
 
 
+def text_of(html):
+    return re.sub(r"<[^>]+>", "", html)
+
+
 class ByMarketTest(unittest.TestCase):
 
     def test_by_default_the_block_has_one_position_over_all_its_topics(self):
@@ -36,18 +41,13 @@ class ByMarketTest(unittest.TestCase):
         self.assertEqual([(f["market"], f["a"], f["b"], f["rank"], f["names"]) for f in figures],
                          [("Valdoria", 9, 10, 1, 3), ("Altrove", 1, 10, 3, 3)])
 
-    def test_the_card_draws_one_position_per_market(self):
+    def test_the_ranking_gives_one_position_per_market(self):
         figures = deck._block_figures("reach", [HOME, AWAY], True, 3, by_market=True)
-        html = deck._visual("reach", card_model(figures), deck.DECK["it"])
-        self.assertIn('class="markets"', html)
-        self.assertNotIn('class="versus"', html)
-        self.assertIn("Posizione tra i 3 nomi monitorati", html)
-        self.assertIn("Risposte che nominano Avenello", html)
-        cells = html[html.index('class="markets"'):]
-        self.assertLess(cells.index("Valdoria"), cells.index("Altrove"))
-        self.assertIn("9 su 10", cells)
-        en = deck._visual("reach", card_model(figures), deck.DECK["en"])
-        self.assertIn("Position among the 3 names monitored", en)
+        text = text_of(deck._ranking(card_model(figures), deck.DECK["it"]))
+        self.assertIn("Posizione di Avenello tra i 3 nomi monitorati, per mercato: Valdoria 1 · Altrove 3.", text)
+        self.assertNotIn("Avoria", text)
+        en = text_of(deck._ranking(card_model(figures), deck.DECK["en"]))
+        self.assertIn("Avenello's position among the 3 names monitored, by market: Valdoria 1 · Altrove 3.", en)
 
 
 class ByMarketDeckTest(DeckCase, unittest.TestCase):
@@ -64,8 +64,9 @@ class ByMarketDeckTest(DeckCase, unittest.TestCase):
         with mock.patch.object(deck, "FEW_ANSWERS", 1):
             self.assertEqual(self.problems(doc), "")
             html = deck.page_of(self.study, DATE)[0]
-        self.assertIn('class="markets"', html)
-        self.assertIn("Scelta", html[html.index('class="markets"'):])
+        ranking = text_of(html[html.index('class="ranking"'):])
+        self.assertIn("per mercato: ", ranking)
+        self.assertIn("Scelta", ranking)
 
 
 class FewAnswersTest(unittest.TestCase):
@@ -76,18 +77,15 @@ class FewAnswersTest(unittest.TestCase):
         row = reach_row("Valdoria", 2, 6, {"Avoria": 1}, by_model={GPT: [2, 2], GEM: [0, 2], "z/one": [0, 2]})
         return deck._block_figures("reach", [row], True, 2)
 
-    def test_the_card_names_the_assistants_that_name_the_subject(self):
-        html = deck._visual("reach", card_model(self.figure(), few=True, names=self.NAMES), deck.DECK["it"])
-        self.assertNotIn("meter", html)
-        self.assertIn("Assistenti che nominano Avenello in almeno una risposta", html)
-        named = html[html.index("in almeno una risposta"):html.index("in nessuna risposta")]
-        self.assertIn("Acme Chat", named)
-        self.assertNotIn("Orbit Reason", named)
-        self.assertIn("Orbit Reason, Zenith Answer", html[html.index("in nessuna risposta"):])
+    def test_the_ranking_names_the_assistants_that_name_the_subject(self):
+        text = text_of(deck._ranking(card_model(self.figure(), few=True, names=self.NAMES), deck.DECK["it"]))
+        self.assertIn("Assistenti che nominano Avenello in almeno una risposta: Acme Chat; in nessuna: Orbit Reason, "
+                      "Zenith Answer.", text)
+        self.assertNotIn("posizione", text)
 
-    def test_a_card_on_enough_answers_keeps_the_chart(self):
-        html = deck._visual("reach", card_model(self.figure(), few=False, names=self.NAMES), deck.DECK["it"])
-        self.assertIn('class="versus"', html)
+    def test_a_ranking_on_enough_answers_gives_the_position(self):
+        text = text_of(deck._ranking(card_model(self.figure(), few=False, names=self.NAMES), deck.DECK["it"]))
+        self.assertIn("Avenello: posizione 1 su 2 nomi monitorati.", text)
 
 
 class OneAnswerApartTest(unittest.TestCase):

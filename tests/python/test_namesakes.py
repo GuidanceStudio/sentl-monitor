@@ -225,20 +225,20 @@ class DeckTest(NamesakeDeckCase, unittest.TestCase):
         self.assertEqual((figure["a"], figure["b"]), (5, 8))
         self.assertEqual(figure["parts"], [(5, "good"), (0, "mid"), (2, "low"), (1, "namesake")])
 
-    def test_the_card_draws_the_namesake_count_and_check_refuses_another(self):
-        """The card's legend carries the namesake's part: the text under it says what lies behind it, not the count."""
+    def test_the_summary_lets_the_namesake_count_be_said_and_check_refuses_another(self):
+        """The summary draws the block's figure: the namesake's part is what lies behind it, a count it does not hold is not."""
         said = "Le favorevoli lodano il lavoro; 1 delle 8 descrive Avenello Arredi."
         doc = self.filled()
         doc["found"]["answers"]["description"] = said
-        self.assertIn("found answer description says 1 of 8, which the card beside it draws", self.problems(doc))
+        self.assertNotIn("found answer description says 1 of 8", self.problems(doc))
         doc["found"]["answers"]["description"] = said.replace("1 delle 8", "4 delle 8")
-        self.assertIn("found answer description says 4 of 8, and the chart beside it draws", self.problems(doc))
+        self.assertIn("found answer description says 4 of 8, and the slides of its group draw", self.problems(doc))
 
-    def test_the_chart_and_the_card_draw_the_namesake_part_with_its_label(self):
+    def test_the_chart_draws_the_namesake_part_with_its_label(self):
         self.save_doc(self.filled())
         text = deck.page_of(self.study, DATE)[0]
         self.assertIn('class="seg namesake"', text)
-        self.assertIn(f'{DECK["it"]["namesake_part"]}: 1', text)
+        self.assertIn(DECK["it"]["namesake_part"], text)
         self.assertIn("Avenello Arredi", text)
 
     def test_an_excerpt_from_an_answer_about_the_namesake_is_marked_as_such(self):

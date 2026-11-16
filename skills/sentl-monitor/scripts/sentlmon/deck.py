@@ -64,6 +64,7 @@ LIMITS = {"title": 125, "answer": 170, "read": 210, "what": 175, "why": 175, "re
 # more than the reader takes in at a glance.
 WORD_LIMITS = {"title": 20, "answer": 25, "read": 25, "what": 20, "why": 20}
 SLIDE_WORDS = 230
+SUMMARY_WORDS = 100  # slide 3 is read in under a minute, what the code draws on it included
 WORD = re.compile(r"[^\W_]+(?:['’.,/:-][^\W_]+)*")
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
 CAUSED = re.compile(r"\b(grazie a\w*|per effetto|a causa d\w*|in seguito a\w*|thanks to|as a result of|because of|due to|caused by)\b", re.I)
@@ -178,61 +179,35 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .cards { display: flex; gap: 16px; flex: 1; align-items: stretch; }
 .card { flex: 1 1 0; min-width: 0; box-sizing: border-box; background: var(--sl-tint); border-radius: 10px; padding: 15px 18px;
   display: flex; flex-direction: column; gap: 9px; }
-.card.reach { flex-grow: 1.3; }
 .card-q { font-size: 20px; line-height: 1.24; font-weight: 700; color: var(--sl-deep); }
-.found .card-q { font-size: 16px; line-height: 1.25; font-weight: 600; }
 .opening .cards { flex: 0 1 auto; }
 .opening .reading { margin-top: auto; }
 .three .card-q { font-size: 18px; }
 .three .card-ex { font-size: 16px; gap: 7px; }
 .card-count { font-size: 15px; color: var(--sl-muted); font-weight: 600; }
 .card-ex { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 18px; line-height: 1.3; }
-.card-fig { font-size: 46px; line-height: 1.05; font-weight: 700; }
-.card-fig small { font-size: 23px; font-weight: 600; color: var(--sl-muted); }
-.card-fig span { font-size: 15px; font-weight: 400; color: var(--sl-muted); }
-.card-cap { font-size: 15px; line-height: 1.28; color: var(--sl-muted); }
-.card-a { margin: 0; font-size: 19.5px; line-height: 1.28; font-weight: 600; }
-.card-visual { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-.card .bar { height: 22px; }
-.card .legend { gap: 12px; font-size: 13px; flex-wrap: wrap; }
-.versus { display: grid; grid-template-columns: auto 1fr 30px; gap: 6px 9px; align-items: center; font-size: 16px; line-height: 1.15; }
-.versus .meter { height: 17px; background: #fff; }
-.versus .fig { text-align: right; font-weight: 600; }
-.versus .me { font-weight: 700; }
-.markets { display: grid; grid-template-columns: minmax(0, auto) minmax(48px, 1fr) auto minmax(0, 5.5em); gap: 6px 9px;
-           align-items: center; font-size: 16px; line-height: 1.15; }
-.markets.unranked { grid-template-columns: minmax(0, auto) minmax(48px, 1fr) auto; }
-.markets .head { font-size: 13px; line-height: 1.2; color: var(--sl-muted); }
-.markets .span { grid-column: span 2; }
-.markets .meter { height: 17px; background: #fff; }
-.markets .fig { text-align: right; font-weight: 600; }
-.markets .rank { text-align: center; }
-.named-by { margin: 0; padding: 0; list-style: none; font-size: 22px; line-height: 1.3; font-weight: 700; }
-.pair .card-q { font-size: 18px; }
-.pair .card-a { font-size: 25px; line-height: 1.3; }
-.pair .card-cap { font-size: 16px; }
-.pair .card-fig { font-size: 64px; }
-.pair .card-fig small { font-size: 30px; }
-.pair .versus { font-size: 19px; gap: 12px 10px; grid-template-columns: auto 1fr 36px; }
-.pair .versus .meter { height: 24px; }
-.pair .markets { font-size: 19px; gap: 12px 10px; }
-.pair .markets .head { font-size: 15px; }
-.pair .markets .meter { height: 24px; }
-.one .card { display: grid; grid-template-columns: 5fr 6fr; grid-template-rows: auto 1fr; gap: 16px 40px; padding: 22px 30px; }
-.one .card-q { grid-column: 1 / -1; font-size: 20px; }
-.one .card-a { align-self: center; font-size: 30px; line-height: 1.3; }
-.one .card-visual { align-self: center; margin-top: 0; gap: 12px; }
-.one .card-cap { font-size: 17px; }
-.one .card-fig { font-size: 76px; }
-.one .card-fig small { font-size: 34px; }
-.one .card .bar { height: 34px; }
-.one .card .legend { font-size: 15px; }
-.one .versus { font-size: 21px; gap: 16px 12px; grid-template-columns: auto 1fr 40px; }
-.one .versus .meter { height: 30px; }
-.one .markets { font-size: 21px; gap: 16px 12px; }
-.one .markets .head { font-size: 16px; }
-.one .markets .meter { height: 30px; }
-.one .named-by { font-size: 28px; }
+.summary { display: flex; flex-direction: column; gap: 14px; }
+.sum-row { display: grid; grid-template-columns: 230px 260px 1fr; gap: 0 26px; align-items: center; background: var(--sl-tint);
+  border-radius: 10px; padding: 18px 24px; }
+.sum-group { font-size: 17px; line-height: 1.25; font-weight: 700; color: var(--sl-deep); }
+.sum-figs { display: flex; flex-direction: column; gap: 2px; }
+.sum-fig { font-size: 46px; line-height: 1.05; font-weight: 700; }
+.sum-fig small { font-size: 23px; font-weight: 600; color: var(--sl-muted); }
+.sum-fig span { font-size: 15px; font-weight: 600; color: var(--sl-muted); }
+.many .sum-fig { font-size: 32px; }
+.many .sum-fig small { font-size: 19px; }
+.sum-cap { font-size: 15px; line-height: 1.25; color: var(--sl-muted); }
+.sum-a { margin: 0; font-size: 22px; line-height: 1.3; font-weight: 600; }
+.one .sum-row { padding: 28px 30px; }
+.one .sum-fig { font-size: 64px; }
+.one .sum-fig small { font-size: 30px; }
+.one .sum-a { font-size: 27px; }
+.sum-action { margin: 6px 0 0; padding: 4px 0 4px 16px; border-left: 4px solid var(--sl-primary); font-size: 20px; line-height: 1.3; }
+.sum-action b { color: var(--sl-deep); }
+.sum-action span { color: var(--sl-muted); white-space: nowrap; }
+.ranking { font-size: 15.5px; line-height: 1.3; color: var(--sl-text); }
+.ranking p { margin: 0 0 2px; }
+.ranking .me { color: var(--sl-primary); }
 .reading { background: #F6F7F9; border-radius: 10px; padding: 11px 18px; }
 .reading h2 { margin-bottom: 5px; font-size: 16px; }
 .reading ul { margin: 0; padding: 0 0 0 18px; columns: 2; column-gap: 30px; font-size: 16px; line-height: 1.3; }
@@ -258,8 +233,6 @@ td.class { font-weight: 700; }
 .method table { font-size: 16px; }
 .sources .small-meter { height: 12px; }
 .chart { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-.legend { display: flex; gap: 22px; font-size: 14px; color: var(--sl-muted); }
-.legend i { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .rows { display: grid; column-gap: 18px; row-gap: 9px; align-items: center; font-size: 17px; line-height: 1.25; }
 .reach-rows { grid-template-columns: 290px 1fr 84px 340px; }
 .reach-rows.former { grid-template-columns: 270px 1fr 84px 120px 280px; }
@@ -287,7 +260,6 @@ td.class { font-weight: 700; }
 .namesake { background: repeating-linear-gradient(135deg, var(--sl-rival) 0 2px, #fff 2px 5px); color: var(--sl-text); }
 .meter { height: 28px; background: var(--sl-line); border-radius: 4px; overflow: hidden; }
 .meter span { display: block; height: 100%; background: var(--sl-primary); border-radius: 0 4px 4px 0; }
-.meter span.rival { background: var(--sl-rival); }
 .small-meter { height: 10px; margin-top: 5px; }
 .quotes { display: flex; gap: 20px; }
 .quote { flex: 1; margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--sl-primary); }
@@ -1129,9 +1101,15 @@ def _block_room(block):
     return MAX_BLOCK_SLIDES + (len({d for r in block["rows"] for d in _dimensions(r)}) > MANY_TOPICS)
 
 
-def _drawn(key, block, slide):
+def _ranks(doc, key, slide):
+    """Whether a slide draws the presence ranking: the first slide of presence does."""
+    return key == "reach" and slide is next(iter((doc.get("blocks") or {}).get("reach") or []), None)
+
+
+def _drawn(key, block, slide, ranking=False):
     """The x of y a slide shows: its chart and the dimensions of the questions it draws. The block's figure counts only
-    on a slide drawing the whole block: over part of it, the reader looks for that figure and cannot find it."""
+    on a slide drawing the whole block, or the `ranking` of presence: over part of it, the reader looks for that figure
+    and cannot find it."""
     rows = rows_of(key, block, slide)
     dimensions = set() if slide.get("questions") else {d for r in rows for d in _dimensions(r)}
     seen = set()
@@ -1139,6 +1117,11 @@ def _drawn(key, block, slide):
         seen = {(f["a"], f["b"]) for f in block["figures"]}
         seen.add(tuple(sum(f[k] for f in block["figures"]) for k in ("a", "b")))
         seen |= {(n, f["b"]) for f in block["figures"] for _, n in f.get("rivals") or []}
+    if ranking:
+        # The ranking draws the subject's count and the names' beside it, for a figure that is not one market's.
+        for f in block["figures"]:
+            if f.get("rivals") and not f.get("market"):
+                seen |= {(f["a"], f["b"])} | {(n, f["b"]) for _, n in f["rivals"]}
     for row in rows + [r for r in block["rows"] if set(_dimensions(r)) & dimensions]:
         seen.add(_measure(key, row))
         seen |= {(n, row["judged"]) for n in [*row["bands"].values(), row.get("namesake") or 0]} if key != "facts" else set()
@@ -1155,7 +1138,7 @@ def _undrawn(doc, m):
         if key not in m["blocks"]:
             continue
         for slide in slides:
-            seen = _drawn(key, m["blocks"][key], slide)
+            seen = _drawn(key, m["blocks"][key], slide, _ranks(doc, key, slide))
             problems += [f"{key} {field} cites {c.group(0)}, which its chart does not draw: draw the question with "
                          "`questions`, draw fewer dimensions, or leave the figure out"
                          for field in ("title", "read") for c in COUNT.finditer(slide.get(field) or "")
@@ -1173,7 +1156,7 @@ def _why_drawn(doc, m):
         if slide is None or key not in m["blocks"]:
             continue
         why = action.get("why") or ""
-        seen = _drawn(key, m["blocks"][key], slide) | _tied_to_sites(why, m)
+        seen = _drawn(key, m["blocks"][key], slide, _ranks(doc, key, slide)) | _tied_to_sites(why, m)
         cited = [(int(c.group(1)), int(c.group(4))) for c in COUNT.finditer(why)] + [(0, int(c.group(1))) for c in NONE_OF.finditer(why)]
         problems += [f"action {n} gives {a} of {b} as its reason, and its slide does not draw it: draw that question, "
                      "or give the reason its slide shows" for a, b in cited if (a, b) not in seen]
@@ -1874,13 +1857,13 @@ def _beside_figure(doc, m):
         return (any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before) for n in rivals) or bool(DOMAIN.search(before))
                 or any(n[0] < start for n in _names_in(part, labels)))
 
-    def held(field, text, drawn):
+    def held(field, text, drawn, where="the chart beside it draws"):
         out, bases = [], {b for _, b in drawn}
         for part in SENTENCE.split(text):
             for start, _, a, b in _spans(part):
                 if b in bases and (a, b) not in drawn and not named(part, start):
                     shown = ", ".join(f"{x} of {y}" for x, y in sorted(drawn) if y == b)
-                    out.append(f"{field} says {a} of {b}, and the chart beside it draws {shown}: write a count it draws")
+                    out.append(f"{field} says {a} of {b}, and {where} {shown}: write one of those counts")
         return out
 
     problems = []
@@ -1896,10 +1879,12 @@ def _beside_figure(doc, m):
                 drawn |= {(f["a"], f["b"]), (f["b"] - f["a"], f["b"])} | {(n, f["b"]) for n, _ in f.get("parts") or []}
                 drawn |= {(n, f["b"]) for _, n in f.get("rivals") or []}
         answer = ((doc.get("found") or {}).get("answers") or {}).get(key) or ""
-        problems += held(f"found answer {key}", answer, drawn)
-        # The card draws its figure, and its legend the parts: the sentence beside it says what lies behind them.
-        problems += [f"found answer {key} says {a} of {b}, which the card beside it draws: say what lies behind it"
-                     for part in SENTENCE.split(answer) for _, _, a, b in _spans(part) if (a, b) in drawn]
+        problems += held(f"found answer {key}", answer, drawn, "the slides of its group draw")
+        # The summary draws the block's figure: the sentence beside it says what lies behind it, a part of it included.
+        shown = {(a, b) for _, a, b in _headlines(block.get("figures") or []) if b}
+        shown |= {(b - a, b) for a, b in shown}
+        problems += [f"found answer {key} says {a} of {b}, which the summary draws beside it: say what lies behind it"
+                     for part in SENTENCE.split(answer) for _, _, a, b in _spans(part) if (a, b) in shown]
     return problems
 
 
@@ -2227,14 +2212,9 @@ def _bar(parts):
     return f'<div class="bar">{segments}</div>'
 
 
-def _meter(a, b, small=False, rival=False):
+def _meter(a, b, small=False):
     width = 100 * a / b if b else 0
-    kind = ' class="rival"' if rival else ""
-    return f'<div class="meter{" small-meter" if small else ""}"><span{kind} style="width: {width:.1f}%"></span></div>'
-
-
-def _legend(entries):
-    return '<div class="legend">' + "".join(f'<span><i class="{kind}"></i>{esc(label)}</span>' for kind, label in entries) + "</div>"
+    return f'<div class="meter{" small-meter" if small else ""}"><span style="width: {width:.1f}%"></span></div>'
 
 
 def _bands(m, t):
@@ -2487,77 +2467,88 @@ def _close(f, subject, t):
     return t["close"].format(names=names, subject=subject)
 
 
-def _versus(f, subject, t, only=None):
-    """The subject beside the names the same answers carry: the five named most, the subject among them. Under them one
-    line: the subject's position and the names it could swap with."""
+def _versus(f, subject, t):
+    """The subject beside the names the same answers carry: the five named most, the subject among them, its position and
+    the names it could swap with."""
     names = sorted([(subject, f["a"], True)] + [(n, c, False) for n, c in f["rivals"]], key=lambda x: (-x[1], not x[2]))
     top = names[:5]
     if not any(me for _, _, me in top):
         top = names[:4] + [next(x for x in names if x[2])]
-    rows = "".join(f'<div class="{"me" if me else ""}">{esc(name)}</div>{_meter(n, f["b"], rival=not me)}'
-                   f'<div class="fig{" me" if me else ""}">{n}</div>' for name, n, me in top)
-    note = " ".join(filter(None, [_close(f, subject, t), t["one_assistant"].format(assistant=only) if only else ""]))
+    listed = " · ".join(f'<b class="me">{esc(name)} {n}</b>' if me else f"{esc(name)} {n}" for name, n, me in top)
+    label = f'<b>{esc(f["project"])}.</b> ' if f["project"] else ""
     rank = t["rank"].format(subject=subject, rank=f["rank"], field=f["names"])
-    label = f'<div class="card-cap"><b>{esc(f["project"])}</b></div>' if f["project"] else ""
-    return (f'{label}<div class="card-cap">{esc(t["versus"].format(b=f["b"]))}</div><div class="versus">{rows}</div>'
-            f'<div class="card-cap"><b>{esc(rank)}</b> {esc(note)}</div>')
+    note = _close(f, subject, t)
+    return f'{label}<b>{esc(rank)}</b> {esc(t["versus"].format(b=f["b"]))} {listed}.' + (f" {esc(note)}" if note else "")
 
 
-def _markets(figures, subject, t, only=None):
-    """Presence market by market: the answers naming the subject in each, and its position there among the names
-    monitored."""
-    field = figures[0]["names"]
-    ranked = field > 1
-    head = (f'<div></div><div class="head span">{esc(t["markets_named"].format(subject=subject))}</div>'
-            + (f'<div class="head">{esc(t["markets_rank"].format(field=field))}</div>' if ranked else ""))
-    rows = "".join(f'<div>{esc(_figure_label(f))}</div>{_meter(f["a"], f["b"])}<div class="fig">{esc(_of(f["a"], f["b"], t))}</div>'
-                   + (f'<div class="fig rank">{f["rank"]}</div>' if ranked else "") for f in figures)
-    caption = t["one_assistant"].format(assistant=only) if only else ""
-    return (f'<div class="markets{"" if ranked else " unranked"}">{head}{rows}</div>'
-            + (f'<div class="card-cap">{esc(caption)}</div>' if caption else ""))
+def _markets(figures, subject, t):
+    """The subject's position market by market among the names monitored: the rows count its answers there."""
+    listed = " · ".join(f"{esc(_figure_label(f))} <b>{f['rank']}</b>" for f in figures)
+    return f'{esc(t["markets_rank"].format(subject=subject, field=figures[0]["names"]))} {listed}.'
 
 
 def _named_by(f, m, t):
     """On few answers a question, which assistants name the subject: one answer more or less reverses any count."""
-    subject = m["subject"]
     named = sorted(_assistant(model, m["names"]) for model, (n, _) in f["by_model"].items() if n)
     never = sorted(_assistant(model, m["names"]) for model, (n, given) in f["by_model"].items() if given and not n)
-    label = f'<div class="card-cap"><b>{esc(_figure_label(f))}</b></div>' if _figure_label(f) else ""
-    shown = (f'<div class="card-cap">{esc(t["named_by"].format(subject=subject))}</div>'
-             f'<ul class="named-by">' + "".join(f"<li>{esc(a)}</li>" for a in named) + "</ul>") if named else ""
+    label = f'<b>{esc(_figure_label(f))}.</b> ' if _figure_label(f) else ""
+    shown = f'{esc(t["named_by"].format(subject=m["subject"]))} <b>{esc(", ".join(named))}</b>' if named else ""
     if never:
-        shown += f'<div class="card-cap">{esc(t["named_by_none"].format(subject=subject))}: {esc(", ".join(never))}</div>'
-    return label + shown
+        shown += ("; " if named else "") + f'{esc(t["named_by_none"])} {esc(", ".join(never))}'
+    return label + shown + "." if shown else ""
 
 
-def _visual(key, m, t):
-    block, subject = m["blocks"][key], m["subject"]
-    if key == "reach":
-        figures = block["figures"]
-        if m.get("few"):
-            return "".join(_named_by(f, m, t) for f in figures)
-        if any(f.get("market") for f in figures):
-            return _markets(figures, subject, t, _only_assistant(key, m))
-        return "".join(_versus(f, subject, t, _only_assistant(key, m)) if f["rivals"] else
-                       f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small></div>' for f in figures)
-    caption = t["card"]["description_fidelity" if key == "description" and m["fidelity"] else key].format(subject=subject)
-    labels = dict(_chart_legend(key, m, t, namesake=True))
-    shown = "".join(f'<div class="card-fig">{f["a"]} <small>{t["of"]} {f["b"]}</small>'
-                    + (f' <span>{esc(f["project"])}</span>' if f["project"] else "") + f'</div>{_bar(f["parts"])}'
-                    + _legend([(kind, f"{labels[kind]}: {n}") for n, kind in f["parts"]]) for f in block["figures"])
-    return f'<div class="card-cap">{esc(caption)}</div>{shown}'
+def _ranking(m, t):
+    """The subject among the names monitored, on the first slide of presence: its rows count each topic, this strip the
+    whole block. On few answers a question it names the assistants that name the subject instead."""
+    figures, subject = m["blocks"]["reach"]["figures"], m["subject"]
+    if m.get("few"):
+        lines = [_named_by(f, m, t) for f in figures]
+    elif any(f.get("market") for f in figures) and figures[0]["names"] > 1:
+        lines = [_markets(figures, subject, t)]
+    else:
+        lines = [_versus(f, subject, t) for f in figures if f["rivals"]]
+    lines = [x for x in lines if x]
+    only = _only_assistant("reach", m)
+    if lines and only:
+        lines.append(esc(t["one_assistant"].format(assistant=only)))
+    return '<div class="ranking">' + "".join(f"<p>{x}</p>" for x in lines) + "</div>" if lines else ""
 
 
-def _found_slide(doc, m, t):
+def _headlines(figures):
+    """The figure of a block on the summary, one per project: the markets of a project add up, the projects of different
+    audiences do not. [(project or None, a, b)]."""
+    out = {}
+    for f in figures:
+        a, b = out.get(f["project"], (0, 0))
+        out[f["project"]] = (a + f["a"], b + f["b"])
+    return [(project, a, b) for project, (a, b) in out.items()]
+
+
+def _headline_html(key, m, t):
+    shown = _headlines(m["blocks"][key]["figures"])
+    caption = t["summary_caption"]["description_fidelity" if key == "description" and m["fidelity"] else key]
+    figures = "".join(f'<div class="sum-fig">{a} <small>{t["of"]} {b}</small>'
+                      + (f" <span>{esc(project)}</span>" if project else "") + "</div>" for project, a, b in shown)
+    many = " many" if len(shown) > 1 else ""
+    return f'<div class="sum-figs{many}">{figures}<div class="sum-cap">{esc(caption.format(subject=m["subject"]))}</div></div>'
+
+
+def _summary_slide(doc, m, t, order):
+    """Slide 3: per group of questions its figure and what lies behind it, then the first action and where the others
+    are. The charts stand on the slides of each group."""
     found = doc.get("found") or {}
     answers = found.get("answers") or {}
-    cards = "".join(f'<div class="card {key}"><div class="card-q">{esc(_group(key, m, t))}</div>'
-                    f'<p class="card-a">{esc(answers.get(key) or "")}</p><div class="card-visual">{_visual(key, m, t)}</div></div>'
-                    for key in present(m))
-    # Two cards leave room: larger type, not a hole in the card. One card fills the slide: what was found on the left in
-    # larger type, its figure on the right, so neither the card nor the slide is left half empty.
-    size = {1: " one", 2: " pair"}.get(len(present(m)), "")
-    return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="cards{size}">{cards}</div>'
+    rows = "".join(f'<div class="sum-row"><div class="sum-group">{esc(_group(key, m, t))}</div>{_headline_html(key, m, t)}'
+                   f'<p class="sum-a">{esc(answers.get(key) or "")}</p></div>' for key in present(m))
+    actions = doc.get("actions") or []
+    first = ""
+    if actions:
+        n = next((i for i, (kind, _, _) in enumerate(order, 1) if kind == "actions"), "")
+        first = (f'<p class="sum-action"><b>{esc(t["first_action"])}:</b> {esc(actions[0].get("what") or "")} '
+                 f'<span>{esc(t["all_actions"].format(n=n))}</span></p>')
+    size = " one" if len(present(m)) == 1 else ""
+    return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="summary{size}">{rows}</div>{first}'
 
 
 def _question_pages(m, t):
@@ -2824,7 +2815,10 @@ def _method(doc, m, t):
     method = doc.get("method") or {}
     # How an answer is rated is said on slide 2; a competitor's count leaving out the questions naming it, here.
     left_out = any(f.get("left_out") for f in (m["blocks"].get("reach") or {}).get("figures") or [])
-    limits = [t["limit_versions"]] + [t["left_out"]] * left_out + (method.get("limits") or [])
+    # The share of favourable answers has no competitor's beside it: the summary draws it alone.
+    unasked = "description" in present(m) and not m["fidelity"]
+    limits = ([t["limit_versions"]] + [t["left_out"]] * left_out + [t["limit_unasked"].format(subject=m["subject"])] * unasked
+              + (method.get("limits") or []))
     scope = t["scope_note"] if len({tuple(r["assistants"]) for r in m["method"]}) > 1 else ""
     left = f'<p>{esc(scope)}</p>' if scope else ""
     left += f'<h2>{esc(t["limits_title"])}</h2><ul>' + "".join(f"<li>{esc(x)}</li>" for x in limits) + "</ul>"
@@ -2879,7 +2873,7 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
         lists = [i for i, entry in enumerate(order, 1) if entry[0] == "questions"]
         return _opening_slide(doc, m, t, lang, (lists[0], lists[-1]))
     if kind == "found":
-        return _found_slide(doc, m, t)
+        return _summary_slide(doc, m, t, order)
     if kind == "changed":
         return _changed_slide(doc, m, t, lang)
     if kind == "earlier":
@@ -2903,7 +2897,7 @@ def _slide_html(kind, key, slide, doc, m, order, t, lang):
     marks = (([_stated(e, m) for e in excerpts], t["stated"]) if key == "facts"
              else ([_rating(e, m, key) for e in excerpts], t["rated"]))
     out = (f'{_kicker(_group(key, m, t))}<h1>{esc(slide.get("title"))}</h1><p class="read">{esc(slide.get("read"))}</p>'
-           + _rows(key, rows, t, lang, m, grouped, len(excerpts))
+           + _rows(key, rows, t, lang, m, grouped, len(excerpts)) + (_ranking(m, t) if _ranks(doc, key, slide) else "")
            + _quotes(excerpts, t, m["names"], *marks, rows=[r["label"] for r in rows] if _numbered(rows) else ()))
     n = slide.get("action")
     if n is not None and 1 <= n <= len(doc.get("actions") or []):
@@ -2982,7 +2976,7 @@ def _on_slide(kind, key, n, slide, doc):
         strip = f", or the what of action {action}" if isinstance(action, int) and 1 <= action <= len(doc.get("actions") or []) else ""
         return f"the title, read or excerpts of {key} slide {n}{strip}"
     return {"cover": "the opening's who", "opening": "the opening's questions or examples, or the purpose in study.json",
-            "found": "the found title or answers", "changed": "the earlier title or read",
+            "found": "the found title or answers, or the what of action 1", "changed": "the earlier title or read",
             "earlier": "the earlier actions_title or now", "actions": "the actions title, or the what and why of the actions",
             "sources": "the sources title or read", "method": "the method limits or ask"}.get(kind, "its texts")
 
@@ -3015,8 +3009,9 @@ def _slide_texts(kind, key, n, slide, doc):
     if kind == "opening":
         return [(f"opening question {k}", q) for k, q in ((doc.get("opening") or {}).get("questions") or {}).items()]
     if kind == "found":
-        found = doc.get("found") or {}
-        return [("found title", found.get("title") or "")] + [(f"found answer {k}", a) for k, a in (found.get("answers") or {}).items()]
+        found, actions = doc.get("found") or {}, doc.get("actions") or []
+        return ([("found title", found.get("title") or "")] + [(f"found answer {k}", a) for k, a in (found.get("answers") or {}).items()]
+                + [("action 1 what", actions[0].get("what") or "")] * bool(actions))
     if kind == "actions":
         return [("actions title", doc.get("actions_title") or "")] + [
             (f"action {i} {f}", a.get(f) or "") for i, a in enumerate(doc.get("actions") or [], 1) for f in ("what", "why")]
@@ -3033,8 +3028,8 @@ def _slide_texts(kind, key, n, slide, doc):
 
 
 def _wordy(folder, study, period, doc, m):
-    """The content slides holding more words than SLIDE_WORDS, each with the writer's longest texts on it; the cover and
-    the list of questions are not read as a slide is."""
+    """The content slides holding more words than SLIDE_WORDS, the summary more than SUMMARY_WORDS, each with the writer's
+    longest texts on it; the cover and the list of questions are not read as a slide is."""
     chosen = sentl_theme.resolve(folder)[0]
     order, slides = _slides(study, period, doc, m, chosen)
     seen, out = Counter(), []
@@ -3043,11 +3038,12 @@ def _wordy(folder, study, period, doc, m):
         if kind in ("cover", "questions"):
             continue
         shown = html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<footer.*?</footer>", "", section)))
-        if words(shown) <= SLIDE_WORDS:
+        ceiling = SUMMARY_WORDS if kind == "found" else SLIDE_WORDS
+        if words(shown) <= ceiling:
             continue
         texts = sorted(((f, words(x)) for f, x in _slide_texts(kind, key, seen[key], slide, doc) if words(x)), key=lambda fx: -fx[1])
         longest = ", ".join(f"{f} ({w} words)" for f, w in texts[:3])
-        out.append(f"slide {n} holds {words(shown)} words, at most {SLIDE_WORDS}: "
+        out.append(f"slide {n} holds {words(shown)} words, at most {ceiling}: "
                    + (f"shorten {longest}" if longest else "it holds no text of the writer's: report it"))
     return out
 

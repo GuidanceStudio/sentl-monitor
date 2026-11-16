@@ -31,11 +31,11 @@ class CardTest(Rendered, unittest.TestCase):
     def test_a_found_answer_restating_the_cards_figure_is_refused(self):
         doc = self.filled()
         doc["found"]["answers"]["description"] = "3 delle 4 risposte su Avenello sono favorevoli."
-        self.assertIn("found answer description says 3 of 4, which the card beside it draws: say what lies behind it",
+        self.assertIn("found answer description says 3 of 4, which the summary draws beside it: say what lies behind it",
                       self.problems(doc))
 
     def test_a_found_answer_saying_what_lies_behind_the_figure_passes(self):
-        self.assertNotIn("the card beside it draws", self.problems(self.filled()))
+        self.assertNotIn("the summary draws beside it", self.problems(self.filled()))
 
     def test_the_note_under_the_presence_card_is_one_line(self):
         figure = {"a": 3, "b": 9, "rivals": [("Avoria", 4), ("Brezza", 1)], "left_out": True, "rank": 2, "names": 3,
@@ -145,7 +145,7 @@ class RepeatTest(Rendered, unittest.TestCase):
     def test_the_found_slide_names_each_group_without_the_question_of_slide_two(self):
         page = self.section(self.filled(), "found")
         for key in ("reach", "description", "facts"):
-            self.assertIn(f'<div class="card-q">{deck.DECK["it"]["groups"][key].format(subject="Avenello")}</div>', page)
+            self.assertIn(f'<div class="sum-group">{deck.DECK["it"]["groups"][key].format(subject="Avenello")}</div>', page)
         for asked in self.filled()["opening"]["questions"].values():
             self.assertNotIn(asked, page)
         self.assertEqual(self.section(self.filled(), "opening").count("Chi cerca una bevanda senza fare nomi trova Avenello?"), 1)
@@ -193,10 +193,10 @@ class WordLimitTest(Rendered, unittest.TestCase):
     def test_a_content_slide_over_its_ceiling_is_refused_naming_its_longest_texts(self):
         self.assertEqual(deck.SLIDE_WORDS, 230)
         doc = self.filled()
-        doc["found"]["title"] = words(15) + "."
-        with mock.patch.object(deck, "SLIDE_WORDS", 60):
+        doc["blocks"]["reach"][0]["title"] = words(15) + "."
+        with mock.patch.object(deck, "SLIDE_WORDS", 40):
             found = self.problems(doc)
-        self.assertRegex(found, r"slide 3 holds \d+ words, at most 60: shorten found title \(15 words\)")
+        self.assertRegex(found, r"slide \d+ holds \d+ words, at most 40: shorten reach title \(15 words\)")
 
     def test_the_cover_and_the_list_of_questions_are_not_counted(self):
         doc = self.filled()

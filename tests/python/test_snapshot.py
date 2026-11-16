@@ -512,19 +512,17 @@ class SnapshotDeckSlidesTest(SnapshotDeckCase):
                 opening = deck._opening_slide(doc, m, t, "en", (9, 9))
                 self.assertEqual(t["reading_scores"].split(":")[0] in opening, used)
 
-    def test_the_found_slide_of_one_block_fills_the_page_with_its_card_in_two_columns(self):
+    def test_the_summary_of_one_to_three_groups_fits_its_page(self):
         from sentlmon import fit
-        for blocks, columns in ((["reach"], True), (["description"], True), (["reach", "description"], False),
-                                (list(deck.BLOCKS), False)):
+        for blocks in (["reach"], ["description"], ["reach", "description"], list(deck.BLOCKS)):
             with self.subTest(blocks):
                 doc, m = self.model(blocks)
+                order = deck._order(doc, m, deck.DECK["en"])
                 tree = fit._Tree()
-                tree.feed(f'<section class="slide found">{deck._found_slide(doc, m, deck.DECK["en"])}</section>')
-                cards = next(n for n in _nodes(tree.root) if "cards" in n.classes)
-                card = next(n for n in _nodes(tree.root) if "card" in n.classes)
+                tree.feed(f'<section class="slide found">{deck._summary_slide(doc, m, deck.DECK["en"], order)}</section>')
+                rows = [n for n in _nodes(tree.root) if "sum-row" in n.classes]
+                self.assertEqual(len(rows), len(blocks))
                 layout = fit.Layout(deck.STYLE)
-                self.assertGreater(fit._flex(layout.style(cards).props)[0], 0)
-                self.assertEqual(layout.style(card).display == "grid", columns)
                 section = tree.root.elements()[0]
                 self.assertLessEqual(layout.box(section, fit.PAGE_WIDTH), fit.PAGE_HEIGHT)
 
