@@ -305,7 +305,7 @@ A snapshot also carries `closed`, written by the route's last step:
 saved `get-project-tool` response (`project` or `snapshot`) and is written only when Sentl returns
 it. When a snapshot designed as a study is followed (`promote`), each snapshot's binding moves from
 `projects` to `snapshots`, under the same key, so `setup` creates a project for it; the runs it
-holds stay in `history/runs/<key>/`. `promote` refuses a binding of kind `snapshot` in a folder of
+holds stay in `history/runs/<key>/`, and `ingest` refuses a later run of it. `promote` refuses a binding of kind `snapshot` in a folder of
 the earlier shape, whose `study.json` has no themes.
 
 ### Version snapshot, `history/versions/<project>-<NNN>.json`
@@ -774,8 +774,10 @@ them (see Periods).
    now asks something else, and is then recorded with `--new-intent <key>`.
 3. `get-run-results-tool` for each new run, saved to `inbox/`; `monitor.py ingest` writes the
    run snapshot. A saved response that does not parse as complete JSON is refused, since a
-   host that truncates output cuts it mid-string. Fewer answers than expected count against
-   coverage. A run whose results come back as a server error goes to
+   host that truncates output cuts it mid-string. A run whose `project_id` is not the project
+   `--project` is bound to in `sentl.json` is refused with exit 2, naming both ids; a run of a
+   snapshot set aside under `snapshots` is refused the same way. Fewer answers than expected count
+   against coverage. A run whose results come back as a server error goes to
    `history/unavailable.json`.
 4. `monitor.py period` builds the period: the runs since the previous period, pooled; on the
    first period, the rebuilt periods as well, or the two halves of the period when there is

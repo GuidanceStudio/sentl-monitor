@@ -316,6 +316,19 @@ class ResumeAcrossSnapshotsTest(SeveralSnapshotsCase):
         self.assertEqual(self.step(*listings), "done")
 
 
+class IngestSeveralTest(SeveralSnapshotsCase):
+
+    def test_a_run_of_one_snapshot_under_the_key_of_another_is_refused(self):
+        self.create("brand")
+        self.create("category")
+        proc = self.cli("ingest", "--study", self.study, "--project", "brand", "--results",
+                        self.save("run-7002.json", run_of(self.design, "category", 7002, IDS["category"],
+                                                          "2026-11-16T10:00:00Z")), check=2)
+        for said in ("run 7002", "project 901", "brand is bound to project 900", "--project category"):
+            self.assertIn(said, proc.stderr)
+        self.assertFalse((self.study / "history" / "runs" / "brand" / "7002.json.gz").exists())
+
+
 class CloseSeveralTest(SeveralSnapshotsCase):
 
     def test_close_needs_the_snapshot_when_the_folder_holds_several(self):
@@ -363,7 +376,11 @@ class PooledPeriodTest(SeveralSnapshotsCase):
         self.ingest("category", 7002, "2026-11-16T10:00:00Z")
         self.ingest("category", 7003, "2026-11-16T12:00:00Z")
         self.period()
-        self.assertEqual(self.read(f"history/periods/{DATE}.json")["runs"], {"brand": [7001], "category": [7002, 7003]})
+        period = self.read(f"history/periods/{DATE}.json")
+        self.assertEqual(period["runs"], {"brand": [7001], "category": [7002, 7003]})
+        # Each run answers every question at the design's 3 rounds, so every dimension is judged in full.
+        self.assertEqual({d: e["total"]["figure"] for b in period["projects"].values() for d, e in b["dimensions"].items()},
+                         {d["key"]: True for p in self.design["projects"] for d in p["dimensions"]})
 
 
 class OneSubjectBothWaysTest(SnapshotDesignCase):
@@ -503,6 +520,19 @@ class FollowTest(SeveralSnapshotsCase):
                                self.read("sentl.json"))
         self.assertIn("an id appears: 'project 900'", problems)
 
+    def test_a_run_of_a_snapshot_set_aside_is_refused_by_the_study(self):
+        self.finished()
+        self.follow()
+        late = self.save("run-7003.json", run_of(self.design, "brand", 7003, IDS["brand"], "2026-11-17T09:00:00Z"))
+        before = self.cli("ingest", "--study", self.study, "--project", "brand", "--results", late, check=2).stderr
+        self.assertIn("brand is bound to no project yet", before)
+        self.set_up_project("brand")
+        stderr = self.cli("ingest", "--study", self.study, "--project", "brand", "--results", late, check=2).stderr
+        for said in ("run 7003", "project 900", "the snapshot brand set aside under `snapshots`",
+                     "brand is bound to project 950"):
+            self.assertIn(said, stderr)
+        self.assertFalse((self.study / "history" / "runs" / "brand" / "7003.json.gz").exists())
+
     def test_a_snapshot_with_no_run_is_refused_and_nothing_is_written(self):
         self.create("brand")
         self.create("category")
@@ -560,9 +590,11 @@ class FollowTest(SeveralSnapshotsCase):
         self.assertIn(f"Compared with the period of {DATE}", out)
         period = self.read("history/periods/2026-11-23.json")
         self.assertEqual(period["runs"], {"brand": [8001], "category": [8002]})
-        statuses = {e["status"] for dims in period["comparison"]["dimensions"].values() for e in dims.values()}
-        self.assertNotIn("new_baseline", statuses)
-        self.assertNotIn("new", statuses)
+        compared = [e for dims in period["comparison"]["dimensions"].values() for e in dims.values()]
+        self.assertEqual(len(compared), 10)
+        # The snapshots' answers scored 4 and the projects' 5: every dimension is compared on figures, and moved.
+        self.assertEqual({e["status"] for e in compared}, {"compared"})
+        self.assertTrue(all(e["mean"]["changed"] for e in compared), compared)
 
 
 if __name__ == "__main__":

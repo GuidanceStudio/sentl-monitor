@@ -180,10 +180,11 @@ def one_snapshot(rounds=1):
     return snap
 
 
-def run_of(study, key, run_id, project_id, started, status="completed", score=4, rounds=1):
+def run_of(study, key, run_id, project_id, started, status="completed", score=4, rounds=None):
     """The get-run-results-tool response of one run of project `key`: every question answered by each of its models
-    once per round."""
+    once per round, at the rounds the design gives the project unless `rounds` says otherwise."""
     project = next(p for p in study["projects"] if p["key"] == key)
+    rounds = project["rounds"] if rounds is None else rounds
     responses, n = [], run_id * 100
     for d in project["dimensions"]:
         for q in d["questions"]:

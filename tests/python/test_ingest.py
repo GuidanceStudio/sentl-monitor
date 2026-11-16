@@ -122,6 +122,14 @@ class IngestTest(StudyCase, unittest.TestCase):
         self.cli("ingest", "--study", self.study, "--project", "nope",
                  "--results", self.save("r.json", run()), check=2)
 
+    def test_a_run_of_another_project_is_refused_and_names_both_ids(self):
+        other = run(run_id=9002)
+        other["run"]["project_id"] = 777
+        stderr = self.ingest(other, check=2).stderr
+        for said in ("run 9002", "project 777", "brand is bound to project 501"):
+            self.assertIn(said, stderr)
+        self.assertFalse((self.study / "history" / "runs" / "brand" / "9002.json.gz").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,6 +30,8 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
 - Following the subject: `promote` adds a schedule, `rounds` and `report_every` to the same `study.json`, keeps the
   snapshots' bindings under `snapshots` in `sentl.json`, and `setup` creates each project. `bind` of a project created
   for a key asked before keeps its questions comparable, so the first report compares with the snapshots' period.
+- `ingest` refuses a run whose `project_id` is not the project `--project` is bound to, with exit 2 and both ids; after
+  `promote`, a run of a snapshot set aside under `snapshots` is refused the same way.
 
 ## 0.12.0 (2026-11-16)
 

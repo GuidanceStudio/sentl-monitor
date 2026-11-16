@@ -203,10 +203,34 @@ def run_score(responses):
     return mean([mean(v) for v in by_dim.values()])
 
 
+def _same_project(folder, key, run):
+    """Refuse a run of a project other than the one `key` is bound to in sentl.json, a snapshot that `promote` set aside
+    under `snapshots` included: its runs are the snapshots' period and go in no period of the study."""
+    path = folder.path("sentl.json")
+    if run.get("project_id") is None or not path.exists():
+        return
+    binding = load_json(path)
+    bound = ((binding.get("projects") or {}).get(key) or {}).get("project_id")
+    if run["project_id"] == bound:
+        return
+    where = f"{key} is bound to project {bound}" if bound is not None else f"{key} is bound to no project yet"
+    aside = next((k for k, b in (binding.get("snapshots") or {}).items() if b.get("project_id") == run["project_id"]),
+                 None)
+    if aside is not None:
+        raise Refused(f"run {run['id']} is of project {run['project_id']}, the snapshot {aside} set aside under "
+                      f"`snapshots` in sentl.json when the subject was followed, and {where}: a snapshot's run goes in "
+                      "no period of the study. Nothing was ingested")
+    other = next((k for k, b in (binding.get("projects") or {}).items() if b.get("project_id") == run["project_id"]),
+                 None)
+    fix = f"ingest it with --project {other}" if other else f"fetch the results of a run of project {bound}"
+    raise Refused(f"run {run['id']} is of project {run['project_id']}, but {where}: {fix}. Nothing was ingested")
+
+
 def ingest(root, key, results_file):
     folder = Study(root)
     folder.project(key)
     run = schema.run_results(results_file)
+    _same_project(folder, key, run)
     run_id, status = run["id"], run["status"]
     if status in schema.ENDED:
         detail = f" ({run['error']})" if run.get("error") else ""
