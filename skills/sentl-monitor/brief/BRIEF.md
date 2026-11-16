@@ -1,7 +1,7 @@
 # brief <subject>
 
-Builds the inventory of themes a study will monitor, each with where it came from, and
-collects how people search for them. It writes `brief.md` and stops for the operator's review.
+Builds the inventory of themes a study or a snapshot will measure, each with where it came
+from, and collects how people search for them. It writes `brief.md` and stops for the operator's review.
 Sentl is not called: no write, no credit spent. A keyword-data server, if the operator has
 one, may spend that server's quota (step 4).
 
@@ -30,6 +30,11 @@ reports. List every theme each document raises, with the document's name as the 
 `detail`. The origins are `client_material` (a document), `client_issue` (a concern the client
 raised in conversation) and `client_analysis` (another analysis the client ran). Summarise the
 themes back in three lines, then ask only about the gaps.
+
+With no client material, as for a prospect's snapshot, skip the reading. The themes then come
+from what the operator says (`client_issue`, the detail naming the conversation), from search
+(step 5) and from a probe: `probe` is a theme raised by an assistant's answer to a question put
+to it before the study, and the detail names the assistant, the question and the date.
 
 ## 3. Define the subject and write the seeds
 
@@ -200,6 +205,6 @@ In the operator's language, with these sections:
 
 ## 7. Stop
 
-Tell the operator which themes came from documents, which from what they said, and which from
-search. Wait for their review; the next route, `design`, reads `brief.md` and
-`search-demand.json`.
+Tell the operator which themes came from documents, which from what they said, which from
+search and which from a probe. Wait for their review; the next route, `design` (or SNAPSHOT.md
+step 3), reads `brief.md` and `search-demand.json`.

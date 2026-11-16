@@ -59,99 +59,60 @@ Exit 1: the folder cannot be written; choose another. On a web sandbox, unpack t
    the step of this playbook that follows. Go to that step and skip the ones before it. A new
    folder is at `design`.
 
-## 2. Subject and facts
+## 2. Brief
 
-Ask the operator what the reader of the deck needs to decide, and the subject: its label,
-kind (brand, product, category or organisation), aliases as people write it, the competitors
-to name as foils, the sites the subject owns, and the market and language. Ask which language
-the deck is written in.
+Follow BRIEF.md in `$S` with what the prospect gives, with these differences:
 
-Collect 5 to 10 facts from primary sources: the subject's own pages, a regulator's or a
-retailer's page. Each fact has its source and the date it was read. `catalogue.md` lists the
-facts each dimension needs. A statement taken from an AI answer is not a fact.
+- BRIEF.md step 2 is skipped when there is no client material.
+- The themes come from the operator's remarks (origin `client_issue`), from the search
+  suggestions (`search`) and from a probe (`probe`, BRIEF.md step 2).
+- The personas are written as a list in `seeds.json`, as for a study, and the seeds are the
+  brief's, per theme and per persona.
+- Volumes are fetched only when a keyword-data tool is connected, and after the operator's yes
+  (BRIEF.md step 4).
 
-## 3. Dimensions
+Ask the operator two more things: who will read the deck, their role and the decision the deck
+feeds, and which language the deck is written in. BRIEF.md step 7 stops for the operator's
+review of `brief.md`; then go on with step 3.
 
-Themes, dimensions, projects and personas follow DESIGN.md steps 2 to 9, the rule a study
-follows. Use `catalogue.md` for the dimensions that recur, with at least one dimension whose
-questions name no brand, unless the operator wants reputation only. For each, write in
-`$S/study.json`:
+## 3. Design
 
-- `catalogue`, the id of the entry; `axis`, `stance` or `fidelity`; `name`, as the reader would
-  call it; `measures`, one sentence on what the dimension measures for this subject;
-- an entry in `narrative.design_rationale` whose `choice` is the dimension's name and whose
-  `reason` says why it was picked for this subject.
+Follow DESIGN.md steps 2 to 9 with `$S/brief.md` and `$S/search-demand.json`: the themes,
+dimensions, projects, personas and models of a snapshot come out of the same rule as a study's.
+Only these differ:
 
-Then ask the operator two things, one line each:
-
-- who will read the deck: their role and the decision the deck feeds. Write it in
-  `narrative.reader`.
-- the persona behind each dimension's question: who types it and in what situation, such as *a
-  parent who read that oat milk has too much sugar*. Write it in the question's `persona`
-  (step 4). Propose one per dimension from what the operator said about the subject; the
-  operator corrects them.
-
-## 4. Questions and rubrics
-
-Before writing the questions, write one seed per dimension to `$S/seeds.json`, keyed by the
-dimension's key: the first words the persona would type into a search box about that topic.
+- `study.json` has `"kind": "snapshot"`, no `report_every`, and no `schedule` on its projects.
+- Each project becomes one snapshot in Sentl. Its `rounds` is 3 by default, as for a project.
+  Name it `Snapshot · <subject> · <project> · <D>`.
+- `narrative.reader` names who will read the deck and the decision it feeds.
 
 ```json
-{"schema": "sentl-monitor/seeds@1", "market": {"country": "US", "language": "en"},
- "subject": {"aliases": ["<subject alias>"]},
- "themes": {"<dimension key>": ["<seed>"]}}
+{"schema": "sentl-monitor/study@1", "kind": "snapshot", "organization": "<Sentl organization slug>",
+ "narrative": {"reader": "<role, and the decision the deck feeds>"},
+ "projects": [{"key": "<key>", "name": "Snapshot · <subject> · <project> · <D>", "rounds": 3}]}
 ```
 
-```bash
-python3 <skill>/scripts/monitor.py demand autocomplete --study "$S" --hl en --gl US
-python3 <skill>/scripts/monitor.py demand summary --study "$S"
-```
+The fragment shows only what differs; every other field is the study's (ARCHITECTURE.md
+§`study.json`).
 
-The first of each dimension's `top queries` is the top suggestion. The dimension's question
-starts from it and from the persona's situation; write the suggestion, as Google gave it, in
-the question's `"suggestion"`.
-`validate` refuses a `suggestion` that is not recorded in `search-demand.json` under the
-question's dimension, and a question without one when its dimension has suggestions there.
-When `autocomplete` exits 1, run it again: it fetches only the prefixes still missing. A host with no network fails on every prefix: leave `suggestion` out of
-every question and write them from the catalogue's pattern alone, and tell the operator that
-Google's suggestions could not be collected.
-
-One question per dimension, written as the person types it, in the market's language, from the
-catalogue entry's pattern. A question that names no brand contains no alias of the subject or of
-a foil, and has `branded: false`. Five anchors per question, adapted from the entry; the judge
-instructions say how to apply them and carry the dated facts. Every question has instructions: Sentl
-refuses a question whose instructions are empty. Write `study.json` with `"kind": "snapshot"`:
-
-```json
-{"schema": "sentl-monitor/study@1", "kind": "snapshot", "subject": {}, "foils": [],
- "market": {"country": "US", "language": "en"}, "report_language": "en",
- "organization": "<Sentl organization slug>", "themes": [],
- "narrative": {"research_question": "", "purpose": "", "reader": "", "criteria": {"by": "", "date": ""},
-               "design_rationale": [{"choice": "<dimension name>", "reason": ""}]},
- "projects": [{"key": "snapshot", "name": "Snapshot · <subject> · <D>", "question": "", "decision": "",
-               "models": ["<id from list-ai-models>"], "rounds": 1,
-               "dimensions": [{"key": "", "catalogue": "", "name": "", "measures": "", "axis": "stance",
-                               "questions": [{"key": "", "label": "", "text": "", "branded": true,
-                                              "persona": "", "suggestion": "", "framing": "neutral", "rubric": {"1": "", "2": "", "3": "", "4": "", "5": ""},
-                                              "instructions": "<how the judge applies the anchors>", "facts": []}]}]}]}
-```
-
-The project has no `schedule` and `rounds` is 1. `criteria.by` names who approved the rubrics,
-the operator or their organisation. The operator chooses the researcher models from
-`models.json`, with each model's tariff shown in Sentl credits.
-
-## 5. Gate
+## 4. Validate and review
 
 ```bash
 python3 <skill>/scripts/monitor.py validate --study "$S" --models "$S/inbox/models.json"
 python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json"
 ```
 
-`validate` exit 1 lists the problems: correct `study.json` and run it again. It refuses a
-question with no `persona`. It warns when every
-dimension names the subject; tell the operator what that costs the deck. `review` writes
-`$S/study-review.md`: the narrative, the dimensions, every question with its rubric and judge
-instructions, and the credits of one run from the tariffs, without judging. Show it and stop for
+`validate` runs the study's checks, plus the absence of a schedule and of a report cadence; exit
+1 lists the problems: correct `study.json` and run it again. Tell the operator each warning, as
+DESIGN.md step 10 says. `review` writes `$S/study-review.md`: the narrative, the themes, the
+personas, each snapshot with its dimensions and its models, every question with its rubric and
+judge instructions, and the credits from the tariffs.
+
+## 5. Budget and approval
+
+When the operator sets a budget below the design's cost, propose which snapshots or dimensions
+to leave out to fit it; the operator chooses. Tell what is left out in the chat, record it in
+`narrative.design_rationale` with its reason, and run step 4 again. Show the review and stop for
 the operator's approval. Nothing is written to Sentl before it.
 
 ## 6. Project
@@ -235,11 +196,11 @@ and no floor on the judged share. A dimension with under 80% of its answers judg
 without a figure; tell the operator. Keep what `period` printed for the chat; none of it goes in
 the deck.
 
-Ask the operator which deck the reader of step 3 receives: the deck, with what was found and
+Ask the operator which deck the reader of step 2 receives: the deck, with what was found and
 three to five actions (`report/DECK.md`), or the quick deck, with each topic's figure, one
 sentence and one passage of an answer, and no actions (`report/QUICK.md`). Then follow the one
 chosen from its step 1 with the same `D`: the deck is what the reader of
-step 3 receives. `deck` exit 2 listing fields: ask the operator and run it again. The deck's
+step 2 receives. `deck` exit 2 listing fields: ask the operator and run it again. The deck's
 `check` records the period in `history/reports.json` as final; `pdf` writes the copy to
 send in `reports/share/`. Never write a credit figure, an id, a key, a model id or a file name in
 the deck. On a host without a lasting folder, the pack waits for step 10, after the operator's choice.

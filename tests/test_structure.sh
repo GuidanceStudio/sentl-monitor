@@ -346,15 +346,25 @@ else
     ok "ARCHITECTURE.md §study.json drops the four-or-five rule"
 fi
 
-SNAPSHOT_DIMS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 3. ")
-holds "$SNAPSHOT_DIMS" "who will read the deck" "SNAPSHOT.md asks who will read the deck"
-holds "$SNAPSHOT_DIMS" "one line each" "SNAPSHOT.md asks for the persona behind each question, one line each"
-SNAPSHOT_QUESTIONS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")
-holds "$SNAPSHOT_QUESTIONS" "demand autocomplete" "SNAPSHOT.md sends one seed per dimension to Google's suggestions"
-holds "$SNAPSHOT_QUESTIONS" '"suggestion"' "SNAPSHOT.md records the suggestion a question starts from"
-holds "$SNAPSHOT_QUESTIONS" "no network" "SNAPSHOT.md says what a host with no network does"
+SNAPSHOT_BRIEF=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 2. ")
+holds "$SNAPSHOT_BRIEF" "BRIEF.md" "SNAPSHOT.md step 2 hands over to brief"
+holds "$SNAPSHOT_BRIEF" "no client material" "SNAPSHOT.md skips the brief's step 2 without client material"
+holds "$SNAPSHOT_BRIEF" '`probe`' "SNAPSHOT.md takes themes from a probe"
+holds "$SNAPSHOT_BRIEF" "keyword-data" "SNAPSHOT.md fetches volumes only with a keyword-data tool"
+holds "$SNAPSHOT_BRIEF" "who will read the deck" "SNAPSHOT.md asks who will read the deck"
+SNAPSHOT_DESIGN=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 3. ")
+holds "$SNAPSHOT_DESIGN" "DESIGN.md steps 2 to 9" "SNAPSHOT.md step 3 hands over to design"
+holds "$SNAPSHOT_DESIGN" '"kind": "snapshot"' "SNAPSHOT.md writes a study.json of kind snapshot"
+holds "$SNAPSHOT_DESIGN" '`rounds`' "SNAPSHOT.md gives each snapshot its rounds"
+if grep -qF "one seed per dimension" "$PAYLOAD/snapshot/SNAPSHOT.md"; then
+    bad "SNAPSHOT.md still writes one seed per dimension"
+else
+    ok "SNAPSHOT.md takes the brief's seeds, per theme and persona"
+fi
+BRIEF_READ=$(section "$PAYLOAD/brief/BRIEF.md" "## 2. ")
+holds "$BRIEF_READ" "no client material" "BRIEF.md says what to do with no client material"
+holds "$BRIEF_READ" '`probe`' "BRIEF.md defines the probe origin"
 RECORDED='refuses a `suggestion` that is not recorded in `search-demand.json`'
-holds "$SNAPSHOT_QUESTIONS" "$RECORDED" "SNAPSHOT.md says validate checks each suggestion against search-demand.json"
 holds "$(section "$PAYLOAD/design/DESIGN.md" "## 6. ")" "$RECORDED" "DESIGN.md says validate checks each suggestion against search-demand.json"
 holds "$(cat "$REPO_ROOT/ARCHITECTURE.md")" 'writes `search-demand.json` with no suggestion' \
     "ARCHITECTURE.md says what a snapshot folder holds when the host has no network"
