@@ -205,7 +205,8 @@ python3 <skill>/scripts/monitor.py period --study "$S" --date D --models "$S/inb
 If Sentl returns an error for a run twice, tell the operator and stop: the deck waits for it, and
 the folder resumes here. `period` pools every ingested run of every snapshot into one period, with
 no comparison and no floor on the judged share, and one deck is drawn from it. A dimension with under 80% of its answers judged is shown
-without a figure; tell the operator. A run ingested after the deck passed, such as a snapshot run again by
+without a figure; tell the operator. A snapshot of `study.json` never created or never run is left out
+of the period and the deck, and `period` names it; tell the operator. A run ingested after the deck passed, such as a snapshot run again by
 hand, brings `resume` back to this step: build the period again with today's `D` and write its deck,
 which replaces the earlier one. Until then `promote` refuses that run. Keep what `period` printed for the chat; none of it goes in
 the deck.

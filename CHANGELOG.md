@@ -35,6 +35,9 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
 - A run ingested after a snapshot's deck passed, such as one run again by hand, brings `resume` back to the period and
   the deck, and `promote` refuses it until then. The snapshot's new deck replaces the earlier one in
   `history/reports.json` and is no second edition of it.
+- `period` on a snapshot folder leaves out a snapshot never created or never run, and names it, where it stopped on
+  an error. `resume` does not read the listing of a closed snapshot, and a folder whose snapshots were all closed
+  before a run was ingested ends at `done`, saying that no deck is written.
 - `brief` keeps the fallback for a host with no network: questions with no `suggestion`, and the operator told. The
   `snapshot` playbook says that every start of a snapshot run sends `confirm: true`, after the operator's yes on that
   run's estimate.

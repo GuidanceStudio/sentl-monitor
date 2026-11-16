@@ -198,8 +198,8 @@ def _step(name, *lines):
 
 
 def _listings(binding, keys, runs_files):
-    """{key: rows of its run listing}, one listing per snapshot not closed; a listing of a project no snapshot of the
-    folder is bound to is refused."""
+    """{key: rows of its run listing}, one listing per snapshot not closed; the listing of a closed snapshot is not read,
+    and a listing of a project no snapshot of the folder is bound to is refused."""
     by_id = {binding["projects"][k]["project_id"]: k for k in keys}
     rows_of = {}
     for path in runs_files or []:
@@ -213,7 +213,8 @@ def _listings(binding, keys, runs_files):
             bound = ", ".join(f"{k} {binding['projects'][k]['project_id']}" for k in keys)
             raise Refused(f"the run listing of project {listing['project_id']} is of no snapshot bound in this folder "
                           f"({bound}): save list-runs-tool's response for each snapshot")
-        rows_of[key] = listing["runs"]
+        if "closed" not in binding["projects"][key]:
+            rows_of[key] = listing["runs"]
     absent = [k for k in keys if k not in rows_of and "closed" not in binding["projects"][k]]
     if absent:
         raise Refused(f"project {', '.join(absent)} is bound: pass --runs, the list-runs-tool response read now, one "
@@ -286,6 +287,10 @@ def resume(root, runs_files=None):
         shown = ", ".join(f"run {r['id']} of {k}" for k, r in pending)
         return _step("deck", f"A completed run is not in history/runs: {shown}. Fetch its results, ingest them, "
                              "build the period, which pools every run of every snapshot, and write the deck (step 9).")
+    if not any(ingested.values()):
+        # Every snapshot is closed, since one that is not has a run or stopped at its cost or run step above.
+        return _step("done", "Every snapshot was closed before a run of it was ingested: there is no run to pool, so no "
+                             "deck is written. A new look at the subject starts in a new folder.")
     latest = _latest_deck(folder)
     if latest is None:
         return _step("deck", "Every run is ingested and no deck has passed check: build the period and write the deck "

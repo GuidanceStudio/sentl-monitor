@@ -1436,7 +1436,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 ## M39: A snapshot is designed as a study is, and differs only in what the schedule brings 🔄
 
-**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T10 runs after T1–T9, before R15.
+**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T1–T9 and T11 done; T10 runs before R15.
 
 **Why:** the operator's principle (2026-11-16): a snapshot is a project without a schedule. The depth of the analysis, the starting points and the choice of models follow the same reasoning on both routes; only what the schedule brings differs. A project has a frequency and a monthly credit budget, set against the plan's monthly credits and the credits available; a snapshot has one cost, set against the credits available. Today the two routes part at the first step:
 
@@ -1491,7 +1491,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - One snapshot with three completed runs at rounds 1 gives one period with three answers per question and model.
 - [x] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
 - [ ] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
-- [~] T11 Fixes from an independent review of T1–T9 (2026-11-16), each with a test that fails before the fix. Approved by the operator on 2026-11-16.
+- [x] T11 Fixes from an independent review of T1–T9 (2026-11-16), each with a test that fails before the fix. Approved by the operator on 2026-11-16.
   - Runs ingested after a snapshot's deck has passed: `resume` compares the ingested runs with the runs the passed deck recorded, and sends the operator back to `period` and `deck` instead of `end`. A rebuilt snapshot period replaces the snapshot's deck instead of becoming a second edition that compares a run with a pool holding it. After `promote`, a run of a set-aside snapshot is refused by the study's `ingest`.
   - `ingest` refuses a run whose `project_id` is not the one bound to `--project`, including the ids set aside under `snapshots`.
   - `period` with a snapshot of `study.json` never created or never run: no crash, and the message names the snapshots left out of the deck.
@@ -1523,6 +1523,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 11. `bind` of a project created for a key whose questions were asked before records its empty bind with no change, and compares its full bind with the last version that held questions; `check` looks for the kept snapshots' ids too (T7).
 12. A snapshot of the earlier shape created as a snapshot in Sentl is still not followed: a study is designed for it (T7).
 13. A snapshot's deck that passes `check` removes the entries of the snapshot's earlier dates from `history/reports.json`, so the folder records one deck and the first period of a followed study compares with that deck's period alone. `resume` and `promote` read the latest deck that passed. A deck of a followed study can still be the second edition of the snapshot's deck, since their runs do not overlap (T11).
+14. A folder whose snapshots were all closed before a run of them was ingested ends at `resume`'s existing step `done`, with a line saying that no deck is written, instead of a new step name; `period` tells a snapshot never created (no version recorded) from one never run (T11).
 
 **Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, report cadence and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
 

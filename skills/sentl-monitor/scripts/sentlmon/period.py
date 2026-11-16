@@ -96,6 +96,9 @@ def latest_criteria(runs, versions):
     was matched against the first recorded version and is read as judged under it; a run
     inside a detection window whose rubric is unknown loses the questions it lists in
     `criteria_unknown`. Returns the runs and {run id: questions dropped}."""
+    if not runs:
+        # A project with no run in the period, a snapshot never created included, which has no version either.
+        return [], {}
     numbers = [r["version"] for r in runs if r["version"] is not None]
     hashes = {v["version"]: {q["key"]: q["criteria_hash"] for d in v["dimensions"] for q in d["questions"]}
               for v in versions}
@@ -566,6 +569,9 @@ def build(root, date, models_file=None):
         else:
             lines = [f"Snapshot: the period pools {sum(held.values())} runs "
                      f"({', '.join(f'{k} {n}' for k, n in held.items())}), compared with nothing."]
+        lines += [f"Snapshot {k} is left out of the period and the deck: "
+                  + ("no run of it is ingested" if versions[k] else "it is not created in Sentl") + " (tell the operator)."
+                  for k in keys if k not in held]
     elif reports:
         last = reports[-1]
         cut = {k: previous_cut(last, k, {r["run_id"]: parse_time(r["started_at"]) for r in runs[k]}) for k in keys}

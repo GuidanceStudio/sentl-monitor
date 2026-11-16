@@ -850,7 +850,8 @@ The earlier version ran on Sentl end to end on 2026-11-07 with skill 0.6.0 (M10)
    run a snapshot again by hand; every completed run is read.
 9. **Period and deck.** Each completed run saved from `get-run-results-tool` and ingested under its
    snapshot's key; `period` pools every run of every snapshot, with no window, no floor and no
-   comparison, and needs no `report_every`; then the deck of that period (`report/DECK.md` or
+   comparison, and needs no `report_every`; a snapshot of `study.json` never created or never run
+   is left out of the period and the deck, and `period` names it; then the deck of that period (`report/DECK.md` or
    `report/QUICK.md`). The deck's `check` records the period in `history/reports.json` as final.
 10. **End.** For each snapshot the operator keeps it, deletes it, or follows the subject. Deleting
     is `delete-snapshot-tool` on the operator's go, then `monitor.py close --project <key>
@@ -867,8 +868,9 @@ bound with no question → project; a run open in any snapshot → follow it and
 first snapshot whose runs ended with no results → run, told to the operator; the first snapshot with
 no run → cost and go; a completed run not in `history/runs/`, no deck that passed `check`, or a run
 ingested that the latest deck to pass did not read (a snapshot run again by hand after the deck) →
-deck; a snapshot not closed → end. A listing of a project no snapshot of the folder is bound to is
-refused, and so is a missing listing.
+deck; a snapshot not closed → end; every snapshot closed before a run of it was ingested → done,
+saying that no deck is written. The listing of a closed snapshot is not read. A listing of a project
+no snapshot of the folder is bound to is refused, and so is a missing listing.
 
 **Following the subject.** `monitor.py promote --answers <json> --models <list-ai-models>` on a
 snapshot designed as a study, every snapshot bound and run and the deck passed after reading every

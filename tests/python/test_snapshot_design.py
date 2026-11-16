@@ -315,6 +315,25 @@ class ResumeAcrossSnapshotsTest(SeveralSnapshotsCase):
         self.cli("close", "--study", self.study, "--project", "category", "--deleted", check=0)
         self.assertEqual(self.step(*listings), "done")
 
+    def test_a_closed_snapshots_listing_is_ignored(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        self.cli("close", "--study", self.study, "--project", "category", "--deleted", check=0)
+        out = self.resume(self.runs("brand", (7001, "completed", "2026-11-16T09:00:00Z")),
+                          self.runs("category", (7002, "failed", "2026-11-16T10:00:00Z"))).stdout
+        self.assertIn("Next step: deck", out)
+        self.assertNotIn("7002", out)
+
+    def test_a_folder_whose_snapshots_were_all_deleted_before_a_run_says_so(self):
+        self.put(one_snapshot(rounds=1))
+        self.create("brand")
+        self.cli("close", "--study", self.study, "--project", "brand", "--deleted", check=0)
+        out = self.resume().stdout
+        self.assertIn("Next step: done", out)
+        self.assertIn("closed before a run of it was ingested", out)
+        self.assertNotIn("write the deck", out)
+
 
 class IngestSeveralTest(SeveralSnapshotsCase):
 
@@ -381,6 +400,23 @@ class PooledPeriodTest(SeveralSnapshotsCase):
         # Each run answers every question at the design's 3 rounds, so every dimension is judged in full.
         self.assertEqual({d: e["total"]["figure"] for b in period["projects"].values() for d, e in b["dimensions"].items()},
                          {d["key"]: True for p in self.design["projects"] for d in p["dimensions"]})
+
+    def test_a_snapshot_never_created_is_left_out_of_the_period_and_named(self):
+        self.create("brand")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        out = self.period().stdout
+        self.assertIn("Snapshot category is left out of the period and the deck: it is not created in Sentl", out)
+        self.assertEqual(self.read(f"history/periods/{DATE}.json")["runs"], {"brand": [7001]})
+        folder, _, study, period, doc = deck.load(self.study, DATE)
+        self.assertEqual(len(deck.build_model(folder, study, period, doc)["method"]), 1)
+
+    def test_a_snapshot_never_run_is_left_out_of_the_period_and_named(self):
+        self.create("brand")
+        self.create("category")
+        self.ingest("brand", 7001, "2026-11-16T09:00:00Z")
+        out = self.period().stdout
+        self.assertIn("Snapshot category is left out of the period and the deck: no run of it is ingested", out)
+        self.assertNotIn("Snapshot brand", out)
 
 
 LATER = "2026-11-17"
