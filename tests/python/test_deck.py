@@ -2138,11 +2138,12 @@ class ReaderWordsTest(DeckCase, unittest.TestCase):
         doc["blocks"]["reach"][0]["title"] = "Avenello in 0 risposte su 2, Avoria in 1 risposta su 2, e 2 risposte su 2 altrove"
         self.assertIn("at most 2", self.problems(doc))
 
-    def test_a_figure_repeated_on_the_first_slides_is_refused(self):
+    def test_a_figure_repeated_on_the_summary_is_refused(self):
         doc = self.filled()
-        doc["actions_title"] = "La prima cosa da fare riguarda 0 risposte su 2"
-        doc["actions"][0]["what"] = "Pubblicare una pagina su avenello.example per le 0 risposte su 2"
-        self.assertIn("0 of 2 appears 3 times", self.problems(doc))
+        doc["found"]["title"] = "Chi cerca una bevanda trova Avoria in 1 risposta su 2 e Avenello in 0 risposte su 2"
+        doc["found"]["answers"]["reach"] = "Chi chiede la bevanda migliore si sente indicare Avoria, in 1 risposta su 2."
+        doc["actions"][0]["what"] = "Pubblicare su avenello.example un confronto con Avoria, in 1 risposta su 2"
+        self.assertIn("1 of 2 appears 3 times on the summary", self.problems(doc))
 
 
 def fullest(doc):
@@ -2175,7 +2176,7 @@ class OverflowTest(DeckCase, unittest.TestCase):
     def test_a_slide_running_over_its_page_is_refused_before_the_pdf(self):
         found = self.overflows(self.crowded())
         self.assertEqual(len(found), 1, found)
-        self.assertTrue(found[0].startswith("slide 5 runs over its page by about "), found[0])
+        self.assertTrue(found[0].startswith("slide 4 runs over its page by about "), found[0])
 
     def test_the_refusal_names_the_texts_of_that_slide(self):
         found = self.overflows(self.crowded())[0]
@@ -2194,7 +2195,7 @@ class OverflowTest(DeckCase, unittest.TestCase):
             self.skipTest("no browser prints with its sandbox on this machine")
         self.save_doc(self.crowded())
         # The slide is named from the pages' feet, read with pdftotext where it is installed.
-        named = r" \(slide 5 runs over\)" if shutil.which("pdftotext") else ""
+        named = r" \(slide 4 runs over\)" if shutil.which("pdftotext") else ""
         with self.assertRaisesRegex(deck.Refused, r"11 pages for 10 slides" + named + ":"):
             deck.render(self.study, DATE, skip_check=True,
                         printer=lambda target, pdf, engines: report_pdf.print_pdf(target, pdf, [e for e in engines if e[0] == browser]))
@@ -2216,7 +2217,7 @@ class RenderTest(DeckCase, unittest.TestCase):
         text = self.page()
         self.assertEqual(text.count('<section class="slide'), 10)
         kinds = re.findall(r'<section class="slide (\w+)', text)
-        self.assertEqual(kinds, ["cover", "opening", "found", "actions", "reach", "description", "facts", "sources", "method",
+        self.assertEqual(kinds, ["cover", "opening", "found", "reach", "description", "facts", "sources", "actions", "method",
                                  "questions"])
 
     def test_the_page_is_16_by_9_and_holds_no_script(self):
@@ -2259,7 +2260,7 @@ class RenderTest(DeckCase, unittest.TestCase):
         self.assertNotIn("Figura", text)
 
     def test_evidence_slides_are_numbered_from_the_block(self):
-        self.assertIn('<td class="num">5</td>', self.page())
+        self.assertIn('<td class="num">4</td>', self.page())
 
     def test_the_facts_chart_draws_no_rating(self):
         self.save_doc(self.filled())

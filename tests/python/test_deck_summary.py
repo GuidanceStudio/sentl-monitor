@@ -167,5 +167,63 @@ class LimitTest(Rendered, unittest.TestCase):
         self.assertNotIn(t["limit_unasked"].format(subject="Avenello"), deck._method(doc, m, t))
 
 
+
+class OrderTest(Rendered, unittest.TestCase):
+
+    def page(self, doc=None):
+        self.save_doc(doc or self.filled())
+        return deck.page_of(self.study, DATE)[0]
+
+    def test_the_suggested_actions_close_the_deck_before_the_appendix(self):
+        kinds = re.findall(r'<section class="slide (\w+)', self.page())
+        self.assertEqual(kinds, ["cover", "opening", "found", "reach", "description", "facts", "sources", "actions", "method",
+                                 "questions"])
+
+    def test_the_actions_slide_is_named_suggested_actions(self):
+        self.assertIn('<div class="kicker">Azioni suggerite</div>', self.section(self.filled(), "actions"))
+
+    def test_each_page_of_the_appendix_says_so(self):
+        text = self.page()
+        for kind in ("method", "questions"):
+            with self.subTest(kind):
+                at = text.index(f'<section class="slide {kind}')
+                self.assertIn('<div class="kicker">Appendice</div>', text[at:text.index("</section>", at)])
+        for kind in ("found", "reach", "sources", "actions"):
+            at = text.index(f'<section class="slide {kind}')
+            self.assertNotIn("Appendice", text[at:text.index("</section>", at)])
+
+    def test_the_actions_point_to_their_evidence_and_the_summary_to_the_actions(self):
+        text = self.page()
+        actions = text[text.index('<section class="slide actions'):]
+        self.assertIn('<td class="num">4</td>', actions[:actions.index("</section>")])
+        self.assertIn("Tutte le azioni: slide 8", text_of(text[text.index('<section class="slide found'):]))
+
+    def test_english_labels(self):
+        study = self.read("study.json")
+        study["report_language"] = "en"
+        (self.study / "study.json").write_text(deck.json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        text = self.page()
+        self.assertIn('<div class="kicker">Suggested actions</div>', text)
+        self.assertIn('<div class="kicker">Appendix</div>', text)
+
+
+class RepeatedTest(Rendered, unittest.TestCase):
+    """The figures said again and again are those of the slide that decides whether the reader goes on: the summary."""
+
+    def test_a_figure_repeated_on_the_summary_is_refused(self):
+        doc = self.filled()
+        doc["found"]["title"] = "Chi cerca una bevanda trova Avoria in 1 risposta su 2"
+        doc["actions"][0]["what"] = "Pubblicare su avenello.example un confronto con Avoria, in 1 risposta su 2"
+        with mock.patch.object(deck, "MAX_REPEATS", 1):
+            self.assertIn("1 of 2 appears 2 times on the summary", self.problems(doc))
+
+    def test_the_actions_slide_at_the_end_is_not_counted(self):
+        doc = self.filled()
+        doc["found"]["title"] = "Chi cerca una bevanda trova Avoria in 1 risposta su 2"
+        doc["actions_title"] = "La prima cosa da fare riguarda Avoria, in 1 risposta su 2"
+        with mock.patch.object(deck, "MAX_REPEATS", 1):
+            self.assertNotIn("appears 2 times", self.problems(doc))
+
+
 if __name__ == "__main__":
     unittest.main()

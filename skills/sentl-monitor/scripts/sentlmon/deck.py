@@ -1600,12 +1600,12 @@ def _crowded(doc):
 
 
 def _repeated(doc):
-    """The same figure, again and again, on the slides that decide whether the reader goes on."""
+    """The same figure, again and again, on the slide that decides whether the reader goes on: the summary."""
     found = doc.get("found") or {}
-    first = [found.get("title") or "", *(found.get("answers") or {}).values(), doc.get("actions_title") or ""]
-    first += [a.get(k) or "" for a in doc.get("actions") or [] for k in ("what", "why")]
+    first = [found.get("title") or "", *(found.get("answers") or {}).values()]
+    first += [a.get("what") or "" for a in (doc.get("actions") or [])[:1]]
     seen = Counter((c.group(1), c.group(4)) for text in first for c in COUNT.finditer(text))
-    return [f"{a} of {b} appears {n} times on the first slides, at most {MAX_REPEATS}: say it once and say something else"
+    return [f"{a} of {b} appears {n} times on the summary, at most {MAX_REPEATS}: say it once and say something else"
             for (a, b), n in seen.items() if n > MAX_REPEATS]
 
 
@@ -2596,20 +2596,20 @@ def _questions_slide(page, n, pages, m, t):
     tight = any(column[0] == "tight" for column in page)
     cols = "".join("<div>" + "".join(f'<div class="{entry[0]}">{esc(entry[1])}</div>' for entry in column if entry != "tight") + "</div>"
                    for column in page)
-    return f'<h1>{esc(title)}</h1><div class="question-cols{" tight" if tight else ""}">{cols}</div>'
+    return f'{_kicker(t["appendix"])}<h1>{esc(title)}</h1><div class="question-cols{" tight" if tight else ""}">{cols}</div>'
 
 
 def _order(doc, m, t):
-    """The slides in reading order: (kind, block, slide)."""
+    """The slides in reading order: (kind, block, slide). The summary opens, the suggested actions close what the reader
+    reads through, the method and the questions follow as an appendix."""
     second = m.get("second")
     order = [("cover", None, None), ("opening", None, None), ("found", None, None)]
-    order += [("changed", None, None)] * bool(second and second["rows"]) + [("earlier", None, None)] * bool(second)
-    order.append(("actions", None, None))
+    order += [("changed", None, None)] * bool(second and second["rows"])
     for key in present(m):
         order += [(key, key, s) for s in (doc.get("blocks") or {}).get(key) or []]
     if _any_sources(m):
         order.append(("sources", None, None))
-    order.append(("method", None, None))
+    order += [("earlier", None, None)] * bool(second) + [("actions", None, None), ("method", None, None)]
     return order + [("questions", None, page) for page in _question_pages(m, t)]
 
 
@@ -2825,7 +2825,7 @@ def _method(doc, m, t):
     monitored = f'<h2>{esc(t["monitored_title"])}</h2><p>{esc(", ".join(m["monitored"]))}</p>' if m["monitored"] else ""
     right = (f'{monitored}<h2>{esc(t["where_title"])}</h2><p>{esc(t["where"])}</p><h2>{esc(t["ask_title"])}</h2><ul>'
              + "".join(f"<li>{esc(x)}</li>" for x in method.get("ask") or []) + "</ul>")
-    return (f'<h1>{esc(t["method_title"])}</h1><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>'
+    return (f'{_kicker(t["appendix"])}<h1>{esc(t["method_title"])}</h1><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>'
             f'<div class="method-cols"><div>{left}</div><div>{right}</div></div>')
 
 

@@ -192,9 +192,11 @@ class SlidesTest(SecondCase):
         self.later.write_text(json.dumps(self.second(), ensure_ascii=False), encoding="utf-8")
         return deck.page_of(self.study, LATER)[0]
 
-    def test_the_two_slides_follow_what_was_found(self):
+    def test_what_changed_follows_the_summary_and_the_earlier_actions_precede_the_new(self):
         kinds = re.findall(r'<section class="slide (\w+)', self.page())
-        self.assertEqual(kinds[:6], ["cover", "opening", "found", "changed", "earlier", "actions"])
+        self.assertEqual(kinds[:4], ["cover", "opening", "found", "changed"])
+        self.assertEqual(kinds[kinds.index("earlier"):kinds.index("earlier") + 3], ["earlier", "actions", "method"])
+        self.assertLess(kinds.index("sources"), kinds.index("earlier"))
 
     def test_the_actions_slide_shows_the_action_and_both_figures(self):
         slide = re.search(r'<section class="slide earlier.*?</section>', self.page(), re.S).group(0)
