@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.12.0 (2026-11-16)
 
 Both decks open with a summary, and the quick deck closes on suggested actions.
 

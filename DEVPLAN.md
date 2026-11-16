@@ -1427,9 +1427,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Result (2026-11-16):** the four trial decks (two full, two quick, three projects each) pass `check` and print one page per slide; their summaries hold 118 and 118 words (full) and 108 and 105 (quick). The code draws about 50 words on a full summary of three groups, so `SUMMARY_WORDS` is 120 rather than the 100 planned, which would have left about ten words for each sentence. Choices the plan left open: the slide of what changed stays right after the summary; the line on competitors not asked the questions about the subject moves to the method's limits; the ranking is a line of text under the first presence chart, not bars; the check on figures said again and again reads the summary only; the quick summary names each project as Sentl does and has no first-action line; the quick actions slide is headed "Azioni suggerite" with no title of the writer's. Sending the decks to the operator is the session's that ran the trial.
 
-## R14: Release 0.12.0
+## R14: Release 0.12.0 ✅
 
 **Tasks:**
-- [ ] Version 0.12.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+- [x] Version 0.12.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.12.0.
