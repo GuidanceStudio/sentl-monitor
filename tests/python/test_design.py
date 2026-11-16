@@ -379,6 +379,36 @@ class ReviewTest(DesignCase, unittest.TestCase):
         self.assertIn("- Models: Acme Chat, 2 credits per call, 40 per run; Zenith Answer, 1 credit per call, "
                       "20 per run", category.split("## Questions")[0])
 
+    def test_the_estimate_gives_the_credits_per_30_days_from_the_schedule(self):
+        study = mutated(lambda s: s["projects"][1].update(schedule="daily"))
+        out = self.review(study).stdout
+        # A weekly project runs 4.3 times in 30 days, a daily one 30 times.
+        self.assertIn("project brand: 50 credits per run (10 questions x 1 round x 5 credits across 2 models); "
+                      "200 credits per report period (4 runs); 215 credits per 30 days (4.3 runs)", out)
+        self.assertIn("project category: 50 credits per run (10 questions x 1 round x 5 credits across 2 models); "
+                      "1500 credits per report period (30 runs); 1500 credits per 30 days (30 runs)", out)
+        self.assertIn("all projects: 100 credits per run; 1700 credits per report period; 1715 credits per 30 days", out)
+
+    def test_without_the_organizations_credits_the_review_says_where_they_come_from(self):
+        out = self.review().stdout
+        self.assertIn("--monthly-credits and --credits-available", out)
+        self.assertIn("get-organization-tool", out)
+
+    def test_the_monthly_budget_is_set_against_the_plan_and_the_credits_available(self):
+        self.put(clean_study())
+        out = self.cli("review", "--study", self.study, "--models", self.models, "--monthly-credits", "1000",
+                       "--credits-available", "250", check=0).stdout
+        self.assertIn("- per 30 days: 430 credits, 43% of the 1000 the plan gives", out)
+        self.assertIn("- available now: 250 credits, enough for 2 runs of every project (100 credits), not for 30 "
+                      "days (430 credits)", out)
+
+    def test_a_budget_over_the_plan_and_the_credits_available_is_said_plainly(self):
+        self.put(clean_study())
+        out = self.cli("review", "--study", self.study, "--models", self.models, "--monthly-credits", "400",
+                       "--credits-available", "80", check=0).stdout
+        self.assertIn("- per 30 days: 430 credits, over the 400 the plan gives", out)
+        self.assertIn("- available now: 80 credits, not enough for one run of every project (100 credits)", out)
+
     def test_the_estimate_follows_the_tariff_and_the_rounds(self):
         study = mutated(lambda s: s["projects"][0].update(rounds=2, models=[GPT, NEW]))
         out = self.review(study).stdout

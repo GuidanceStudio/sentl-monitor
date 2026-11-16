@@ -115,6 +115,40 @@ class ReviewTest(SnapshotDesignCase):
         self.assertEqual((self.study / "study-review.md").read_text(encoding="utf-8").rstrip(), out.rstrip())
 
 
+class CostTest(SnapshotDesignCase):
+
+    def review(self, *extra):
+        return self.cli("review", "--study", self.study, "--models", self.models, *extra, check=0).stdout
+
+    def test_each_snapshot_costs_its_one_run_at_its_rounds_and_at_one_round(self):
+        out = self.review()
+        # 10 questions x 3 rounds x (2 + 3) credits, and x 1 round.
+        self.assertIn("- snapshot brand: 150 credits per run (10 questions x 3 rounds x 5 credits across 2 models); "
+                      "50 credits per run at 1 round", out)
+        self.assertIn("- snapshot category: 150 credits per run", out)
+        self.assertIn("- all snapshots: 300 credits at the rounds proposed; 100 credits at 1 round", out)
+        self.assertNotIn("per 30 days", out)
+        self.assertNotIn("per report period", out)
+
+    def test_the_cost_is_set_against_the_credits_available_at_both_rounds(self):
+        self.assertIn("- available now: 250 credits, enough for every snapshot at 1 round (100 credits), not at the "
+                      "rounds proposed (300 credits)", self.review("--credits-available", "250"))
+        self.assertIn("- available now: 300 credits, enough for every snapshot at the rounds proposed (300 credits)",
+                      self.review("--credits-available", "300"))
+        self.assertIn("- available now: 90 credits, not enough for every snapshot even at 1 round (100 credits)",
+                      self.review("--credits-available", "90"))
+
+    def test_a_snapshot_has_no_monthly_budget_to_set_against_the_plan(self):
+        out = self.review("--monthly-credits", "1000", "--credits-available", "500")
+        self.assertNotIn("the plan gives", out)
+
+    def test_a_snapshot_of_one_round_shows_one_figure(self):
+        self.put(as_snapshot(mutated(lambda s: None), rounds=1))
+        out = self.review()
+        self.assertIn("- snapshot brand: 50 credits per run (10 questions x 1 round x 5 credits across 2 models)\n", out)
+        self.assertIn("- all snapshots: 100 credits at the rounds proposed\n", out)
+
+
 class PayloadTest(SnapshotDesignCase):
 
     def test_create_snapshot_tool_carries_the_rounds_and_no_schedule(self):

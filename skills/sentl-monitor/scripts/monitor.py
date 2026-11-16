@@ -183,6 +183,8 @@ def _parser():
     e = command("review", "write study-review.md: the narrative, themes, questions, rubrics and the credit estimate")
     e.add_argument("--study", default=".")
     e.add_argument("--models", required=True, help="saved list-ai-models response, with each model's credits")
+    e.add_argument("--monthly-credits", type=float, help="the credits the plan gives per 30 days, from get-organization-tool")
+    e.add_argument("--credits-available", type=float, help="the credits available now, from get-organization-tool")
 
     f = command("revise", "record the lineage of a revised study.json against the previous design")
     f.add_argument("--study", default=".")
@@ -328,7 +330,8 @@ def main(argv=None):
             print(text)
             return 0 if ok else 1
         elif args.command == "review":
-            print((snapshot if snapshot.is_snapshot(args.study) else design).review(args.study, args.models))
+            print((snapshot if snapshot.is_snapshot(args.study) else design).review(
+                args.study, args.models, args.monthly_credits, args.credits_available))
         elif args.command == "revise":
             print(design.revise_files(args.study, args.previous, args.new_intent, args.dry_run))
         elif args.command == "payload":

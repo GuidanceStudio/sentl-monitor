@@ -21,6 +21,9 @@ QUESTIONS_PER_DIMENSION = (2, 3)
 PERSONA_AUDIENCES = ("personas", "stakeholders", "mixed")
 ANSWERS_PER_PERIOD = 3
 
+# Runs of a project in 30 days, the cycle in which Sentl renews an organization's credits.
+RUNS_PER_30_DAYS = {"daily": 30, "weekly": 4.3, "monthly": 1}
+
 # Runs of a project that fall in one report period, by schedule and report cadence.
 RUNS_PER_PERIOD = {("daily", "weekly"): 7, ("daily", "monthly"): 30, ("weekly", "weekly"): 1,
                    ("weekly", "monthly"): 4, ("monthly", "weekly"): 0.25, ("monthly", "monthly"): 1}
@@ -412,31 +415,94 @@ def _model_costs(project, tariffs):
                      f"{calls * _per_call(m, tariffs):g} per run" for m in project["models"])
 
 
-def _credits(study, models_file):
+def _run_credits(project, tariffs, rounds=None):
+    """(credits of one run, credits per call across the models, questions) of a project, at its rounds or `rounds`."""
+    per_call = sum(_per_call(m, tariffs) for m in project["models"])
+    count = len(_questions(project))
+    return count * (project["rounds"] if rounds is None else rounds) * per_call, per_call, count
+
+
+def _credits(study, models_file, monthly=None, available=None):
+    """The review's credit estimate. A study's: each project's credits per run, per report period and per 30 days,
+    the 30 days set against the plan's `monthly` credits and the credits `available`. A snapshot's: the credits of
+    each snapshot's one run at its rounds and at 1 round, and in total, against the credits `available`."""
     tariffs = schema.models(models_file)
-    lines = ["## Credit estimate", ""]
-    total, total_period = 0, 0
-    period_known = True
     for p in study["projects"]:
-        missing = [m for m in p["models"] if tariffs[m].get("credits") is None]
+        missing = [m for m in p["models"] if (tariffs.get(m) or {}).get("credits") is None]
         if missing:
             raise Refused(f"list-ai-models gives no credits for {', '.join(missing)}: save the response again")
-        per_call = sum(tariffs[m]["credits"] for m in p["models"])
-        count = len(_questions(p))
-        run = count * p["rounds"] * per_call
+    lines = ["## Credit estimate", ""]
+    lines += _snapshot_credits(study, tariffs, available) if is_snapshot(study) else \
+        _study_credits(study, tariffs, monthly, available)
+    if (monthly is None and not is_snapshot(study)) or available is None:
+        lines.append("- the organization's credits are not set against it: pass --monthly-credits and "
+                     "--credits-available, read from get-organization-tool")
+    lines += ["", "Judging costs no credits; estimate-run-tool gives the total before a run starts.", ""]
+    return lines
+
+
+def _formula(project, count, per_call):
+    return (f"{_count(count, 'question', 'questions')} x {_count(project['rounds'], 'round', 'rounds')} x "
+            f"{per_call:g} credits across {len(project['models'])} models")
+
+
+def _study_credits(study, tariffs, monthly, available):
+    lines, total, total_period, total_month, period_known = [], 0, 0, 0, True
+    for p in study["projects"]:
+        run, per_call, count = _run_credits(p, tariffs)
         runs = runs_per_period(p, study.get("report_every"))
-        line = (f"- project {p['key']}: {run:g} credits per run ({_count(count, 'question', 'questions')} x "
-                f"{_count(p['rounds'], 'round', 'rounds')} x {per_call:g} credits across {len(p['models'])} models)")
+        line = f"- project {p['key']}: {run:g} credits per run ({_formula(p, count, per_call)})"
         if runs is not None:
             line += f"; {run * runs:g} credits per report period ({_count(runs, 'run', 'runs')})"
             total_period += run * runs
         else:
             period_known = False
+        month = RUNS_PER_30_DAYS.get(p.get("schedule"))
+        if month is not None:
+            line += f"; {round(run * month):g} credits per 30 days ({_count(month, 'run', 'runs')})"
+            total_month += round(run * month)
         total += run
         lines.append(line)
-    lines.append(f"- all projects: {total:g} credits per run" + (f"; {total_period:g} credits per report period"
-                                                                  if period_known else ""))
-    lines += ["", "Judging costs no credits; estimate-run-tool gives the total before a run starts.", ""]
+    lines.append(f"- all projects: {total:g} credits per run"
+                 + (f"; {total_period:g} credits per report period" if period_known else "")
+                 + f"; {total_month:g} credits per 30 days")
+    if monthly is not None:
+        share = f"{round(100 * total_month / monthly):g}% of" if total_month <= monthly else "over"
+        lines.append(f"- per 30 days: {total_month:g} credits, {share} the {monthly:g} the plan gives")
+    if available is not None:
+        runs = int(available // total) if total else 0
+        if not runs:
+            lines.append(f"- available now: {available:g} credits, not enough for one run of every project "
+                         f"({total:g} credits)")
+        else:
+            cover = (f"enough for 30 days ({total_month:g} credits)" if available >= total_month else
+                     f"enough for {_count(runs, 'run', 'runs')} of every project ({total:g} credits), not for 30 "
+                     f"days ({total_month:g} credits)")
+            lines.append(f"- available now: {available:g} credits, {cover}")
+    return lines
+
+
+def _snapshot_credits(study, tariffs, available):
+    lines, total, total_one = [], 0, 0
+    for p in study["projects"]:
+        run, per_call, count = _run_credits(p, tariffs)
+        one, _, _ = _run_credits(p, tariffs, rounds=1)
+        line = f"- snapshot {p['key']}: {run:g} credits per run ({_formula(p, count, per_call)})"
+        if p["rounds"] != 1:
+            line += f"; {one:g} credits per run at 1 round"
+        lines.append(line)
+        total, total_one = total + run, total_one + one
+    lines.append(f"- all snapshots: {total:g} credits at the rounds proposed"
+                 + (f"; {total_one:g} credits at 1 round" if total_one != total else ""))
+    if available is not None:
+        if available >= total:
+            cover = f"enough for every snapshot at the rounds proposed ({total:g} credits)"
+        elif available >= total_one:
+            cover = (f"enough for every snapshot at 1 round ({total_one:g} credits), not at the rounds proposed "
+                     f"({total:g} credits)")
+        else:
+            cover = f"not enough for every snapshot even at 1 round ({total_one:g} credits)"
+        lines.append(f"- available now: {available:g} credits, {cover}")
     return lines
 
 
@@ -461,7 +527,7 @@ def question_lines(study):
     return out
 
 
-def review_text(study, root, models_file):
+def review_text(study, root, models_file, monthly=None, available=None):
     names = schema.models(models_file)
     audience = study["narrative"]["audience"]
     narrative = study["narrative"]
@@ -489,16 +555,16 @@ def review_text(study, root, models_file):
                        f"(search leans {d.get('search_lean', 'none')}; axis {d.get('axis', 'stance')})")
         out.append("")
     out += question_lines(study)
-    out += _credits(study, models_file)
+    out += _credits(study, models_file, monthly, available)
     return "\n".join(out).rstrip() + "\n"
 
 
-def review(root, models_file):
+def review(root, models_file, monthly=None, available=None):
     study = _load(root)
     problems, _ = problems_of(study, set(_model_ids(models_file)), demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so there is nothing to review yet:\n  - " + "\n  - ".join(problems))
-    text = review_text(study, root, models_file)
+    text = review_text(study, root, models_file, monthly, available)
     write_text(Study(root).path("study-review.md"), text)
     return text.rstrip()
 

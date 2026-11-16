@@ -99,14 +99,16 @@ The fragment shows only what differs; every other field is the study's (ARCHITEC
 
 ```bash
 python3 <skill>/scripts/monitor.py validate --study "$S" --models "$S/inbox/models.json"
-python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json"
+python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json" \
+  --credits-available <the credits available, from step 1>
 ```
 
 `validate` runs the study's checks, plus the absence of a schedule and of a report cadence; exit
 1 lists the problems: correct `study.json` and run it again. Tell the operator each warning, as
 DESIGN.md step 10 says. `review` writes `$S/study-review.md`: the narrative, the themes, the
 personas, each snapshot with its dimensions and its models, every question with its rubric and
-judge instructions, and the credits from the tariffs.
+judge instructions, and the credits from the tariffs: each snapshot's one run at its rounds and
+at 1 round, and the total, against the credits available (DESIGN.md step 11).
 
 ## 5. Budget and approval
 
@@ -160,9 +162,9 @@ second failure stop and show the operator what it lists.
 
 ## 7. Cost
 
-Call `estimate-run-tool` for the project and save the response to `$S/inbox/estimate.json`. Show
-the operator, in Sentl credits: the credits per researcher model, the
-total, the credits available in the organization, and whether the run can start. This tool reads
+Before each snapshot's run, call `estimate-run-tool` for that snapshot and save the response to
+`$S/inbox/estimate-<key>.json`. Show the operator, in Sentl credits: the credits per researcher
+model, the total, the credits available in the organization, and whether the run can start. This tool reads
 only and starts nothing. Then stop and ask for the go to start the run. When the estimate says
 the run cannot start, say why (credits, subscription) and stop: the folder resumes here.
 

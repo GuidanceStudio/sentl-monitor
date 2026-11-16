@@ -157,7 +157,7 @@ def validate(root, models_file):
     return text, ok
 
 
-def review_text(study, models_file):
+def review_text(study, models_file, available=None):
     names = schema.models(models_file)
     narrative, project = study["narrative"], study["projects"][0]
     out = [f"# Snapshot review: {study['subject']['label']}", "", "## Narrative", "",
@@ -174,18 +174,19 @@ def review_text(study, models_file):
         out.append(f"- {d['name']} (catalogue: {d['catalogue']}; axis {d.get('axis', 'stance')}): {d['measures']}. "
                    f"Chosen because {reasons.get(match_key(d['name']), 'no reason given')}")
     out.append("")
-    return out + design.question_lines(study) + design._credits(study, models_file)
+    return out + design.question_lines(study) + design._credits(study, models_file, available=available)
 
 
-def review(root, models_file):
+def review(root, models_file, monthly=None, available=None):
+    """The review of a snapshot; `monthly` is not read, since a snapshot has no monthly budget."""
     study = _load(root)
     problems, _ = problems_of(study, set(schema.models(models_file)), demand.recorded(root))
     if problems:
         raise Refused("study.json fails validate, so there is nothing to review yet:\n  - " + "\n  - ".join(problems))
     if designed(study):
-        text = design.review_text(study, root, models_file)
+        text = design.review_text(study, root, models_file, available=available)
     else:
-        text = "\n".join(review_text(study, models_file)).rstrip() + "\n"
+        text = "\n".join(review_text(study, models_file, available)).rstrip() + "\n"
     write_text(Study(root).path("study-review.md"), text)
     return text.rstrip()
 

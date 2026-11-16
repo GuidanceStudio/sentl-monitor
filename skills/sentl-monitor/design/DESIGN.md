@@ -163,14 +163,24 @@ missing or not a study. Exit 5: the saved `list-ai-models` is not the response t
 
 ## 11. Review and stop
 
+Call `get-organization-tool` and read the credits the plan gives per 30 days and the credits
+available now. Then:
+
 ```bash
-python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json"
+python3 <skill>/scripts/monitor.py review --study "$S" --models "$S/inbox/models.json" \
+  --monthly-credits <per 30 days> --credits-available <available now>
 ```
 
 It writes `$S/study-review.md` and prints it: the narrative, the theme inventory with origins
-and search demand, projects and dimensions, every question with its persona, framing, rubric and
-the judge instructions Sentl will receive, and the credit estimate from the tariffs. Judging
-costs no credits; `setup` shows Sentl's own figure before any run. Show the
+and search demand, projects and dimensions with each model's tariff and the credits of one run,
+every question with its persona, framing, rubric and the judge instructions Sentl will receive,
+and the credit estimate from the tariffs. For a study, the estimate gives each project's credits
+per run, per report period and per 30 days (a weekly schedule runs 4.3 times in 30 days, the
+cycle in which Sentl renews the credits), and sets the 30 days against the plan's credits and the
+credits available. For a snapshot, it gives the credits of each snapshot's one run at its rounds
+and at 1 round, and the total, against the credits available. Without the two figures the review
+says they were not given. Judging costs no credits; `setup` shows Sentl's own figure before any
+run. Show the
 operator the review and stop. Nothing is created in Sentl until they approve it.
 
 ## Revising a study

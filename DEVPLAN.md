@@ -1475,7 +1475,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - at least one model that searches the web and cites its sources;
   - the tariff per call.
   `review` prints, per project, each model with its tariff and the credits of one run. Projects of one study may have different models.
-- [ ] T5 Cost. For a study, `review` prints the credits per run and the monthly budget from the schedule and rounds, against the plan's monthly credits and the credits available. For a snapshot, it prints the credits of its one run, which include the rounds, per snapshot and in total, against the credits available, at the proposed 3 rounds and at 1 round. Before any run, `snapshot` shows Sentl's `estimate-run-tool` for each snapshot.
+- [x] T5 Cost. For a study, `review` prints the credits per run and the monthly budget from the schedule and rounds, against the plan's monthly credits and the credits available. For a snapshot, it prints the credits of its one run, which include the rounds, per snapshot and in total, against the credits available, at the proposed 3 rounds and at 1 round. Before any run, `snapshot` shows Sentl's `estimate-run-tool` for each snapshot.
 - [ ] T6 Several snapshots in one folder:
   - `payload`, `bind`, `resume` and `ingest` treat each project of a snapshot study as one snapshot in Sentl;
   - the skill starts one run per snapshot; the runs start one after the other, each once the previous is final, and each after its own yes on its estimate, since Sentl's `trigger-run-tool` asks a new yes for every run of a snapshot;

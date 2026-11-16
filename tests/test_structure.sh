@@ -338,6 +338,10 @@ holds "$DESIGN_MODELS" "never an invented share" "DESIGN.md never invents a shar
 holds "$DESIGN_MODELS" "two model families" "DESIGN.md asks for two model families or more"
 holds "$DESIGN_MODELS" "searches the web" "DESIGN.md asks for a model that searches the web"
 holds "$DESIGN_MODELS" "tariff" "DESIGN.md shows each model's tariff"
+holds "$(section "$PAYLOAD/design/DESIGN.md" "## 11. ")" "--credits-available" "DESIGN.md sets the cost against the credits available"
+holds "$(section "$PAYLOAD/design/DESIGN.md" "## 11. ")" "--monthly-credits" "DESIGN.md sets a study's 30 days against the plan"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 4. ")" "--credits-available" "SNAPSHOT.md sets the snapshots' cost against the credits available"
+holds "$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 7. ")" "each snapshot's run" "SNAPSHOT.md shows estimate-run-tool for each snapshot"
 holds "$(cat "$PAYLOAD/snapshot/SNAPSHOT.md")" "DESIGN.md steps 2 to 9" "SNAPSHOT.md refers to the rule in DESIGN.md"
 for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
     if grep -qiE "four or five|4 or 5 dimensions|4 or 5 entries" "$f"; then
