@@ -1469,7 +1469,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - no `runs` field, no `schedule`, no `report_every`.
   `payload` puts `rounds` in the `create-snapshot-tool` arguments, as it does for `create-project-tool`, and sends it through `update-project-settings-tool` when the snapshot exists. A refusal of the rounds stops the route with Sentl's code and message, as any write refusal does; there is no fallback to several runs.
   `validate` and `review` run the study's checks on it, plus the absence of a schedule. A snapshot folder made before M39 (four or five dimensions, empty `themes`) still validates under its old rules, and `report`, `deck` and `compare` still read it.
-- [ ] T4 Models, one reasoning for both routes, written once. For each project or snapshot:
+- [x] T4 Models, one reasoning for both routes, written once. For each project or snapshot:
   - the assistants its audience uses, from what the operator or the brief records, never an invented share of use;
   - at least two model families;
   - at least one model that searches the web and cites its sources;

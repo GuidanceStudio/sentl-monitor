@@ -144,6 +144,9 @@ WARNINGS = {
         "dimension taste has 4 questions (two or three are expected)"),
     "a project that mixes branded and unbranded questions": (lambda s: q(s, "c-price-1").update(branded=True),
                                                              "project category mixes"),
+    "models of one family in a project": (set_(["projects", 0, "models"], [GPT]),
+                                         "project brand asks models of one family (acme): two families or more "
+                                         "are expected"),
     "fewer than three answers per question and model in a report period": (
         set_(["projects", 0, "schedule"], "monthly"), "project brand gives 1 answer per question and model"),
 }
@@ -364,6 +367,17 @@ class ReviewTest(DesignCase, unittest.TestCase):
         # a weekly schedule read monthly is four runs.
         self.assertIn("200 credits per report period", out)
         self.assertIn("Judging costs no credits", out)
+
+    def test_each_project_shows_each_model_with_its_tariff_and_the_credits_of_one_run(self):
+        study = mutated(lambda s: s["projects"][1].update(rounds=2, models=[GPT, NEW]))
+        out = self.review(study).stdout
+        brand, category = out.split("### Avenello · With the brand")[1].split("### Avenello · Without the brand")
+        # 10 questions x 1 round x 2 credits, and x 3 credits.
+        self.assertIn("- Models: Acme Chat, 2 credits per call, 20 per run; Orbit Reason, 3 credits per call, "
+                      "30 per run", brand)
+        # Projects of one study may ask other models: 10 questions x 2 rounds x 1 credit.
+        self.assertIn("- Models: Acme Chat, 2 credits per call, 40 per run; Zenith Answer, 1 credit per call, "
+                      "20 per run", category.split("## Questions")[0])
 
     def test_the_estimate_follows_the_tariff_and_the_rounds(self):
         study = mutated(lambda s: s["projects"][0].update(rounds=2, models=[GPT, NEW]))

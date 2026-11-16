@@ -332,6 +332,12 @@ holds "$DESIGN_PROJECTS" "no cap" "DESIGN.md says Sentl sets no cap, so capacity
 holds "$DESIGN_WHO" "funnel" "DESIGN.md proposes the funnel to spread each persona's questions"
 holds "$DESIGN_WHO" "another framework" "DESIGN.md leaves the operator free to use another framework"
 holds "$(head -12 "$PAYLOAD/design/DESIGN.md")" "a snapshot" "DESIGN.md says its steps design a snapshot too"
+DESIGN_MODELS=$(section "$PAYLOAD/design/DESIGN.md" "## 9. ")
+holds "$DESIGN_MODELS" "the assistants its audience uses" "DESIGN.md chooses the models its audience uses"
+holds "$DESIGN_MODELS" "never an invented share" "DESIGN.md never invents a share of use"
+holds "$DESIGN_MODELS" "two model families" "DESIGN.md asks for two model families or more"
+holds "$DESIGN_MODELS" "searches the web" "DESIGN.md asks for a model that searches the web"
+holds "$DESIGN_MODELS" "tariff" "DESIGN.md shows each model's tariff"
 holds "$(cat "$PAYLOAD/snapshot/SNAPSHOT.md")" "DESIGN.md steps 2 to 9" "SNAPSHOT.md refers to the rule in DESIGN.md"
 for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
     if grep -qiE "four or five|4 or 5 dimensions|4 or 5 entries" "$f"; then

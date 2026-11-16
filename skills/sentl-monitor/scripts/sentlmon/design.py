@@ -179,6 +179,11 @@ def is_snapshot(study):
     return study.get("kind") == "snapshot"
 
 
+def family(model):
+    """The family of a model: the maker its id names before the slash."""
+    return model.partition("/")[0] if "/" in model else model
+
+
 def _check_project(project, study, model_ids, audience, aliases, problems, warnings):
     key = project.get("key")
     where = f"project {key}"
@@ -200,6 +205,9 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
         problems.append(f"{where}: models must list at least one model id")
     else:
         problems += [f"{where}: model {m} is not in list-ai-models" for m in models if m not in model_ids]
+        families = sorted({family(m) for m in models if isinstance(m, str)})
+        if len(families) == 1:
+            warnings.append(f"{where} asks models of one family ({families[0]}): two families or more are expected")
     dims = project.get("dimensions") or []
     low, high = DIMENSIONS_PER_PROJECT
     if not low <= len(dims) <= high:
@@ -390,6 +398,20 @@ def _personas(study, data):
     return lines + [""]
 
 
+def _per_call(model, tariffs):
+    credits = (tariffs.get(model) or {}).get("credits")
+    if credits is None:
+        raise Refused(f"list-ai-models gives no credits for {model}: save the response again")
+    return credits
+
+
+def _model_costs(project, tariffs):
+    """Each model of a project with its tariff per call and the credits it takes in one run."""
+    calls = len(_questions(project)) * project["rounds"]
+    return "; ".join(f"{public_name(m, tariffs)}, {_count(_per_call(m, tariffs), 'credit', 'credits')} per call, "
+                     f"{calls * _per_call(m, tariffs):g} per run" for m in project["models"])
+
+
 def _credits(study, models_file):
     tariffs = schema.models(models_file)
     lines = ["## Credit estimate", ""]
@@ -459,7 +481,7 @@ def review_text(study, root, models_file):
     out += ["## Projects and dimensions", ""]
     for p in study["projects"]:
         out += [f"### {p['name']} ({p['key']})", "", f"- Question: {p['question']}", f"- Decision: {p['decision']}",
-                f"- Models: {', '.join(public_name(m, names) for m in p['models'])}",
+                f"- Models: {_model_costs(p, names)}",
                 (f"- Rounds: {p['rounds']}; no schedule: the snapshot is created paused" if is_snapshot(study)
                  else f"- Rounds: {p['rounds']}; schedule: {p['schedule']}"), "- Dimensions:"]
         for d in p["dimensions"]:

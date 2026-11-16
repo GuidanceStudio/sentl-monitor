@@ -134,10 +134,21 @@ personas, which themes were left out).
 
 ## 9. Models, rounds, schedule, cadence
 
-Offer the models of `models.json` with their public names and tariffs. Each project lists its
-`models` by id, its `rounds` and its `schedule` (`daily`, `weekly` or `monthly`); the study has
-`report_every` (`weekly` or `monthly`). Rounds times the runs in a report period should reach
-three answers for each question and model.
+Choose the models of each project from `models.json`, by one reasoning for a study and a
+snapshot:
+
+- the assistants its audience uses, from what the operator or the brief records, and
+  never an invented share of use;
+- two model families or more, the family being the maker the model's id names before the slash
+  (`validate` warns on a project of one family);
+- at least one model that searches the web and cites its sources;
+- the tariff per call, shown with each model's public name.
+
+Projects of one study may ask different models; write the reason in
+`narrative.design_rationale`. Each project lists its `models` by id, its `rounds` and its
+`schedule` (`daily`, `weekly` or `monthly`); the study has `report_every` (`weekly` or
+`monthly`). Rounds times the runs in a report period should reach three answers for each
+question and model.
 
 ## 10. Validate
 

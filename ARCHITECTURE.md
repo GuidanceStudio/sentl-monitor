@@ -633,7 +633,12 @@ The steps run in the order the report tells them:
 7. **Narrative.** Research question (neutral: what is monitored, never one valence of it),
    purpose, audience, each project's question and decision, each design choice with its
    reason, score axis.
-8. **Models, rounds, schedule, report cadence.** From the saved `list-ai-models` response.
+8. **Models, rounds, schedule, report cadence.** From the saved `list-ai-models` response, by
+   one reasoning for a study and a snapshot: the assistants the audience uses, as the operator
+   or the brief records them and never an invented share of use; two model families or more
+   (the maker an id names before the slash; `validate` warns on one); at least one model that
+   searches the web and cites its sources; the tariff per call. Projects of one study may ask
+   different models, and `review` prints each with its tariff and the credits of one run.
    Rounds × runs per report period (from `schedule` and `report_every`) should reach three
    answers per question and model, so a period's figure does not rest on a single answer.
 
