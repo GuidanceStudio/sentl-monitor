@@ -20,7 +20,7 @@ So every sentence you write passes one test: read it to that manager out loud. I
 
 ## What the code does and what you write
 
-The code places each question in a block and draws the cover, the cards, the charts, the tables, the sources, the method
+The code places each question in a block and draws the cover, the summary's figures, the charts, the tables, the sources, the method
 table, the list of questions and every label, from the period. You write only the text in `reports/D.deck.json`. You
 never write HTML, and you never change a figure the code draws: a figure that looks wrong goes to the operator.
 
@@ -38,15 +38,20 @@ The deck's slides, in order, for every client:
 
 1. **Cover**: what was done, in one sentence, who prepared it, and whether this is the first report, an update or a single reading.
 2. **What this report shows**: the purpose, the two or three questions the report answers with one real example each, and how to read a figure.
-3. **What we found**: the same groups of questions in the same order, each named in a few words (slide 2 asked its
-   question), with its answer and its figure. A deck of one block draws its card across the slide, the answer on the left and the figure on the right.
-4. **What to do**: three to five actions, each with its reason; fewer when the evidence slides allow fewer.
-5. **The evidence**, block by block: each slide opens with the group it belongs to, and shows the real answers.
-6. **How many answers cite each source**, the sources.
-7. **How the reading was made**, the method.
-8. **The questions**, all of them.
+3. **In short** ("In sintesi"): the main finding, then the same groups of questions in the same order, each named in a
+   few words (slide 2 asked its question), with its figure, drawn by the code, and one sentence on what lies behind it;
+   then the first suggested action and the slide that lists them all. A deck of one block draws its row larger. The
+   reader who stops here knows what was found and what to do first.
+4. **The evidence**, block by block: each slide opens with the group it belongs to, and shows the real answers. The first
+   slide of presence also gives the subject's position among the names monitored, in one line under its chart.
+5. **How many answers cite each source**, the sources.
+6. **Suggested actions**: three to five actions, each with its reason and the slide of its evidence; fewer when the
+   evidence slides allow fewer.
+7. **Appendix: how the reading was made**, the method, with what the answers cannot show.
+8. **Appendix: the questions**, all of them.
 
-A deck that follows a final deck has two more slides after **What we found**: **What changed** and **The actions proposed** (§The second edition, in step 5).
+A deck that follows a final deck has two more slides: **What changed**, right after **In short**, and **The actions
+proposed** the last time, just before **Suggested actions** (§The second edition, in step 5).
 
 ## 1. Preflight
 
@@ -92,7 +97,7 @@ Three settings of `reports/D.deck.json` are yours:
   the study splits its projects by audience or market, such as a project per country or per customer segment: each
   project keeps its figure, because audiences and markets are never added up.
 - `by_market`: `true` when the topics of `reach` are different markets, such as two home cities, the rest of the
-  country and a customer segment. The card then draws one position per topic: one position over all of them adds a market
+  country and a customer segment. The first slide of presence then gives one position per topic: one position over all of them adds a market
   where the subject leads to one where it is absent. The figures file gives each topic its position.
 - `moved`: `{"<question key>": "description"}` for a question that names no subject and scores a position in a debate
   rather than whether the subject is found. Move nothing else.
@@ -106,7 +111,7 @@ and you say so. A subject eighth of eleven is far behind, and you say that.
 
 Two names one answer apart are level: one answer more or less reverses their order, and `check` refuses a comparison
 ("ahead of", "more often") or a position resting on that gap. When every question has fewer than six answers, slide 2 says
-the deck reads which assistants name the subject, and the presence card lists them instead of a bar: write which assistants
+the deck reads which assistants name the subject, and the first slide of presence lists them instead of a position: write which assistants
 name the subject, never a position.
 
 Then read in `material` every answer rated unfavourable on a question naming the subject, then the answers behind the
@@ -169,6 +174,7 @@ few questions, holds at most three actions, and as many as it has slides with so
 (`narrative.purpose`, each project's `decision`) they touch. If `themes` or `search-demand.json` carry search volumes,
 use them to break ties. The first action rests on the finding `found.title` states: the reader of the title looks for
 its action first, so set `found.block` to the block the title is about, and `check` refuses a first action of another block.
+Slide 3 prints the first action's `what` under the groups, before the reader reaches the evidence: write it so it reads alone.
 Choose the first action, then write the title about the finding it answers. A wrong fact or a confusion comes first, then the largest gaps, where the subject is absent or a
 competitor is chosen, then what is missing on topics mostly favourable: "0 of 18" before "12 of 18 favourable". The deck
 prints the actions in your order and marks each one, from the domains its `what` names, as work on the subject's own pages
@@ -283,11 +289,11 @@ answers apart.
 | Field | What it holds |
 |---|---|
 | `opening.who` | Who asks, as the cover's sentence needs it: "as {who} would ask them". Plain and short: "parents of small children and nutritionists" |
-| `opening.questions.<block>` | The question this block answers, in the manager's words, about their own market. It ends with "?", has a subject of its own ("People looking for an oat drink without naming Avenello: which names do they find?") and never says "block", "presence" or "description". It holds no count: the card draws it. Slide 2 alone prints it; the slides after it name the group in a few words |
+| `opening.questions.<block>` | The question this block answers, in the manager's words, about their own market. It ends with "?", has a subject of its own ("People looking for an oat drink without naming Avenello: which names do they find?") and never says "block", "presence" or "description". It holds no count: the summary draws it. Slide 2 alone prints it; the slides after it name the group in a few words |
 | `opening.examples.<block>` | The key of one real question of the block, the one the manager would recognise at once. Pick a question the deck then shows: not one with fewer than three answers, and not the same question on two cards when the block has another |
 | `found.title` | The single most important finding, as a full sentence the manager could repeat to their boss: "Avenello is eighth of the eleven names monitored when people ask without naming it, and most answers about it by name are favourable". It says who asks in words: "without the name" means nothing yet |
 | `found.block` | The block `found.title` is about: `reach`, `description` or `facts`. The first action is of that block. A deck of one block has it filled in |
-| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. With `by_market`, it gives the position in each market the card draws. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence. It says what lies behind the card's figure, never the figure again: the card draws its x of y and its legend the parts, and `check` refuses a count the card draws |
+| `found.answers.<block>` | One sentence answering that block's question. The `reach` one says the subject's position in words ("eighth of eleven") and names who stands ahead: the reader must be able to say whether it is good or bad. With `by_market`, it gives the position in each market the first slide of presence draws. Names a few answers apart are level, and the chart says so: write "level with", never "ahead of". When one assistant alone answers the block, the chart says so: leave it out of the sentence. It says what lies behind the figure the summary draws beside it, never that figure again: `check` refuses it, and what it leaves out of its total; a part the group's slides draw, such as the unfavourable answers, may be said. At most three figures |
 | `actions_title` | What to do first and why, as a full sentence with a verb of doing. It starts from the first row the slide prints, the subject's own pages when an action is on them, and never announces the list. Shorter words keep the action's claim: a subject with an entry on a site and missing from one of its lists is never "got onto" that site |
 | `blocks.<block>` | One to three slides, four when the block has more than eight topics. Give each finding its own slide, and one slide showing the topics of the block. Two slides never draw the same rows: `check` refuses it |
 | `slide.title` | What this slide found, in the manager's words |
@@ -324,8 +330,11 @@ A topic name ("Cash flow", "Pricing") is fine as a label in the chart. In a sent
 the chart and the table print their figures, and the sentence beside them says what lies behind. `check` counts words as
 the reader reads them, a figure or an address being one: a title at most 20, a found answer and a slide's read at most 25,
 an action's what and its why at most 20 each. A content slide holds at most 230 words, counting what the code draws on it
-and leaving out the footer; the cover and the list of questions are not counted. Over the ceiling, `check` names the slide
-and its longest texts: cut those first, then an excerpt to the clause that shows the finding.
+and leaving out the footer; the cover and the list of questions are not counted. Slide 3, the summary, holds at most 120,
+read in half a minute: the group labels, figures and captions the code draws take about 50 for three groups, which leaves
+about 70 for the title, the found answers and the first action's what. Over a ceiling, `check` names the slide and its
+longest texts: cut those first, then an excerpt to the clause that shows the finding. A figure said more than twice on
+the summary is refused: say it once.
 
 **Titles.** Plain declarative sentences saying what was found, in words the manager would use with a colleague. Say the
 content, not the statistic: "People looking for an oat drink find Avoria and Oatfield long before Avenello" says more

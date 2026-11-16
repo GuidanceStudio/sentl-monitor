@@ -1173,13 +1173,18 @@ operator is told.
 ## The deck
 
 `report/DECK.md` turns one period into one slide deck, the only thing a client reads. The reader is the client's marketing manager: they know the market and the
-competitors, and have never seen the questions, the ratings or the project names. So the slides run: cover, what this
-report shows, what was found, what to do, the evidence block by block, the sources, the method, the list of questions.
-The first four must be enough to decide. The second gives the two or three questions the report answers, in the reader's
-words, each with real questions; the third answers them in the same order; every evidence slide opens with the group it
-belongs to. Slide 2 alone prints each group's question: the slides after it name the group in a few words (`_group`).
+competitors, and have never seen the questions, the ratings or the project names. So the slides run (`_order`): cover,
+what this report shows, the summary, the evidence block by block, the sources, the suggested actions, then an appendix of
+the method and the list of questions, each of its pages marked as such (DEVPLAN M38: an executive reading the decks asked
+for a summary after the opening and the actions at the end). The first three must be enough to decide. The second gives
+the two or three questions the report answers, in the reader's words, each with real questions; the summary answers them
+in the same order, each group with its figure (`_headlines`: the markets of a project add up, projects of different
+audiences keep a figure each) and the writer's sentence on what lies behind it, then the first action's what and the
+slide of all the actions. Every evidence slide opens with the group it belongs to. Slide 2 alone prints each group's
+question: the slides after it name the group in a few words (`_group`).
 
-**The second edition.** A deck that follows a final deck adds two slides after what was found. `_second` reads the earlier
+**The second edition.** A deck that follows a final deck adds two slides: what changed, after the summary, and the
+earlier actions, just before the suggested actions. `_second` reads the earlier
 deck's text and the two period files, no run: each block's figure on both dates over the questions the same assistants
 answered in both, grouped by project unless `same_audience`, and a change by `compare.called` with the step of a rate with a
 single previous period. The second slide prints each earlier action, its `read_next` and the writer's `earlier.now`. `check`
@@ -1212,11 +1217,11 @@ and its slide may cite none: an answer stating today's figure was drawn as neutr
 never sees. Under a facts excerpt the slide prints which figure that answer states (today's, today's and an old one, only an
 old one, none), classified with the fact's terms as the chart counts it. A
 block's figure is one per project unless `same_audience` says otherwise: a count across audiences says nothing.
-With `by_market`, the presence card draws one position per topic of `reach`: a position over a home city where the subject
+With `by_market`, the line under the first presence chart (`_ranking`) gives one position per topic of `reach`: a position over a home city where the subject
 leads and a country where it is absent averages two markets. The writer sets it, because the code cannot tell a topic that
 is a market from one that is a theme; the figures file gives each topic's position and suggests the setting when there are
 several topics and competitors. When every question has fewer than `FEW_ANSWERS` answers, one answer reverses an order, so
-the presence card names the assistants that name the subject in place of a bar and slide 2 says the deck reads whether the
+that line names the assistants that name the subject in place of a position and slide 2 says the deck reads whether the
 subject is named; on any deck `check` refuses a comparison or a position resting on a difference of one answer. The
 presence chart adds a column for the answers naming the subject by a former name alone when a row has any. A block holds
 up to `MAX_BLOCK_SLIDES` evidence slides, one more above `MANY_TOPICS` topics, and the deck's ceiling grows by that slide,
@@ -1227,7 +1232,7 @@ over all the block's answers, so one base serves the whole deck.
 **The text.** `check` runs on `reports/<date>.deck.json`. It reads the structure (who asks, the question and one real
 question per block, one answer per block, one to five actions (fewer than three when the evidence slides allow fewer), each with a class, a block, an evidence slide and a reason
 carrying a figure, and `found.block`, the block the found title is about, which the first action must share: two readers
-asked why the first action was about one topic when the title spoke of another), the length of each text against what its slide holds (`LIMITS`) and in words (`WORD_LIMITS`: a title 20, a found answer and a read 25, an action's what and why 20 each), each content slide at 230 words at most (`SLIDE_WORDS`, the code's words included, the footer, the cover and the list of questions left out), a found answer giving a count its card draws, each excerpt against the answers of its
+asked why the first action was about one topic when the title spoke of another), the length of each text against what its slide holds (`LIMITS`) and in words (`WORD_LIMITS`: a title 20, a found answer and a read 25, an action's what and why 20 each), each content slide at 230 words at most (`SLIDE_WORDS`, the code's words included, the footer, the cover and the list of questions left out) and the summary at 120 (`SUMMARY_WORDS`, set from the trial decks of M38: the code draws about 50 words there for three groups, and two real three-group summaries rewritten to the new rules came to 118), a figure said more than twice on the summary, a found answer giving the figure the summary draws beside it or what it leaves of its total, each excerpt against the answers of its
 own question and assistant, the figures against the period and the figures the deck draws, and the leaks below.
 A count in the period's figures may still be the wrong one, so a count beside a name is held to that name: a site or a page on
 the period, a block, a slide's questions, a topic or one question, for one assistant when the sentence says so; a competitor on
@@ -1273,12 +1278,12 @@ name. The method table says how many times each project's questions were asked i
 scheduled; a snapshot's row says it has no schedule. Slide 2 gives each block's question, its count and one question asked, then says once how the questions are
 asked and to which assistants (each question asked once when every project ran once, one round) and, only when the
 description or facts block draws it, how an answer is rated (favourable, neutral, unfavourable); the method slide does not
-repeat it. A competitor's count leaving out the questions that name it is said on the method slide, and the note under the
-presence card is one line: the subject's position and the names it could swap with. Evidence slides drawing their questions
+repeat it. A competitor's count leaving out the questions that name it is said on the method slide, as is the fact that
+the questions about the subject were not asked about the competitors; the line under the first presence chart gives the
+answers naming each name, the subject's position and the names it could swap with. Evidence slides drawing their questions
 number them, and an excerpt of one is captioned with its number; the action under them prints its what and its page, and the
-count of the site it names stands once, on the actions slide, unless its reason already gives it. The found slide of a deck with one block fills the slide with its card in two
-columns, the finding on the left in larger type and its figure on the right: a card as tall as its content left half the slide
-empty. With two or three blocks, the cards share the slide's height. A slide drawing one row holds up to three excerpts, each
+count of the site it names stands once, on the actions slide, unless its reason already gives it. The summary draws no
+chart: a row per group with its label, its figure in large type and its sentence, the row of a deck with one block larger. A slide drawing one row holds up to three excerpts, each
 from a different assistant; any other slide holds two. A question with fewer than three answers counts in its topic and in the list of
 questions, and draws no row and no excerpt: one answer of two is no finding. The description question with the most unfavourable answers
 is drawn as a row of its own on an evidence slide, with an excerpt of one of those answers on that slide, and the excerpts
@@ -1339,16 +1344,25 @@ them; they are not printed. The slide of what changed is not written yet (DEVPLA
 
 ## The quick deck
 
-`report/QUICK.md` turns the same period into a shorter deck with no actions (DEVPLAN M33), for a reader who wants to know
-what the assistants say before deciding whether to act. `deck --quick` writes the figures file, with a section of its
-own, and `reports/<date>.quick.json` (schema `sentl-monitor/quick@1`): one slide per project of the period, split evenly
-when a project has more than six topics, and one row per topic with answers. The code draws the cover, each row's figure
-(answers naming the subject, x of y, beside the competitor named most, for questions that name no subject; favourable
-x of y with the neutral and unfavourable answers otherwise; both when a topic has both kinds), and a last slide with the
-eight sites cited most on each kind of question and how the answers were read. The writer fills each slide's question
-and title, and each row's sentence and excerpt.
+`report/QUICK.md` turns the same period into a shorter deck (DEVPLAN M33, M38), for a reader who wants to know what the
+assistants say topic by topic, or a first look while the full deck waits. `deck --quick` writes the figures file, with a
+section of its own, and `reports/<date>.quick.json` (schema `sentl-monitor/quick@2`; a `quick@1` file gains the summary
+and the actions in place, its slides kept): a summary, one slide per project of the period, split evenly when a project
+has more than six topics, one row per topic with answers, and one to three suggested actions. The code draws the cover,
+the summary's figures (per project, its rows added up: the answers naming the subject and the favourable answers,
+`quick._headlines`), each row's figure (answers naming the subject, x of y, beside the competitor named most, for
+questions that name no subject; favourable x of y with the neutral and unfavourable answers otherwise; both when a topic
+has both kinds), the actions table and a last slide with the eight sites cited most on each kind of question and how the
+answers were read. The writer fills the summary's title and one sentence per project, each slide's question and title,
+each row's sentence and excerpt, and each action's what and why.
 
-`check` on a `.quick.json` reads the slides and rows against the period, the lengths (a row's sentence at most 25 words, with no count its row draws), each excerpt against that
+The quick deck reads no page, so its actions are the reader's own work (the operator's choice of 2026-11-16): an action
+works on the subject's own pages, or starts with what the reader checks and names a site the answers cite; a request to a
+third party (`quick.REQUEST`), a site the subject does not own outside a check, a check of a site no answer cites, a
+competitor's site and an action naming no site are refused, and each `why` gives a count a row of the deck draws. The
+actions table marks each as work on the subject's pages or a check.
+
+`check` on a `.quick.json` reads the slides and rows against the period, the lengths (the summary's title at most 20 words, a project's sentence and a row's sentence at most 25 and an action's what and why at most 20, the summary slide at `SUMMARY_WORDS`; a row's sentence with no count its row draws, a project's sentence without the figure the summary draws beside it nor the title of the project's slide), the actions above, each excerpt against that
 assistant's answers to a question of the row's topic, with any cut inside a sentence marked, the figures against the
 period's (`_allowed_figures`, the counts tied to a site or a competitor, all-or-nothing words), the words of the study
 and of the machine, and each slide's height. A quick deck that passes records its period (`history/reports.json`, above). It is never the

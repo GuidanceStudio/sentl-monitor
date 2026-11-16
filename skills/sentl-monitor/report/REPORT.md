@@ -174,7 +174,7 @@ DECK.md: `check` and `pdf` are its last commands, and on a host without a lastin
 comes after them (DECK.md step 9).
 
 Invoked as `report --quick`, go on into `report/QUICK.md` instead, from its step 1: the quick
-deck reads the same figures and has no actions. Its `check` records the period as the deck's does,
+deck reads the same figures and its actions open no page. Its `check` records the period as the deck's does,
 and step 7 below tells the operator what QUICK.md step 6 lists. Unattended, add `--unattended` to
 its `check` as for the deck.
 

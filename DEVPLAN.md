@@ -1409,9 +1409,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and both installed copies report 0.11.0.
 
-## 🔄 M38: A summary after the opening and the suggested actions at the end
+## ✅ M38: A summary after the opening and the suggested actions at the end
 
-**Status:** in progress since 2026-11-16 (operator's go the same day).
+**Status:** done 2026-11-16 (operator's go the same day).
 
 **Why:** on 2026-11-16 the operator relayed the feedback of a client's executive who read a full deck: executives and managers want a summary slide right after the introduction and a closing slide with the suggested actions. The full deck already has both, in a form that does not serve that reader. Slide 3 ("Cosa abbiamo trovato") is three cards of charts with one sentence each, and it does not read as a summary in thirty seconds. Slide 4 ("Cosa fare") comes before the evidence, so a reader who goes through the deck closes it on the list of questions. The quick deck has neither slide. The operator's choices (2026-11-16): the actions only at the end of the full deck, not at both ends; in the quick deck, actions drawn from what the answers show, on the subject's own pages or as checks, never requests to third parties.
 
@@ -1420,10 +1420,12 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 - [x] T2 Full deck order: cover, slide 2, "In sintesi", the evidence slides, the sources slide, "Azioni suggerite" ("Suggested actions"), then an appendix with the method and the list of questions, each page of it marked as appendix. The slide of an earlier edition's actions, when a period has one, stands just before the suggested actions. The actions table keeps pointing each action to its evidence slide by number.
 - [x] T3 Quick deck, slide 2 "In sintesi": a title (the period's main finding, at most 20 words) and per project its name, the project's headline figure drawn by the code and one sentence (at most 25 words, not the project slide's title again). `check` applies the full deck's rules on figures and words.
 - [x] T4 Quick deck, last slide before the sites and method "Azioni suggerite": one to three actions, each with `what` and `why` at most 20 words. An action works on the subject's own pages or asks to check a page the answers cite; `check` refuses a `what` asking a third party for a change, and a `why` without a count the quick deck draws on a row.
-- [ ] T5 Playbooks and docs: DECK.md (the summary, the order, the appendix), QUICK.md (summary and actions, how to find an action without opening pages), ARCHITECTURE, CHANGELOG; Italian and English labels.
-- [ ] T6 Trial: the aggregated trial deck and a real three-project period redrawn as full and quick decks under the new rules, with the same findings and actions; both pass `check` and print one page per slide; sent to the operator.
+- [x] T5 Playbooks and docs: DECK.md (the summary, the order, the appendix), QUICK.md (summary and actions, how to find an action without opening pages), ARCHITECTURE, CHANGELOG; Italian and English labels.
+- [x] T6 Trial: the aggregated trial deck and a real three-project period redrawn as full and quick decks under the new rules, with the same findings and actions; both pass `check` and print one page per slide; sent to the operator.
 
 **Done when:** each rule has a test, the full suite passes, and the trial decks open with a summary a reader takes in under a minute and close on the suggested actions.
+
+**Result (2026-11-16):** the four trial decks (two full, two quick, three projects each) pass `check` and print one page per slide; their summaries hold 118 and 118 words (full) and 108 and 105 (quick). The code draws about 50 words on a full summary of three groups, so `SUMMARY_WORDS` is 120 rather than the 100 planned, which would have left about ten words for each sentence. Choices the plan left open: the slide of what changed stays right after the summary; the line on competitors not asked the questions about the subject moves to the method's limits; the ranking is a line of text under the first presence chart, not bars; the check on figures said again and again reads the summary only; the quick summary names each project as Sentl does and has no first-action line; the quick actions slide is headed "Azioni suggerite" with no title of the writer's. Sending the decks to the operator is the session's that ran the trial.
 
 ## R14: Release 0.12.0
 

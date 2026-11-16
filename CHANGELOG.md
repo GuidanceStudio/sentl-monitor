@@ -3,6 +3,25 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
+## Unreleased
+
+Both decks open with a summary, and the quick deck closes on suggested actions.
+
+- The full deck's slide 3, "In sintesi" ("In short"), gives the main finding, then each group of questions with its
+  figure and one sentence on what lies behind it, then the first suggested action and the slide that lists them all. It
+  draws no chart, and holds at most 120 words with what the code draws on it (`SUMMARY_WORDS`); a figure said more than
+  twice there is refused.
+- The subject's position among the names monitored moves from the found slide to one line under the chart of the first
+  slide of presence. That the questions about the subject were not asked about the competitors is said on the method
+  slide.
+- The full deck's order: cover, what this report shows, the summary, the evidence, the sources, "Azioni suggerite"
+  ("Suggested actions"), then an appendix with the method and the list of questions, each page of it marked "Appendice"
+  ("Appendix"). What changed follows the summary; the earlier edition's actions come just before the suggested ones.
+- The quick deck opens with a summary (each project's figure, its rows added up, and one sentence) and closes, before
+  the sites and method, on one to three suggested actions: work on the subject's own pages, or a check of a page the
+  answers cite, each resting on a count a row draws. `check` refuses a request to a third party. The schema is
+  `sentl-monitor/quick@2`; `deck --quick` adds the summary and the actions to a `quick@1` file and keeps its slides.
+
 ## 0.11.0 (2026-11-14)
 
 The full deck says each thing once, in fewer words.

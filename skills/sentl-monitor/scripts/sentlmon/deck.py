@@ -64,7 +64,7 @@ LIMITS = {"title": 125, "answer": 170, "read": 210, "what": 175, "why": 175, "re
 # more than the reader takes in at a glance.
 WORD_LIMITS = {"title": 20, "answer": 25, "read": 25, "what": 20, "why": 20}
 SLIDE_WORDS = 230
-SUMMARY_WORDS = 100  # slide 3 is read in under a minute, what the code draws on it included
+SUMMARY_WORDS = 120  # the summary, its labels and figures included (about 50 words for three groups): read in half a minute
 WORD = re.compile(r"[^\W_]+(?:['’.,/:-][^\W_]+)*")
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
 CAUSED = re.compile(r"\b(grazie a\w*|per effetto|a causa d\w*|in seguito a\w*|thanks to|as a result of|because of|due to|caused by)\b", re.I)
