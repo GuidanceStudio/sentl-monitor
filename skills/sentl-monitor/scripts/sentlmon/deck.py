@@ -1214,7 +1214,7 @@ def _address(page):
     return re.sub(r"^(?:https?://)?(?:www\.)?", "", page.lower()).rstrip("/.")
 
 
-def _unseen_pages(doc, study, folder, period):
+def _unseen_pages(doc, study, folder, period, texts=None):
     """An address the writer composed reads as a page that exists: only those the answers cite, or the study
     records as the source of a fact, may be named."""
     answered = [r for _, r in _answered(folder, period)]
@@ -1223,7 +1223,8 @@ def _unseen_pages(doc, study, folder, period):
               for f in q.get("facts") or []]
     cited = "\n".join(known + [r["answer"].lower() for r in answered])
     return [f"{field} names {page}, an address no answer cites: give the domain, or an address the answers cite"
-            for field, _, text in _texts(doc) for page in PAGE.findall(text) if _address(page) not in cited]
+            for field, _, text in (texts if texts is not None else _texts(doc)) for page in PAGE.findall(text)
+            if _address(page) not in cited]
 
 
 def _named_sites(doc, study, folder, period):

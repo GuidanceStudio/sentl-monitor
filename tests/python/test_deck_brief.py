@@ -217,12 +217,12 @@ class QuickTest(QuickCase, unittest.TestCase):
     def test_a_row_sentence_holds_at_most_25_words(self):
         doc = self.filled()
         self.row(doc, "lavoro")["says"] = words(26) + "."
-        self.assertRegex(self.problems(doc), r"slide 2 lavoro.says holds 26 words, at most 25")
+        self.assertRegex(self.problems(doc), r"slide 3 lavoro.says holds 26 words, at most 25")
 
     def test_a_row_sentence_restating_its_figure_is_refused(self):
         doc = self.filled()
         self.row(doc, "scelta")["says"] = "Avenello compare in 0 risposte su 2."
-        self.assertIn("slide 2 scelta.says says 0 of 2, which its row draws: say what lies behind it", self.problems(doc))
+        self.assertIn("slide 3 scelta.says says 0 of 2, which its row draws: say what lies behind it", self.problems(doc))
 
     def test_the_filled_quick_deck_passes(self):
         self.assertEqual(self.problems(self.filled()), "")

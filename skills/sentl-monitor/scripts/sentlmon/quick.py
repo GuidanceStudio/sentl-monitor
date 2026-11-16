@@ -1,15 +1,18 @@
-"""`deck --quick`: the period as a short summary deck, drawn from the same period as the full deck (DEVPLAN M33).
+"""`deck --quick`: the period as a short summary deck, drawn from the same period as the full deck (DEVPLAN M33, M38).
 
-A cover, one slide per project of the period with one row per topic, and a last slide with the sites the answers cite
-most and how the answers were counted. The code draws each row's figure; the writer fills, in
-`reports/<date>.quick.json`, each slide's question and title and each row's sentence and excerpt, which `check` reads
-against the period with the full deck's tests. A quick deck has no actions, so a later full deck has no earlier edition
-to compare them with.
+A cover, a summary with each project's figure and one sentence, one slide per project of the period with one row per
+topic, one to three suggested actions, and a last slide with the sites the answers cite most and how the answers were
+counted. The code draws every figure; the writer fills, in `reports/<date>.quick.json`, the summary's title and
+sentences, each slide's question and title, each row's sentence and excerpt, and each action's what and why, which
+`check` reads against the period with the full deck's tests. An action works on the subject's own pages or checks a page
+the answers cite, and rests on a count a row draws. The quick deck's actions are no earlier edition: a later full deck
+compares its own only with a full deck's.
 """
 
 import html
 import json
 import math
+import re
 import shutil
 from collections import Counter
 from itertools import zip_longest
@@ -19,15 +22,26 @@ from . import deck, fit
 from . import pdf as report_pdf
 from . import theme as sentl_theme
 from .adopt import missing_answers
-from .check import ELLIPSIS, _figures, _pieces, _quoted_in, _ratio, _stops_matching, _unquote, leaks
+from .check import COUNT, ELLIPSIS, _figures, _pieces, _quoted_in, _ratio, _stops_matching, _unquote, leaks
 from .common import Refused, match_key, measured, require_language, span, write_json, write_text
 from .i18n import DECK, QUICK
+from .period import Reader
 
-SCHEMA = "sentl-monitor/quick@1"
+SCHEMA = "sentl-monitor/quick@2"
+FIRST_SCHEMA = "sentl-monitor/quick@1"
 TODO = deck.TODO
 MAX_ROWS = 6
+MAX_ACTIONS = 3
 SITES = 8
-LIMITS = {"question": 120, "title": 160, "read": 170}
+# The slides' questions and titles keep their characters; the summary and the actions take the full deck's limits.
+LIMITS = {"question": 120, "title": 160, "read": 170, "answer": 170, "what": 175, "why": 175}
+SUMMARY_TITLE = "summary title"
+# An action is the reader's own work: a request to a third party is the full deck's, which reads the page first.
+TO = r"(?:a|al|alla|ai|agli|alle|all['’])"
+OWNERS = r"(?:the\s+)?(?:owners?|editors?|staff|team|site|publisher|author)"
+REQUEST = re.compile(rf"\b(?:chied\w*|richied\w*|richiest\w*|contattar\w*|contattando|sollecit\w*|segnal\w* {TO}|scriv\w* {TO}"
+                     rf"|ask(?:s|ed|ing)?\b|request\w*|contact(?:s|ed|ing)? {OWNERS}|e-?mail(?:s|ed|ing)? {OWNERS}"
+                     r"|reach(?:ing)? out|writ(?:e|es|ing) to)", re.I)
 LINE = 15 * 1.28  # one line of a row's sentence, in px: .q-says in STYLE
 
 STYLE = """
@@ -54,6 +68,7 @@ STYLE = """
 .q-cols td.q-c { text-align: right; font-weight: 600; width: 70px; }
 .q-own { color: var(--sl-muted); font-size: 12px; }
 .q-method { font-size: 14.5px; line-height: 1.4; margin: 0; }
+.sum-figs .sum-cap + .sum-fig { margin-top: 8px; }
 """
 
 
@@ -106,11 +121,34 @@ def _expected(layout):
 
 
 def _skeleton(date, layout):
-    return {"schema": SCHEMA, "date": date,
+    return {"schema": SCHEMA, "date": date, "summary": _summary_skeleton(layout),
             "slides": [{"project": key, "question": TODO, "title": TODO,
                         "rows": [{"dimension": d, "says": TODO, "excerpt": {"text": TODO, "question": TODO, "assistant": TODO}}
                                  for d in dims]}
-                       for key, dims in _expected(layout)]}
+                       for key, dims in _expected(layout)],
+            "actions": [{"what": TODO, "why": TODO}]}
+
+
+def _summary_skeleton(layout):
+    return {"title": TODO, "projects": {p["key"]: TODO for p in layout}}
+
+
+def _upgraded(doc, layout):
+    """A quick deck of the first schema with its slides kept, and the summary and the actions to write."""
+    return {"schema": SCHEMA, "date": doc.get("date"), "summary": _summary_skeleton(layout), "slides": doc.get("slides"),
+            "actions": [{"what": TODO, "why": TODO}]}
+
+
+def _headlines(project):
+    """A project's figures on the summary, its rows added up: the answers naming the subject of those to the questions
+    that name no subject, and the favourable answers of those rated. [(kind, a, b)], a kind without answers left out."""
+    out = []
+    for kind, part, whole in (("reach", lambda r: r["named"], lambda r: r["given"]),
+                              ("description", lambda r: r["bands"]["4-5"], lambda r: r["judged"])):
+        rows = [r[kind] for r in project["rows"] if r.get(kind)]
+        if rows and sum(map(whole, rows)):
+            out.append((kind, sum(map(part, rows)), sum(map(whole, rows))))
+    return out
 
 
 def _cited(m, key):
@@ -126,16 +164,27 @@ def _rivals(foils):
     return [(label, n) for label, n in named if n == named[0][1]] if named else []
 
 
-def _plan(layout, m, lang):
+def _plan(layout, m, study, lang):
     """The quick deck's part of the figures file: each slide's rows, their figures and the questions an excerpt comes from."""
     of = DECK[lang]["of"]
     names = sorted({deck._assistant(model, m["names"]) for model in m["names"]})
+    words = {"reach": "{subject} named in {a} {of} {b}", "description": ("faithful" if m.get("fidelity") else "favourable")
+                                                                        + " {a} {of} {b}"}
     out = ["## Quick deck", "",
-           "One slide per project and one row per topic, as reports/<date>.quick.json lists them. Fill each slide's "
-           "`question` and `title`, and each row's `says` and `excerpt`: a passage copied verbatim from an answer to one of "
-           "the row's questions, the question as given here and the assistant by its name.", "",
-           f"Assistants: {', '.join(names)}.", ""]
-    for n, (key, dims) in enumerate(_expected(layout), 2):
+           "A summary, one slide per project and one row per topic, then the suggested actions, as "
+           "reports/<date>.quick.json lists them. Fill each slide's `question` and `title`, and each row's `says` and "
+           "`excerpt`: a passage copied verbatim from an answer to one of the row's questions, the question as given here and "
+           "the assistant by its name.", "",
+           f"Assistants: {', '.join(names)}.", "",
+           "### Slide 2: summary", "",
+           "`summary.title`: the period's main finding, at most 20 words. `summary.projects`: for each project one sentence "
+           "of at most 25 words saying what its slides add up to; the code draws its figure beside it, so the sentence does "
+           "not repeat that figure, nor the title of the project's slide.", ""]
+    for p in layout:
+        shown = [words[kind].format(subject=m["subject"], a=a, of=of, b=b) for kind, a, b in _headlines(p)]
+        out.append(f"- {p['key']} ({p['name']}): {'; '.join(shown)}")
+    out.append("")
+    for n, (key, dims) in enumerate(_expected(layout), 3):
         project = next(p for p in layout if p["key"] == key)
         out += [f"### Slide {n}: {key} ({project['name']})", ""]
         rows = {r["key"]: r for r in project["rows"]}
@@ -161,6 +210,12 @@ def _plan(layout, m, lang):
             answers, sites = _cited(m, key)
             listed = ", ".join(f"{d} ({n})" for d, n in sites) or "none"
             out += [f"Sites cited most in the {answers} answers to {label}: {listed}.", ""]
+    owned = Reader(study).owned
+    out += [f"### Slide {len(_expected(layout)) + 3}: suggested actions", "",
+            f"`actions`: one to {MAX_ACTIONS}, in the order the reader should take them. Each `what`, at most 20 words, is work "
+            f"on a page of {m['subject']}'s own site ({', '.join(owned) or 'none recorded'}), or starts with Verificare "
+            "(Check) and names a site the answers cite, the one to check; never a request to a third party. Each `why`, at "
+            "most 20 words, gives a count a row above draws (x su y).", ""]
     return out
 
 
@@ -180,13 +235,15 @@ def write(root, date=None):
     if doc is None:
         path.parent.mkdir(exist_ok=True)
         write_json(path, _skeleton(date, layout))
-    figures = deck._figures_file(folder, study, date, m, lang, _plan(layout, m, lang))
+    elif doc.get("schema") == FIRST_SCHEMA:
+        write_json(path, _upgraded(doc, layout))
+    figures = deck._figures_file(folder, study, date, m, lang, _plan(layout, m, study, lang))
     expected = _expected(layout)
     names = {p["key"]: p["name"] for p in layout}
-    listed = ["1 cover"] + [f"{n} {names[key]} ({len(dims)} row{'s' * (len(dims) != 1)}: {', '.join(dims)})"
-                            for n, (key, dims) in enumerate(expected, 2)]
-    total = len(expected) + 2
-    listed.append(f"{total} sites and method")
+    listed = ["1 cover", "2 summary"] + [f"{n} {names[key]} ({len(dims)} row{'s' * (len(dims) != 1)}: {', '.join(dims)})"
+                                         for n, (key, dims) in enumerate(expected, 3)]
+    total = len(expected) + 4
+    listed += [f"{total - 1} suggested actions", f"{total} sites and method"]
     left = path.read_text(encoding="utf-8").count(TODO)
     return f"Slides: {'; '.join(listed)}; {total} slides. Figures: {figures}. To fill: {path}, {left} texts left."
 
@@ -202,14 +259,31 @@ def _rows_of(slide):
     return [r if isinstance(r, dict) else {} for r in rows] if isinstance(rows, list) else []
 
 
+def _summary_of(doc):
+    summary = doc.get("summary") if isinstance(doc.get("summary"), dict) else {}
+    projects = summary.get("projects") if isinstance(summary.get("projects"), dict) else {}
+    return str(summary.get("title") or ""), {key: str(text or "") for key, text in projects.items()}
+
+
+def _actions_of(doc):
+    return [a if isinstance(a, dict) else {} for a in doc.get("actions") or []] if isinstance(doc.get("actions"), list) else []
+
+
 def _texts(doc):
     """(field, limit name, text) of every text the writer fills, excerpts apart; the limit names are the full deck's, so
     its tests read them as they read its own."""
-    for n, slide in enumerate(_slides_of(doc), 2):
+    title, projects = _summary_of(doc)
+    yield SUMMARY_TITLE, "title", title
+    for key, text in projects.items():
+        yield f"summary of {key}", "answer", text
+    for n, slide in enumerate(_slides_of(doc), 3):
         yield f"slide {n} question", "question", str(slide.get("question") or "")
         yield f"slide {n} title", "title", str(slide.get("title") or "")
         for row in _rows_of(slide):
             yield f"slide {n} {row.get('dimension')}.says", "read", str(row.get("says") or "")
+    for n, action in enumerate(_actions_of(doc), 1):
+        for field in ("what", "why"):
+            yield f"action {n} {field}", field, str(action.get(field) or "")
 
 
 def _structure(doc, layout):
@@ -217,7 +291,15 @@ def _structure(doc, layout):
     if not isinstance(doc.get("slides"), list):
         return ["slides is missing: run deck --quick again and keep its slides"]
     expected, problems = _expected(layout), []
-    for n, (slide, want) in enumerate(zip_longest(_slides_of(doc), expected), 2):
+    keys = [p["key"] for p in layout]
+    if not isinstance(doc.get("summary"), dict):
+        problems.append("summary is missing: run deck --quick again, which adds it")
+    else:
+        written = _summary_of(doc)[1]
+        problems += [f"summary of {key} is missing: the period gives the project {key}" for key in keys if key not in written]
+        problems += [f"summary of {key} is not a project of the period: it gives {', '.join(keys)}" for key in written
+                     if key not in keys]
+    for n, (slide, want) in enumerate(zip_longest(_slides_of(doc), expected), 3):
         if want is None:
             problems.append(f"slide {n} is not one the period gives: it gives {len(expected)} slide(s) of rows, "
                             + "; ".join(f"{key} with {', '.join(dims)}" for key, dims in expected))
@@ -239,7 +321,7 @@ def _excerpts(doc, layout, by_answer, names):
         models[match_key(name)] = model
         models[match_key(name.split(": ", 1)[-1])] = model
     problems = []
-    for n, slide in enumerate(_slides_of(doc), 2):
+    for n, slide in enumerate(_slides_of(doc), 3):
         for row in _rows_of(slide):
             where = f"slide {n} {row.get('dimension')}.excerpt"
             e = row.get("excerpt")
@@ -291,7 +373,7 @@ def _restated(doc, layout):
     """A row's sentence giving a count its row draws: the sentence is for what lies behind the figure."""
     rows = {(p["key"], r["key"]): r for p in layout for r in p["rows"]}
     problems = []
-    for n, slide in enumerate(_slides_of(doc), 2):
+    for n, slide in enumerate(_slides_of(doc), 3):
         for filled in _rows_of(slide):
             row = rows.get((slide.get("project"), filled.get("dimension")))
             if row is None:
@@ -303,20 +385,111 @@ def _restated(doc, layout):
     return problems
 
 
-def _allowed(m, period):
-    """The figures a text may cite: the full deck's, and the sites the last slide lists."""
+def _flat(text):
+    return " ".join(re.sub(r"[^\w]+", " ", text.casefold()).split())
+
+
+def _beside_summary(doc, layout):
+    """A project's sentence on the summary says what lies behind the figure the code draws beside it, and is not the
+    title of the project's slide again."""
+    _, written = _summary_of(doc)
+    titles = {}
+    for n, slide in enumerate(_slides_of(doc), 3):
+        titles.setdefault(slide.get("project"), []).append((n, _flat(str(slide.get("title") or ""))))
+    problems = []
+    for p in layout:
+        sentence = written.get(p["key"]) or ""
+        shown = {(a, b) for _, a, b in _headlines(p)}
+        shown |= {(b - a, b) for a, b in shown}
+        problems += [f"slide 2 summary of {p['key']} says {a} of {b}, which the summary draws beside it: say what lies "
+                     "behind it" for part in deck.SENTENCE.split(sentence) for _, _, a, b in deck._spans(part) if (a, b) in shown]
+        flat = _flat(sentence)
+        problems += [f"slide 2 summary of {p['key']} repeats the title of slide {n}: say what the project's slides add up to"
+                     for n, title in titles.get(p["key"], []) if flat and title and (title in flat or flat in title)]
+    return problems
+
+
+def _summary_figures(doc):
+    """The summary is read in seconds: few figures on each text, and none said again and again."""
+    title, written = _summary_of(doc)
+    texts = [(SUMMARY_TITLE, title, deck.MAX_TITLE_FIGURES)] + [(f"summary of {k}", t, deck.MAX_READ_FIGURES)
+                                                                 for k, t in written.items()]
+    problems = [f"{field} holds {len(COUNT.findall(text))} figures, at most {most}: keep the one that makes the point"
+                for field, text, most in texts if len(COUNT.findall(text)) > most]
+    seen = Counter((c.group(1), c.group(4)) for _, text, _ in texts for c in COUNT.finditer(text))
+    return problems + [f"{a} of {b} appears {n} times on the summary, at most {deck.MAX_REPEATS}: say it once and say "
+                       "something else" for (a, b), n in seen.items() if n > deck.MAX_REPEATS]
+
+
+def _summary_words(doc, m, t, layout):
+    """The summary holding more words than the full deck's summary may, with the writer's longest texts on it."""
+    shown = html.unescape(re.sub(r"<[^>]+>", " ", _summary_html(doc, m, t, layout)))
+    if deck.words(shown) <= deck.SUMMARY_WORDS:
+        return []
+    title, written = _summary_of(doc)
+    texts = sorted(((f, deck.words(x)) for f, x in [(SUMMARY_TITLE, title)] + [(f"summary of {k}", x) for k, x in written.items()]
+                    if deck.words(x)), key=lambda fx: -fx[1])
+    longest = ", ".join(f"{f} ({w} words)" for f, w in texts[:3])
+    return [f"slide 2 holds {deck.words(shown)} words, at most {deck.SUMMARY_WORDS}: shorten {longest}"]
+
+
+def _owns(action, m):
+    return any(m["author"](d.lower()) == "owned" for d in deck.DOMAIN.findall(action.get("what") or ""))
+
+
+def _actions(doc, layout, m, study):
+    """One to three actions, each the reader's own work: on the subject's pages, or a check of a page the answers cite;
+    each resting on a count a row of the deck draws."""
+    actions = _actions_of(doc)
+    if not actions:
+        return ["the quick deck has no action: give one to three, each on the subject's own pages or a check of a page the "
+                "answers cite"]
+    problems = [f"{len(actions)} actions: a quick deck holds at most {MAX_ACTIONS}"] if len(actions) > MAX_ACTIONS else []
+    cited = deck._cited_domains(m)
+    drawn = set().union(*(_drawn(r) for p in layout for r in p["rows"]))
+    for n, action in enumerate(actions, 1):
+        what = str(action.get("what") or "")
+        asked = REQUEST.search(what)
+        if asked:
+            problems.append(f"action {n} asks a third party for a change ({asked.group(0)!r}): the quick deck suggests work "
+                            f"on {m['subject']}'s own pages, or what the reader checks on a page the answers cite")
+        sites = list(dict.fromkeys(d.lower() for d in deck.DOMAIN.findall(what)))
+        if not sites:
+            problems.append(f"action {n} names no site: give the page of {m['subject']} it works on, or the site it checks")
+        for site in sites:
+            if m["author"](site) != "third":
+                continue
+            if not deck.CHECK_FIRST.search(what):
+                problems.append(f"action {n} works on {site}, a page {m['subject']} does not own: act on its own pages, or "
+                                "start the action with what the reader checks there")
+            elif not any(c == site or c.endswith("." + site) for c in cited):
+                problems.append(f"action {n} checks {site}, which no answer cites: choose a site the answers read")
+        why = str(action.get("why") or "")
+        if not any((a, b) in drawn for part in deck.SENTENCE.split(why) for _, _, a, b in deck._spans(part)):
+            problems.append(f"action {n} why gives no count a row of the deck draws: give the count it rests on, as the "
+                            "row draws it (x su y)")
+    return problems + deck._competitor_sites(doc, study)
+
+
+def _allowed(m, period, layout):
+    """The figures a text may cite: the full deck's, the sites the last slide lists and each project's figure on the
+    summary."""
     decimals, percents, pairs = deck._allowed_figures(m, period)
     for key in ("reach", "description"):
         answers, sites = _cited(m, key)
         for _, n in sites:
             _ratio(n, answers, percents, pairs)
+    for p in layout:
+        for _, a, b in _headlines(p):
+            _ratio(a, b, percents, pairs)
     return decimals, percents, pairs
 
 
 def problems_of(folder, study, period, doc, layout=True):
     """What check refuses; `layout` adds the slides the estimate finds taller than their page."""
     if doc.get("schema") != SCHEMA:
-        return [f"schema is not {SCHEMA}"]
+        return [f"schema is not {SCHEMA}" + (": run deck --quick again, which adds the summary and the actions"
+                                             if doc.get("schema") == FIRST_SCHEMA else "")]
     if "[[" in json.dumps(doc, ensure_ascii=False):
         left = deck._left(doc)
         return [f"a text is left to write: replace every [[...]] marker, {len(left)} left: {', '.join(left[:12])}"]
@@ -329,16 +502,19 @@ def problems_of(folder, study, period, doc, layout=True):
     by_answer = deck._responses(folder, period)
     problems = structure + _excerpts(doc, plan, by_answer, names)
     for field, limit, text in texts:
-        if len(text) > LIMITS[limit]:
-            problems.append(f"{field} holds {len(text)} characters, at most {LIMITS[limit]}: {text[:60]!r}")
-        # A row's sentence is held to the full deck's ceiling for a reading; a slide's title keeps its own.
-        if limit == "read" and deck.words(text) > deck.WORD_LIMITS["read"]:
-            problems.append(f"{field} holds {deck.words(text)} words, at most {deck.WORD_LIMITS['read']}: {text[:60]!r}")
+        most = LIMITS["answer"] if field == SUMMARY_TITLE else LIMITS[limit]
+        if len(text) > most:
+            problems.append(f"{field} holds {len(text)} characters, at most {most}: {text[:60]!r}")
+        # The summary, a row's sentence and an action are held to the full deck's ceilings; a slide's title keeps its own.
+        ceiling = deck.WORD_LIMITS.get(limit) if limit != "title" or field == SUMMARY_TITLE else None
+        if ceiling and deck.words(text) > ceiling:
+            problems.append(f"{field} holds {deck.words(text)} words, at most {ceiling}: {text[:60]!r}")
         if not text.strip():
             problems.append(f"{field} is empty")
-    problems += _restated(doc, plan)
+    problems += _restated(doc, plan) + _beside_summary(doc, plan) + _summary_figures(doc) + _actions(doc, plan, m, study)
+    problems += deck._unseen_pages(doc, study, folder, period, texts)
     text = "\n".join(t for _, _, t in texts)
-    allowed = _allowed(m, period)
+    allowed = _allowed(m, period, plan)
     problems += [f"a word about how the deck was built appears: {w.group(0)}" for w in deck.UNSAID.finditer(text)]
     problems += deck._reader_words(doc, m, study, texts) + deck._sweeping(doc, allowed[2], texts)
     problems += leaks(folder, study, period, text, folder.binding)
@@ -349,7 +525,10 @@ def problems_of(folder, study, period, doc, layout=True):
     problems += tied
     problems += _figures(_unquote(text, quotable, answers, shown), lang, (*allowed[:2], allowed[2] | read))
     # A deck whose slides are not the period's is not laid out: its rows would be drawn from what is missing.
-    return problems + (_overflowing(folder, study, period, doc, m, plan) if layout and not structure else [])
+    if structure:
+        return problems
+    problems += _summary_words(doc, m, DECK[lang], plan)
+    return problems + (_overflowing(folder, study, period, doc, m, plan) if layout else [])
 
 
 def _overflowing(folder, study, period, doc, m, plan):
@@ -360,7 +539,9 @@ def _overflowing(folder, study, period, doc, m, plan):
     for n, height in enumerate(fit.heights("".join(slides), deck.STYLE + STYLE + (chosen.get("css") or "")), 1):
         if height > fit.PAGE_HEIGHT:
             lines = math.ceil((height - fit.PAGE_HEIGHT) / LINE)
-            what = ("shorten its title, its rows' sentences or their excerpts" if 1 < n < len(slides)
+            what = ("shorten the summary's title or its sentences" if n == 2
+                    else "shorten the actions' what and why" if n == len(slides) - 1
+                    else "shorten its title, its rows' sentences or their excerpts" if 2 < n < len(slides)
                     else "it holds no text of the writer's: report it")
             out.append(f"slide {n} runs over its page by about {lines} line{'s' * (lines > 1)} of text: {what}")
     return out
@@ -416,6 +597,34 @@ def _row_html(row, filled, m, t, q):
             f'<span class="q-who"> — {esc(who)}</span></p></div></div>')
 
 
+def _summary_html(doc, m, t, plan):
+    """Slide 2: per project its figures, drawn by the code, and the writer's sentence on what lies behind them."""
+    title, written = _summary_of(doc)
+    captions = t["summary_caption"]
+    rows = ""
+    for p in plan:
+        shown = _headlines(p)
+        figures = "".join(f'<div class="sum-fig">{a} <small>{esc(t["of"])} {b}</small></div><div class="sum-cap">'
+                          + esc(captions["description_fidelity" if kind == "description" and m["fidelity"] else kind]
+                                .format(subject=m["subject"])) + "</div>" for kind, a, b in shown)
+        many = " many" if len(shown) > 1 else ""
+        rows += (f'<div class="sum-row"><div class="sum-group">{esc(p["name"])}</div><div class="sum-figs{many}">{figures}</div>'
+                 f'<p class="sum-a">{esc(written.get(p["key"]) or "")}</p></div>')
+    size = " one" if len(plan) == 1 else ""
+    return f'{deck._kicker(t["found_kicker"])}<h1>{esc(title)}</h1><div class="summary{size}">{rows}</div>'
+
+
+def _actions_html(doc, m, t, q):
+    """The suggested actions, each marked as work on the subject's own pages or a check of a page the answers cite."""
+    head = "".join(f"<th>{esc(c)}</th>" for c in t["actions_head"][:3])
+    rows = ""
+    for n, a in enumerate(_actions_of(doc), 1):
+        who = t["action_who"]["owned"].format(subject=m["subject"]) if _owns(a, m) else q["action_check"]
+        rows += (f'<tr><td class="num">{n}</td><td><span class="who">{esc(who)}</span><br>{esc(a.get("what") or "")}</td>'
+                 f'<td>{esc(a.get("why") or "")}</td></tr>')
+    return f'<h1>{esc(t["actions_kicker"])}</h1><table><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table>'
+
+
 def _method(m, q, lang):
     """How the answers were read, without naming what rates them."""
     first = [q["count_note"], q["assistants"].format(makers=m["makers"])]
@@ -455,7 +664,7 @@ def _slides(study, period, doc, m, plan, chosen):
     days = span(period["from"], period["to"], lang)
     logo = f'<img src="{html.escape(chosen["logo"], quote=True)}" alt="">' if chosen.get("logo") else ""
     slides = _slides_of(doc)
-    total = len(slides) + 2
+    total = len(slides) + 4
 
     def foot(n):
         return f'<footer class="foot"><span>{logo}{esc(subject)} · {esc(days)}</span><span>{n} / {total}</span></footer>'
@@ -470,13 +679,15 @@ def _slides(study, period, doc, m, plan, chosen):
     by = f'<div class="cover-line">{esc(t["cover_by"].format(by=m["by"]))}</div>' if m["by"] else ""
     out = [f'<section class="slide cover"><div class="band"></div><div class="cover-body">{logo}'
            f'<h1>{esc(t["cover_title"].format(subject=subject))}</h1><div class="cover-what">{esc(what)}</div>'
-           f'<div class="cover-kind">{esc(q["kind"])} · {esc(days)}</div>{by}</div></section>']
+           f'<div class="cover-kind">{esc(q["kind"])} · {esc(days)}</div>{by}</div></section>',
+           f'<section class="slide found">{_summary_html(doc, m, t, plan)}{foot(2)}</section>']
     topics = {(p["key"], r["key"]): r for p in plan for r in p["rows"]}
-    for n, slide in enumerate(slides, 2):
+    for n, slide in enumerate(slides, 3):
         rows = "".join(_row_html(topics[slide.get("project"), r.get("dimension")], r, m, t, q) for r in _rows_of(slide)
                        if (slide.get("project"), r.get("dimension")) in topics)
         out.append(f'<section class="slide q-slide">{deck._kicker(slide.get("question") or "")}'
                    f'<h1>{esc(slide.get("title") or "")}</h1><div class="q-rows">{rows}</div>{foot(n)}</section>')
+    out.append(f'<section class="slide actions few-actions">{_actions_html(doc, m, t, q)}{foot(total - 1)}</section>')
     out.append(f'<section class="slide q-sites">{_sites_html(m, q, lang)}{foot(total)}</section>')
     return [deck._tight_units(s) for s in out]
 

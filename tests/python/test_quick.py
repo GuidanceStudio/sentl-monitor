@@ -1,5 +1,6 @@
-"""The quick deck (DEVPLAN M33): one slide per project of the period, one row per topic with the code's figure, a sentence
-and an excerpt the writer fills, and a last slide with the sites cited most and how the answers were read."""
+"""The quick deck (DEVPLAN M33, M38): a summary, one slide per project of the period, one row per topic with the code's
+figure, a sentence and an excerpt the writer fills, the suggested actions, and a last slide with the sites cited most and
+how the answers were read."""
 
 import json
 import re
@@ -51,6 +52,11 @@ class QuickCase(InsightCase):
         }
         for row in slide["rows"]:
             row["says"], row["excerpt"] = texts[row["dimension"]]
+        doc["summary"] = {"title": "Chi cerca una bevanda all'avena trova Avoria; chi chiede di Avenello sente parlare bene del lavoro",
+                          "projects": {"market": "Chi chiede la bevanda migliore si sente indicare Avoria; sul lavoro le risposte "
+                                                 "descrivono Avenello come un buon posto."}}
+        doc["actions"] = [{"what": "Pubblicare su avenello.example una pagina che confronta Avenello con le altre bevande all'avena",
+                           "why": "Chi chiede la bevanda migliore si sente indicare Avoria, in 1 risposta su 2"}]
         return doc
 
     def row(self, doc, dimension):
@@ -72,7 +78,7 @@ class SkeletonTest(QuickCase, unittest.TestCase):
 
     def test_one_slide_per_project_and_one_row_per_topic_in_the_study_s_order(self):
         doc = self.skeleton()
-        self.assertEqual((doc["schema"], doc["date"]), ("sentl-monitor/quick@1", DATE))
+        self.assertEqual((doc["schema"], doc["date"]), ("sentl-monitor/quick@2", DATE))
         self.assertEqual([(s["project"], [r["dimension"] for r in s["rows"]]) for s in doc["slides"]],
                          [("market", ["prezzo", "scelta", "lavoro"])])
         slide = doc["slides"][0]
@@ -90,9 +96,9 @@ class SkeletonTest(QuickCase, unittest.TestCase):
 
     def test_deck_quick_prints_the_slides_the_rows_and_the_texts_left(self):
         said = self.made.stdout
-        self.assertIn("3 slides", said)
+        self.assertIn("5 slides", said)
         self.assertIn("3 rows", said)
-        self.assertIn("14 texts left", said)
+        self.assertIn("18 texts left", said)
         self.assertIn(f"{DATE}.quick.json", said)
 
     def test_a_second_run_keeps_what_is_written(self):
@@ -160,13 +166,13 @@ class RefusalTest(QuickCase, unittest.TestCase):
         doc = self.filled()
         doc["slides"][0]["rows"] = [r for r in doc["slides"][0]["rows"] if r["dimension"] != "scelta"]
         found = self.problems(doc)
-        self.assertIn("slide 2", found)
+        self.assertIn("slide 3", found)
         self.assertIn("prezzo, scelta, lavoro", found)
 
     def test_a_slide_the_period_does_not_give_is_refused(self):
         doc = self.filled()
         doc["slides"].append(doc["slides"][0])
-        self.assertIn("slide 3", self.problems(doc))
+        self.assertIn("slide 4 is not one the period gives", self.problems(doc))
 
     def test_texts_over_their_length_are_refused(self):
         doc = self.filled()
@@ -249,8 +255,9 @@ class RefusalTest(QuickCase, unittest.TestCase):
         doc = self.filled()
         with mock.patch.object(quick.fit, "heights", lambda page, css: [900.0] * page.count("<section")):
             found = self.problems(doc)
-        self.assertIn("slide 2 runs over its page", found)
-        self.assertIn("slide 2", found)
+        self.assertRegex(found, r"slide 2 runs over its page by about \d+ lines of text: shorten the summary's title")
+        self.assertRegex(found, r"slide 3 runs over its page by about \d+ lines of text: shorten its title")
+        self.assertRegex(found, r"slide 4 runs over its page by about \d+ lines of text: shorten the actions' what and why")
 
     def test_the_filled_deck_fits_its_pages(self):
         self.assertEqual(self.problems(self.filled()), "")
@@ -270,11 +277,11 @@ class PageTest(QuickCase, unittest.TestCase):
         text, _ = self.page()
         self.assertIn("Avenello, Avenello Drink o Aven", text)
 
-    def test_one_section_per_slide_the_cover_the_projects_and_the_sites(self):
+    def test_one_section_per_slide_the_cover_the_summary_the_projects_the_actions_and_the_sites(self):
         text, count = self.page()
-        self.assertEqual(count, 3)
-        self.assertEqual(text.count('<section class="slide'), 3)
-        self.assertIn("3 / 3", text)
+        self.assertEqual(count, 5)
+        self.assertEqual(text.count('<section class="slide'), 5)
+        self.assertIn("5 / 5", text)
         self.assertNotIn("<script", text)
 
     def test_the_cover_says_it_is_a_summary_of_the_period(self):
@@ -323,7 +330,7 @@ class PrintTest(QuickCase, unittest.TestCase):
 
     def test_pdf_quick_writes_the_page_the_pdf_and_the_copy_to_send(self):
         self.passed()
-        with mock.patch.object(report_pdf, "print_pdf", fake_pdf(3)):
+        with mock.patch.object(report_pdf, "print_pdf", fake_pdf(5)):
             said = self.cli("pdf", "--quick", "--study", self.study, "--date", DATE, check=0).stdout
         reports = self.study / "reports"
         self.assertTrue((reports / f"{DATE}.quick.html").exists())
@@ -335,18 +342,18 @@ class PrintTest(QuickCase, unittest.TestCase):
 
     def test_pages_that_are_not_the_slides_are_refused(self):
         self.passed()
-        with self.assertRaisesRegex(quick.Refused, "4 pages for 3 slides"):
-            quick.render(self.study, DATE, printer=fake_pdf(4))
+        with self.assertRaisesRegex(quick.Refused, "6 pages for 5 slides"):
+            quick.render(self.study, DATE, printer=fake_pdf(6))
 
     def test_a_deck_failing_check_is_not_printed(self):
-        with mock.patch.object(report_pdf, "print_pdf", fake_pdf(3)):
+        with mock.patch.object(report_pdf, "print_pdf", fake_pdf(5)):
             proc = self.cli("pdf", "--quick", "--study", self.study, "--date", DATE, check=2)
         self.assertIn("check", proc.stderr)
         self.assertFalse((self.study / "reports" / f"{DATE}.quick.pdf").exists())
 
 
 class LaterDeckTest(QuickCase, unittest.TestCase):
-    """A quick deck has no actions: a full deck after it has no earlier edition to compare them with."""
+    """A quick deck's actions are no earlier edition: a full deck after it compares its own only with a full deck's."""
 
     def test_a_later_full_deck_has_no_earlier_edition_from_a_quick_one(self):
         self.passed()

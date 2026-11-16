@@ -351,6 +351,7 @@ QUICK = {
         "rating_bands": "favorevole 4 o 5, neutra 3, sfavorevole 1 o 2",
         "rating_bands_fidelity": "fedele ai fatti 4 o 5, parziale 3, lontana 1 o 2",
         "presence": "Per le domande senza il nome di {subject} si conta in quante risposte compare {names}.",
+        "action_check": "Da verificare",
     },
     "en": {
         "kind": "Summary",
@@ -381,6 +382,7 @@ QUICK = {
         "rating_bands": "favourable 4 or 5, neutral 3, unfavourable 1 or 2",
         "rating_bands_fidelity": "faithful to the facts 4 or 5, partial 3, far off 1 or 2",
         "presence": "For the questions without {subject}'s name, the figure counts the answers in which {names} appears.",
+        "action_check": "To check",
     },
 }
 
