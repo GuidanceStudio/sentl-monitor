@@ -1,8 +1,8 @@
 # snapshot
 
-A one-off check of a subject, in a folder of its own: a small study of four or five dimensions, one
-snapshot in Sentl (it takes none of the plan's project slots), one run, one deck, and nothing left
-running in Sentl. It writes to the
+A one-off check of a subject, in a folder of its own: a study designed by the rule of DESIGN.md
+steps 2 to 9, run as snapshots in Sentl (they take none of the plan's project slots), one deck,
+and nothing left running in Sentl. It writes to the
 operator's Sentl account and spends credits: every write has its own go.
 
 `<skill>` below is this skill's directory, `$S` the snapshot's folder, `D` today's date
@@ -72,10 +72,10 @@ facts each dimension needs. A statement taken from an AI answer is not a fact.
 
 ## 3. Dimensions
 
-Choose 4 or 5 entries of `catalogue.md` from what the reader needs to decide, by the
-catalogue's rules (§Choosing for a snapshot): at least one dimension whose question names no
-brand, unless the operator wants reputation only. A dimension whose facts cannot be found is
-replaced by another entry. For each, write in `$S/study.json`:
+Themes, dimensions, projects and personas follow DESIGN.md steps 2 to 9, the rule a study
+follows. Use `catalogue.md` for the dimensions that recur, with at least one dimension whose
+questions name no brand, unless the operator wants reputation only. For each, write in
+`$S/study.json`:
 
 - `catalogue`, the id of the entry; `axis`, `stance` or `fidelity`; `name`, as the reader would
   call it; `measures`, one sentence on what the dimension measures for this subject;

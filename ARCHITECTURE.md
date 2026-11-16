@@ -234,12 +234,14 @@ share a label with a source to watch (exit 2).
 }
 ```
 
-- `kind` at the top is `study` or `snapshot`. A snapshot has one project, 4–5 dimensions
-  with one question each, `rounds` 1 and no `schedule`; `themes` is empty, and each
-  dimension carries `catalogue`, the id of the catalogue entry it was taken from, and
-  `measures`, one sentence on what it measures for the subject. A snapshot needs no `audience`
-  and no `report_every`; `design_rationale` holds one entry per dimension, whose `choice` is the
-  dimension's name.
+- `kind` at the top is `study` or `snapshot`. A snapshot has the fields and checks of a study,
+  designed by the same rule (DESIGN.md steps 2 to 9), with no `schedule` on its projects and no
+  `report_every`. A snapshot whose `themes` is empty is one designed before snapshots followed
+  `design`: one project, one question per dimension, `rounds` 1, and each dimension carrying
+  `catalogue`, the id of the catalogue entry it was taken from, and `measures`, one sentence on
+  what it measures for the subject. It needs no `audience`, and its `design_rationale` holds one
+  entry per dimension, whose `choice` is the dimension's name. `validate` checks it under those
+  rules, and `report`, `deck` and `compare` still read it.
 - `personas` is copied from the brief's `seeds.json` (`seeds` may stay behind). With an audience
   of `personas`, `stakeholders` or `mixed`, a question's `persona` is an id of that list; with
   `mixed` it may be left out. A study written before the list existed has no `personas` and a
@@ -602,7 +604,7 @@ The steps run in the order the report tells them:
 
 1. **Themes.** Merge duplicates; a theme with no origin is traced or dropped.
 2. **Dimensions.** Each comes from one or more themes and is named the way the client names
-   it. Five to seven per project, at least two questions each. A theme left out says why in
+   it. Five to seven per project, two or three questions each. A theme left out says why in
    `design_rationale`.
 3. **Projects.** A project groups the dimensions the reader takes one decision with. **One
    study project is one Sentl project**, because Sentl computes one score per run per
@@ -610,9 +612,14 @@ The steps run in the order the report tells them:
    questions naming no brand (read by presence) produces a score nobody can read. Projects
    also differ in models, rounds and schedule. When the brief lists personas, projects are
    grouped by the personas they serve, with branded and unbranded questions still apart.
+   Sentl sets no cap on dimensions or questions, so capacity plays no part in the split. A
+   snapshot is split by the same rule, one snapshot in Sentl per project.
 4. **Who asks.** `generic_consumer`, `personas`, `stakeholders` or `mixed`, with the reason.
    The brief's personas are copied into `study.json`; with personas, stakeholders or mixed,
-   each question's `persona` is an id of that list.
+   each question's `persona` is an id of that list. The playbook proposes to spread each
+   persona's questions along the funnel (discovery naming no brand, comparison with the foils,
+   the decision on the subject's offer, the experience after); the operator may use another
+   framework, recorded in `design_rationale`, and `validate` does not check it.
 5. **Questions.** Written as the person types them, in the market's language, starting from
    the top queries of the theme. A question that names no brand contains no alias of the
    subject or of a foil. Where a dimension's searches lean one way, the opposite question is

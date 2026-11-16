@@ -1461,7 +1461,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Tasks:**
 
-- [ ] T1 One rule, written once, in a section both DESIGN.md and SNAPSHOT.md refer to. It covers themes with origins, then dimensions (five to seven per project, each from a theme, two or three questions each), then projects (split by persona group and by naming the subject or no brand), then personas along the funnel. ARCHITECTURE §`study.json` drops the four-or-five rule.
+- [x] T1 One rule, written once, in a section both DESIGN.md and SNAPSHOT.md refer to. It covers themes with origins, then dimensions (five to seven per project, each from a theme, two or three questions each), then projects (split by persona group and by naming the subject or no brand), then personas along the funnel. ARCHITECTURE §`study.json` drops the four-or-five rule.
   The funnel is a suggestion, not a check: the playbook proposes it as the default way to spread each persona's questions (discovery naming no brand, comparison with the foils, the decision on the subject's offer, the experience after), and the operator is free to set the questions another way or by another framework. `narrative.design_rationale` records the framework used. No new field and no `validate` rule.
 - [ ] T2 A snapshot starts from `brief`, with what a prospect gives. Step 2 is skipped when there is no client material. Themes come from the operator's remarks, the search suggestions and a probe. Personas are written as a list, as in a study. Volumes are fetched only when a keyword-data tool is connected and after the operator's yes. SNAPSHOT.md §2–4 hands over to `brief` and `design`. The seeds are the brief's, per theme and persona, no longer one per dimension.
 - [ ] T3 A `study.json` of kind `snapshot` has the fields and checks of a study:
@@ -1477,7 +1477,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   `review` prints, per project, each model with its tariff and the credits of one run. Projects of one study may have different models.
 - [ ] T5 Cost. For a study, `review` prints the credits per run and the monthly budget from the schedule and rounds, against the plan's monthly credits and the credits available. For a snapshot, it prints the credits of its one run, which include the rounds, per snapshot and in total, against the credits available, at the proposed 3 rounds and at 1 round. Before any run, `snapshot` shows Sentl's `estimate-run-tool` for each snapshot.
 - [ ] T6 Several snapshots in one folder:
-  - `payload`, `bind`, `resume` and `ingest` treat each project of a snapshot study as one Sentl snapshot;
+  - `payload`, `bind`, `resume` and `ingest` treat each project of a snapshot study as one snapshot in Sentl;
   - the skill starts one run per snapshot; the runs start one after the other, each once the previous is final, and each after its own yes on its estimate, since Sentl's `trigger-run-tool` asks a new yes for every run of a snapshot;
   - `ingest`, `resume` and `period` accept every completed run of each snapshot, however many there are;
   - the period pools every completed run of every snapshot, as a study's period pools a project's runs;

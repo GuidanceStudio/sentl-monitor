@@ -323,6 +323,29 @@ DESIGN_WHO=$(section "$PAYLOAD/design/DESIGN.md" "## 5. ")
 holds "$DESIGN_WHO" "the brief's personas" "DESIGN.md copies the brief's personas into study.json"
 holds "$DESIGN_WHO" "an id of" "DESIGN.md makes each question's persona an id of the list"
 
+echo ""
+echo "=== One design rule for a study and a snapshot (M39) ==="
+DESIGN_DIMS=$(section "$PAYLOAD/design/DESIGN.md" "## 3. ")
+holds "$DESIGN_DIMS" "five to seven dimensions" "DESIGN.md sets five to seven dimensions per project"
+holds "$DESIGN_DIMS" "two or three questions" "DESIGN.md sets two or three questions per dimension"
+holds "$DESIGN_PROJECTS" "no cap" "DESIGN.md says Sentl sets no cap, so capacity plays no part in the split"
+holds "$DESIGN_WHO" "funnel" "DESIGN.md proposes the funnel to spread each persona's questions"
+holds "$DESIGN_WHO" "another framework" "DESIGN.md leaves the operator free to use another framework"
+holds "$(head -12 "$PAYLOAD/design/DESIGN.md")" "a snapshot" "DESIGN.md says its steps design a snapshot too"
+holds "$(cat "$PAYLOAD/snapshot/SNAPSHOT.md")" "DESIGN.md steps 2 to 9" "SNAPSHOT.md refers to the rule in DESIGN.md"
+for f in "$PAYLOAD/snapshot/SNAPSHOT.md" "$PAYLOAD/design/catalogue.md"; do
+    if grep -qiE "four or five|4 or 5 dimensions|4 or 5 entries" "$f"; then
+        bad "$(basename "$f") still sets four or five dimensions for a snapshot"
+    else
+        ok "$(basename "$f") sets no four-or-five rule for a snapshot"
+    fi
+done
+if grep -qF "A snapshot has one project, 4–5 dimensions" "$REPO_ROOT/ARCHITECTURE.md"; then
+    bad "ARCHITECTURE.md §study.json still sets the four-or-five rule"
+else
+    ok "ARCHITECTURE.md §study.json drops the four-or-five rule"
+fi
+
 SNAPSHOT_DIMS=$(section "$PAYLOAD/snapshot/SNAPSHOT.md" "## 3. ")
 holds "$SNAPSHOT_DIMS" "who will read the deck" "SNAPSHOT.md asks who will read the deck"
 holds "$SNAPSHOT_DIMS" "one line each" "SNAPSHOT.md asks for the persona behind each question, one line each"

@@ -4,6 +4,10 @@ Turns the themes of `brief.md` into a study: dimensions, projects, who asks, que
 and the narrative, written to `$S/study.json` and printed as `$S/study-review.md` for the
 operator's approval. Sentl is read once (`list-ai-models`); no write, no credit spent.
 
+Steps 2 to 9 design a study and a snapshot alike: `snapshot` follows them (SNAPSHOT.md step 3),
+and the two differ only in what the schedule brings, the schedule itself, the report cadence and
+the cost shown.
+
 `<skill>` below is this skill's directory; `$S` is the study folder. The fields of `study.json`
 are in ARCHITECTURE.md §`study.json`; the dimension catalogue is `<skill>/design/catalogue.md`.
 Read both before step 2.
@@ -33,8 +37,9 @@ dropped. Origin kinds: `client_material`, `client_issue`, `client_analysis`, `se
 A dimension comes from one or more themes and is named the way the client names it. Each
 theme's `dimension` holds the key of the dimension it feeds. Use `catalogue.md` for dimensions
 that recur (reputation, recommendation, comparison, price, health-safety and the others) and adapt their wording to the
-subject. A project has five to seven dimensions of at least two questions each. A theme left
-out says why in `narrative.design_rationale`. Set each dimension's `search_lean` from its
+subject. A project has five to seven dimensions, each fed by at least one theme, of
+two or three questions each; `validate` warns outside those counts. A theme left out says why
+in `narrative.design_rationale`. Set each dimension's `search_lean` from its
 theme's searches: `negative` when the top queries doubt or accuse (`... bad for you`), `positive`
 when they praise, `none` when they do not lean.
 
@@ -44,7 +49,8 @@ One study project is one Sentl project, because Sentl computes one score for eac
 project. Questions that name the subject are read by their mean score; questions that name no
 brand are read by whether and where the subject appears. A project that holds both gives a score
 nobody can read, so they go in two projects. Projects also differ in models, rounds and
-schedule. Each project carries `question` (what it answers) and `decision` (what the client
+schedule. Sentl sets no cap on the dimensions or the questions of a project or a snapshot, so
+capacity plays no part in the split: these two rules alone make several projects. Each project carries `question` (what it answers) and `decision` (what the client
 decides with it).
 
 When the brief lists personas, group the projects by the personas they serve: a project for the
@@ -64,6 +70,12 @@ Copy the brief's personas into `study.json` as the top-level list `personas`, wi
 the list. With `mixed`, a question may leave `persona` out; when it has one, it is an id of the
 list. `validate` refuses a persona that is not in the list. A question written from a persona
 starts from its `asks` and its search suggestions, in the persona's situation.
+
+Propose to spread each persona's questions along the funnel: discovery (a question naming no
+brand), comparison with the foils, the decision on the subject's offer, and the experience after
+it. The funnel is a suggestion, and `validate` does not check it: the operator may set the
+questions another way or by another framework. Record the framework used in
+`narrative.design_rationale`.
 
 A study designed before the list existed has no `personas` and a `persona` in plain words on
 each question. It still validates. To add the list, write `personas` and replace each

@@ -16,6 +16,7 @@ LEANS = ("positive", "negative", "none")
 AXES = ("stance", "fidelity")
 OPPOSITE = {"positive": "negative", "negative": "positive"}
 DIMENSIONS_PER_PROJECT = (5, 7)
+QUESTIONS_PER_DIMENSION = (2, 3)
 # Audiences whose questions name a persona of the study's list (mixed may also leave it out).
 PERSONA_AUDIENCES = ("personas", "stakeholders", "mixed")
 ANSWERS_PER_PERIOD = 3
@@ -214,10 +215,12 @@ def _check_project(project, study, model_ids, audience, aliases, problems, warni
             problems.append(f"dimension {dkey}: search_lean must be one of {', '.join(LEANS)}")
         if d.get("axis", "stance") not in AXES:
             problems.append(f"dimension {dkey}: axis must be one of {', '.join(AXES)}")
+        low, high = QUESTIONS_PER_DIMENSION
         if not questions:
             problems.append(f"dimension {dkey} has no question")
-        elif len(questions) < 2:
-            warnings.append(f"dimension {dkey} has 1 question (two or more are expected)")
+        elif not low <= len(questions) <= high:
+            warnings.append(f"dimension {dkey} has {_count(len(questions), 'question', 'questions')} "
+                            "(two or three are expected)")
         lean = d.get("search_lean", "none")
         if lean in OPPOSITE and not any(q.get("framing") == OPPOSITE[lean] for q in questions):
             problems.append(f"dimension {dkey} leans {lean} but has no question with {OPPOSITE[lean]} framing")

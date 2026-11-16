@@ -137,7 +137,11 @@ WARNINGS = {
     "fewer than five dimensions in a project": (lambda s: drop_dimension(s, "taste"),
                                                 "project brand has 4 dimensions"),
     "fewer than two questions in a dimension": (lambda s: dim(s, "brand", "taste")["questions"].pop(),
-                                                "dimension taste has 1 question"),
+                                                "dimension taste has 1 question (two or three are expected)"),
+    "more than three questions in a dimension": (
+        lambda s: dim(s, "brand", "taste")["questions"].extend(
+            {**q(s, "taste-1"), "key": f"taste-{n}", "text": f"Is Avenello oat milk good, take {n}?"} for n in (3, 4)),
+        "dimension taste has 4 questions (two or three are expected)"),
     "a project that mixes branded and unbranded questions": (lambda s: q(s, "c-price-1").update(branded=True),
                                                              "project category mixes"),
     "fewer than three answers per question and model in a report period": (

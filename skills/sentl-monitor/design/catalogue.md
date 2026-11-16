@@ -3,8 +3,8 @@
 The dimensions that recur across subjects, with the question patterns, rubric anchors and facts
 each one needs. The designer adapts an entry to the subject, the market and the theme's top
 queries; the patterns and anchors are starting points, never final text. `design` reads this file
-at steps 3, 6 and 7. `snapshot` picks its four or five dimensions from it and records the entry's
-id in the dimension's `catalogue` field.
+at steps 3, 6 and 7, for a study and a snapshot alike. A snapshot designed before snapshots
+followed `design` records the entry's id in each dimension's `catalogue` field.
 
 Placeholders: `[subject]` is an alias of the subject as people type it, `[category]` the
 component or product category, `[foil]` an alias of a foil, `[market]` the country or city, and
@@ -136,10 +136,3 @@ question patterns, the anchors that differ from the axis tables, and the facts i
   "How does [subject] pay?"
 - Anchors: the stance table, with grounds meaning named reviews or surveys.
 - Facts: none usually; a published figure (headcount, pay band) with its date if the question uses it.
-
-## Choosing for a snapshot
-
-Pick four or five entries from what the reader needs to decide. Include at least one entry that
-names no brand (`recommendation`) unless the operator wants reputation only. A dimension whose
-facts cannot be found is replaced by another entry. Record the entry's id and the reason in
-`design_rationale`.
