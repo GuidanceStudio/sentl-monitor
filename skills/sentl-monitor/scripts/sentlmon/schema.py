@@ -120,7 +120,7 @@ STATUS = _Leaf("one of the statuses the skill knows: " + ", ".join(FINAL) + " (f
 PROJECT = _Object({
     "id": (INTEGER, True),
     "name": (TEXT, True),
-    "schedule_frequency": (TEXT_OR_NULL, True),
+    "schedule_frequency": (TEXT_OR_NULL, False),  # a snapshot has none
     "rounds": (COUNT, True),
     "is_active": (BOOLEAN, False),
     "kind": (_Leaf("project or snapshot", lambda v: v in ("project", "snapshot")), False),

@@ -179,6 +179,16 @@ class ProjectShapeTest(StudyCase, unittest.TestCase):
         self.assertFalse((self.study / "study.json").exists())
         return proc.stderr
 
+    def test_a_snapshot_without_schedule_frequency_is_read(self):
+        """Sentl answers get-project-tool for a snapshot with no schedule_frequency and no is_active."""
+        data = project()
+        data["project"]["kind"] = "snapshot"
+        data["project"].pop("schedule_frequency", None)
+        data["project"].pop("is_active", None)
+        self.cli("adopt", "--study", self.study, "--project", self.save("p.json", data),
+                 "--run", self.save("r.json", run()), "--key", "brand")
+        self.assertTrue((self.study / "study.json").exists())
+
     def test_a_renamed_grading_rubric_is_refused(self):
         data = project()
         for d in data["project"]["dimensions"]:

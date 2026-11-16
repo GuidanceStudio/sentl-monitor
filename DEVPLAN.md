@@ -1491,7 +1491,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - One snapshot with three completed runs at rounds 1 gives one period with three answers per question and model.
 - [x] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
 - [ ] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
-- [ ] T11 Fixes from an independent review of T1–T9 (2026-11-16), each with a test that fails before the fix. Proposed, waits for the operator's go.
+- [~] T11 Fixes from an independent review of T1–T9 (2026-11-16), each with a test that fails before the fix. Approved by the operator on 2026-11-16.
   - Runs ingested after a snapshot's deck has passed: `resume` compares the ingested runs with the runs the passed deck recorded, and sends the operator back to `period` and `deck` instead of `end`. A rebuilt snapshot period replaces the snapshot's deck instead of becoming a second edition that compares a run with a pool holding it. After `promote`, a run of a set-aside snapshot is refused by the study's `ingest`.
   - `ingest` refuses a run whose `project_id` is not the one bound to `--project`, including the ids set aside under `snapshots`.
   - `period` with a snapshot of `study.json` never created or never run: no crash, and the message names the snapshots left out of the deck.
