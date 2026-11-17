@@ -1436,7 +1436,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 ## M39: A snapshot is designed as a study is, and differs only in what the schedule brings 🔄
 
-**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T1–T9 and T11–T13 done; T10 runs before R15.
+**Status:** approved 2026-11-16 (operator's go the same day, with the decisions below); in progress. T1–T9 and T11–T14 done; T10 runs before R15.
 
 **Why:** the operator's principle (2026-11-16): a snapshot is a project without a schedule. The depth of the analysis, the starting points and the choice of models follow the same reasoning on both routes; only what the schedule brings differs. A project has a frequency and a monthly credit budget, set against the plan's monthly credits and the credits available; a snapshot has one cost, set against the credits available. Today the two routes part at the first step:
 
@@ -1513,6 +1513,10 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
     - a `bind` with no change leaves the ingested runs as they are;
     - a version recorded late is dated at the save by a second `bind`.
   - CHANGELOG and ARCHITECTURE (§versions, §ingest).
+- [x] T14 A theme that feeds several dimensions is read by `deck` and `deck --quick` as `validate` reads it. Found live on 2026-11-17: a prospect study whose six themes each give `dimension` as a list of keys passed `validate` (`design.py` reads a key or a list), and `deck` and `deck --quick` both stopped with exit 6 ("unhashable type: 'list'") in `adopt.missing_answers`; `deck.build_model` reads the field the same way. Changes:
+  - One helper returns the keys a theme feeds, a key or a list, and every reader of `themes[].dimension` uses it: `validate`, `missing_answers` (a theme counts when one of its dimensions is measured) and `build_model` (a theme's origins count when one of its dimensions is asked).
+  - DESIGN.md §3: a theme's `dimension` is the key of the dimension it feeds, or the list of keys when it feeds several (ARCHITECTURE §`study.json` already says so). `review` lists a theme's keys separated by commas.
+  - Tests: `deck` and `deck --quick` on a study whose theme feeds two dimensions write their files, and that theme's origins appear in the deck as for a theme of one dimension; such a theme without origins is named; `review` prints both keys.
 
 **Decisions of 2026-11-16 (operator):**
 

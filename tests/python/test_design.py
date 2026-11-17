@@ -291,6 +291,16 @@ class ReviewTest(DesignCase, unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual((self.study / "study-review.md").read_text(encoding="utf-8").strip(), proc.stdout.strip())
 
+    def test_a_theme_that_feeds_two_dimensions_is_listed_with_both_keys(self):
+        study = clean_study()
+        keys = [d["key"] for p in study["projects"] for d in p["dimensions"]]
+        theme = study["themes"][0]
+        other = next(k for k in keys if k != theme["dimension"])
+        theme["dimension"] = [theme["dimension"], other]
+        out = self.review(study).stdout
+        self.assertIn(f"(dimensions {theme['dimension'][0]}, {other}):", out)
+        self.assertNotIn("['", out)
+
     def test_it_prints_the_narrative(self):
         out = self.review().stdout
         for part in ("## Narrative", "What are people who ask an AI assistant about oat milk",

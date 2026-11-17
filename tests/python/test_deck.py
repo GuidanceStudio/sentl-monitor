@@ -382,6 +382,34 @@ class OperatorAnswersTest(DeckCase, unittest.TestCase):
         proc = self.unanswered(drop)
         self.assertIn(".origins", proc.stderr)
 
+class ThemeOfSeveralDimensionsTest(DeckCase, unittest.TestCase):
+    """A theme may feed several dimensions: `validate` reads its `dimension` as a key or a list, and so do both decks
+    (found live on 2026-11-17, where both stopped with exit 6)."""
+
+    def feed_two(self, change=None):
+        path = self.study / "study.json"
+        study = json.loads(path.read_text(encoding="utf-8"))
+        keys = [d["key"] for p in study["projects"] for d in p["dimensions"]]
+        for theme in study["themes"]:
+            theme["dimension"] = [theme["dimension"], next(k for k in keys if k != theme["dimension"])]
+            if change:
+                change(theme)
+        path.write_text(json.dumps(study), encoding="utf-8")
+
+    def test_both_decks_read_a_theme_that_feeds_two_dimensions(self):
+        before = deck.build_model(*self.model_args({}))["origins"]
+        self.assertTrue(before)
+        self.feed_two()
+        self.assertEqual(deck.build_model(*self.model_args({}))["origins"], before)
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+        self.cli("deck", "--quick", "--study", self.study, "--date", DATE, check=0)
+
+    def test_a_theme_of_two_dimensions_without_origins_is_named(self):
+        self.feed_two(lambda theme: theme.update(origins=[]))
+        proc = self.cli("deck", "--study", self.study, "--date", DATE, check=2)
+        self.assertIn(".origins", proc.stderr)
+
+
 class CheckTest(DeckCase, unittest.TestCase):
 
     def test_a_complete_deck_passes_and_is_recorded(self):

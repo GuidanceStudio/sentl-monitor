@@ -24,7 +24,7 @@ from .adopt import missing_answers
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
 from .common import (REDIRECT_HOSTS, Refused, Study, first_mention, fmt_date, fold, is_owned, load_json, match_key,
-                     measured, passed_deck, require_language, span, write_json, write_text)
+                     measured, passed_deck, require_language, span, theme_dimensions, write_json, write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import TOP_SOURCES, classify, fact_terms, tight
@@ -677,7 +677,8 @@ def build_model(folder, study, period, doc=None):
     assistants = {a for row in method for a in row["assistants"]}
     given = Counter(counted.values())
     asked = {d["key"] for _, dims in measured(study, period) for d in dims}
-    origins = {o["kind"] for t in study.get("themes") or [] if t.get("dimension") in asked for o in t.get("origins") or []}
+    origins = {o["kind"] for t in study.get("themes") or [] if asked.intersection(theme_dimensions(t))
+               for o in t.get("origins") or []}
     return {"blocks": blocks, "method": method, "subject": subject, "replaced": replaced, "names": names,
             "answers_of": answers_of, "author": reader.author,
             "makers": _makers(models, names), "maker_list": _maker_list(models, names), "spread": sorted(given.items(), key=lambda kv: (-kv[1], -kv[0])),

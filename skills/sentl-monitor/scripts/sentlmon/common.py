@@ -373,5 +373,11 @@ def span(start, end, lang):
     return f"{fmt_date(a, lang)} – {fmt_date(b, lang)}"
 
 
+def theme_dimensions(theme):
+    """The keys of the dimensions a theme of study.json feeds: its `dimension` is one key or a list of keys."""
+    target = theme.get("dimension")
+    return list(target) if isinstance(target, list) else [target]
+
+
 def now_iso():
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")

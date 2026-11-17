@@ -35,7 +35,7 @@ dropped. Origin kinds: `client_material`, `client_issue`, `client_analysis`, `se
 ## 3. Dimensions
 
 A dimension comes from one or more themes and is named the way the client names it. Each
-theme's `dimension` holds the key of the dimension it feeds. Use `catalogue.md` for dimensions
+theme's `dimension` holds the key of the dimension it feeds, or the list of keys when it feeds several. Use `catalogue.md` for dimensions
 that recur (reputation, recommendation, comparison, price, health-safety and the others) and adapt their wording to the
 subject. A project has five to seven dimensions, each fed by at least one theme, of
 two or three questions each; `validate` warns outside those counts. A theme left out says why

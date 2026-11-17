@@ -7,7 +7,8 @@ import json
 
 from . import demand, schema
 from .adopt import AUDIENCES, ORIGIN_KINDS, criteria_hash, namesake_problems, _terms
-from .common import Refused, Study, fold, first_mention, folded, match_key, public_name, write_json, write_text
+from .common import (Refused, Study, fold, first_mention, folded, match_key, public_name, theme_dimensions, write_json,
+                     write_text)
 
 DIMENSION_NAME, LABEL, QUESTION, ANCHOR, INSTRUCTIONS = 100, 100, 500, 300, 500
 SCHEDULES = ("daily", "weekly", "monthly")
@@ -306,8 +307,7 @@ def problems_of(study, model_ids, recorded):
     dimension_keys = {d.get("key") for p in projects for d in p.get("dimensions") or []}
     fed = set()
     for t in study.get("themes") or []:
-        target = t.get("dimension")
-        for dkey in target if isinstance(target, list) else [target]:
+        for dkey in theme_dimensions(t):
             fed.add(dkey)
             if dkey not in dimension_keys:
                 problems.append(f"theme {t.get('id')} feeds dimension {dkey}, which no project has")
@@ -370,7 +370,9 @@ def _inventory(study, data):
     if not data:
         lines += ["No search demand was collected.", ""]
     for t in study["themes"]:
-        lines.append(f"- {t['label']} (dimension {t['dimension']}): " + "; ".join(_origin(o) for o in t["origins"]))
+        fed = theme_dimensions(t)
+        lines.append(f"- {t['label']} (dimension{'s' * (len(fed) > 1)} {', '.join(map(str, fed))}): "
+                     + "; ".join(_origin(o) for o in t["origins"]))
         s = summary.get(t["id"])
         if s:
             volume = "; ".join(f"{c} {v}" for c, v in s["volume"].items()) if s["volume"] else "no volume"

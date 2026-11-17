@@ -48,6 +48,8 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   snapshot bound after its runs has those runs matched against its questions. A `bind` that finds the project
   unchanged corrects a version recorded late in the same way, and names the runs ingested under the version before.
   `ingest` of a run already ingested matches it again when the version in force at its start changed, and says so.
+- A theme that feeds several dimensions, its `dimension` a list of keys as `validate` accepts, no longer stops `deck`
+  and `deck --quick` with exit 6; `review` lists its keys.
 
 ## 0.12.0 (2026-11-16)
 

@@ -5,7 +5,8 @@ import json
 
 from . import schema
 from .i18n import SECTIONS
-from .common import Refused, Study, load_json, match_key, norm, now_iso, require_language, slug, write_json
+from .common import (Refused, Study, load_json, match_key, norm, now_iso, require_language, slug, theme_dimensions,
+                     write_json)
 
 ORIGIN_KINDS = ("client_material", "client_issue", "client_analysis", "search", "probe")
 AUDIENCES = ("generic_consumer", "personas", "stakeholders", "mixed")
@@ -113,7 +114,7 @@ def missing_answers(study):
                             if kind in fact and not _terms(fact[kind])]
     measured = {d["key"] for p in study.get("projects", []) for d in p["dimensions"] if not d.get("archived")}
     for theme in study.get("themes", []):
-        if theme.get("dimension") not in measured:
+        if not measured.intersection(theme_dimensions(theme)):
             continue
         origins = theme.get("origins") or []
         if not origins or any(o.get("kind") not in ORIGIN_KINDS or not (o.get("detail") or "").strip() for o in origins):
