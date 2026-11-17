@@ -3,7 +3,7 @@
 Each release of sentl-monitor, newest first. The version is `metadata.version` in
 `skills/sentl-monitor/SKILL.md`.
 
-## Unreleased
+## 0.13.0 (2026-11-17)
 
 A snapshot is designed exactly as a study is, and differs from it only in schedule, report cadence and the cost shown.
 

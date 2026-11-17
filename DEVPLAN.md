@@ -1584,9 +1584,9 @@ Sentl shipped rounds on snapshots on 2026-11-17 (1 to 10, 5 when left out); M40 
 
 **Done when:** a snapshot's rounds reach Sentl as the study sets them, with no limit of the skill's own, the playbooks describe Sentl as it is, and the full suite passes.
 
-## R15: Release 0.13.0
+## R15: Release 0.13.0 ✅
 
 **Tasks:**
-- [ ] Version 0.13.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
+- [x] Version 0.13.0, CHANGELOG, tag, CI green, release with zip and sha256, install on both hosts
 
 **Done when:** the release page holds the zip and both installed copies report 0.13.0.

@@ -11,7 +11,7 @@ compatibility: >-
   execution; there a study travels between conversations as a pack file the user keeps, and
   reports on those hosts read Sentl's run export. Makes no model calls and stores no token.
 metadata:
-  version: "0.12.0"
+  version: "0.13.0"
   homepage: https://github.com/GuidanceStudio/sentl-monitor
 ---
 
