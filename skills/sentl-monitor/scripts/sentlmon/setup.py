@@ -2,11 +2,12 @@
 record of what Sentl then holds. Nothing here calls Sentl: `payload` prints JSON for the assistant
 to pass to the tools, and `bind` reads a saved get-project-tool response."""
 
+import datetime as dt
 import json
 
 from . import demand, design, schema, snapshot
 from .adopt import criteria_hash
-from .common import FINAL, Refused, Study, load_json, match_key, norm, now_iso, slug, write_json
+from .common import FINAL, Refused, Study, load_json, match_key, norm, now_iso, parse_time, read_gz, slug, write_json
 from .detect import _compare, _describe
 
 
@@ -340,6 +341,29 @@ def _changes(project, latest, dims, settings):
     return changes
 
 
+def _saved_at(saved, after, now):
+    """When Sentl saved the questions of `saved`: the latest `updated_at` of its dimensions and questions, written as
+    the skill writes times, when it falls after `after` (the version before, or None) and no later than `now`. None
+    otherwise: a response without it, or a change of settings alone, which leaves the questions' times as they were."""
+    stamps = [parse_time(x["updated_at"]) for d in saved["dimensions"] for x in (d, *d["questions"]) if x.get("updated_at")]
+    if not stamps:
+        return None
+    at = max(stamps)
+    if at > parse_time(now) or (after is not None and at <= parse_time(after)):
+        return None
+    return at.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _to_match_again(folder, key, number, since):
+    """[run id] of the runs of `key` in history/runs started at or after `since` and matched against another version."""
+    found = []
+    for path in sorted(folder.path("history", "runs", key).glob("*.json.gz")):
+        stored = read_gz(path)
+        if parse_time(stored["started_at"]) >= parse_time(since) and stored.get("version") != number:
+            found.append(stored["run_id"])
+    return sorted(found)
+
+
 def bind(root, key, saved_file, run_file=None):
     """Record the ids of a saved get-project-tool response in sentl.json and a `setup` version."""
     folder = Study(root)
@@ -385,16 +409,28 @@ def bind(root, key, saved_file, run_file=None):
     unchanged = not again and base is latest and latest is not None and not changes and latest["settings"] == settings
     if unchanged:
         latest["seen_at"] = now
-        write_json(folder.path("history", "versions", f"{key}-{latest['version']:03d}.json"), latest)
         number = latest["version"]
         head = f"Project {key} (Sentl project {saved['id']}) unchanged since version {number}."
+        # A version bound after the save, a late bind, moves back to the time Sentl saved its questions.
+        before = versions[-2]["recorded_at"] if len(versions) > 1 else None
+        at = _saved_at(saved, before, now) if latest.get("source") == "setup" and not latest.get("window") else None
+        if at is not None and parse_time(at) < parse_time(latest["recorded_at"]):
+            head += (f" Its date moves from {latest['recorded_at']} to {at}, when Sentl saved its questions: a run "
+                     "started between is matched against it.")
+            latest["recorded_at"] = at
+        write_json(folder.path("history", "versions", f"{key}-{number:03d}.json"), latest)
+        since = latest["recorded_at"]
     else:
         number = (latest["version"] if latest else 0) + 1
+        at = _saved_at(saved, latest["recorded_at"] if latest else None, now)
+        since = at or now
         write_json(folder.path("history", "versions", f"{key}-{number:03d}.json"), {
             "schema": "sentl-monitor/version@1", "project": key, "version": number, "source": "setup",
-            "recorded_at": now, "seen_at": now, "window": None, "settings": settings, "dimensions": layout,
+            "recorded_at": since, "seen_at": now, "window": None, "settings": settings, "dimensions": layout,
             "changes": changes})
         head = f"Project {key} bound to Sentl project {saved['id']}: version {number} recorded as setup."
+        if at is not None:
+            head += f" It is dated {at}, when Sentl saved its questions."
     binding["projects"][key] = {"project_id": saved["id"], "version": number,
                                 "dimensions": {d["key"]: d["id"] for d in layout},
                                 "questions": {q["key"]: q["id"] for d in layout for q in d["questions"]}}
@@ -407,4 +443,8 @@ def bind(root, key, saved_file, run_file=None):
         lines.append("The project holds no question yet: save its questions, then bind again.")
     if run is None:
         lines.append("No run was given: the saved project was not checked against a run's texts.")
+    again = _to_match_again(folder, key, number, since)
+    if again:
+        lines.append(f"Ingested under another version and started after {since}: run {', '.join(map(str, again))}. "
+                     "Ingest each again: it is matched against this version.")
     return "\n".join(lines + [f"Note (tell the operator): {n}" for n in notes])

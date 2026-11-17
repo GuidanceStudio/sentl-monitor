@@ -326,7 +326,13 @@ the earlier shape, whose `study.json` has no themes.
 ```
 
 `source` is `setup` (saved by the skill), `adopt`, or `detected` (found to differ from the
-previous version by `monitor.py detect`). `seen_at` is the last time a saved
+previous version by `monitor.py detect`). A `setup` version's `recorded_at` is when Sentl saved its
+questions, the latest `updated_at` of the saved response's dimensions and questions, when that time
+falls after the previous version's `recorded_at` and no later than the `bind`; otherwise the time
+of the `bind`. A `bind` that finds the project unchanged moves the latest `setup` version's
+`recorded_at` back to that save time when it is earlier, so a version bound after its runs is
+dated before them; the runs already ingested under the version before are named, and `ingest`
+matches each again. `seen_at` is the last time a saved
 `get-project-tool` response matched the version. A detected version carries `window`: the
 previous version's `seen_at` and the time the difference was found; the edit was made
 between the two. `change` is `created`, `reworded`, `new_intent` (with `replaces`, the key it

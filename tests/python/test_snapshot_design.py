@@ -348,6 +348,74 @@ class IngestSeveralTest(SeveralSnapshotsCase):
         self.assertFalse((self.study / "history" / "runs" / "brand" / "7002.json.gz").exists())
 
 
+class LateBindTest(SeveralSnapshotsCase):
+    """A `bind` after the snapshot's run: the version is dated when Sentl saved the questions (`updated_at`), and a run
+    already ingested under the version before is matched again (found live on 2026-11-17)."""
+
+    SAVED_AT = "2026-11-16T09:30:00+00:00"
+    STARTED = "2026-11-16T10:00:00Z"
+
+    def saved(self, at=SAVED_AT):
+        data = sentl_project(self.design, "brand", IDS["brand"])
+        for d in data["project"]["dimensions"]:
+            for q in d["questions"]:
+                if at is not None:
+                    q["updated_at"] = at
+        return data
+
+    def version(self, number):
+        return json.loads((self.study / "history" / "versions" / f"brand-{number:03d}.json").read_text(encoding="utf-8"))
+
+    def ingest_again(self, run_id=7001):
+        results = self.save(f"run-{run_id}.json", run_of(self.design, "brand", run_id, IDS["brand"], self.STARTED))
+        return self.cli("ingest", "--study", self.study, "--project", "brand", "--results", results, check=0)
+
+    def test_a_snapshot_bound_after_its_run_is_dated_at_the_save_and_the_run_is_matched(self):
+        self.bind(empty_project(self.design, "brand", IDS["brand"]), at="2026-11-16T09:00:00Z")
+        self.bind(self.saved(), at="2026-11-16T11:00:00Z")
+        self.assertEqual(self.version(2)["recorded_at"], "2026-11-16T09:30:00Z")
+        self.ingest("brand", 7001, self.STARTED)
+        stored = self.read_run("brand", 7001)
+        self.assertEqual(stored["version"], 2)
+        self.assertGreater(stored["expected"], 0)
+        self.assertEqual(stored["judged"], stored["received"])
+
+    def test_a_run_ingested_before_a_late_bind_is_matched_again(self):
+        self.bind(empty_project(self.design, "brand", IDS["brand"]), at="2026-11-16T09:00:00Z")
+        self.ingest("brand", 7001, self.STARTED)
+        self.assertEqual(self.read_run("brand", 7001)["judged"], 0)
+        self.bind(self.saved(), at="2026-11-16T11:00:00Z")
+        proc = self.ingest_again()
+        self.assertIn("matched again", proc.stdout)
+        stored = self.read_run("brand", 7001)
+        self.assertEqual(stored["version"], 2)
+        self.assertEqual(stored["judged"], stored["received"])
+
+    def test_a_bind_with_no_change_leaves_the_ingested_runs_as_they_are(self):
+        self.bind(empty_project(self.design, "brand", IDS["brand"]), at="2026-11-16T09:00:00Z")
+        self.bind(self.saved(), at="2026-11-16T09:31:00Z")
+        self.ingest("brand", 7001, self.STARTED)
+        before = (self.study / "history" / "runs" / "brand" / "7001.json.gz").read_bytes()
+        self.bind(self.saved(), at="2026-11-16T12:00:00Z")
+        self.assertIn("already ingested; nothing changed", self.ingest_again().stdout)
+        self.assertEqual((self.study / "history" / "runs" / "brand" / "7001.json.gz").read_bytes(), before)
+
+    def test_a_version_recorded_late_is_dated_at_the_save_by_a_second_bind(self):
+        self.bind(empty_project(self.design, "brand", IDS["brand"]), at="2026-11-16T09:00:00Z")
+        self.bind(self.saved(at=None), at="2026-11-16T11:00:00Z")  # a response without updated_at: dated at the bind
+        self.assertEqual(self.version(2)["recorded_at"], "2026-11-16T11:00:00Z")
+        proc = self.bind(self.saved(), at="2026-11-16T12:00:00Z")
+        self.assertIn("2026-11-16T09:30:00Z", proc.stdout)
+        self.assertEqual(self.version(2)["recorded_at"], "2026-11-16T09:30:00Z")
+        self.ingest("brand", 7001, self.STARTED)
+        self.assertEqual(self.read_run("brand", 7001)["version"], 2)
+
+    def test_a_save_before_the_previous_version_dates_the_new_version_at_the_bind(self):
+        self.bind(empty_project(self.design, "brand", IDS["brand"]), at="2026-11-16T09:00:00Z")
+        self.bind(self.saved(at="2026-11-16T08:00:00+00:00"), at="2026-11-16T11:00:00Z")
+        self.assertEqual(self.version(2)["recorded_at"], "2026-11-16T11:00:00Z")
+
+
 class CloseSeveralTest(SeveralSnapshotsCase):
 
     def test_close_needs_the_snapshot_when_the_folder_holds_several(self):

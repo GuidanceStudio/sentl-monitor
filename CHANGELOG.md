@@ -44,6 +44,10 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
 - `download` and `import` read an `export-runs-tool` file of `schema_version` 2, where a snapshot's project has no
   `schedule_frequency` and no `is_active`; `get-project-tool`'s response of that shape is read too. A later version is
   still refused with exit 5.
+- `bind` dates a version at the time Sentl saved its questions (`updated_at`), not at the time it runs, so a project or
+  snapshot bound after its runs has those runs matched against its questions. A `bind` that finds the project
+  unchanged corrects a version recorded late in the same way, and names the runs ingested under the version before.
+  `ingest` of a run already ingested matches it again when the version in force at its start changed, and says so.
 
 ## 0.12.0 (2026-11-16)
 

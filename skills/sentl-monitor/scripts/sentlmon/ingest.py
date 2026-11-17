@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from . import schema
 from .adopt import criteria_hash
 from .common import (FINAL, Refused, Study, domain_of, load_json, match_key, mean, now_iso, parse_time,
-                     write_gz, write_json)
+                     read_gz, write_gz, write_json)
 
 
 class NotFinal(Exception):
@@ -239,14 +239,18 @@ def ingest(root, key, results_file):
         raise NotFinal(f"run {run_id} has status {status!r}, not final: it is read again at the next invocation")
 
     target = folder.path("history", "runs", key, f"{run_id}.json.gz")
-    if target.exists():
-        _clear_unavailable(folder, key, run_id)
-        return f"Run {run_id} already ingested; nothing changed."
-
     versions = folder.versions(key)
+    tried = candidates(versions, run["started_at"])
+    again = target.exists()
+    if again:
+        # Matched again only when the version in force at its start changed since, as after a late `bind`.
+        before = read_gz(target).get("version")
+        if not tried or before in [v["version"] for v in tried]:
+            _clear_unavailable(folder, key, run_id)
+            return f"Run {run_id} already ingested; nothing changed."
+
     if not versions:
         raise Refused(f"no recorded version for project {key!r}: run adopt first")
-    tried = candidates(versions, run["started_at"])
     unknown = []
     if len(tried) == 2:
         later, earlier = (_fit(v, run["responses"]) for v in tried)
@@ -319,6 +323,9 @@ def ingest(root, key, results_file):
 
     lines = [f"Ingested run {run_id} of {key} ({status}, started {run.get('started_at')}): "
              f"{len(responses)} received, {judged} judged of {expected} expected, {len(unmatched)} unmatched."]
+    if again:
+        lines.append(f"Run {run_id} matched again: it was ingested under version {before}, and version "
+                     f"{snapshot['version']} is in force at its start (tell the operator).")
     if unmatched:
         lines.append("Unmatched responses, kept and excluded from every figure (tell the operator):")
         lines += [f"  {u['asked']['dimension']}: {u['asked']['question']} ({u['model']})"
