@@ -536,6 +536,7 @@ the deck and the new pack and, when the host has Projects, to put the pack in th
 previous one: the next conversation reads it from there.
 
 In the chat, never in the deck: where the copy to send is, why a result the deck shows has no action, the choices open to doubt, anything in the data that looks
-wrong, what you could not check on the subject's site, what the reader's test and the last audit left open, and the results left
-out for resting on too few answers. When the deck follows `report`, add what `report/REPORT.md` step 7 lists. The operator
+wrong, what you could not check on the subject's site, what the reader's test and the last audit left open, the results left
+out for resting on too few answers, and the foils `deck` names as having no domains: their sites count among the other
+sites, and with no foil's domains the sources slide draws no column of competitors' pages. When the deck follows `report`, add what `report/REPORT.md` step 7 lists. The operator
 sends the deck: never send it yourself.

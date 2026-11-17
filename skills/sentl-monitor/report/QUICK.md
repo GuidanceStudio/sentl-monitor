@@ -18,7 +18,8 @@ in an assistant's own words. The actions come last, after the evidence they rest
 ## What the code does and what you write
 
 The code draws every slide from the period: the cover; slide 2, "In sintesi" ("In short"), with each project's name and
-figure, its rows added up; one slide per project, a second one when a project has more than six topics; one row per topic
+figure, its rows added up (with several projects, the caption of the favourable answers leaves out the subject, since the
+figure is the project's; the answers naming the subject keep it); one slide per project, a second one when a project has more than six topics; one row per topic
 with its figure; the slide "Azioni suggerite" ("Suggested actions"), which marks each action as work on the subject's own
 pages or a check; and a last slide with the sites the answers cite most and how the answers were read. A topic whose questions name no subject shows the answers naming the subject, x of y, and the competitor named
 most; any other shows the favourable answers, x of y, with a bar of favourable, neutral and unfavourable. You write only

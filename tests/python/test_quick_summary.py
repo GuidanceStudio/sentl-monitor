@@ -166,6 +166,69 @@ class SummaryRoomTest(QuickCase, unittest.TestCase):
                       "on the summary: shorten", self.problems(self.at(deck.SUMMARY_WORDS + 1)))
 
 
+class OneProjectSummaryTest(QuickCase, unittest.TestCase):
+    """A quick summary of one project is drawn as before M39 T17, its captions naming the subject."""
+
+    def test_it_is_drawn_as_before(self):
+        doc = self.filled()
+        self.save_doc(doc)
+        summary = quick.page_of(self.study, DATE)[0].split("<section ")[2]
+        self.assertEqual(
+            summary[:summary.index("<footer")],
+            f'class="slide found"><div class="kicker">In sintesi</div><h1>{doc["summary"]["title"]}</h1>'
+            '<div class="summary one"><div class="sum-row"><div class="sum-group">Mercato</div>'
+            '<div class="sum-figs many"><div class="sum-fig">0 <small>su 2</small></div>'
+            '<div class="sum-cap">risposte che nominano Avenello</div><div class="sum-fig">3 <small>su 4</small></div>'
+            '<div class="sum-cap">risposte favorevoli a Avenello</div></div>'
+            f'<p class="sum-a">{doc["summary"]["projects"]["market"]}</p></div></div>')
+
+
+class SeveralProjectsSummaryTest(QuickCase, unittest.TestCase):
+    """On a quick summary of several projects, each named after a part of the subject, a caption under a project's
+    figure leaves out the subject where it read as the whole subject's figure; presence still counts the answers naming
+    it (M39 T17, as T16 on the full deck's summary)."""
+
+    REACH = {"named": 1, "given": 4, "foils": []}
+    RATED = {"judged": 6, "bands": {"4-5": 4, "3": 1, "1-2": 1}}
+
+    def plan(self, *names):
+        return [{"key": f"p{n}", "name": name, "rows": [{"reach": self.REACH, "description": self.RATED}]}
+                for n, name in enumerate(names)]
+
+    def captions(self, plan, lang="it", fidelity=False):
+        page = quick._summary_html({}, {"subject": "Avenello", "fidelity": fidelity}, deck.DECK[lang], plan)
+        return re.findall(r'<div class="sum-cap">([^<]*)</div>', page)
+
+    def test_the_captions_of_two_projects_leave_out_the_subject_except_on_presence(self):
+        self.adopt_audience("trade", 602, "Avenello · Chi lavora nel settore", 9201, OCT[0], rows())
+        self.build(DATE)
+        self.path.unlink()
+        self.cli("deck", "--quick", "--study", self.study, "--date", DATE, check=0)
+        self.save_doc(self.filled())
+        summary = quick.page_of(self.study, DATE)[0].split("<section ")[2]
+        self.assertEqual(summary.count('<div class="sum-group">'), 2)
+        self.assertEqual(summary.count('<div class="sum-cap">risposte che nominano Avenello</div>'), 2)
+        self.assertEqual(summary.count('<div class="sum-cap">risposte favorevoli</div>'), 2)
+        self.assertNotIn("favorevoli a Avenello", summary)
+
+    def test_only_presence_names_the_subject_in_either_language_and_score(self):
+        for lang in ("it", "en"):
+            for fidelity in (False, True):
+                with self.subTest(lang=lang, fidelity=fidelity):
+                    reach, description = self.captions(self.plan("Mercato", "Chi lavora nel settore"), lang, fidelity)[:2]
+                    self.assertIn("Avenello", reach)
+                    self.assertNotIn("Avenello", description)
+        self.assertEqual(self.captions(self.plan("Mercato", "Chi lavora nel settore"), "en")[:2],
+                         ["answers naming Avenello", "favourable answers"])
+
+    def test_the_facts_caption_names_no_subject_either(self):
+        for lang in ("it", "en"):
+            self.assertNotIn("{subject}", deck.DECK[lang]["summary_caption_several"]["facts"])
+
+    def test_one_project_keeps_the_subject_in_its_captions(self):
+        self.assertEqual(self.captions(self.plan("Mercato")), ["risposte che nominano Avenello", "risposte favorevoli a Avenello"])
+
+
 class SnapshotNameTest(QuickCase, unittest.TestCase):
     """A project named as SNAPSHOT.md names a snapshot is shown by its project part (M39 T15)."""
 

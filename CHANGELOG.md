@@ -62,6 +62,12 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   action of two lines, it fits a page. A summary that still runs over with each of the writer's texts cut to one word
   is reported as the code's ("the figures the code draws on slide 3 run over the page by themselves: report it") in
   place of asking the writer to shorten.
+- The sources slide draws the column of answers citing competitors' pages only when a foil in `study.json` carries
+  `domains`; without them it printed "0 of 120" beside a competitor's site listed among the other sites. `deck` names
+  the foils without domains, whose sites count among the third parties. The line under the table lists every action
+  naming a site ("avenello.example (azioni 1 e 3)"), where it kept the first one only. On a quick summary of several
+  projects the caption of the favourable answers leaves out the subject ("risposte favorevoli"), as on the full deck;
+  the answers naming the subject keep it, and a quick summary of one project is drawn as before.
 
 ## 0.12.0 (2026-11-16)
 

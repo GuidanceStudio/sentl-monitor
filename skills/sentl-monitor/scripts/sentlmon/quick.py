@@ -599,9 +599,12 @@ def _row_html(row, filled, m, t, q):
 
 
 def _summary_html(doc, m, t, plan):
-    """Slide 2: per project its figures, drawn by the code, and the writer's sentence on what lies behind them."""
+    """Slide 2: per project its figures, drawn by the code, and the writer's sentence on what lies behind them. Under
+    several projects a caption leaves out the subject where it would read as the project's: under a project named after a
+    part of the subject, "favourable to <subject>" read as the whole subject's figure. Presence still counts the answers
+    naming the subject (M39 T17, as T16 on the full deck)."""
     title, written = _summary_of(doc)
-    captions = t["summary_caption"]
+    captions = t["summary_caption_several" if len(plan) > 1 else "summary_caption"]
     rows = ""
     for p in plan:
         shown = _headlines(p)

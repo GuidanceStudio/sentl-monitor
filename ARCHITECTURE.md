@@ -1282,9 +1282,14 @@ pass only beside the count that says so. It keeps an action answerable: its reas
 answer, since one answer in a hundred can come from a document years old, it names a site cited by at least five answers, and one in twenty, on that slide's questions, it does not dictate what the study does not record, and one action at
 least is on the subject's own pages, since those are the only ones the reader controls. The sources slide prints beside each site the answers citing it and, beside a site an action names on the questions without the name, how many of them name the subject: the reason for acting
 on a site is that count, and a sentence on what the site publishes was a guess the audit kept finding false. The slide
-also says which sites the actions are about, with each action's number, and groups the review sites (`REVIEW_SITES`, read
-from the site's name) on one line with the answers citing any of them. It asks nobody why a site has no action: a rule
-asking that made writers explain, site by site, sites the reader was never going to act on.
+also says which sites the actions are about, each with the number of every action naming it ("avenello.example (azioni 1
+e 3)": a site keeping its first action's number alone read as concerning that action only, M39 T17), and groups the review
+sites (`REVIEW_SITES`, read from the site's name) on one line with the answers citing any of them. It asks nobody why a
+site has no action: a rule asking that made writers explain, site by site, sites the reader was never going to act on.
+The column of answers citing competitors' pages, and its count in the figures file, stand only when a foil in
+`study.json` carries `domains`: without them no cited site can be told a competitor's, and the column printed "0 of 120" beside a
+competitor's site listed among the other sites (M39 T17). `deck` names the foils without domains, whose sites count
+among the third parties.
 The deck prints beside an action on a third
 party how many answers cite the site, and on the action's slide the page they cite most, because a reader asked to write to a
 site needs to know why that site and about which page. The figures file lists the other pages cited most, so the writer can
@@ -1385,7 +1390,9 @@ section of its own, and `reports/<date>.quick.json` (schema `sentl-monitor/quick
 and the actions in place, its slides kept): a summary, one slide per project of the period, split evenly when a project
 has more than six topics, one row per topic with answers, and one to three suggested actions. The code draws the cover,
 the summary's figures (per project, its rows added up: the answers naming the subject and the favourable answers,
-`quick._headlines`), each row's figure (answers naming the subject, x of y, beside the competitor named most, for
+`quick._headlines`; with several projects the favourable answers' caption leaves out the subject, which under a project
+named after a part of it read as the whole subject's figure, while presence keeps "answers naming <subject>", M39 T17),
+each row's figure (answers naming the subject, x of y, beside the competitor named most, for
 questions that name no subject; favourable x of y with the neutral and unfavourable answers otherwise; both when a topic
 has both kinds), the actions table and a last slide with the eight sites cited most on each kind of question and how the
 answers were read. The writer fills the summary's title and one sentence per project, each slide's question and title,

@@ -698,6 +698,11 @@ def build_model(folder, study, period, doc=None):
             "makers": _makers(models, names), "maker_list": _maker_list(models, names), "spread": sorted(given.items(), key=lambda kv: (-kv[1], -kv[0])),
             "purpose": narrative.get("purpose"), "origins": origins,
             "monitored": [f["label"] for f in study.get("foils") or []],
+            # A cited site is told a competitor's only by a foil's domains: without any, the competitors' pages count
+            # nothing, and the foils lacking them have their sites counted among the third parties.
+            "foil_sites": bool(reader.foil_domains),
+            "foils_without_domains": [label for label, _ in reader.foil_names
+                                      if label not in dict(reader.foil_domains)],
             "repeated": any(r["answers"] > r["questions"] * len(r["assistants"]) for r in method),
             "by": (narrative.get("criteria") or {}).get("by"), "first": not (period.get("comparison") or {}).get("previous"),
             "snapshot": study.get("kind") == "snapshot",
@@ -846,11 +851,12 @@ def _plan(m, study, date, lang):
             # The facts block counts the answers stating a fact, which its questions' blocks already count by source.
             out.append("")
             continue
-        out += ["", f"Sources: of {s['answers']} answers, {s['owned']} cite the subject's pages, {s['foil']} competitors' "
-                    f"pages, {s['third']} other sites.",
+        # Without a foil's domains no site is told a competitor's: the deck draws no such count, and neither does this.
+        foil = f"{s['foil']} competitors' pages, " if m["foil_sites"] else ""
+        out += ["", f"Sources: of {s['answers']} answers, {s['owned']} cite the subject's pages, {foil}{s['third']} other sites.",
                 f"other sites cited most: {counted(s['third_domains']) if key == 'reach' else listed(s['third_domains'], True)}",
-                "other pages cited most: " + ", ".join(f"{p} ({n})" for p, n in s["third_pages"]),
-                f"competitors' domains cited most: {listed(s['foil_domains'])}"]
+                "other pages cited most: " + ", ".join(f"{p} ({n})" for p, n in s["third_pages"])]
+        out += [f"competitors' domains cited most: {listed(s['foil_domains'])}"] * m["foil_sites"]
         reviews = s.get("reviews") or {}
         if reviews.get("answers"):
             naming = f", {reviews['naming']} of which name the subject" if key == "reach" else ""
@@ -946,7 +952,17 @@ def write(root, date=None):
     blocks = ", ".join(f"{b} ({len(m['blocks'][b]['questions' if b == 'facts' else 'placed'])} questions)" for b in present(m))
     notes = folder.path("history", "deck", f"{date}.notes.md")
     earlier = f" Notes of an earlier session: {notes}. Read them first." if notes.exists() else ""
-    return f"Blocks: {blocks}. Figures: {figures}. To fill: {path}, {path.read_text(encoding='utf-8').count(TODO)} texts left.{earlier}"
+    return (f"Blocks: {blocks}. Figures: {figures}. To fill: {path}, {path.read_text(encoding='utf-8').count(TODO)} texts "
+            f"left.{_unsited(m)}{earlier}")
+
+
+def _unsited(m):
+    """The operator's line on the foils without domains, whose sites the deck cannot tell from a third party's."""
+    if not m["foils_without_domains"]:
+        return ""
+    column = "" if m["foil_sites"] else ", and the sources slide draws no column of competitors' pages"
+    return (f" Foils with no domains in study.json: {', '.join(m['foils_without_domains'])}. Their sites are counted among "
+            f"the third parties{column}. Add their domains (foils[].domains) to count them apart.")
 
 
 # --- the check --------------------------------------------------------------
@@ -2800,18 +2816,28 @@ def _reviews_cell(reviews, t):
 
 
 def _action_sites(doc, t):
-    """The sites the actions are about, each with its action's number: the reader sees why these and no others."""
+    """The sites the actions are about, each with the numbers of every action naming it: the reader sees why these and
+    no others. A site keeping its first action's number alone read as concerning that action only (M39 T17)."""
     sites = {}
     for n, a in enumerate(doc.get("actions") or [], 1):
         for d in map(str.lower, DOMAIN.findall(a.get("what") or "")):
-            sites.setdefault(d, n)
-    found = [t["action_ref"].format(site=d, n=n) for d, n in sites.items()]
-    listed = ", ".join(found[:-1]) + f' {t["and"]} ' + found[-1] if len(found) > 1 else "".join(found)
-    return t["sources_actions"].format(sites=listed) if found else ""
+            if n not in sites.setdefault(d, []):
+                sites[d].append(n)
+
+    def listed(items):
+        return ", ".join(items[:-1]) + f' {t["and"]} ' + items[-1] if len(items) > 1 else "".join(items)
+    found = [t["action_ref" if len(ns) == 1 else "action_refs"].format(site=d, n=listed([str(n) for n in ns]))
+             for d, ns in sites.items()]
+    return t["sources_actions"].format(sites=listed(found)) if found else ""
 
 
 def _sources_table(doc, m, t, subject):
-    head = "".join(f"<th>{esc(c.format(subject=subject))}</th>" for c in t["sources_head"])
+    """The answers citing each kind of source, block by block. The competitors' pages are a column only when a foil
+    carries its domains: without them the column printed 0 beside a competitor's site listed among the others (M39 T17)."""
+    kinds = ("owned", "foil", "third") if m.get("foil_sites") else ("owned", "third")
+    group, owned, foil, third, sites = t["sources_head"]
+    heads = [group, owned, *([foil] if m.get("foil_sites") else []), third, sites]
+    head = "".join(f"<th>{esc(c.format(subject=subject))}</th>" for c in heads)
     named = " ".join(a.get("what") or "" for a in doc.get("actions") or [])
     rows = []
     for key in present(m):
@@ -2819,7 +2845,7 @@ def _sources_table(doc, m, t, subject):
         if not s["with_sources"]:
             continue
         n = s["answers"]
-        cells = "".join(f'<td><span class="fig">{_of(s[k], n, t)}</span>{_meter(s[k], n, True)}</td>' for k in ("owned", "foil", "third"))
+        cells = "".join(f'<td><span class="fig">{_of(s[k], n, t)}</span>{_meter(s[k], n, True)}</td>' for k in kinds)
         # A site an action names is on the slide, whatever its rank: the reader asks why that one. Review sites stand
         # together, on one line.
         shown = {d["domain"]: d["answers"] for d in s["third_domains"] if not _review(d["domain"])}
