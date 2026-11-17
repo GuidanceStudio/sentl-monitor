@@ -7,7 +7,8 @@ import unittest
 from unittest import mock
 
 import fixtures  # noqa: F401  (puts the skill's scripts on the path)
-from sentlmon import deck
+from sentlmon import deck, fit
+from sentlmon import theme as sentl_theme
 from test_deck import DATE
 from test_deck_brief import Rendered, words
 from test_deck_presence import AWAY, HOME, reach_row
@@ -189,6 +190,145 @@ class SummaryRoomTest(Rendered, unittest.TestCase):
     def test_one_word_over_is_refused(self):
         self.assertIn(f"slide 3 holds {deck.SUMMARY_WORDS + 1} words of the writer's texts, at most {deck.SUMMARY_WORDS} "
                       "on the summary: shorten found title", self.problems(self.at(deck.SUMMARY_WORDS + 1)))
+
+
+def found_height(case, doc):
+    """The estimated height of the summary slide of `doc`."""
+    folder, study, period, _ = case.model_args(doc)
+    m = deck.build_model(folder, study, period, doc)
+    order, slides = deck._slides(study, period, doc, m, sentl_theme.resolve(folder)[0])
+    return fit.heights(slides[[kind for kind, _, _ in order].index("found")], deck.STYLE)[0]
+
+
+def lines(markup, line, text):
+    """The lines `text` takes in `markup`, where {} stands for it, on a summary slide: read from the estimate against a
+    text of one word, `line` px a line."""
+    height = lambda t: fit.heights(f'<section class="slide found">{markup.format(t)}</section>', deck.STYLE)[0]
+    return 1 + round((height(text) - height("parola")) / line)
+
+
+class SeveralFiguresTest(unittest.TestCase):
+    """A block of several figures puts each project's name on a line of its own above its figure, under a caption
+    without the subject, which the names give (M39 T16)."""
+
+    TWO = [{"project": "Mercato", "a": 9, "b": 10}, {"project": "Chi lavora nel settore", "a": 2, "b": 8}]
+
+    def html(self, key, lang="it", fidelity=False):
+        m = {"subject": "Avenello", "fidelity": fidelity, "blocks": {key: {"figures": self.TWO}}}
+        return deck._headline_html(key, m, deck.DECK[lang])
+
+    def test_each_project_s_name_stands_on_its_own_line_above_its_figure(self):
+        self.assertIn('<div class="sum-name">Mercato</div><div class="sum-fig">9 <small>su 10</small></div>'
+                      '<div class="sum-name">Chi lavora nel settore</div><div class="sum-fig">2 <small>su 8</small></div>',
+                      self.html("description"))
+        self.assertNotIn("<span>", self.html("description"))
+
+    def test_the_caption_leaves_out_the_subject_except_on_presence(self):
+        self.assertIn('<div class="sum-cap">risposte favorevoli</div>', self.html("description"))
+        self.assertIn('<div class="sum-cap">favourable answers</div>', self.html("description", "en"))
+        self.assertIn('<div class="sum-cap">risposte che nominano Avenello</div>', self.html("reach"))
+        for key in set(deck.BLOCKS) - {"reach"}:
+            for lang in ("it", "en"):
+                for fidelity in (False, True):
+                    with self.subTest(key=key, lang=lang, fidelity=fidelity):
+                        self.assertNotIn("Avenello", self.html(key, lang, fidelity))
+
+
+class OneFigureSummaryTest(Rendered, unittest.TestCase):
+    """A summary of one figure a block, the common case, is drawn as before M39 T16."""
+
+    def test_its_figures_and_captions_are_drawn_as_before(self):
+        page = self.section(self.filled(), "found")
+        self.assertIn('<div class="summary"><div class="sum-row">', page)
+        for a, b, caption in ((0, 2, "risposte che nominano Avenello"), (3, 4, "risposte favorevoli a Avenello"),
+                              (1, 2, "risposte che riportano il dato di oggi")):
+            self.assertIn(f'<div class="sum-figs"><div class="sum-fig">{a} <small>su {b}</small></div>'
+                          f'<div class="sum-cap">{caption}</div></div>', page)
+        self.assertNotIn("sum-name", page)
+
+    def test_its_height_is_the_one_estimated_before(self):
+        doc = self.filled()
+        self.save_doc(doc)
+        self.assertAlmostEqual(found_height(self, doc), 564.35, delta=0.01)
+
+
+def hundreds(headlines):
+    """`deck._headlines` with three digits in each count, as a study of a hundred answers a block draws them: the
+    fixture's counts of one digit leave a project's name room beside its figure."""
+    return lambda figures: [(project, 100 + a, 130 + b) for project, a, b in headlines(figures)]
+
+
+class SeveralFiguresFitTest(Rendered, unittest.TestCase):
+    """Two figures in two of the three blocks, of three digits beside project names of four words: with a one-line
+    title, three found answers of two lines and a first action of two lines, the summary fits its page (M39 T16)."""
+
+    ANSWERS = {"reach": "Chi chiede la bevanda migliore per colazione sente indicare Avoria o una marca del discount.",
+               "description": "Le risposte sfavorevoli riguardano il prezzo al litro, che i clienti trovano alto.",
+               "facts": "Le risposte con il prezzo sbagliato riportano quello vecchio della pagina dei punti vendita."}
+    WHAT = "Pubblicare su avenello.example una pagina che confronti la bevanda con Avoria per prezzo al litro, ingredienti e punti vendita"
+
+    def setUp(self):
+        super().setUp()
+        self.adopt_audience("trade", 602, "Avenello · Chi lavora nel settore", 9201, OCT[0], rows())
+        study = self.read("study.json")
+        study["projects"][0]["name"] = "Avenello · Chi compra al supermercato"
+        (self.study / "study.json").write_text(deck.json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.build(DATE)
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+        patcher = mock.patch.object(deck, "_headlines", hundreds(deck._headlines))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def doc(self):
+        doc = self.filled()
+        doc["found"]["answers"] = dict(self.ANSWERS)
+        doc["actions"][0]["what"] = self.WHAT
+        doc["blocks"]["description"][0]["rows"] = "questions"
+        return doc
+
+    def test_the_texts_have_the_shape_measured(self):
+        doc = self.doc()
+        page = self.section(doc, "found")
+        self.assertEqual(page.count('class="sum-name"'), 4)
+        self.assertIn('<div class="sum-name">Chi compra al supermercato</div><div class="sum-fig">100 <small>su 132</small>', page)
+        self.assertEqual(lines("<h1>{}</h1>", 36, doc["found"]["title"]), 1)
+        for key, text in self.ANSWERS.items():
+            with self.subTest(key):
+                self.assertEqual(lines('<div class="summary several"><div class="sum-row"><div class="sum-group"></div>'
+                                       '<div class="sum-figs"></div><p class="sum-a">{}</p></div></div>', 28.6, text), 2)
+        self.assertEqual(lines('<p class="sum-action"><b>Prima azione suggerita:</b> {} <span>Tutte le azioni: slide 8</span></p>',
+                               26, self.WHAT), 2)
+        self.assertLessEqual(sum(deck.words(t) for t in (doc["found"]["title"], *self.ANSWERS.values(), self.WHAT)),
+                             deck.SUMMARY_WORDS)
+
+    def test_the_summary_fits_its_page(self):
+        doc = self.doc()
+        self.save_doc(doc)
+        self.assertLessEqual(found_height(self, doc), fit.PAGE_HEIGHT)
+        folder, study, period, _ = self.model_args(doc)
+        self.assertEqual(deck._overflowing(folder, study, period, doc, deck.build_model(folder, study, period, doc)), [])
+
+
+class DrawnOverTest(Rendered, unittest.TestCase):
+    """What the code draws on the summary can run over its page whatever the writer cuts: `check` says so and asks
+    nobody to shorten (M39 T16)."""
+
+    def test_the_figures_running_over_by_themselves_are_reported(self):
+        doc = self.filled()
+        self.save_doc(doc)
+        with mock.patch.object(fit, "PAGE_HEIGHT", found_height(self, {**doc, "found": {}, "actions": []}) - 40):
+            found = self.problems(doc)
+        self.assertIn("the figures the code draws on slide 3 run over the page by themselves: report it", found)
+        self.assertNotIn("slide 3 runs over its page", found)
+
+    def test_texts_the_writer_can_shorten_are_named_as_before(self):
+        doc = self.filled()
+        self.save_doc(doc)
+        doc["found"]["title"] = " ".join(["Chi cerca una bevanda all'avena trova Avoria"] * 3)
+        with mock.patch.object(fit, "PAGE_HEIGHT", found_height(self, doc) - 20):
+            found = self.problems(doc)
+        self.assertIn("slide 3 runs over its page by about 1 line of text: shorten the found title or answers", found)
+        self.assertNotIn("the figures the code draws", found)
 
 
 class SnapshotNameTest(Rendered, unittest.TestCase):

@@ -202,6 +202,10 @@ h1 { font-size: 30px; line-height: 1.2; color: var(--sl-deep); margin: 0; font-w
 .many .sum-fig { font-size: 32px; }
 .many .sum-fig small { font-size: 19px; }
 .sum-cap { font-size: 15px; line-height: 1.25; color: var(--sl-muted); }
+.sum-name { font-size: 15px; line-height: 1.2; font-weight: 700; color: var(--sl-muted); margin-top: 4px; }
+.sum-name:first-child { margin-top: 0; }
+.summary.several { gap: 10px; }
+.several .sum-row { grid-template-columns: 230px 240px 1fr; padding: 12px 24px; }
 .sum-a { margin: 0; font-size: 22px; line-height: 1.3; font-weight: 600; }
 .one .sum-row { padding: 28px 30px; }
 .one .sum-fig { font-size: 64px; }
@@ -2551,13 +2555,25 @@ def _headlines(figures):
     return [(project, a, b) for project, (a, b) in out.items()]
 
 
+def _several(m):
+    """Whether a block of the summary draws a figure per project."""
+    return any(len(_headlines(m["blocks"][key]["figures"])) > 1 for key in present(m))
+
+
 def _headline_html(key, m, t):
+    """A block's figure on the summary, over its caption. Several figures stand each under its project's name, on a
+    line of its own, and their caption leaves out the subject where it would read as the project's (under a project
+    named after a part of the subject, "favourable to <subject>" read as the whole subject's figure); presence still
+    counts the answers naming the subject (M39 T16)."""
     shown = _headlines(m["blocks"][key]["figures"])
-    caption = t["summary_caption"]["description_fidelity" if key == "description" and m["fidelity"] else key]
-    figures = "".join(f'<div class="sum-fig">{a} <small>{t["of"]} {b}</small>'
-                      + (f" <span>{esc(project)}</span>" if project else "") + "</div>" for project, a, b in shown)
-    many = " many" if len(shown) > 1 else ""
-    return f'<div class="sum-figs{many}">{figures}<div class="sum-cap">{esc(caption.format(subject=m["subject"]))}</div></div>'
+    kind = "description_fidelity" if key == "description" and m["fidelity"] else key
+    if len(shown) > 1:
+        figures = "".join(f'<div class="sum-name">{esc(project)}</div><div class="sum-fig">{a} <small>{t["of"]} {b}</small></div>'
+                          for project, a, b in shown)
+        return f'<div class="sum-figs many">{figures}<div class="sum-cap">{esc(t["summary_caption_several"][kind].format(subject=m["subject"]))}</div></div>'
+    figures = "".join(f'<div class="sum-fig">{a} <small>{t["of"]} {b}</small></div>' for _, a, b in shown)
+    caption = t["summary_caption"][kind].format(subject=m["subject"])
+    return f'<div class="sum-figs">{figures}<div class="sum-cap">{esc(caption)}</div></div>'
 
 
 def _summary_slide(doc, m, t, order):
@@ -2573,7 +2589,7 @@ def _summary_slide(doc, m, t, order):
         n = next((i for i, (kind, _, _) in enumerate(order, 1) if kind == "actions"), "")
         first = (f'<p class="sum-action"><b>{esc(t["first_action"])}:</b> {esc(actions[0].get("what") or "")} '
                  f'<span>{esc(t["all_actions"].format(n=n))}</span></p>')
-    size = " one" if len(present(m)) == 1 else ""
+    size = " one" if len(present(m)) == 1 else " several" if _several(m) else ""
     return f'{_kicker(t["found_kicker"])}<h1>{esc(found.get("title"))}</h1><div class="summary{size}">{rows}</div>{first}'
 
 
@@ -3010,17 +3026,34 @@ def _on_slide(kind, key, n, slide, doc):
 def _overflowing(folder, study, period, doc, m):
     """The slides the estimate finds taller than their page, which the print would carry onto one more. A deck that
     passes here still prints with `pdf`, whose page count is the final word. The lists of questions are flowed
-    by the code, never by the writer."""
+    by the code, never by the writer, and a summary still over its page with each of the writer's texts cut to one
+    word is the code's to fix: no text the writer shortens makes it fit."""
     chosen = sentl_theme.resolve(folder)[0]
+    css = STYLE + (chosen.get("css") or "")
     order, slides = _slides(study, period, doc, m, chosen)
     seen, out = Counter(), []
-    for n, ((kind, key, slide), height) in enumerate(zip(order, fit.heights("".join(slides), STYLE + (chosen.get("css") or ""))), 1):
+    for n, ((kind, key, slide), height) in enumerate(zip(order, fit.heights("".join(slides), css)), 1):
         seen[key] += 1
-        if kind != "questions" and height > fit.PAGE_HEIGHT:
-            lines = math.ceil((height - fit.PAGE_HEIGHT) / READ_LINE)
-            out.append(f"slide {n} runs over its page by about {lines} line{'s' * (lines > 1)} of text: shorten "
-                       f"{_on_slide(kind, key, seen[key], slide, doc)}")
+        if kind == "questions" or height <= fit.PAGE_HEIGHT:
+            continue
+        if kind == "found" and fit.heights(_slides(study, period, _least(doc), m, chosen)[1][n - 1], css)[0] > fit.PAGE_HEIGHT:
+            out.append(f"the figures the code draws on slide {n} run over the page by themselves: report it")
+            continue
+        lines = math.ceil((height - fit.PAGE_HEIGHT) / READ_LINE)
+        out.append(f"slide {n} runs over its page by about {lines} line{'s' * (lines > 1)} of text: shorten "
+                   f"{_on_slide(kind, key, seen[key], slide, doc)}")
     return out
+
+
+def _least(doc):
+    """`doc` with the writer's texts on the summary cut to their first word: the least room they can take."""
+    first = lambda text: (str(text or "").split() or [""])[0]
+    found = doc.get("found") or {}
+    actions = [dict(a) for a in doc.get("actions") or []]
+    if actions:
+        actions[0]["what"] = first(actions[0].get("what"))
+    return {**doc, "actions": actions, "found": {**found, "title": first(found.get("title")),
+                                                 "answers": {k: first(a) for k, a in (found.get("answers") or {}).items()}}}
 
 
 def _slide_texts(kind, key, n, slide, doc):

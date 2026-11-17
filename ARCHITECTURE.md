@@ -1312,7 +1312,11 @@ the questions about the subject were not asked about the competitors; the line u
 answers naming each name, the subject's position and the names it could swap with. Evidence slides drawing their questions
 number them, and an excerpt of one is captioned with its number; the action under them prints its what and its page, and the
 count of the site it names stands once, on the actions slide, unless its reason already gives it. The summary draws no
-chart: a row per group with its label, its figure in large type and its sentence, the row of a deck with one block larger. A slide drawing one row holds up to three excerpts, each
+chart: a row per group with its label, its figure in large type and its sentence, the row of a deck with one block larger. A
+block drawing a figure per project puts each project's name on a line of its own above its figure, under a caption without
+the subject, which the row's label gives; the summary then draws its rows tighter and its figures column at the width of
+those captions (M39 T16: beside its figure a project's name wrapped, and a row of two figures stood 212 px tall beside a
+found answer of 57). A slide drawing one row holds up to three excerpts, each
 from a different assistant; any other slide holds two. A question with fewer than three answers counts in its topic and in the list of
 questions, and draws no row and no excerpt: one answer of two is no finding. The description question with the most unfavourable answers
 is drawn as a row of its own on an evidence slide, with an excerpt of one of those answers on that slide, and the excerpts
@@ -1360,7 +1364,9 @@ between two characters (after a hyphen or a dash before a letter, on both sides 
 never inside a minus sign's number. Line heights are read as a theme may set them: a number, a length, a percentage, `em`,
 `rem` or `normal`, which is Liberation Sans's ascent, descent and gap; a value the estimate cannot read (`var()`,
 `calc()`) leaves the inherited one standing. On the test fixture's slides and on trial decks it lands within half a pixel
-of Chrome printing in Liberation Sans. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out. Inter, SF and Segoe UI come first in the font stack
+of Chrome printing in Liberation Sans; a browser window with a scrollbar lays the page out 15 px narrower than it prints,
+so it is read at 1280 px without one. A slide over 720 px is refused with the texts the writer can shorten; the lists of questions are flowed by the code and left out, and a summary still over its page with each of the writer's texts cut to
+one word is the code's to fix: "the figures the code draws on slide 3 run over the page by themselves: report it". Inter, SF and Segoe UI come first in the font stack
 and are wider, so a host that has them can still run over: `pdf` does not run the estimate, and its page count is
 the final word. The theme of
 §Theme applies. wkhtmltopdf is not used: it does not read flex or grid. A browser prints with its sandbox or not at all. Where the system restricts unprivileged user namespaces (AppArmor on Ubuntu 23.10 and

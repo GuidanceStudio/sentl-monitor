@@ -40,8 +40,9 @@ The deck's slides, in order, for every client:
 2. **What this report shows**: the purpose, the two or three questions the report answers with one real example each, and how to read a figure.
 3. **In short** ("In sintesi"): the main finding, then the same groups of questions in the same order, each named in a
    few words (slide 2 asked its question), with its figure, drawn by the code, and one sentence on what lies behind it;
-   then the first suggested action and the slide that lists them all. A deck of one block draws its row larger. The
-   reader who stops here knows what was found and what to do first.
+   then the first suggested action and the slide that lists them all. A deck of one block draws its row larger; a block
+   with a figure per project draws each under the project's name. The reader who stops here knows what was found and
+   what to do first.
 4. **The evidence**, block by block: each slide opens with the group it belongs to, and shows the real answers. The first
    slide of presence also gives the subject's position among the names monitored, in one line under its chart.
 5. **How many answers cite each source**, the sources.
@@ -444,7 +445,9 @@ drawn by the code.
 
 `check` lays each slide out with the deck's style before any PDF, its text in Arial: "slide 5 runs over its page by about
 3 lines of text: shorten the title, read or excerpts of reach slide 1, or the what of action 1". Shorten one of the texts it
-names by at least that much. The lists of questions are flowed by the code and never refused.
+names by at least that much. The lists of questions are flowed by the code and never refused. "The figures the code
+draws on slide 3 run over the page by themselves: report it" means the summary runs over with each of its texts cut to
+one word: no text of yours makes it fit, so report it to the operator and leave the texts as they are.
 
 `check` reads a count in digits in any form: "9 of 12", "9 of the 12", "9 delle 12". A count beside a site, a page, an assistant
 or a competitor must be that name's, on the period, a block, the questions of its slide, a topic or one question: the refusal

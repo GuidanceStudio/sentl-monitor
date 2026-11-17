@@ -56,6 +56,12 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   writer's room; the check of each slide's height still keeps the summary on its page. A facts row whose label carries
   its source and date counts as two lines, so a facts slide of five such rows is drawn dense, and a dense slide of long
   labels keeps their smaller type.
+- On the summary, a block that draws a figure per project puts each project's name on a line of its own above its
+  figure, under a caption that leaves out the subject ("risposte favorevoli"), and such a summary draws its rows
+  tighter: with two figures in two of its three blocks, a one-line title, three found answers of two lines and a first
+  action of two lines, it fits a page. A summary that still runs over with each of the writer's texts cut to one word
+  is reported as the code's ("the figures the code draws on slide 3 run over the page by themselves: report it") in
+  place of asking the writer to shorten.
 
 ## 0.12.0 (2026-11-16)
 
