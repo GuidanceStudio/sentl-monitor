@@ -1434,9 +1434,9 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 
 **Done when:** the release page holds the zip and both installed copies report 0.12.0.
 
-## M39: A snapshot is designed as a study is, and differs only in what the schedule brings 🔄
+## M39: A snapshot is designed as a study is, and differs only in what the schedule brings ✅
 
-**Status:** approved 2026-11-16 and in progress: T1–T9 and T11–T17 are done (T15–T17 on the operator's go of 2026-11-17), and T10 runs before R15.
+**Status:** approved 2026-11-16; done 2026-11-17. T1–T17 done (T12–T17 found by the live check of T10, each on the operator's go of 2026-11-17).
 
 **Why:** the operator's principle (2026-11-16): a snapshot is a project without a schedule. The depth of the analysis, the starting points and the choice of models follow the same reasoning on both routes; only what the schedule brings differs. A project has a frequency and a monthly credit budget, set against the plan's monthly credits and the credits available; a snapshot has one cost, set against the credits available. Today the two routes part at the first step:
 
@@ -1490,7 +1490,8 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
   - `resume` finds the next step across several snapshots.
   - One snapshot with three completed runs at rounds 1 gives one period with three answers per question and model.
 - [x] T9 Playbooks and docs: SNAPSHOT.md, DESIGN.md, BRIEF.md, SETUP.md, ARCHITECTURE, CHANGELOG, README's route table.
-- [ ] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
+- [x] T10 Live check on the next prospect study, on the operator's go for each write and run: designed through `brief` and `design`, run as snapshots on Sentl, one deck.
+  - Result (2026-11-17): a prospect study of three snapshots (24 questions, three to four assistants, five runs a snapshot, 15 in all) went through `brief`, `design`, the snapshots' creation and saves on the operator's go, `download`/`import` of the exports, `bind`, `ingest` and one period; its full deck (13 slides) and quick deck (7) pass `check` and print one page a slide. It found T12–T17, each fixed before the deck went on.
 - [x] T11 Fixes from an independent review of T1–T9 (2026-11-16), each with a test that fails before the fix. Approved by the operator on 2026-11-16.
   - Runs ingested after a snapshot's deck has passed: `resume` compares the ingested runs with the runs the passed deck recorded, and sends the operator back to `period` and `deck` instead of `end`. A rebuilt snapshot period replaces the snapshot's deck instead of becoming a second edition that compares a run with a pool holding it. After `promote`, a run of a set-aside snapshot is refused by the study's `ingest`.
   - `ingest` refuses a run whose `project_id` is not the one bound to `--project`, including the ids set aside under `snapshots`.
