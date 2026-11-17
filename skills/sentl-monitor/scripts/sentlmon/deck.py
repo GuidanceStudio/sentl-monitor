@@ -24,7 +24,8 @@ from .adopt import missing_answers
 from .check import (COUNT, ELLIPSIS, OTHER_UNIT, QUOTED, _allowed, _figures, _pieces, _plain, _quoted_in, _ratio, _shown, _stops_matching, _unquote,
                     leaks)
 from .common import (REDIRECT_HOSTS, Refused, Study, first_mention, fmt_date, fold, is_owned, load_json, match_key,
-                     measured, passed_deck, require_language, span, theme_dimensions, write_json, write_text)
+                     measured, passed_deck, require_language, snapshot_parts, span, theme_dimensions, write_json,
+                     write_text)
 from .compare import STEPS, called
 from .i18n import DECK, join
 from .insights import TOP_SOURCES, classify, fact_terms, tight
@@ -64,7 +65,11 @@ LIMITS = {"title": 125, "answer": 170, "read": 210, "what": 175, "why": 175, "re
 # more than the reader takes in at a glance.
 WORD_LIMITS = {"title": 20, "answer": 25, "read": 25, "what": 20, "why": 20}
 SLIDE_WORDS = 230
-SUMMARY_WORDS = 120  # the summary, its labels and figures included (about 50 words for three groups): read in half a minute
+# The words of the writer's texts on a summary, read in half a minute: the full deck's title, found answers and first
+# action's what; the quick deck's title and projects' sentences. The labels and figures the code draws are not counted,
+# since they grow with the projects (about 50 words beside three figures, near 80 for two projects in two blocks): 70 is
+# the room three figures left of the 120 words that counted them. The page-fit check guards the layout.
+SUMMARY_WORDS = 70
 WORD = re.compile(r"[^\W_]+(?:['’.,/:-][^\W_]+)*")
 UNSAID = re.compile(r"\b(giudic\w*|judge\w*|letture|readings?|instabil\w*|unstable|deck)\b", re.I)
 CAUSED = re.compile(r"\b(grazie a\w*|per effetto|a causa d\w*|in seguito a\w*|thanks to|as a result of|because of|due to|caused by)\b", re.I)
@@ -249,6 +254,7 @@ td.class { font-weight: 700; }
 .bar { display: flex; gap: 2px; height: 28px; }
 .few .bar, .few .meter { height: 40px; }
 .dense { row-gap: 5px; font-size: 16px; }
+.dense.long { font-size: 15px; }
 .dense .bar, .dense .meter { height: 22px; }
 .seg { display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; overflow: hidden; min-width: 0; }
 .seg:first-child { border-radius: 4px 0 0 4px; }
@@ -294,7 +300,11 @@ def words(text):
 
 
 def _short(name, subject):
-    """A project's name with the subject it opens on taken off: the deck is about the subject already."""
+    """A project's name with the subject it opens on taken off: the deck is about the subject already. A snapshot named
+    `Snapshot · <subject> · <project> · <D>` is its project, whatever its subject part says."""
+    parts = snapshot_parts(name) or []
+    if len(parts) > 1:
+        return " · ".join(parts[1:])
     return re.sub(rf"^{re.escape(subject)}\s*[·:–-]\s*", "", name)
 
 
@@ -2239,10 +2249,15 @@ def _chart_legend(key, m, t, namesake=False):
                                                                                    if namesake else [])
 
 
-def _fact_label(row, t, lang, number=""):
+def _fact_source(row):
+    """The source a fact row prints under its label, with its date, on a second line; a row of questions prints none."""
     source = (row.get("source") or "").replace("https://", "").replace("www.", "").rstrip("/")
-    small = ""
-    if source and row.get("date") and row.get("key") is None:
+    return source if source and row.get("date") and row.get("key") is None else ""
+
+
+def _fact_label(row, t, lang, number=""):
+    source, small = _fact_source(row), ""
+    if source:
         where = t["fact_source"].format(source=source, date=fmt_date(row["date"], lang))
         asked = f' · {t["fact_from"].format(n=row["asked"])}' if row.get("asked", 0) > 1 else ""
         small = f'<small>{esc(where + asked)}</small>'
@@ -2252,7 +2267,9 @@ def _fact_label(row, t, lang, number=""):
 def _rows(key, rows, t, lang, m, grouped, excerpts):
     subject = m["subject"]
     long = " long" if any(len(r["label"]) > 60 for r in rows) else ""
-    height = len(rows) + 2 * excerpts + (len({r["project"] for r in rows}) if grouped else 0)
+    # A fact row's source line makes it two lines tall.
+    lines = sum(1 + bool(key == "facts" and _fact_source(r)) for r in rows)
+    height = lines + 2 * excerpts + (len({r["project"] for r in rows}) if grouped else 0)
     few = " few" if len(rows) <= 3 else " dense" if height > 8 else ""
     head = list(t["description_head_fidelity" if key == "description" and m["fidelity"] else f"{key}_head"])
     if rows and rows[0].get("key"):
@@ -3037,8 +3054,9 @@ def _slide_texts(kind, key, n, slide, doc):
 
 
 def _wordy(folder, study, period, doc, m):
-    """The content slides holding more words than SLIDE_WORDS, the summary more than SUMMARY_WORDS, each with the writer's
-    longest texts on it; the cover and the list of questions are not read as a slide is."""
+    """The content slides holding more words than SLIDE_WORDS, and the summary whose writer's texts hold more than
+    SUMMARY_WORDS, each with the writer's longest texts on it; the cover and the list of questions are not read as a
+    slide is. The labels and figures the code draws on the summary are not counted: the page-fit check guards them."""
     chosen = sentl_theme.resolve(folder)[0]
     order, slides = _slides(study, period, doc, m, chosen)
     seen, out = Counter(), []
@@ -3046,13 +3064,16 @@ def _wordy(folder, study, period, doc, m):
         seen[key] += 1
         if kind in ("cover", "questions"):
             continue
-        shown = html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<footer.*?</footer>", "", section)))
-        ceiling = SUMMARY_WORDS if kind == "found" else SLIDE_WORDS
-        if words(shown) <= ceiling:
-            continue
         texts = sorted(((f, words(x)) for f, x in _slide_texts(kind, key, seen[key], slide, doc) if words(x)), key=lambda fx: -fx[1])
+        if kind == "found":
+            count, ceiling, held = sum(w for _, w in texts), SUMMARY_WORDS, "words of the writer's texts"
+        else:
+            shown = html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<footer.*?</footer>", "", section)))
+            count, ceiling, held = words(shown), SLIDE_WORDS, "words"
+        if count <= ceiling:
+            continue
         longest = ", ".join(f"{f} ({w} words)" for f, w in texts[:3])
-        out.append(f"slide {n} holds {words(shown)} words, at most {ceiling}: "
+        out.append(f"slide {n} holds {count} {held}, at most {ceiling}{' on the summary' * (kind == 'found')}: "
                    + (f"shorten {longest}" if longest else "it holds no text of the writer's: report it"))
     return out
 

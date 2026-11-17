@@ -9,6 +9,7 @@ from unittest import mock
 
 import fixtures  # noqa: F401  (puts the skill's scripts on the path)
 from sentlmon import deck, quick
+from test_insights_period import OCT, rows
 from test_quick import DATE, TODO, QuickCase
 
 
@@ -110,7 +111,8 @@ class SummaryTest(QuickCase, unittest.TestCase):
     def test_the_summary_slide_has_its_ceiling_in_words(self):
         doc = self.filled()
         with mock.patch.object(deck, "SUMMARY_WORDS", 30):
-            self.assertRegex(self.problems(doc), r"slide 2 holds \d+ words, at most 30: shorten summary of market \(\d+ words\), summary title \(\d+ words\)")
+            self.assertRegex(self.problems(doc), r"slide 2 holds \d+ words of the writer's texts, at most 30 on the summary: "
+                                                 r"shorten summary of market \(\d+ words\), summary title \(\d+ words\)")
 
     def test_a_figure_the_period_does_not_hold_is_refused(self):
         doc = self.filled()
@@ -124,6 +126,59 @@ class SummaryTest(QuickCase, unittest.TestCase):
         summary = self.summary()
         self.assertIn("In short", summary)
         self.assertIn("answers naming Avenello", summary)
+
+
+class SummaryRoomTest(QuickCase, unittest.TestCase):
+    """The summary's ceiling counts the writer's texts only (M39 T15): beside the six figures of three projects, the
+    writer has the full deck's room."""
+
+    def setUp(self):
+        super().setUp()
+        self.adopt_audience("trade", 602, "Avenello · Chi lavora nel settore", 9201, OCT[0], rows())
+        self.adopt_audience("online", 603, "Avenello · Chi compra la spesa online", 9301, OCT[0], rows())
+        self.build(DATE)
+        self.path.unlink()
+        self.cli("deck", "--quick", "--study", self.study, "--date", DATE, check=0)
+
+    def at(self, n):
+        """The deck with the summary's texts, its title and the three projects' sentences, holding n words."""
+        doc = self.filled()
+        first = {r["dimension"]: r for r in doc["slides"][0]["rows"]}
+        for slide in doc["slides"][1:]:
+            slide.update(question=doc["slides"][0]["question"], title=doc["slides"][0]["title"])
+            for row in slide["rows"]:
+                # Each project's topic keys are the market's with a number: prezzo-2 is the market's prezzo.
+                same = first[row["dimension"].split("-")[0]]
+                row.update(says=same["says"], excerpt=same["excerpt"])
+        title, *sentences = (n // 4 + (i < n % 4) for i in range(4))
+        doc["summary"] = {"title": words(title), "projects": {s["project"]: words(k) for s, k in zip(doc["slides"], sentences)}}
+        return doc
+
+    def test_the_writer_has_the_full_deck_s_room_whatever_the_figures_beside_them(self):
+        doc = self.at(deck.SUMMARY_WORDS)
+        self.save_doc(doc)
+        summary = quick.page_of(self.study, DATE)[0].split("<section ")[2]
+        self.assertEqual(summary.count('class="sum-fig"'), 6)
+        self.assertEqual(self.problems(doc), "")
+
+    def test_one_word_over_is_refused(self):
+        self.assertIn(f"slide 2 holds {deck.SUMMARY_WORDS + 1} words of the writer's texts, at most {deck.SUMMARY_WORDS} "
+                      "on the summary: shorten", self.problems(self.at(deck.SUMMARY_WORDS + 1)))
+
+
+class SnapshotNameTest(QuickCase, unittest.TestCase):
+    """A project named as SNAPSHOT.md names a snapshot is shown by its project part (M39 T15)."""
+
+    def test_the_quick_deck_shows_the_project_part_alone(self):
+        study = self.read("study.json")
+        study["projects"][0]["name"] = "Snapshot · Gruppo Avenello · Mercato · 2026-10-04"
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.cli("deck", "--quick", "--study", self.study, "--date", DATE, check=0)
+        self.save_doc(self.filled())
+        text = quick.page_of(self.study, DATE)[0]
+        self.assertIn('<div class="sum-group">Mercato</div>', text)
+        for part in ("Snapshot", "Gruppo Avenello", "2026-10-04"):
+            self.assertNotIn(part, text)
 
 
 class ActionsTest(QuickCase, unittest.TestCase):

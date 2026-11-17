@@ -50,6 +50,12 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   `ingest` of a run already ingested matches it again when the version in force at its start changed, and says so.
 - A theme that feeds several dimensions, its `dimension` a list of keys as `validate` accepts, no longer stops `deck`
   and `deck --quick` with exit 6; `review` lists its keys.
+- A project named as a snapshot, `Snapshot · <subject> · <project> · <date>`, is shown in both decks by its project
+  part, without "Snapshot", the subject or the date. The summary's ceiling counts the writer's texts only, 70 words on
+  either deck (`SUMMARY_WORDS`), so the labels and figures the code draws for several projects no longer take the
+  writer's room; the check of each slide's height still keeps the summary on its page. A facts row whose label carries
+  its source and date counts as two lines, so a facts slide of five such rows is drawn dense, and a dense slide of long
+  labels keeps their smaller type.
 
 ## 0.12.0 (2026-11-16)
 

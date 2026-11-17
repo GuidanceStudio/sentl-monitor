@@ -316,6 +316,21 @@ class StudyCase:
         return self.cli("ingest", "--study", self.study, "--project", "market",
                         "--results", self.save(f"m-{run_id}.json", results(run_id, started, rows)), check=0)
 
+    def adopt_audience(self, key, project_id, name, run_id, started, rows):
+        """Another project with the market project's questions, asked for another audience: adopted, its themes given an
+        origin, and the run `run_id` ingested. Its price question records no fact."""
+        data = market_project()
+        data["project"].update(id=project_id, name=name)
+        self.cli("adopt", "--study", self.study, "--project", self.save(f"{key}.json", data),
+                 "--run", self.save(f"{key}-run.json", results(run_id - 1, "2026-08-31T06:00:00Z", rows, project_id)),
+                 "--key", key, check=0, at="2026-09-01T00:00:00Z")
+        study = self.read("study.json")
+        for theme in study["themes"]:
+            theme["origins"] = theme.get("origins") or [{"kind": "client_issue", "detail": "Domande al servizio clienti, 2026"}]
+        (self.study / "study.json").write_text(json.dumps(study, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.cli("ingest", "--study", self.study, "--project", key,
+                 "--results", self.save(f"{key}-{run_id}.json", results(run_id, started, rows, project_id)), check=0)
+
     def ingest_all(self, runs):
         for data in runs:
             self.ingest(data, name=f"run-{data['run']['id']}.json")

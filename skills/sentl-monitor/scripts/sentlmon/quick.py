@@ -421,16 +421,17 @@ def _summary_figures(doc):
                        "something else" for (a, b), n in seen.items() if n > deck.MAX_REPEATS]
 
 
-def _summary_words(doc, m, t, layout):
-    """The summary holding more words than the full deck's summary may, with the writer's longest texts on it."""
-    shown = html.unescape(re.sub(r"<[^>]+>", " ", _summary_html(doc, m, t, layout)))
-    if deck.words(shown) <= deck.SUMMARY_WORDS:
-        return []
+def _summary_words(doc):
+    """The summary whose writer's texts hold more words than the full deck's summary allows, with the longest of them.
+    The names and figures the code draws are not counted: the page-fit check guards them."""
     title, written = _summary_of(doc)
     texts = sorted(((f, deck.words(x)) for f, x in [(SUMMARY_TITLE, title)] + [(f"summary of {k}", x) for k, x in written.items()]
                     if deck.words(x)), key=lambda fx: -fx[1])
+    count = sum(w for _, w in texts)
+    if count <= deck.SUMMARY_WORDS:
+        return []
     longest = ", ".join(f"{f} ({w} words)" for f, w in texts[:3])
-    return [f"slide 2 holds {deck.words(shown)} words, at most {deck.SUMMARY_WORDS}: shorten {longest}"]
+    return [f"slide 2 holds {count} words of the writer's texts, at most {deck.SUMMARY_WORDS} on the summary: shorten {longest}"]
 
 
 def _owns(action, m):
@@ -527,7 +528,7 @@ def problems_of(folder, study, period, doc, layout=True):
     # A deck whose slides are not the period's is not laid out: its rows would be drawn from what is missing.
     if structure:
         return problems
-    problems += _summary_words(doc, m, DECK[lang], plan)
+    problems += _summary_words(doc)
     return problems + (_overflowing(folder, study, period, doc, m, plan) if layout else [])
 
 

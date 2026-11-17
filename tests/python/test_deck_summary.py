@@ -9,8 +9,9 @@ from unittest import mock
 import fixtures  # noqa: F401  (puts the skill's scripts on the path)
 from sentlmon import deck
 from test_deck import DATE
-from test_deck_brief import Rendered
+from test_deck_brief import Rendered, words
 from test_deck_presence import AWAY, HOME, reach_row
+from test_insights_period import OCT, rows
 
 
 def text_of(section):
@@ -145,7 +146,8 @@ class SummaryWordsTest(Rendered, unittest.TestCase):
         doc["found"]["title"] = " ".join(["parola"] * 15) + "."
         with mock.patch.object(deck, "SUMMARY_WORDS", 40):
             found = self.problems(doc)
-        self.assertRegex(found, r"slide 3 holds \d+ words, at most 40: shorten found title \(15 words\)")
+        self.assertRegex(found, r"slide 3 holds \d+ words of the writer's texts, at most 40 on the summary: shorten found "
+                                r"title \(15 words\)")
         with mock.patch.object(deck, "SLIDE_WORDS", 40):
             self.assertNotIn("slide 3 holds", self.problems(doc))
 
@@ -153,7 +155,66 @@ class SummaryWordsTest(Rendered, unittest.TestCase):
         doc = self.filled()
         doc["actions"][0]["what"] = " ".join(["parola"] * 17) + " su avenello.example"
         with mock.patch.object(deck, "SUMMARY_WORDS", 40):
-            self.assertRegex(self.problems(doc), r"slide 3 holds \d+ words, at most 40: shorten action 1 what \(19 words\)")
+            self.assertRegex(self.problems(doc), r"slide 3 holds \d+ words of the writer's texts, at most 40 on the summary: "
+                                                 r"shorten action 1 what \(19 words\)")
+
+
+class SummaryRoomTest(Rendered, unittest.TestCase):
+    """The summary's ceiling counts the writer's texts only (M39 T15): beside the five figures of two projects in two
+    blocks, the writer has the room three figures left when the code's words counted."""
+
+    def setUp(self):
+        super().setUp()
+        self.adopt_audience("trade", 602, "Avenello · Chi lavora nel settore", 9201, OCT[0], rows())
+        self.build(DATE)
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+
+    def at(self, n):
+        """The deck with the summary's texts, its title, the three answers and the first action's what, holding n words."""
+        doc = self.filled()
+        found = doc["found"]
+        texts = [(found, "title"), *((found["answers"], k) for k in ("reach", "description", "facts")), (doc["actions"][0], "what")]
+        for (parent, field), size in zip(texts, (n // 5 + (i < n % 5) for i in range(5))):
+            parent[field] = f"{parent[field]} {words(size - deck.words(parent[field]))}"
+        # Two projects make the price question the description's most unfavourable: it is drawn as a row of its own.
+        doc["blocks"]["description"][0]["rows"] = "questions"
+        return doc
+
+    def test_the_writer_has_70_words_whatever_the_figures_beside_them(self):
+        self.assertEqual(deck.SUMMARY_WORDS, 70)
+        doc = self.at(deck.SUMMARY_WORDS)
+        self.assertEqual(self.section(doc, "found").count('class="sum-fig"'), 5)
+        self.assertEqual(self.problems(doc), "")
+
+    def test_one_word_over_is_refused(self):
+        self.assertIn(f"slide 3 holds {deck.SUMMARY_WORDS + 1} words of the writer's texts, at most {deck.SUMMARY_WORDS} "
+                      "on the summary: shorten found title", self.problems(self.at(deck.SUMMARY_WORDS + 1)))
+
+
+class SnapshotNameTest(Rendered, unittest.TestCase):
+    """A project named as SNAPSHOT.md names a snapshot is shown by its project part (M39 T15)."""
+
+    NAME = "Snapshot · Gruppo Avenello · Mercato · 2026-10-04"
+
+    def test_a_snapshot_s_short_name_is_its_project(self):
+        self.assertEqual(deck._short(self.NAME, "Avenello"), "Mercato")
+        self.assertEqual(deck._short("Snapshot · Avenello · Con il marchio · 2026-10-04", "Avenello"), "Con il marchio")
+
+    def test_any_other_name_reads_as_before(self):
+        self.assertEqual(deck._short("Avenello · Mercato", "Avenello"), "Mercato")
+        self.assertEqual(deck._short("Snapshot · Avenello · 2026-10-22", "Avenello"), "Snapshot · Avenello · 2026-10-22")
+        self.assertEqual(deck._short("Snapshot · Gruppo Avenello · Mercato", "Avenello"), "Snapshot · Gruppo Avenello · Mercato")
+
+    def test_the_deck_shows_the_project_part_alone(self):
+        study = self.read("study.json")
+        study["projects"][0]["name"] = self.NAME
+        (self.study / "study.json").write_text(deck.json.dumps(study, ensure_ascii=False), encoding="utf-8")
+        self.cli("deck", "--study", self.study, "--date", DATE, check=0)
+        self.save_doc(self.filled())
+        text = deck.page_of(self.study, DATE)[0]
+        self.assertIn('<td class="class">Mercato</td>', text)
+        for part in ("Snapshot", "Gruppo Avenello", "2026-10-04"):
+            self.assertNotIn(part, text)
 
 
 class LimitTest(Rendered, unittest.TestCase):

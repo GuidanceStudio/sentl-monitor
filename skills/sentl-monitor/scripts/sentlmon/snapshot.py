@@ -8,7 +8,7 @@ from pathlib import Path
 from . import demand, design, schema
 from .adopt import namesake_problems
 from .common import (FINAL, Refused, Study, folded, load_json, match_key, now_iso, passed_deck, public_name,
-                     write_json, write_text)
+                     snapshot_parts, write_json, write_text)
 
 CATALOGUE = Path(__file__).resolve().parents[2] / "design" / "catalogue.md"
 DIMENSIONS = (4, 5)
@@ -390,10 +390,8 @@ def _per_project(answers, field, keys, allowed, gaps, required=True):
 
 def _study_name(name):
     """`<subject> · <project>` from a snapshot named `Snapshot · <subject> · <project> · <D>`."""
-    parts = name.split(" · ")
-    if len(parts) >= 3 and parts[0] == "Snapshot" and re.fullmatch(r"\d{4}-\d{2}-\d{2}", parts[-1]):
-        return " · ".join(parts[1:-1])
-    return name
+    parts = snapshot_parts(name)
+    return " · ".join(parts) if parts else name
 
 
 def _follow(root, study, answers_file, models_file):

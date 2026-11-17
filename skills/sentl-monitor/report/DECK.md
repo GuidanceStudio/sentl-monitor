@@ -330,11 +330,11 @@ A topic name ("Cash flow", "Pricing") is fine as a label in the chart. In a sent
 the chart and the table print their figures, and the sentence beside them says what lies behind. `check` counts words as
 the reader reads them, a figure or an address being one: a title at most 20, a found answer and a slide's read at most 25,
 an action's what and its why at most 20 each. A content slide holds at most 230 words, counting what the code draws on it
-and leaving out the footer; the cover and the list of questions are not counted. Slide 3, the summary, holds at most 120,
-read in half a minute: the group labels, figures and captions the code draws take about 50 for three groups, which leaves
-about 70 for the title, the found answers and the first action's what. Over a ceiling, `check` names the slide and its
-longest texts: cut those first, then an excerpt to the clause that shows the finding. A figure said more than twice on
-the summary is refused: say it once.
+and leaving out the footer; the cover and the list of questions are not counted. On slide 3, the summary, read in half a
+minute, the title, the found answers and the first action's what hold at most 70 words together; the group labels,
+figures and captions the code draws are not counted, however many projects it draws, and `check` still refuses a slide
+taller than its page. Over a ceiling, `check` names the slide and its longest texts: cut those first, then an excerpt to
+the clause that shows the finding. A figure said more than twice on the summary is refused: say it once.
 
 **Titles.** Plain declarative sentences saying what was found, in words the manager would use with a colleague. Say the
 content, not the statistic: "People looking for an oat drink find Avoria and Oatfield long before Avenello" says more

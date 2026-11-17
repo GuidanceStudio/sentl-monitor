@@ -2101,6 +2101,19 @@ class FactsRowsTest(unittest.TestCase):
         row = deck._by_fact([self.row("a", "Prezzo", ["7 €"], 10, 4)], True)[0]
         self.assertIn("Fonte: acme.example/prezzi, 1° ottobre 2026", deck._fact_label(row, deck.DECK["it"], "it"))
 
+    def test_five_facts_with_their_source_lines_are_drawn_dense(self):
+        t, m = deck.DECK["it"], {"subject": "Avenello", "fidelity": False}
+        rows = deck._by_fact([self.row(k, f"Prezzo {k}", [f"{n} €"], 10, 4) for n, k in enumerate("abcde", 1)], True)
+        self.assertTrue(all("<small>" in deck._fact_label(r, t, "it") for r in rows))
+        self.assertIn('class="rows facts-rows dense"', deck._rows("facts", rows, t, "it", m, False, 0))
+        bare = [{**r, "source": None} for r in rows]
+        self.assertIn('class="rows facts-rows"', deck._rows("facts", bare, t, "it", m, False, 0))
+
+    def test_a_dense_slide_of_long_labels_keeps_their_smaller_type(self):
+        sizes = {sel: float(px) for sel, px in re.findall(r"^(\.[\w.]+) \{[^}]*?font-size: ([\d.]+)px", deck.STYLE, re.M)}
+        self.assertLessEqual(sizes[".dense.long"], sizes[".long"])
+        self.assertLess(deck.STYLE.index(".dense {"), deck.STYLE.index(".dense.long {"))
+
 
 class ReaderWordsTest(DeckCase, unittest.TestCase):
     """The reader has the words of the market, not those of the study."""

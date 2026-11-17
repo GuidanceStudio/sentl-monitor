@@ -88,8 +88,8 @@ own market: it names the subject, or says that the people asking do not name it.
 **`summary`**, once the slides are written. The figures file gives each project's figure under "Slide 2: summary". The
 title says the one finding the reader should keep, across projects. Each project's sentence says what its slides add up
 to: where the answers fall short and why, or which names they give instead of the subject. It gives a fact the figure
-does not: a part of it a row draws, a competitor, a topic. Slide 2 holds at most 120 words, what the code draws on it
-included: over that, `check` names its longest texts.
+does not: a part of it a row draws, a competitor, a topic. On slide 2 the title and the projects' sentences hold at most
+70 words together; the names and figures the code draws are not counted. Over that, `check` names the longest texts.
 
 **`actions`**. The quick deck reads no page, so each action is one the reader can take from what the answers show, without
 asking anyone. Find them in the rows you wrote, in this order:

@@ -379,5 +379,14 @@ def theme_dimensions(theme):
     return list(target) if isinstance(target, list) else [target]
 
 
+def snapshot_parts(name):
+    """The parts between `Snapshot` and the date of a snapshot's name, `Snapshot · <subject> · <project> · <D>` as
+    SNAPSHOT.md names it, or `Snapshot · <subject> · <D>` before M39; None for any other name."""
+    parts = name.split(" · ")
+    if len(parts) >= 3 and parts[0] == "Snapshot" and re.fullmatch(r"\d{4}-\d{2}-\d{2}", parts[-1]):
+        return parts[1:-1]
+    return None
+
+
 def now_iso():
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
