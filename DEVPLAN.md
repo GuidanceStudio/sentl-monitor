@@ -1544,6 +1544,7 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 3. A snapshot proposes 3 rounds by default, as a project, and `review` shows the cost of 1 round as well.
 
 **Change of 2026-11-16 (operator), replacing the first version of decisions 2 and 3:** a snapshot takes `rounds` exactly as a project does, and nothing but the schedule differs. Sentl does not allow it yet: `create-snapshot-tool` has no rounds parameter and `update-project-settings-tool` refuses rounds other than 1 on a snapshot. It is filed with Sentl as a feature request, and the skill is built as if Sentl had it. Until Sentl ships rounds on snapshots, a snapshot of more than 1 round is refused at creation, and the route stops with Sentl's code and message. Meanwhile the operator runs a snapshot of 1 round several times by hand, three runs one after the other, to reach three answers per question and model. The skill does not drive those runs and has no `runs` field; it reads every completed run each snapshot holds.
+Sentl shipped rounds on snapshots on 2026-11-17 (1 to 10, 5 when left out); M40 removes the stopgap.
 
 **Choices the plan left open (executor, 2026-11-16), each the smallest change:**
 
@@ -1563,6 +1564,25 @@ The audit by a stronger model stays out of the skill: the operator chose this pa
 14. A folder whose snapshots were all closed before a run of them was ingested ends at `resume`'s existing step `done`, with a line saying that no deck is written, instead of a new step name; `period` tells a snapshot never created (no version recorded) from one never run (T11).
 
 **Done when:** a snapshot and a study of one subject come out of the same `brief` and `design` with the same themes, personas and models; they differ only in schedule, report cadence and the cost shown; every rule has a test; the full suite passes; and the live check produced one deck from several snapshots.
+
+## M40: Snapshots take their rounds in Sentl ✅
+
+**Status:** approved 2026-11-17 (operator: "if yes, update the skill", once Sentl was found to take rounds on snapshots); done 2026-11-17.
+
+**Why:** Sentl takes rounds on a snapshot since 2026-11-17, deployed to production the same day: `create-snapshot-tool` takes `rounds` from 1 to 10 and creates a snapshot of 5 rounds when `rounds` is missing or null, and `update-project-settings-tool` takes `rounds` from 1 to 10 on a snapshot. M39 built the skill as if Sentl had it, with two stopgaps that are now wrong or obsolete: the creation sends `rounds` only above one, which today makes a snapshot of 1 round run five, at five times its estimate; and the playbooks tell the operator to run a snapshot of 1 round several times by hand to reach several answers per question and model.
+
+**Tasks:**
+
+- [x] T1 `payload` for `create-snapshot-tool` always carries the snapshot's `rounds`, 1 included. `update-project-settings-tool` on a snapshot sends `rounds` when they differ from Sentl's, as it does on a project.
+  - Result: `create-snapshot-tool` carries `rounds` at every value; the settings call on a snapshot carries `rounds` whenever it is made (name, models or rounds differ, or a pause), as on a project. The earlier-shape snapshot keeps its rule of 1 round (`snapshot.py`), and now sends `rounds: 1` too.
+- [x] T2 The skill does not copy Sentl's ceiling of 10 rounds on a snapshot (operator, 2026-11-17: the limit is Sentl's product choice and may change). `validate` and `review` keep today's rule for a snapshot's rounds as for a project's: an integer, 1 or more. A snapshot of more rounds than Sentl takes is refused by Sentl with `invalid_argument`, and the route stops with Sentl's code and message, as for any write refusal. The default stays 3 rounds (operator's decision of 2026-11-16); Sentl's default of 5 is never relied on, since the skill always sends the rounds.
+  - Result: no check added; the docs name Sentl's 1 to 10 only where they describe Sentl's tools.
+- [x] T3 SNAPSHOT.md, DESIGN.md, SETUP.md, ARCHITECTURE.md and the code comments drop the stopgap: no refusal "until Sentl ships rounds on snapshots", no snapshot of 1 round run several times by hand as the way to reach several answers. A snapshot run again by hand is still read: `period` pools every completed run. M39's "Change of 2026-11-16" gets a line saying Sentl shipped it on 2026-11-17.
+  - Result: SNAPSHOT.md steps 6 and 8, ARCHITECTURE.md snapshot step 6 and the tool table, and `setup.py`'s comment rewritten; DESIGN.md, SETUP.md and README held no stopgap and are unchanged.
+- [x] T4 Tests: the creation payload carries `rounds: 1` and `rounds: 3`; a settings payload on a snapshot carries changed rounds, and carries the rounds when it is made for another change; a snapshot of 11 rounds passes `validate`, since the skill sets no ceiling of its own.
+  - Result: `test_snapshot_design.py` and `test_snapshot.py` (earlier shape, now `rounds: 1`); red before T1, green after.
+
+**Done when:** a snapshot's rounds reach Sentl as the study sets them, with no limit of the skill's own, the playbooks describe Sentl as it is, and the full suite passes.
 
 ## R15: Release 0.13.0
 

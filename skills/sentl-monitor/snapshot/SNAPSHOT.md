@@ -128,12 +128,12 @@ here starts a run. First, the snapshot:
 python3 <skill>/scripts/monitor.py payload --study "$S" --project K --models "$S/inbox/models.json"
 ```
 
-The output holds `create-snapshot-tool` with the snapshot's name, its models and, above one round,
-its `rounds`. A snapshot has no schedule and takes none of the plan's project slots, so the plan's
-project limit does not apply to it. Show it and ask for the go; on the go call it with exactly those
-arguments. A Sentl that does not take rounds on a snapshot yet refuses them, at creation or in the
-`update-project-settings-tool` call the next payload holds: stop, and give the operator Sentl's
-code and message. There is no fallback to several runs.
+The output holds `create-snapshot-tool` with the snapshot's name, its models and its `rounds`,
+1 included, since Sentl creates a snapshot of 5 rounds when they are left out. A snapshot has no
+schedule and takes none of the plan's project slots, so the plan's project limit does not apply to
+it. Show it and ask for the go; on the go call it with exactly those arguments. Sentl takes 1 to 10
+rounds on a snapshot. When it refuses the call, or the `update-project-settings-tool` call the next
+payload holds, stop and give the operator Sentl's code and message.
 Call `get-project-tool` on the id it returns, save the response to `$S/inbox/created.json` and
 bind it:
 
@@ -178,8 +178,8 @@ nothing, and tell the operator. Otherwise, only on the operator's explicit go af
 call `trigger-run-tool` once, with the snapshot's project id.
 Every start of a snapshot run sends `confirm: true`, which Sentl requires on a snapshot, and only
 after the operator's yes on that run's estimate. This holds for a run started again after a stall
-or by hand. Once its run is final, `resume` moves to the next snapshot's step 7. The operator may run a snapshot again by hand, for instance
-one of 1 round three times: every completed run of every snapshot goes in the period.
+or by hand. Once its run is final, `resume` moves to the next snapshot's step 7. The operator may run a snapshot again by hand:
+every completed run of every snapshot goes in the period.
 
 If it is refused, tell the operator the code and message as Sentl gave them, and activate
 nothing: a snapshot is not activated. A run that ends `stalled` (the queue did not pick it up) was

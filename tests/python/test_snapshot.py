@@ -310,11 +310,12 @@ class PayloadSnapshotTest(SnapshotCase):
         self.assertEqual(sorted(k for k in out if k in TOOLS), ["create-snapshot-tool"])
         self.assertEqual(out["create-snapshot-tool"], {
             "organization": "example-org", "name": f"Snapshot · Avenello · {DATE}",
-            "researcher_model_ids": [GPT, GEM]})
+            "researcher_model_ids": [GPT, GEM], "rounds": 1})
 
-    def test_the_create_arguments_carry_no_rounds_no_schedule_and_no_activation(self):
+    def test_the_create_arguments_carry_one_round_no_schedule_and_no_activation(self):
         args = self.payload()["create-snapshot-tool"]
-        for field in ("rounds", "schedule_frequency", "is_active"):
+        self.assertEqual(args["rounds"], 1)
+        for field in ("schedule_frequency", "is_active"):
             self.assertNotIn(field, args)
 
     def test_a_bound_snapshot_saves_one_project_with_its_four_dimensions_and_asks_for_no_settings_change(self):

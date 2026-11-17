@@ -100,6 +100,11 @@ class ValidateTest(SnapshotDesignCase):
         self.assertIn("warning: project brand gives 1 answer per question and model in its run (3 or more are "
                       "expected)", proc.stdout)
 
+    def test_eleven_rounds_pass_on_a_snapshot_since_sentl_owns_its_limit(self):
+        proc = self.validate(as_snapshot(mutated(lambda s: None), rounds=11))
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("  warning:", proc.stdout)
+
     def test_a_snapshot_with_no_themes_is_checked_under_the_earlier_rules_and_the_output_says_so(self):
         proc = self.validate({**clean_snapshot_study(), "themes": []})
         self.assertEqual(proc.returncode, 1, proc.stdout)
@@ -162,9 +167,10 @@ class PayloadTest(SnapshotDesignCase):
             "organization": "example-org", "name": self.design["projects"][0]["name"],
             "researcher_model_ids": self.design["projects"][0]["models"], "rounds": 3})
 
-    def test_at_one_round_the_create_call_leaves_the_rounds_out(self):
+    def test_at_one_round_the_create_call_carries_rounds_1(self):
+        # Sentl creates a snapshot of 5 rounds when rounds is left out, so 1 is sent as any other value.
         self.put(as_snapshot(mutated(lambda s: None), rounds=1))
-        self.assertNotIn("rounds", self.payload()["create-snapshot-tool"])
+        self.assertEqual(self.payload()["create-snapshot-tool"]["rounds"], 1)
 
     def test_every_project_of_the_study_is_created_as_a_snapshot(self):
         out = self.payload("category")
@@ -179,6 +185,15 @@ class PayloadTest(SnapshotDesignCase):
         self.assertEqual(update["project_id"], PROJECT_ID)
         self.assertNotIn("schedule_frequency", update)
         self.assertNotIn("is_active", update)
+
+    def test_a_settings_call_for_another_change_carries_the_rounds_as_a_projects_does(self):
+        self.bind(empty_project(self.design, project_id=PROJECT_ID))
+        saved = sentl_project(self.design, project_id=PROJECT_ID, edit=lambda p: p.update(name="Snapshot · earlier"))
+        self.bind(saved)
+        update = self.payload(saved=saved)["update-project-settings-tool"]
+        self.assertEqual(update["name"], self.design["projects"][0]["name"])
+        self.assertEqual(update["rounds"], 3)
+        self.assertNotIn("schedule_frequency", update)
 
     def test_rounds_sentl_already_holds_ask_for_no_settings_call(self):
         self.bind(empty_project(self.design, project_id=PROJECT_ID))

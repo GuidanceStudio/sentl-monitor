@@ -15,9 +15,8 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
 - `validate` runs the study's checks on a snapshot, plus the absence of a schedule and of a report cadence. A snapshot
   folder of the earlier shape (four or five dimensions of one question, no themes) keeps its rules, and `period`,
   `deck` and `compare` still read it.
-- Each project of a snapshot is one snapshot in Sentl with `rounds`, 3 proposed: `payload` puts them in
-  `create-snapshot-tool` above one round and in `update-project-settings-tool` when they differ. A Sentl that refuses
-  them stops the route with its code and message.
+- Each project of a snapshot is one snapshot in Sentl with `rounds`, 3 proposed; `payload` sends them as the last
+  bullet of this section says.
 - Models: two families or more, one that searches the web, the audience's assistants; `review` prints each project's
   models with their tariff per call and the credits of one run, and warns on a project of one family.
 - Cost: `review --monthly-credits --credits-available` sets a study's credits per 30 days against the plan, and a
@@ -68,6 +67,11 @@ A snapshot is designed exactly as a study is, and differs from it only in schedu
   naming a site ("avenello.example (azioni 1 e 3)"), where it kept the first one only. On a quick summary of several
   projects the caption of the favourable answers leaves out the subject ("risposte favorevoli"), as on the full deck;
   the answers naming the subject keep it, and a quick summary of one project is drawn as before.
+- `payload` always puts a snapshot's `rounds` in `create-snapshot-tool`, 1 included, since Sentl creates a snapshot of
+  5 rounds when they are left out, and in every `update-project-settings-tool` call on a snapshot, as on a project.
+  Sentl takes 1 to 10 rounds on a snapshot since 2026-11-17; the skill sets no limit of its own, and a refusal stops
+  the route with Sentl's code and message. The `snapshot` playbook no longer has the operator run a snapshot of 1 round
+  several times by hand to reach several answers; a snapshot run again by hand is still read.
 
 ## 0.12.0 (2026-11-16)
 

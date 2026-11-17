@@ -845,10 +845,11 @@ The earlier version ran on Sentl end to end on 2026-11-07 with skill 0.6.0 (M10)
    snapshots or dimensions to leave out, recorded in `narrative.design_rationale`. Stops for the
    operator's approval.
 6. **Snapshots.** For each project: `monitor.py payload` builds `create-snapshot-tool` with the
-   name, the models and, above one round, `rounds`; on the go it is created, `get-project-tool`
-   saved and bound; then `save-project-questions-tool` with `dry_run: true` and for real, and bound
-   again. A Sentl that refuses rounds on a snapshot stops the route with its code and message; there
-   is no fallback to several runs.
+   name, the models and `rounds`, always sent, since Sentl creates a snapshot of 5 rounds without
+   them; on the go it is created, `get-project-tool` saved and bound; then
+   `save-project-questions-tool` with `dry_run: true` and for real, and bound again. Sentl takes 1 to
+   10 rounds on a snapshot; a refusal of the rounds stops the route with Sentl's code and message, as
+   any refusal of a write does.
 7. **Cost.** Before each snapshot's run, `estimate-run-tool` saved to `inbox/estimate-<key>.json`
    and shown in Sentl credits. Stops for the go.
 8. **Run.** On the go, `trigger-run-tool` once for that snapshot. The snapshots run one after the
@@ -929,8 +930,8 @@ operator's approval in that session.
 | `list-runs-tool` (R) | | | pending runs | runs available | new runs | follow the run |
 | `get-run-results-tool` (R) | | | ingest pending runs | | ingest | ingest |
 | `create-project-tool` (W) | | | new project, paused | | | a project of the earlier shape, paused, no schedule |
-| `create-snapshot-tool` (W) | | | | | | one snapshot per project, with its rounds above one |
-| `update-project-settings-tool` (W) | | | settings, activation on go | | | rounds that differ, or a pause |
+| `create-snapshot-tool` (W) | | | | | | one snapshot per project, with its rounds |
+| `update-project-settings-tool` (W) | | | settings, activation on go | | | name, models or rounds that differ, or a pause |
 | `save-project-questions-tool` (W) | | | dry run, then save | | | dry run, then save |
 | `trigger-run-tool` (W) | | | first run on go | | | one run per snapshot, each on its own go, with `confirm: true` |
 | `delete-snapshot-tool` (W) | | | | | | a snapshot the operator deletes, on go |
